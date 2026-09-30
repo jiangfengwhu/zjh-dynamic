@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { ScrollView, Text, View, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import { Alert, ScrollView, Text, View, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import Markdown from "react-native-markdown-display";
 import { BackChip, Icon, Pressy, Surface } from "../../ui/chrome";
 import { themedStyleSheet, useTheme } from "../../ui/theme";
@@ -89,20 +89,25 @@ function NotepadApp() {
           <View style={styles.actions}>
             <Pressy
               accessibilityRole="button"
+              accessibilityLabel={preview ? "返回编辑" : "预览笔记"}
               onPress={() => setPreview(!preview)}
               scale={0.9}
               style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: preview ? colors.orchid : colors.line }]}
             >
-              <Icon name="info" size={18} color={preview ? colors.orchid : colors.ink1} strokeWidth={2} />
+              <Icon name={preview ? "edit" : "eye"} size={18} color={preview ? colors.orchid : colors.ink1} strokeWidth={2} />
             </Pressy>
             {editingId !== "new" && (
               <Pressy
                 accessibilityRole="button"
-                onPress={() => deleteNote(editingId)}
+                accessibilityLabel="删除笔记"
+                onPress={() => Alert.alert("删除这条笔记？", "删除后无法恢复。", [
+                  { text: "保留", style: "cancel" },
+                  { text: "删除", style: "destructive", onPress: () => deleteNote(editingId) },
+                ])}
                 scale={0.9}
                 style={[styles.iconButton, { backgroundColor: colors.surface }]}
               >
-                <Icon name="close" size={18} color={colors.danger} strokeWidth={2} />
+                <Icon name="trash" size={18} color={colors.danger} strokeWidth={2} />
               </Pressy>
             )}
           </View>
@@ -147,6 +152,7 @@ function NotepadApp() {
         </View>
         <Pressy
           accessibilityRole="button"
+          accessibilityLabel="新建笔记"
           onPress={() => openEditor()}
           scale={0.9}
           style={[styles.iconButton, { backgroundColor: colors.surface }]}
@@ -157,7 +163,10 @@ function NotepadApp() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {notes.length === 0 ? (
           <Surface tone="inset" style={styles.empty}>
-            <Text style={[styles.emptyText, { color: colors.ink3 }]}>还没有记录，点击右上角新建。</Text>
+            <Text style={[styles.emptyText, { color: colors.ink2 }]}>把今天的一个念头留在这里。</Text>
+            <Pressy accessibilityRole="button" onPress={() => openEditor()} style={{ minHeight: 48, marginTop: 16, paddingHorizontal: 20, borderRadius: 16, backgroundColor: colors.orchidTint, alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ color: colors.orchidText, fontSize: 15, fontWeight: "600" }}>写第一条笔记</Text>
+            </Pressy>
           </Surface>
         ) : (
           <View style={styles.list}>
@@ -210,8 +219,8 @@ const styles = themedStyleSheet((t) => ({
     gap: 8,
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",

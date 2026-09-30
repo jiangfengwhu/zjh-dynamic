@@ -1,8 +1,11 @@
 import { Fragment, memo, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { Icon, SectionTitle, Surface, type IconName } from "../../../../packages/ui/chrome";
-import { JollyVideoPlayer } from "../../../../packages/ui/jolly";
+import { FriendAvatar } from "../../../../packages/ui/feed";
+import { bundles } from "../../../../packages/features/src/registry";
+import { useCompanionName } from "../../../../packages/ui/jolly/name";
+import type { AppEntry } from "./catalog";
 import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
 import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES } from "../../../../packages/ui/feed";
 
@@ -10,6 +13,9 @@ type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
 
 type Props = {
   mode: ThemeMode;
+  apps: AppEntry[];
+  onOpen: (id: string) => void;
+  onNew: () => void;
   onProviders: () => void;
   onInfo: () => void;
   onCheckUpdates: () => Promise<boolean>;
@@ -19,6 +25,9 @@ type Props = {
 
 export const MineScreen = memo(function MineScreen({
   mode,
+  apps,
+  onOpen,
+  onNew,
   onProviders,
   onInfo,
   onCheckUpdates,
@@ -26,6 +35,13 @@ export const MineScreen = memo(function MineScreen({
   onAppearance,
 }: Props) {
   const { colors } = useTheme();
+  const companionName = useCompanionName();
+  const [query, setQuery] = useState("");
+  const [recent, setRecent] = useState(false);
+  const visible = apps
+    .filter((app) => !recent || Boolean(app.lastOpenedAt))
+    .filter((app) => `${app.id === "jolly" ? companionName : app.title} ${app.summary}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+    .sort((a, b) => (b.lastOpenedAt ?? 0) - (a.lastOpenedAt ?? 0));
   const [summaryEvery, setSummaryEvery] = useState(() => readSummaryEvery());
   const [check, setCheck] = useState<CheckState>("idle");
   useEffect(() => subscribeSummaryEvery(setSummaryEvery), []);
@@ -47,7 +63,7 @@ export const MineScreen = memo(function MineScreen({
     <Screen style={styles.screen}>
       <ScreenBar style={styles.header}>
         <Text style={styles.title}>我的</Text>
-        <Text style={styles.caption}>一切都存在这台手机里</Text>
+        <Text style={styles.caption}>你的工具，慢慢长成你喜欢的样子</Text>
       </ScreenBar>
 
       <ScrollView
@@ -56,19 +72,52 @@ export const MineScreen = memo(function MineScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
-          <View style={styles.portrait}>
-            <JollyVideoPlayer state="idle" width={68} height={68} borderRadius={22} resizeMode="cover" />
-          </View>
-          <View style={styles.profileCopy}>
-            <Text style={styles.profileName}>Jolly</Text>
-            <Text style={styles.profileHint}>把一句心愿做成能打开的小应用</Text>
-          </View>
+        <View style={styles.libraryHead}>
+          <Text style={styles.libraryTitle}>我的应用</Text>
+          <Pressable accessibilityRole="button" onPress={onNew} style={styles.createButton}>
+            <Icon name="plus" size={16} color={colors.accentText} />
+            <Text style={styles.createText}>做一个新的</Text>
+          </Pressable>
+        </View>
+        <TextInput accessibilityLabel="搜索我的应用" placeholder="搜索应用" placeholderTextColor={colors.ink3} value={query} onChangeText={setQuery} style={styles.search} />
+        <View style={styles.filters}>
+          {[false, true].map((isRecent) => (
+            <Pressable key={String(isRecent)} accessibilityRole="tab" accessibilityState={{ selected: recent === isRecent }} onPress={() => setRecent(isRecent)} style={[styles.filter, recent === isRecent && styles.filterActive]}>
+              <Text style={[styles.filterText, recent === isRecent && styles.filterTextActive]}>{isRecent ? "最近使用" : `全部应用 · ${apps.length}`}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Surface style={styles.group}>
+          {visible.map((app, index) => {
+            const definition = bundles.find((bundle) => bundle.id === app.id);
+            const name = app.id === "jolly" ? companionName : app.title;
+            return (
+              <Fragment key={app.id}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`打开${name}`} onPress={() => onOpen(app.id)} style={({ pressed }) => [styles.appRow, pressed && { backgroundColor: colors.hover }]}>
+                  <FriendAvatar friend={{ id: app.id, name, mark: definition?.mark ?? "应", accent: definition?.accent ?? colors.orchid, Avatar: definition?.avatar }} size={44} />
+                  <View style={styles.rowCopy}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>{name}</Text>
+                    <Text style={styles.appSummary} numberOfLines={2}>{app.summary}</Text>
+                  </View>
+                  <Icon name="chevron" size={18} color={colors.ink3} />
+                </Pressable>
+                {index < visible.length - 1 ? <View style={styles.divider} /> : null}
+              </Fragment>
+            );
+          })}
+          {visible.length === 0 ? (
+            <View style={styles.libraryEmpty}>
+              <Text style={styles.rowTitle}>{query.trim() ? "没有找到这个应用" : recent ? "还没有最近使用的应用" : "做出你的第一个小应用"}</Text>
+              <Text style={styles.appSummary}>{query.trim() ? "试试其他名字。" : recent ? "打开一次应用，下次就能在这里找到。" : "把一个日常需要，交给工坊里的伙伴。"}</Text>
+              <Pressable accessibilityRole="button" onPress={() => { if (query.trim()) setQuery(""); else if (recent) setRecent(false); else onNew(); }} style={styles.createButton}>
+                <Text style={styles.createText}>{query.trim() ? "清除搜索" : recent ? "查看全部应用" : "去工坊许愿"}</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </Surface>
 
-        <SectionTitle>管理</SectionTitle>
+        <SectionTitle>设置</SectionTitle>
         <Surface style={styles.group}>
-          <Row icon="info" title="应用信息" hint="各个包的体积" onPress={onInfo} />
           <Row
             icon="cloud"
             title="检查更新"
@@ -93,8 +142,8 @@ export const MineScreen = memo(function MineScreen({
             hint="夜紫或淡纸"
             value={mode === "dark" ? "夜紫" : "淡纸"}
             onPress={onAppearance}
-            last
           />
+          <Row icon="info" title="应用信息" hint="版本和存储信息" onPress={onInfo} last />
         </Surface>
       </ScrollView>
     </Screen>
@@ -160,6 +209,19 @@ function summaryLabel(ms: number): string {
 }
 
 const styles = themedStyleSheet((t) => ({
+  libraryHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginTop: 8 },
+  libraryTitle: { color: t.ink1, fontSize: 20, fontWeight: "700" },
+  createButton: { minHeight: 44, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, borderRadius: 14, backgroundColor: t.accentTint },
+  createText: { color: t.accentText, fontSize: 14, fontWeight: "600" },
+  search: { color: t.ink1, fontSize: 15, minHeight: 48, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, backgroundColor: t.field, borderWidth: StyleSheet.hairlineWidth, borderColor: t.lineStrong },
+  filters: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  filter: { minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderRadius: 14 },
+  filterActive: { backgroundColor: t.orchidTint },
+  filterText: { color: t.ink2, fontSize: 14 },
+  filterTextActive: { color: t.orchidText, fontWeight: "700" },
+  appRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, minHeight: 88 },
+  appSummary: { color: t.ink2, fontSize: 14, lineHeight: 21 },
+  libraryEmpty: { alignItems: "center", gap: 12, padding: 24 },
   screen: {
     backgroundColor: t.canvas,
   },
@@ -191,37 +253,6 @@ const styles = themedStyleSheet((t) => ({
     paddingTop: 6,
     paddingBottom: 40,
     gap: 12,
-  },
-  profile: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    padding: 16,
-    marginBottom: 6,
-  },
-  portrait: {
-    width: 68,
-    height: 68,
-    borderRadius: 22,
-    overflow: "hidden",
-    borderWidth: 1.5,
-    borderColor: t.accentSoft,
-  },
-  profileCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  profileName: {
-    fontFamily: t.serif,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: "700",
-    color: t.ink1,
-  },
-  profileHint: {
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: t.ink2,
   },
   group: {
     borderRadius: t.radius.xl,

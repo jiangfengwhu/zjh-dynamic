@@ -7,6 +7,7 @@ import { readFeedChanges, readFeedPosts, subscribeFeedPosts, type FeedChange, ty
 import { JollyVideoPlayer, readJollyRun, subscribeJollyRun, type JollyRun, type JollyVideoState } from "../../ui/jolly";
 import { themedStyleSheet, useTheme } from "../../ui/theme";
 import { registerFeature } from "../src/featureHost";
+import { useCompanionName } from "../../ui/jolly/name";
 import { Pulse, WorkProgress, ago, askShell } from "./parts";
 
 const RECENT_LIMIT = 8;
@@ -27,6 +28,7 @@ function recentChanges(): FeedChange[] {
 
 function JollyApp() {
   const { colors } = useTheme();
+  const companionName = useCompanionName();
   const [run, setRun] = useState<JollyRun>(() => readJollyRun());
   const [posts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
   const [changes, setChanges] = useState<FeedChange[]>(() => recentChanges());
@@ -58,7 +60,7 @@ function JollyApp() {
       <View style={page.bar}>
         <BackChip onPress={() => askShell({ action: "back" })} />
         <View style={page.barCopy}>
-          <Text style={[page.barTitle, { color: colors.ink1 }]}>Jolly</Text>
+          <Text style={[page.barTitle, { color: colors.ink1 }]}>{companionName}</Text>
           <Text style={[page.barCaption, { color: colors.ink3 }]}>心愿工坊的小管家</Text>
         </View>
       </View>
@@ -77,7 +79,7 @@ function JollyApp() {
                 <JollyVideoPlayer state={mood.video} width={104} height={104} borderRadius={30} resizeMode="cover" repeat />
               </View>
               <View style={page.heroCopy}>
-                <Text style={[page.name, { color: colors.ink1 }]}>Jolly</Text>
+                <Text style={[page.name, { color: colors.ink1 }]}>{companionName}</Text>
                 <View style={[page.pill, { backgroundColor: colors.accentTint, borderColor: colors.accentSoft }]}>
                   <Pulse color={colors.accent} size={7} live={mood.live} />
                   <Text style={[page.pillText, { color: colors.accentText }]}>{mood.label}</Text>

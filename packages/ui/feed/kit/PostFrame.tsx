@@ -19,7 +19,7 @@ export const KIND_LABEL: Record<FeedSlot, string> = {
 export const KIND_VERB: Record<FeedSlot, string> = {
   welcome: "新伙伴加入",
   update: "发布了新版本",
-  activity: "最新制作进展",
+  activity: "有了新近况",
   summary: "近期动态小结",
 };
 
@@ -88,13 +88,13 @@ export const PostActions = memo(function PostActions({ friend, liked, onLike, on
   const { colors } = useTheme();
   return (
     <View style={styles.actions}>
-      <Pressy accessibilityRole="button" accessibilityLabel={`对${friend.name}说一句`} onPress={onReply} scale={0.94} hitSlop={8} style={styles.action}>
+      <Pressy accessibilityRole="button" accessibilityLabel={friend.id === "jolly" ? "去工坊许愿" : `去工坊完善${friend.name}`} onPress={onReply} scale={0.94} hitSlop={8} style={styles.action}>
         <BubbleGlyph size={15} color={colors.ink3} />
-        <Text style={styles.actionText}>对 TA 说</Text>
+        <Text style={styles.actionText}>{friend.id === "jolly" ? "许个心愿" : "一起改改"}</Text>
       </Pressy>
       <LikeButton liked={liked} onPress={onLike} />
       <Pressy accessibilityRole="button" accessibilityLabel={`打开${friend.name}`} onPress={onOpen} scale={0.94} hitSlop={8} style={styles.action}>
-        <Text style={[styles.actionText, { color: colors.accentText, fontWeight: "700" }]}>主页</Text>
+        <Text style={[styles.actionText, { color: colors.accentText, fontWeight: "700" }]}>打开应用</Text>
         <Icon name="chevron" size={11} color={colors.accentText} strokeWidth={2.2} />
       </Pressy>
     </View>
@@ -186,7 +186,7 @@ export const PostFrame = memo(function PostFrame({
 
 function markdownStyle(colors: Theme) {
   return {
-    body: { color: colors.ink1, fontSize: 13.5, lineHeight: 19.5 },
+    body: { color: colors.ink1, fontSize: 15.5, lineHeight: 24 },
     paragraph: { marginTop: 0, marginBottom: 3 },
     strong: { fontWeight: "700" as const },
     bullet_list: { marginBottom: 3 },
@@ -198,15 +198,15 @@ function markdownStyle(colors: Theme) {
 
 const styles = themedStyleSheet((t) => ({
   row: {
-    paddingTop: 8,
-    paddingBottom: 5,
+    paddingTop: 16,
+    paddingBottom: 12,
     paddingHorizontal: SIDE,
   },
   context: {
     flexDirection: "row",
     alignItems: "center",
     gap: GUTTER,
-    marginBottom: 2,
+    marginBottom: 5,
   },
   contextIcon: {
     width: AVATAR,
@@ -235,9 +235,8 @@ const styles = themedStyleSheet((t) => ({
   },
   name: {
     flexShrink: 1,
-    fontFamily: t.serif,
-    fontSize: 14.5,
-    lineHeight: 19,
+    fontSize: 15,
+    lineHeight: 22,
     fontWeight: "700",
     color: t.ink1,
   },
@@ -252,11 +251,11 @@ const styles = themedStyleSheet((t) => ({
     borderRadius: 2.5,
   },
   lead: {
-    marginTop: 1,
+    marginTop: 5,
   },
   text: {
-    fontSize: 13.5,
-    lineHeight: 19.5,
+    fontSize: 15.5,
+    lineHeight: 24,
     color: t.ink1,
   },
   extra: {
@@ -274,17 +273,17 @@ const styles = themedStyleSheet((t) => ({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 4,
+    marginTop: 8,
     marginRight: 6,
   },
   action: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    minHeight: 26,
+    minHeight: 44,
   },
   actionText: {
-    fontSize: 11.5,
+    fontSize: 12.5,
     fontWeight: "500",
     color: t.ink3,
   },

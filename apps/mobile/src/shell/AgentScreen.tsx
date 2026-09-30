@@ -18,7 +18,7 @@ import { GiltLine, Icon, Pressy, SectionTitle, Surface } from "../../../../packa
 import { JollyLoading, JollyVideoPlayer, type JollyState } from "../../../../packages/ui/jolly";
 import { themedStyleSheet, useTheme, type Theme } from "../../../../packages/ui/theme";
 import { AGENT_PROVIDERS } from "./agentProviders";
-import { readShellValue, writeShellValue } from "./shellStorage";
+import { setCompanionName, useCompanionName } from "../../../../packages/ui/jolly/name";
 
 export type AgentTrace = {
   id: string;
@@ -163,7 +163,7 @@ export const AgentScreen = memo(function AgentScreen({
 }: Props) {
   const { colors } = useTheme();
 
-  const [companionName, setCompanionName] = useState("狗蛋");
+  const companionName = useCompanionName();
   const [nameInput, setNameInput] = useState("狗蛋");
   const [nameModalVisible, setNameModalVisible] = useState(false);
 
@@ -171,30 +171,14 @@ export const AgentScreen = memo(function AgentScreen({
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [elapsedTenths, setElapsedTenths] = useState(0);
   const [showLastSnapshot, setShowLastSnapshot] = useState(false);
+  const [reportExpanded, setReportExpanded] = useState(false);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const saved = await readShellValue("shell.companion.name.v1");
-        if (saved) {
-          setCompanionName(saved);
-          setNameInput(saved);
-        }
-      } catch (err) {
-        // use default "狗蛋"
-      }
-    })();
-  }, []);
+  useEffect(() => setReportExpanded(false), [prompt, awaitingConfirmation]);
 
-  const handleSaveName = async () => {
+  const handleSaveName = () => {
     const trimmed = nameInput.trim() || "狗蛋";
     setCompanionName(trimmed);
     setNameModalVisible(false);
-    try {
-      writeShellValue("shell.companion.name.v1", trimmed);
-    } catch (err) {
-      console.log("save companion name failed", err);
-    }
   };
 
   const openNameEditor = () => {
@@ -298,7 +282,7 @@ export const AgentScreen = memo(function AgentScreen({
   }, [hasSession, stillRunning, traces.length, runningTrace, status, hasError, finalReport]);
 
   const phase: "busy" | "error" | "done" | "idle" = stillRunning ? "busy" : hasError ? "error" : hasSession ? "done" : "idle";
-  const phaseLabel = awaitingConfirmation ? "待收下" : awaitingReply ? "等你回应" : { busy: "制作中", error: "有提示", done: "已收好", idle: "待命" }[phase];
+  const phaseLabel = awaitingConfirmation ? "待体验" : awaitingReply ? "等你回应" : { busy: "制作中", error: "有提示", done: "已完成", idle: "待命" }[phase];
   const phaseTone =
     phase === "busy"
       ? { dot: colors.accent, text: colors.accentText, tint: colors.accentTint }
@@ -331,7 +315,7 @@ export const AgentScreen = memo(function AgentScreen({
         // 保留视频的原生视图，滚出屏幕后回来时不重建播放表面。
         removeClippedSubviews={false}
       >
-        {sessionId || sessionLoading ? (
+        {sessionLoading || (sessionId && !busy && !awaitingConfirmation && !awaitingReply) ? (
           <Surface tone="inset" style={styles.sessionPanel}>
             <View style={styles.sessionSeal}><Icon name="edit" size={16} color={colors.accentText} /></View>
             <View style={styles.heroCopy}>
@@ -344,7 +328,7 @@ export const AgentScreen = memo(function AgentScreen({
               </Pressy>
             ) : null}
           </Surface>
-        ) : hasSession ? (
+        ) : hasSession && !sessionId && !busy && !awaitingConfirmation && !awaitingReply ? (
           <Pressy accessibilityRole="button" onPress={onNewSession} style={styles.sessionButton}>
             <Text style={styles.sessionButtonText}>开启新的心愿</Text>
           </Pressy>
@@ -357,21 +341,21 @@ export const AgentScreen = memo(function AgentScreen({
                 <View style={styles.sessionSeal}><Icon name="check" size={17} color={colors.accentText} /></View>
                 <Text style={styles.reportTitle}>先体验，再收下这份心愿</Text>
               </View>
-              <Text style={styles.acceptanceText}>打开最新作品，看看它是否合你心意。确认收下后，我们会把这次修改合入主线，再陪你做下一个心愿。</Text>
+              <Text style={styles.acceptanceText}>先加载最新作品，再打开用一用。合你心意就收下，我们再一起做下一个心愿。</Text>
               {confirmationMessage ? <Text accessibilityLiveRegion="polite" style={styles.acceptanceMessage}>{confirmationMessage}</Text> : null}
               <View style={styles.acceptanceActions}>
                 <Pressy accessibilityRole="button" disabled={confirmationBusy} onPress={onLoadWish} style={styles.ghost}>
                   <Text style={styles.ghostText}>加载最新作品</Text>
                 </Pressy>
                 <Pressy accessibilityRole="button" disabled={confirmationBusy} onPress={onConfirmWish} style={[styles.primary, confirmationBusy && { opacity: 0.6 }]}>
-                  <Text style={styles.primaryText}>{confirmationBusy ? "正在收好…" : "确认收下并合入"}</Text>
+                  <Text style={styles.primaryText}>{confirmationBusy ? "正在收好…" : "确认收下"}</Text>
                 </Pressy>
               </View>
-              <Text style={styles.acceptanceHint}>收下时会核对你正在使用的版本，旧作品不能误确认。</Text>
+              {onBack ? <Pressy accessibilityRole="button" onPress={onBack} style={styles.ghost}><Text style={styles.ghostText}>打开我的应用</Text></Pressy> : null}
             </Surface>
           </Animated.View>
         ) : null}
-        {hasSession ? (
+        {awaitingConfirmation ? null : hasSession ? (
           <View style={styles.compactHero}>
             <View style={styles.portraitSmall}>
               <JollyVideoPlayer state={jollyLiveState} width={64} height={64} borderRadius={20} resizeMode="cover" />
@@ -382,7 +366,7 @@ export const AgentScreen = memo(function AgentScreen({
                 <Icon name="edit" size={15} color={colors.ink3} />
               </Pressy>
               <Text style={styles.heroStatus}>
-                {stillRunning ? "正在把你的想法慢慢做好" : awaitingConfirmation ? "作品做好了，等你来体验" : awaitingReply ? "还有一句话想听你说" : hasError ? "遇到一点阻碍" : "这份心愿已经收好"}
+                {stillRunning ? "正在把你的想法慢慢做好" : awaitingReply ? "回答下面的问题，我们接着做" : hasError ? "遇到一点阻碍" : "这次制作已经完成"}
               </Text>
             </View>
           </View>
@@ -400,7 +384,7 @@ export const AgentScreen = memo(function AgentScreen({
           </Animated.View>
         )}
 
-        {prompt ? (
+        {prompt && !awaitingConfirmation && !awaitingReply ? (
           <Animated.View entering={FadeInDown.duration(380)} layout={LinearTransition.duration(240)}>
             <Surface style={styles.wish}>
               <View style={styles.wishHead}>
@@ -416,7 +400,7 @@ export const AgentScreen = memo(function AgentScreen({
           </Animated.View>
         ) : null}
 
-        {hasSession ? (
+        {hasSession && !awaitingConfirmation && !awaitingReply ? (
           <Animated.View entering={FadeInDown.duration(380).delay(60)} layout={LinearTransition.duration(240)}>
             <Surface tone="raised" style={styles.progress}>
               <Pressable
@@ -518,21 +502,21 @@ export const AgentScreen = memo(function AgentScreen({
           </Animated.View>
         ) : null}
 
-        {hasSession && finalReport ? (
+        {hasSession && (awaitingReply ? latestText || finalReport : finalReport) ? (
           <Animated.View entering={FadeInDown.duration(460).delay(80)} layout={LinearTransition.duration(240)}>
-            <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.report}>
-              <GiltLine style={styles.reportEdge} />
-              <View style={styles.reportHead}>
+            <Surface radius={colors.radius.xl} style={styles.report}>
+              <Pressable accessibilityRole={awaitingConfirmation ? "button" : undefined} accessibilityState={awaitingConfirmation ? { expanded: reportExpanded } : undefined} disabled={!awaitingConfirmation} onPress={() => setReportExpanded((open) => !open)} style={styles.reportHead}>
                 <View style={styles.reportSeal}>
-                  <Icon name="check" size={16} color={colors.onAccent} strokeWidth={2.4} />
+                  <Icon name={awaitingReply ? "edit" : hasError ? "alert" : "check"} size={16} color={colors.onAccent} strokeWidth={2.4} />
                 </View>
-                <Text style={styles.reportTitle}>这次为你做了什么</Text>
-              </View>
-              <Text style={styles.reportText}>{finalReport}</Text>
-              {!stillRunning && onBack ? (
+                <Text style={styles.reportTitle}>{awaitingReply ? "伙伴想和你确认" : "这次为你做了什么"}</Text>
+                {awaitingConfirmation ? <Icon name={reportExpanded ? "close" : "plus"} size={18} color={colors.ink3} /> : null}
+              </Pressable>
+              {!awaitingConfirmation || reportExpanded ? <Text style={styles.reportText}>{awaitingReply ? latestText || finalReport : finalReport}</Text> : null}
+              {!stillRunning && !awaitingConfirmation && !awaitingReply && onBack ? (
                 <View style={styles.reportActions}>
                   <Pressy accessibilityRole="button" onPress={onBack} style={styles.primary}>
-                    <Text style={styles.primaryText}>去体验新应用</Text>
+                    <Text style={styles.primaryText}>打开我的应用</Text>
                   </Pressy>
                   {prompt && !sessionId ? (
                     <Pressy accessibilityRole="button" onPress={() => onChange(prompt)} style={styles.ghost}>
@@ -603,7 +587,7 @@ export const AgentScreen = memo(function AgentScreen({
         value={value}
         busy={busy}
         disabled={sessionLoading || confirmationBusy || Boolean(sessionId && !awaitingReply)}
-        placeholder={awaitingConfirmation ? "先收下这份心愿，再开始下一个" : awaitingReply ? "把你的回应告诉伙伴" : "说说你想做什么小应用"}
+        placeholder={awaitingConfirmation ? "体验后收下，就能开始下一个心愿" : awaitingReply ? "在这里回答伙伴的问题" : busy ? "伙伴正在制作中" : "说说你想做什么小应用"}
         providers={AGENT_PROVIDERS}
         providerId={providerId}
         onProviderChange={onProviderChange}
@@ -672,7 +656,6 @@ const styles = themedStyleSheet((t) => ({
   acceptanceText: { color: t.ink2, fontSize: 14, lineHeight: 22 },
   acceptanceMessage: { color: t.accentText, fontSize: 13, lineHeight: 20 },
   acceptanceActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  acceptanceHint: { color: t.ink3, fontSize: 11, lineHeight: 17 },
   sessionPanel: {
     flexDirection: "row",
     alignItems: "center",
@@ -1014,6 +997,7 @@ const styles = themedStyleSheet((t) => ({
     backgroundColor: t.accent,
   },
   reportTitle: {
+    flex: 1,
     fontFamily: t.serif,
     fontSize: 19,
     fontWeight: "700",
@@ -1026,6 +1010,7 @@ const styles = themedStyleSheet((t) => ({
   },
   reportActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
     paddingTop: 4,
   },
