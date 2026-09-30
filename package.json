@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/mobile/tsconfig.json",
     "bundle": "tsx scripts/bundle-preview.ts",
     "publish": "tsx scripts/cloud-publish.ts"
   },

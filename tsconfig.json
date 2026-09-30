@@ -6,8 +6,14 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"],
-    "rootDir": "."
+    "types": [
+      "node"
+    ],
+    "rootDir": ".",
+    "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "tools/release/**/*.ts",
+    "scripts/**/*.ts"
+  ]
 }

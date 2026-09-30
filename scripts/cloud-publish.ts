@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { bundleRelease, parseBundleOptions } from "../src/bundle-js.ts";
+import { bundleRelease, parseBundleOptions } from "../tools/release/bundle-js.ts";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const summary = process.env.EVOLVE_SUMMARY?.trim() || "线上定制";
