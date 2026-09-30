@@ -46,7 +46,8 @@ async function runIfDue() {
   const last = readSummaryAt();
   if (last > 0 && Date.now() - last < every) return;
   const since = last > 0 ? last : Date.now() - every;
-  const changes = readFeedChanges(since);
+  // 旧版本留下的制作记录也不再进入动态小结。
+  const changes = readFeedChanges(since).filter((item) => item.appId !== "jolly");
   if (changes.length === 0) {
     writeSummaryAt(Date.now());
     console.log("feed summary skipped empty");

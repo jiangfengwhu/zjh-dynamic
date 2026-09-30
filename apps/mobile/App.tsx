@@ -8,7 +8,7 @@ import { loadCatalog, saveCatalog, type CatalogEntry } from "./src/shell/catalog
 import { openShellBundle, openShellTab, ShellNavigator } from "./src/shell/navigation";
 import { BackButton } from "./src/shell/BackButton";
 import type { AgentTrace } from "./src/shell/AgentScreen";
-import { jollyPhaseFromStatus, noteJollyRun, publishJollyMilestone } from "../../packages/ui/jolly";
+import { jollyPhaseFromStatus, noteJollyRun } from "../../packages/ui/jolly";
 import { readPackageValue, subscribePackageValue } from "../../packages/ui/packageLink";
 import { theme, palettes, themedStyleSheet, type ThemeMode } from "../../packages/ui/theme";
 import { ThemeProvider } from "../../packages/ui/ThemeProvider";
@@ -346,7 +346,6 @@ function ShellApp() {
     busyRef.current = true;
     setBusy(true);
     const startedAt = Date.now();
-    publishJollyMilestone(startedAt, text, "making", "开工");
     setRunStartedAt(startedAt);
     setPrompt(text);
     setAwaitingReply(false);
@@ -372,7 +371,6 @@ function ShellApp() {
       });
       if (outcome === "cancelled") {
         setSessionId("");
-        publishJollyMilestone(startedAt, text, "stopped", "已停止");
         setStatus("已停止");
         setBusy(false);
         return;
@@ -392,13 +390,11 @@ function ShellApp() {
       const ready = await refreshUpdates();
       setUpdateCompleted(ready.length > 0);
       setStatus(ready.length ? "有新包可以加载" : "已是最新");
-      publishJollyMilestone(startedAt, text, "ready", ready.length ? "有新包可以加载" : "已是最新");
       setBusy(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.log("evolve failed", message);
       setStatus(message);
-      publishJollyMilestone(startedAt, text, "failed", message);
       setBusy(false);
     } finally {
       cloudRun.current = null;
@@ -440,7 +436,6 @@ function ShellApp() {
     if (!info || info.state === "FAILED") {
       clearJulesSession();
       setSessionId("");
-      if (run) publishJollyMilestone(run.startedAt, run.prompt, "failed", info?.state === "FAILED" ? "Jules 失败" : "上次的生成已经中断");
       busyRef.current = false;
       setBusy(false);
       setStatus(info?.state === "FAILED" ? "Jules 失败" : "上次的生成已经中断");
@@ -470,7 +465,6 @@ function ShellApp() {
         }, startedAt);
         if (outcome === "cancelled") {
           setSessionId("");
-          publishJollyMilestone(startedAt, promptText, "stopped", "已停止");
           setStatus("已停止");
           setBusy(false);
           return;
@@ -489,13 +483,11 @@ function ShellApp() {
         const ready = await refreshUpdates();
         setUpdateCompleted(ready.length > 0);
         setStatus(ready.length ? "有新包可以加载" : "已是最新");
-        publishJollyMilestone(startedAt, promptText, "ready", ready.length ? "有新包可以加载" : "已是最新");
         setBusy(false);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.log("jules resume failed", message);
         setStatus(message);
-        publishJollyMilestone(startedAt, promptText, "failed", message);
         setBusy(false);
       } finally {
         cloudRun.current = null;
@@ -518,7 +510,6 @@ function ShellApp() {
         const ready = await refreshUpdates();
         setUpdateCompleted(ready.length > 0);
         setStatus(ready.length ? "有新包可以加载" : "已是最新");
-        if (run) publishJollyMilestone(run.startedAt, run.prompt, "ready", ready.length ? "有新包可以加载" : "已是最新");
       } catch (error) {
         console.log("jules resume check failed", error instanceof Error ? error.message : error);
       }
@@ -532,7 +523,6 @@ function ShellApp() {
       busyRef.current = false;
       setBusy(false);
       setStatus("Jules 已暂停");
-      if (run) publishJollyMilestone(run.startedAt, run.prompt, "stopped", "Jules 已暂停");
       console.log("jules resume paused", session);
     }
   }

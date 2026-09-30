@@ -1,5 +1,4 @@
 import { readPackageValue, subscribePackageValue, writePackageValue } from "../packageLink";
-import { publishFeedPost, recordFeedChange } from "../feed/store";
 
 export type JollyPhase = "idle" | "making" | "ready" | "stopped" | "failed";
 
@@ -71,16 +70,6 @@ export function describeJollyRun(run: Pick<JollyRun, "phase" | "wish" | "status"
   if (run.phase === "stopped") return `停下了「${wish}」`;
   if (run.phase === "failed") return `没做成「${wish}」：${clip(run.status, 36) || "出错"}`;
   return "";
-}
-
-export function publishJollyMilestone(startedAt: number, wish: string, phase: Exclude<JollyPhase, "idle">, status: string) {
-  const key = phase === "making" ? "jolly.feed.started.v1" : "jolly.feed.finished.v1";
-  if (readPackageValue(key) === String(startedAt)) return;
-  const body = describeJollyRun({ phase, wish, status });
-  const payload = { phase, wish, status, steps: [], startedAt };
-  recordFeedChange({ appId: "jolly", note: body });
-  publishFeedPost({ appId: "jolly", kind: phase === "ready" ? "update" : "activity", body, payload });
-  writePackageValue(key, String(startedAt));
 }
 
 function clip(text: string, max = 42): string {

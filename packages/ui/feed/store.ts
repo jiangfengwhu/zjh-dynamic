@@ -100,6 +100,8 @@ export function readFeedPosts(): FeedPost[] {
     return parsed.flatMap((item) => {
       const kind = normalizeKind(item?.kind);
       if (!item?.appId || !item.body || !item.createdAt || !kind) return [];
+      // 旧版把工坊的开始、结果和中断发成动态；加载新包后不再展示这些提示及其小结。
+      if (item.appId === "jolly" && (kind === "summary" || ((kind === "activity" || kind === "update") && typeof item.payload?.startedAt === "number"))) return [];
       return [{
         id: item.id || `${item.appId}-${kind}-${item.createdAt}`,
         appId: item.appId,
