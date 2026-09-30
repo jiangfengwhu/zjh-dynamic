@@ -8,6 +8,7 @@ import {
   type FeedCardProps,
 } from "../../ui/feed";
 import { themedStyleSheet, useTheme } from "../../ui/theme";
+import { writePackageValue } from "../../ui/packageLink";
 
 publishFeedPost({
   appId: "notepad",
@@ -35,22 +36,6 @@ function IntroCard(card: FeedCardProps) {
   );
 }
 
-function ActivityCard(card: FeedCardProps) {
-  const { colors } = useTheme();
-  const total = card.post.payload.total;
-  return (
-    <PostFrame {...card}>
-      {typeof total === "number" && Number.isFinite(total) && total >= 0 ? (
-        <PostAttachment>
-          <Text style={{ color: colors.ink2, fontSize: 13, lineHeight: 20 }}>这次整理后</Text>
-          <Text style={{ color: colors.ink1, fontSize: 23, fontWeight: "700", lineHeight: 32 }}>{total} 条笔记</Text>
-          <Text style={{ color: colors.ink2, fontSize: 14, lineHeight: 21 }}>灵感和日常，都在这里慢慢积累。</Text>
-        </PostAttachment>
-      ) : null}
-    </PostFrame>
-  );
-}
-
 const styles = themedStyleSheet((t) => ({
   primary: {
     alignSelf: "flex-start",
@@ -58,17 +43,16 @@ const styles = themedStyleSheet((t) => ({
     alignItems: "center",
     gap: 4,
     marginTop: 8,
-    minHeight: 44,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    height: 26,
+    paddingHorizontal: 10,
+    borderRadius: 13,
   },
   primaryText: {
-    fontSize: 14,
+    fontSize: 11.5,
     fontWeight: "600",
   },
 }));
 
 registerFeedTemplates("notepad", {
   welcome: IntroCard,
-  activity: ActivityCard,
 });

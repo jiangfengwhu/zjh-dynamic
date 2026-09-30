@@ -114,7 +114,7 @@ export const palettes: Record<ThemeMode, Theme> = {
     hover: "#272035",
     hover2: "#322A42",
     lineStrong: "#3A3149",
-    sheen: "rgba(255, 255, 255, 0.04)",
+    sheen: "rgba(255, 255, 255, 0.07)",
     shade: "rgba(0, 0, 0, 0.22)",
 
     ink1: "#F3EEF8",
@@ -178,7 +178,7 @@ export const palettes: Record<ThemeMode, Theme> = {
     hover: "#EAE5F1",
     hover2: "#DFD8E9",
     lineStrong: "#CFC6DB",
-    sheen: "rgba(255, 255, 255, 0.6)",
+    sheen: "rgba(255, 255, 255, 0.9)",
     shade: "rgba(60, 40, 90, 0.05)",
 
     ink1: "#1B1524",

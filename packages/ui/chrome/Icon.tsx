@@ -21,9 +21,7 @@ export type IconName =
   | "alert"
   | "restore"
   | "sun"
-  | "moon"
-  | "eye"
-  | "trash";
+  | "moon";
 
 /** 圆点用路径画，所有图标都只有 Path，颜色和粗细统一由外面传入。 */
 function dot(x: number, y: number, r = 1.2): string {
@@ -31,8 +29,6 @@ function dot(x: number, y: number, r = 1.2): string {
 }
 
 const PATHS: Record<IconName, { d: string[]; solid?: string[] }> = {
-  eye: { d: ["M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z", dot(12, 12, 2.5)] },
-  trash: { d: ["M4 7h16", "M9 7V4h6v3", "M6 7l1 13h10l1-13", "M10 10v7", "M14 10v7"] },
   feed: { d: ["M9.5 6H20", "M9.5 12H20", "M9.5 18H20"], solid: [dot(4.5, 6, 1.4), dot(4.5, 12, 1.4), dot(4.5, 18, 1.4)] },
   workshop: {
     d: [

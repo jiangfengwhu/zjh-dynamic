@@ -4,7 +4,7 @@ import { Icon, Pressy } from "../../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme } from "../../../../../packages/ui/theme";
 import { FriendAvatar, FriendRing, type Friend } from "../../../../../packages/ui/feed";
 
-const AVATAR = 40;
+const AVATAR = 32;
 
 /**
  * 动态顶部的朋友栏。每位朋友一个头像，有没看过的新动态就亮一圈金环，
@@ -30,7 +30,7 @@ export function FriendRail({
       contentContainerStyle={styles.rail}
       keyboardShouldPersistTaps="handled"
     >
-      <Pressy accessibilityRole="button" accessibilityLabel="去工坊做个应用" onPress={onNew} scale={0.94} style={styles.item}>
+      <Pressy accessibilityRole="button" accessibilityLabel="找新朋友" onPress={onNew} scale={0.94} style={styles.item}>
         <View
           style={[
             styles.invite,
@@ -40,7 +40,7 @@ export function FriendRail({
           <Icon name="plus" size={15} color={colors.accentText} strokeWidth={2} />
         </View>
         <Text style={[styles.name, { color: colors.accentText }]} numberOfLines={1}>
-        做个应用
+          找新朋友
         </Text>
       </Pressy>
 
@@ -71,15 +71,15 @@ export function FriendRail({
 
 const styles = themedStyleSheet((t) => ({
   rail: {
-    gap: 12,
+    gap: 8,
     paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 14,
+    paddingTop: 1,
+    paddingBottom: 8,
   },
   item: {
-    width: 64,
+    width: 46,
     alignItems: "center",
-    gap: 6,
+    gap: 3,
   },
   invite: {
     alignItems: "center",
@@ -87,9 +87,9 @@ const styles = themedStyleSheet((t) => ({
     borderWidth: 1,
   },
   name: {
-    maxWidth: 64,
-    fontSize: 12,
-    lineHeight: 17,
+    maxWidth: 46,
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: "500",
     color: t.ink2,
   },

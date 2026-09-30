@@ -29,8 +29,6 @@ import {
 } from "../../../../../packages/ui/feed";
 import { Icon, Pressy } from "../../../../../packages/ui/chrome";
 import { JollyCompanion } from "../../../../../packages/ui/jolly";
-import { useCompanionName } from "../../../../../packages/ui/jolly/name";
-import type { AppEntry } from "../catalog";
 import { themedStyleSheet, useTheme } from "../../../../../packages/ui/theme";
 import { Screen, ScreenBar } from "../../../../../packages/ui/edge";
 import { subscribeFeedSummaryBusy } from "./summary";
@@ -47,8 +45,6 @@ const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const REVEAL_COUNT = 5;
 
 type FeedProps = {
-  apps: AppEntry[];
-  onLibrary: () => void;
   onOpen: (id: string) => void;
   /** 对某位朋友说一句：带着 TA 的名字去工坊。 */
   onReply: (id: string) => void;
@@ -56,9 +52,8 @@ type FeedProps = {
   onNew: () => void;
 };
 
-export const FeedScreen = memo(function FeedScreen({ apps, onLibrary, onOpen, onReply, onNew }: FeedProps) {
+export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew }: FeedProps) {
   const { colors } = useTheme();
-  const companionName = useCompanionName();
   const [posts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
   const [seen, setSeen] = useState<SeenMap>({});
   const [likes, setLikes] = useState<string[]>([]);
@@ -97,13 +92,11 @@ export const FeedScreen = memo(function FeedScreen({ apps, onLibrary, onOpen, on
 
   const friends = useMemo(() => {
     const map = new Map<string, FeedFriend>();
-    for (const app of apps) {
-      const bundle = bundles.find((item) => item.id === app.id);
-      if (!bundle) continue;
-      map.set(bundle.id, { id: bundle.id, name: bundle.id === "jolly" ? companionName : app.title, mark: bundle.mark, accent: bundle.accent, Avatar: bundle.avatar });
+    for (const bundle of bundles) {
+      map.set(bundle.id, { id: bundle.id, name: bundle.title, mark: bundle.mark, accent: bundle.accent, Avatar: bundle.avatar });
     }
     return map;
-  }, [apps, companionName]);
+  }, []);
 
   /** 每位朋友最近一条动态的时间，用来判断有没有没看过的。 */
   const latest = useMemo(() => {
@@ -165,11 +158,7 @@ export const FeedScreen = memo(function FeedScreen({ apps, onLibrary, onOpen, on
                 {summarizing ? "正在整理这段时间的动态" : todayLabel()}
               </Text>
             </View>
-            <Pressy accessibilityRole="button" onPress={onLibrary} style={styles.libraryButton}>
-              <Icon name="box" size={17} color={colors.orchidText} />
-              <Text style={styles.libraryLabel}>我的应用</Text>
-            </Pressy>
-            <Pressy accessibilityRole="button" accessibilityLabel={`打开${companionName}`} onPress={() => open("jolly")} scale={0.92} hitSlop={8}>
+            <Pressy accessibilityRole="button" accessibilityLabel="打开Jolly" onPress={() => open("jolly")} scale={0.92} hitSlop={8}>
               <Halo active={summarizing} size={30}>
                 <JollyCompanion size="avatar" state={summarizing ? "making" : "idle"} showBubble={false} />
               </Halo>
@@ -215,7 +204,6 @@ export const FeedScreen = memo(function FeedScreen({ apps, onLibrary, onOpen, on
                       <Text style={styles.emptyBody}>
                         {kind ? "换一个分类，或者回到全部看看。" : "朋友们有了新动态，会在这里跟你说。"}
                       </Text>
-                      {!kind ? <Pressy accessibilityRole="button" onPress={onNew} style={styles.libraryButton}><Text style={styles.libraryLabel}>去工坊做个应用</Text></Pressy> : null}
                     </View>
                   ) : null}
 
@@ -339,8 +327,6 @@ function formatWhen(ms: number): string {
 }
 
 const styles = themedStyleSheet((t) => ({
-  libraryButton: { minHeight: 44, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 14, backgroundColor: t.orchidTint },
-  libraryLabel: { fontSize: 13, fontWeight: "600", color: t.orchidText },
   container: {
     flex: 1,
     backgroundColor: t.canvas,
@@ -370,8 +356,8 @@ const styles = themedStyleSheet((t) => ({
     letterSpacing: 1,
   },
   headerCaption: {
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 11.5,
+    lineHeight: 15,
     color: t.ink3,
   },
   headerEdge: {

@@ -268,8 +268,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="feed">
                 {() => (
                   <FeedScreen
-                    apps={props.listed}
-                    onLibrary={() => openShellTab("mine")}
                     onOpen={props.onOpenBundle}
                     onReply={props.onReplyToFriend}
                     onNew={() => openShellTab("agent")}
@@ -300,7 +298,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     onChange={props.onRequirement}
                     onSubmit={props.onSubmit}
                     onStop={props.onStop}
-                    onBack={() => openShellTab("mine")}
+                    onBack={() => openShellTab("feed")}
                   />
                 )}
               </Tabs.Screen>
@@ -308,9 +306,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 {() => (
                   <MineScreen
                     mode={props.mode}
-                    apps={props.listed}
-                    onOpen={props.onOpenBundle}
-                    onNew={() => openShellTab("agent")}
                     onProviders={() => shellNavigationRef.navigate("providers")}
                     onInfo={() => shellNavigationRef.navigate("info")}
                     onCheckUpdates={props.onCheckUpdates}

@@ -160,12 +160,12 @@ const styles = themedStyleSheet((t) => ({
     alignItems: "center",
     gap: 4,
     marginTop: 8,
-    minHeight: 44,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    height: 26,
+    paddingHorizontal: 10,
+    borderRadius: 13,
   },
   primaryText: {
-    fontSize: 14,
+    fontSize: 11.5,
     fontWeight: "600",
   },
   receiptTop: {

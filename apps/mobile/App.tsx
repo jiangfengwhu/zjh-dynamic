@@ -219,8 +219,8 @@ function ShellApp() {
 
   /** 在动态里对某位朋友说一句：去工坊，用 TA 的名字起个头，接着写想要的变化。 */
   function replyToFriend(id: string) {
-    const title = items.find((item) => item.id === id)?.title ?? id;
-    if (id !== "jolly") setRequirement((current) => (current.trim() ? current : `想让「${title}」`));
+    const title = bundles.find((item) => item.id === id)?.title ?? id;
+    setRequirement((current) => (current.trim() ? current : `想让「${title}」`));
     openShellTab("agent");
   }
 
