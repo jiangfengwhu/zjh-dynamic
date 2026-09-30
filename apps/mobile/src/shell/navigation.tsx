@@ -163,6 +163,7 @@ export type ShellNavigatorProps = {
   sessionLoading: boolean;
   onNewSession: () => void;
   awaitingConfirmation: boolean;
+  workshopReady: boolean;
   awaitingReply: boolean;
   confirmationBusy: boolean;
   confirmationMessage: string;
@@ -288,6 +289,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     sessionLoading={props.sessionLoading}
                     onNewSession={props.onNewSession}
                     awaitingConfirmation={props.awaitingConfirmation}
+                    workshopReady={props.workshopReady}
                     awaitingReply={props.awaitingReply}
                     confirmationBusy={props.confirmationBusy}
                     confirmationMessage={props.confirmationMessage}
