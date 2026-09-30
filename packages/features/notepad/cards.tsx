@@ -2,6 +2,7 @@ import { Text, View } from "react-native";
 import { Icon, Pressy } from "../../ui/chrome";
 import {
   PostAttachment,
+  PostBody,
   PostFrame,
   publishFeedPost,
   registerFeedTemplates,
@@ -19,24 +20,31 @@ publishFeedPost({
 function IntroCard(card: FeedCardProps) {
   const { colors } = useTheme();
   return (
-    <PostFrame {...card}>
-      <PostAttachment>
-        <Pressy
-          accessibilityRole="button"
-          accessibilityLabel="打开记事本"
-          onPress={card.onOpen}
-          scale={0.97}
-          style={[styles.primary, { backgroundColor: colors.orchid }]}
-        >
-          <Icon name="edit" size={13} color={colors.onAccent} strokeWidth={2.2} />
-          <Text style={[styles.primaryText, { color: colors.onAccent }]}>写点什么</Text>
-        </Pressy>
-      </PostAttachment>
-    </PostFrame>
+    <PostFrame {...card} content={
+      <View style={styles.content}>
+        <PostBody post={card.post} />
+        <PostAttachment>
+          <Pressy
+            accessibilityRole="button"
+            accessibilityLabel="打开记事本"
+            onPress={card.onOpen}
+            scale={0.97}
+            style={[styles.primary, { backgroundColor: colors.orchid }]}
+          >
+            <Icon name="edit" size={13} color={colors.onAccent} strokeWidth={2.2} />
+            <Text style={[styles.primaryText, { color: colors.onAccent }]}>写点什么</Text>
+          </Pressy>
+        </PostAttachment>
+      </View>
+    } />
   );
 }
 
 const styles = themedStyleSheet((t) => ({
+  content: {
+    gap: 6,
+    paddingTop: 1,
+  },
   primary: {
     alignSelf: "flex-start",
     flexDirection: "row",

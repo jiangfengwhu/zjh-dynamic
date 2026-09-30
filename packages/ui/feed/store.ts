@@ -26,7 +26,8 @@ export type FeedFriend = {
 /**
  * 朋友登记的卡片组件收到的全部内容。动态是一条时间线，每条像一条推文：
  * 壳只负责条与条之间的分隔线和进场动效，一条里的头像、名字、时间、操作由 kit 里的 PostFrame 排好。
- * 把这些属性原样交给 PostFrame，再把自己的正文（body）和附件（children）放进去。
+ * 把这些属性原样交给 PostFrame，通过 content 自绘名字与操作栏之间的完整内容区域。
+ * 框架不为内容添加白底、边框、圆角或内边距，正文和布局也由 App 决定。
  */
 export type FeedCardProps = {
   post: FeedPost;

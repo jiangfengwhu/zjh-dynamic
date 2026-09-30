@@ -2,6 +2,7 @@ import { Text, View } from "react-native";
 import { Icon, Pressy } from "../../ui/chrome";
 import {
   PostAttachment,
+  PostBody,
   PostFrame,
   publishFeedPost,
   registerFeedTemplates,
@@ -31,35 +32,38 @@ const HOW = [
 function IntroCard(card: FeedCardProps) {
   const { colors } = useTheme();
   return (
-    <PostFrame {...card}>
-      <PostAttachment>
-        <View style={styles.path}>
-          <View style={[styles.pathLine, { backgroundColor: colors.accentSoft }]} />
-          {HOW.map((item, index) => (
-            <View key={item.label} style={styles.pathItem}>
-              {/* accentTint 是半透明的，直接做底会露出后面的连线；先垫一层不透明的底色，再盖淡色。 */}
-              <View style={[styles.coin, { backgroundColor: colors.surface, borderColor: colors.accent }]}>
-                <View style={[styles.coinTint, { backgroundColor: colors.accentTint }]} />
-                <Icon name={item.icon} size={11} color={colors.accentText} strokeWidth={2} />
+    <PostFrame {...card} content={
+      <View style={styles.content}>
+        <PostBody post={card.post} />
+        <PostAttachment>
+          <View style={styles.path}>
+            <View style={[styles.pathLine, { backgroundColor: colors.accentSoft }]} />
+            {HOW.map((item, index) => (
+              <View key={item.label} style={styles.pathItem}>
+                {/* accentTint 是半透明的，直接做底会露出后面的连线；先垫一层不透明的底色，再盖淡色。 */}
+                <View style={[styles.coin, { backgroundColor: colors.surface, borderColor: colors.accent }]}>
+                  <View style={[styles.coinTint, { backgroundColor: colors.accentTint }]} />
+                  <Icon name={item.icon} size={11} color={colors.accentText} strokeWidth={2} />
+                </View>
+                <Text style={[styles.pathText, { color: colors.ink2 }]} numberOfLines={1}>
+                  {index + 1} {item.label}
+                </Text>
               </View>
-              <Text style={[styles.pathText, { color: colors.ink2 }]} numberOfLines={1}>
-                {index + 1} {item.label}
-              </Text>
-            </View>
-          ))}
-        </View>
-        <Pressy
-          accessibilityRole="button"
-          accessibilityLabel="对Jolly许个心愿"
-          onPress={card.onReply}
-          scale={0.97}
-          style={[styles.primary, { backgroundColor: colors.accent }]}
-        >
-          <Icon name="edit" size={13} color={colors.onAccent} strokeWidth={2.2} />
-          <Text style={[styles.primaryText, { color: colors.onAccent }]}>许个心愿</Text>
-        </Pressy>
-      </PostAttachment>
-    </PostFrame>
+            ))}
+          </View>
+          <Pressy
+            accessibilityRole="button"
+            accessibilityLabel="对Jolly许个心愿"
+            onPress={card.onReply}
+            scale={0.97}
+            style={[styles.primary, { backgroundColor: colors.accent }]}
+          >
+            <Icon name="edit" size={13} color={colors.onAccent} strokeWidth={2.2} />
+            <Text style={[styles.primaryText, { color: colors.onAccent }]}>许个心愿</Text>
+          </Pressy>
+        </PostAttachment>
+      </View>
+    } />
   );
 }
 
@@ -70,22 +74,25 @@ function DoneCard(card: FeedCardProps) {
   const wish = work.wish || card.post.body;
   const note = work.wish && card.post.body !== work.wish ? card.post.body : "";
   return (
-    <PostFrame {...card} body={note ? undefined : null}>
-      <PostAttachment>
-        <View style={styles.receiptTop}>
-          <View style={[styles.seal, { backgroundColor: colors.accent }]}>
-            <Icon name="check" size={9} color={colors.onAccent} strokeWidth={2.8} />
+    <PostFrame {...card} content={
+      <View style={styles.content}>
+        {note ? <PostBody post={card.post} /> : null}
+        <PostAttachment>
+          <View style={styles.receiptTop}>
+            <View style={[styles.seal, { backgroundColor: colors.accent }]}>
+              <Icon name="check" size={9} color={colors.onAccent} strokeWidth={2.8} />
+            </View>
+            <Text style={[styles.eyebrow, { color: colors.accentText }]}>心愿达成</Text>
           </View>
-          <Text style={[styles.eyebrow, { color: colors.accentText }]}>心愿达成</Text>
-        </View>
-        <Text style={styles.wish} numberOfLines={3}>
-          {wish}
-        </Text>
-        <View style={styles.progress}>
-          <WorkProgress work={{ ...work, phase: "ready" }} />
-        </View>
-      </PostAttachment>
-    </PostFrame>
+          <Text style={styles.wish} numberOfLines={3}>
+            {wish}
+          </Text>
+          <View style={styles.progress}>
+            <WorkProgress work={{ ...work, phase: "ready" }} />
+          </View>
+        </PostAttachment>
+      </View>
+    } />
   );
 }
 
@@ -98,24 +105,31 @@ function WorkingCard(card: FeedCardProps) {
   const status = work.status && work.status !== wish && !work.steps.includes(work.status) ? work.status : "";
   const making = work.phase === "making";
   return (
-    <PostFrame {...card} body={status ? <Text style={styles.status}>{status}</Text> : null}>
-      <PostAttachment>
-        <View style={styles.receiptTop}>
-          <Pulse color={colors.accent} size={6} live={making} />
-          <Text style={[styles.eyebrow, { color: colors.accentText }]}>{making ? "正在动手" : card.kindLabel}</Text>
-        </View>
-        <Text style={styles.wish} numberOfLines={2}>
-          {wish}
-        </Text>
-        <View style={styles.progress}>
-          <WorkProgress work={work} />
-        </View>
-      </PostAttachment>
-    </PostFrame>
+    <PostFrame {...card} content={
+      <View style={styles.content}>
+        {status ? <Text style={styles.status}>{status}</Text> : null}
+        <PostAttachment>
+          <View style={styles.receiptTop}>
+            <Pulse color={colors.accent} size={6} live={making} />
+            <Text style={[styles.eyebrow, { color: colors.accentText }]}>{making ? "正在动手" : card.kindLabel}</Text>
+          </View>
+          <Text style={styles.wish} numberOfLines={2}>
+            {wish}
+          </Text>
+          <View style={styles.progress}>
+            <WorkProgress work={work} />
+          </View>
+        </PostAttachment>
+      </View>
+    } />
   );
 }
 
 const styles = themedStyleSheet((t) => ({
+  content: {
+    gap: 6,
+    paddingTop: 1,
+  },
   path: {
     flexDirection: "row",
   },

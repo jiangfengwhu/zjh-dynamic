@@ -2,6 +2,7 @@ import { Text, View } from "react-native";
 import { Icon, Pressy } from "../../ui/chrome";
 import {
   PostAttachment,
+  PostBody,
   PostFrame,
   publishFeedPost,
   registerFeedTemplates,
@@ -18,40 +19,50 @@ publishFeedPost({
 function IntroCard(card: FeedCardProps) {
   const { colors } = useTheme();
   return (
-    <PostFrame {...card}>
-      <PostAttachment>
-        <Pressy
-          accessibilityRole="button"
-          accessibilityLabel="打开番茄钟"
-          onPress={card.onOpen}
-          scale={0.97}
-          style={[styles.primary, { backgroundColor: colors.orange }]}
-        >
-          <Icon name="sun" size={13} color={colors.onAccent} strokeWidth={2.2} />
-          <Text style={[styles.primaryText, { color: colors.onAccent }]}>开始专注</Text>
-        </Pressy>
-      </PostAttachment>
-    </PostFrame>
+    <PostFrame {...card} content={
+      <View style={styles.content}>
+        <PostBody post={card.post} />
+        <PostAttachment>
+          <Pressy
+            accessibilityRole="button"
+            accessibilityLabel="打开番茄钟"
+            onPress={card.onOpen}
+            scale={0.97}
+            style={[styles.primary, { backgroundColor: colors.orange }]}
+          >
+            <Icon name="sun" size={13} color={colors.onAccent} strokeWidth={2.2} />
+            <Text style={[styles.primaryText, { color: colors.onAccent }]}>开始专注</Text>
+          </Pressy>
+        </PostAttachment>
+      </View>
+    } />
   );
 }
 
 function UpdateCard(card: FeedCardProps) {
   const { colors } = useTheme();
   return (
-    <PostFrame {...card}>
-      <PostAttachment>
-        <View style={styles.updateCard}>
-          <View style={[styles.flowerIcon, { backgroundColor: colors.orangeTint }]}>
-            <Icon name="sun" size={14} color={colors.orangeText} />
+    <PostFrame {...card} content={
+      <View style={styles.content}>
+        <PostBody post={card.post} />
+        <PostAttachment>
+          <View style={styles.updateCard}>
+            <View style={[styles.flowerIcon, { backgroundColor: colors.orangeTint }]}>
+              <Icon name="sun" size={14} color={colors.orangeText} />
+            </View>
+            <Text style={[styles.updateText, { color: colors.ink1 }]}>完成了一次专注，得到一朵小花。</Text>
           </View>
-          <Text style={[styles.updateText, { color: colors.ink1 }]}>完成了一次专注，得到一朵小花。</Text>
-        </View>
-      </PostAttachment>
-    </PostFrame>
+        </PostAttachment>
+      </View>
+    } />
   );
 }
 
 const styles = themedStyleSheet((t) => ({
+  content: {
+    gap: 6,
+    paddingTop: 1,
+  },
   primary: {
     alignSelf: "flex-start",
     flexDirection: "row",

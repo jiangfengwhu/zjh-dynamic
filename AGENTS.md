@@ -31,6 +31,8 @@ apps/mobile/ 放 RN 入口和容器；packages/features/ 放业务与注册表�
 
 新增应用在 packages/features/<id>/app.tsx 实现并调用 registerFeature(id, Component)，通过 packages/features/src/registry.ts 延迟加载登记；动态卡片和头像参考 packages/features/jolly 的登记方式。复用现有主题、卡片和持久化接口，保留既有应用 ID、用户数据和其他功能。
 
+动态内容由各 App 自定义：在自己的 cards.tsx 中调用 registerFeedTemplates，通过 `<PostFrame {...card} content={...} />` 绘制名字与底部操作栏之间的完整区域。正文、排版、图形和交互均由 App 决定；框架不添加内容卡片的白底、边框、圆角或内边距。PostBody 是可选的正文组件，PostAttachment 是无默认样式的容器。不要为了套用框架而给内容加统一白色卡片框；需要这些样式时由 App 自己定义。
+
 RN 依赖查 apps/mobile/package.json 和 apps/mobile/package-lock.json；根目录清单只管理发布工具。apps/mobile/vendor-libs.js 由打包脚本生成，不手工维护。先复用现有包；纯 JS 依赖按任务更新清单和锁文件。新增或升级带原生实现的包，需要本地壳维护者确认并发布支持它的 APK，不能宣称只发 RN 即可生效。
 
 ## 构建与发布

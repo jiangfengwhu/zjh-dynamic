@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import Markdown from "react-native-markdown-display";
 import { Icon, Pressy } from "../../chrome";
@@ -106,25 +106,28 @@ export function PostBody({ post }: Pick<FeedCardProps, "post">) {
   );
 }
 
-/** 附件。像推文里的图片或引用：一块带发丝边的圆角面，放这位朋友自己的内容。 */
+/** 无默认样式的内容容器。底色、边框、圆角和内边距均由 App 决定。 */
 export function PostAttachment({ children, style }: { children?: ReactNode; style?: StyleProp<ViewStyle> }) {
-  useTheme();
-  return <View style={[styles.attachment, style]}>{children}</View>;
+  return <View style={style}>{children}</View>;
 }
 
 /**
  * 默认的一条动态：左边头像，右边依次是名字和时间、正文、附件、操作。
  * 没有卡片外框，条与条之间的分隔线由壳画。朋友登记的卡片也交给它：
- * 想要自己的内容，正文放进 body（不传就是 post.body，传 null 则不显示），附件放进 children。
+ * App 优先使用 content 自绘名字与操作栏之间的完整区域，无默认正文、底色、边框或内边距。
+ * body 和 children 保留兼容；没有自定义内容时才使用默认正文。
  */
 export const PostFrame = memo(function PostFrame({
   children,
+  content,
   body,
   hideBody,
   style,
   ...card
 }: FeedCardProps & {
   children?: ReactNode;
+  /** 完整内容区域，包括正文和交互控件；传 null 可以留空。 */
+  content?: ReactNode;
   /** 替换正文。不传就用 post.body，传 null 则不显示正文。 */
   body?: ReactNode;
   hideBody?: boolean;
@@ -143,8 +146,10 @@ export const PostFrame = memo(function PostFrame({
         <PostAvatar friend={card.friend} onOpen={card.onOpen} />
         <View style={styles.column}>
           <PostHead friend={card.friend} time={card.time} unread={card.unread} />
-          {lead ? <View style={styles.lead}>{lead}</View> : null}
-          {children ? <View style={styles.extra}>{children}</View> : null}
+          {content !== undefined ? content : <>
+            {lead ? <View style={styles.lead}>{lead}</View> : null}
+            {children ? <View style={styles.extra}>{children}</View> : null}
+          </>}
           <PostActions {...card} />
         </View>
       </View>
@@ -213,14 +218,6 @@ const styles = themedStyleSheet((t) => ({
   },
   extra: {
     marginTop: 6,
-  },
-  attachment: {
-    borderRadius: t.radius.md,
-    borderWidth: StyleSheet.hairlineWidth * 1.5,
-    borderColor: t.lineStrong,
-    backgroundColor: t.surface,
-    padding: 10,
-    overflow: "hidden",
   },
   actions: {
     flexDirection: "row",
