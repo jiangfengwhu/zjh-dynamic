@@ -1,5 +1,1 @@
-export type AppAvatarProps = {
-  size: number;
-  animated?: boolean;
-  borderRadius?: number;
-};
+export type { AppAvatarProps } from "../../app-sdk/src/index";

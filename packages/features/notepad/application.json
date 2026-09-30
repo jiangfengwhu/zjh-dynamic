@@ -1,9 +1,0 @@
-{
-  "appId": "notepad",
-  "version": "1.0.0",
-  "title": "记事本",
-  "summary": "记录灵感，支持 Markdown 预览。",
-  "mark": "记",
-  "accent": "#7A5BD0",
-  "dataSchemaVersion": 1
-}

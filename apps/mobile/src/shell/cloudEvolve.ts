@@ -5,7 +5,7 @@ import { runningApplicationReleases, offerApplication, type ApplicationManifest 
 const SESSION_STORAGE = "shell.julesSession.v1";
 const RUN_STORAGE = "shell.julesRun.v1";
 const APPROVAL_STORAGE = "shell.julesApproval.v1";
-const SOURCE = "sources/github/jiangfengwhu/zjh-dynamic";
+const SOURCE = "sources/github/jiangfengwhu/zjh-plugin";
 
 type CloudOutcome = "finished" | "cancelled" | "waiting";
 

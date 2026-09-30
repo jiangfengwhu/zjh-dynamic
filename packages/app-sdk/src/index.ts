@@ -1,9 +1,15 @@
 import type { ComponentType } from "react";
-import type { AppAvatarProps } from "../../features/avatars/types";
-import type { FeedCardProps, FeedTemplates, FeedSlot, FeedPost } from "../../ui/feed/store";
-import type { phone } from "../../platform/src/phone";
 
-export type { FeedCardProps, AppAvatarProps };
+export type AppAvatarProps = { size: number; animated?: boolean; borderRadius?: number };
+export type FeedKind = "welcome" | "update" | "activity";
+export type FeedSlot = FeedKind | "summary";
+export type FeedPost = { id: string; appId: string; kind: FeedSlot; body: string; payload: Record<string, unknown>; createdAt: number };
+export type FeedFriend = { id: string; name: string; mark: string; accent: string; Avatar?: ComponentType<AppAvatarProps> };
+export type FeedCardProps = { post: FeedPost; friend: FeedFriend; kindLabel: string; time: string; unread: boolean; liked: boolean; onOpen: () => void; onLike: () => void; onReply: () => void };
+export type FeedTemplates = Partial<Record<FeedKind, ComponentType<FeedCardProps>>>;
+export type ShellResult = { ok: boolean; error?: string };
+export type ApplicationManifest = { format: number; appId: string; releaseId: string; version: string; title: string; summary: string; mark: string; accent: string; dataSchemaVersion: number; requires: { engineAbi: string; sdk: string; shared: Record<string, string> }; modules: { base: number; size: number }; bundle: { sha256: string; bytes: number }; assets: Array<{ name: string; sha256: string; bytes: number }>; source: { repository?: string; commit: string; dirty: boolean } };
+
 export type AppDefinition = {
   main: () => ComponentType<Record<string, never>>;
   cards?: FeedTemplates;
@@ -26,7 +32,13 @@ export type AppContext = {
     remove: (id: string) => void;
   };
   navigation: { back: () => void; open: () => void; create: (prompt?: string) => void };
-  phone: Pick<typeof phone, "vibrate" | "speak" | "notify" | "schedule" | "keepAwake">;
+  phone: {
+    vibrate: (ms?: number) => Promise<ShellResult>;
+    speak: (text: string) => Promise<ShellResult>;
+    notify: (id: string, title: string, body: string) => Promise<ShellResult>;
+    schedule: (id: string, title: string, body: string, atMs: number) => Promise<ShellResult>;
+    keepAwake: (on: boolean) => Promise<ShellResult>;
+  };
 };
 
 /** The application resolver supplies a bound SDK; the host never uses this placeholder. */

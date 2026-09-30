@@ -1,5 +1,5 @@
 import { bindApplicationSdk, registerApplication } from "../../../../packages/app-sdk/src/runtime";
-import * as ui from "../../../../packages/app-sdk/src/ui";
+import * as ui from "../../../../packages/app-sdk/src/host-ui";
 import * as cloud from "../shell/cloudEvolve";
 import { checkPackageUpdates, applyPackageUpdates } from "../shell/packageUpdates";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";

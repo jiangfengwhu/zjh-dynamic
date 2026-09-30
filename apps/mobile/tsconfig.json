@@ -27,7 +27,7 @@
         "../../packages/app-sdk/src/index.ts"
       ],
       "@zijinhua/app-sdk/ui": [
-        "../../packages/app-sdk/src/ui.ts"
+        "../../packages/app-sdk/src/host-ui.ts"
       ],
       "@zijinhua/app-sdk/creation": [
         "../../packages/app-sdk/src/creation.ts"

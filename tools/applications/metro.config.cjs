@@ -1,14 +1,14 @@
 const fs = require('fs');
 const path = require('path');
-const mobile = path.resolve(__dirname, '../../apps/mobile');
+const mobile = process.env.ZIJINHUA_APPLICATION_REPO;
 const root = process.env.ZIJINHUA_APPLICATION_ROOT;
 const output = process.env.ZIJINHUA_APPLICATION_OUTPUT;
 const appId = process.env.ZIJINHUA_APPLICATION_ID;
 if (!root || !output || !appId) throw new Error('缺少独立应用构建配置');
-const mobileRequire = require('module').createRequire(path.join(mobile, 'package.json'));
+const mobileRequire = require('module').createRequire(__filename);
 const { getDefaultConfig, mergeConfig } = mobileRequire('@react-native/metro-config');
-const allocation = require('./allocations.json');
-const base = allocation.applications[appId];
+const allocation = { moduleRangeSize: 100000 };
+const base = Number(process.env.ZIJINHUA_APPLICATION_BASE);
 if (!Number.isSafeInteger(base)) throw new Error(`应用没有登记模块编号范围：${appId}`);
 const shared = JSON.parse(fs.readFileSync(path.join(output, 'public-modules.json'), 'utf8'));
 const seen = new Map();

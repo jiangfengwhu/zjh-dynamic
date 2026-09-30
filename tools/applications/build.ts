@@ -9,38 +9,45 @@ const run = promisify(execFile);
 
 export async function buildApplication(repo: string, appId: string) {
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("应用 ID 无效");
-  const root = path.join(repo, "packages/features", appId);
-  const mobile = path.join(repo, "apps/mobile");
+  const root = path.join(repo, "apps", appId);
+  const mobile = repo;
   const output = path.join(repo, "dist/applications", appId);
   const config = JSON.parse(await readFile(path.join(root, "application.json"), "utf8"));
   if (config.appId !== appId || !/^\d+\.\d+\.\d+$/.test(config.version)) throw new Error("应用配置无效");
-  const allocations = JSON.parse(await readFile(path.join(repo, "tools/applications/allocations.json"), "utf8"));
-  const bases = Object.values(allocations.applications) as number[];
-  if (new Set(bases).size !== bases.length || bases.some(base => !Number.isSafeInteger(base) || base < 2000000 || base % allocations.moduleRangeSize)) throw new Error("模块编号分配冲突");
-  if (!allocations.applications[appId]) throw new Error("应用尚未分配模块范围");
+  const sdkDirectory = import.meta.dirname;
+  const platform = JSON.parse(await readFile(path.join(sdkDirectory, "platform.json"), "utf8"));
+  const base = config.moduleBase;
+  if (!Number.isSafeInteger(base) || base < 2000000 || base % platform.moduleRangeSize || base + platform.moduleRangeSize >= 2 ** 31) throw new Error("应用模块范围无效");
+  if (platform.reservedModules[appId] !== undefined && platform.reservedModules[appId] !== base) throw new Error("应用模块范围不可变更");
   await mkdir(path.join(output, "external"), { recursive: true });
-  const lock = JSON.parse(await readFile(path.join(mobile, "package-lock.json"), "utf8"));
-  const publicModules = JSON.parse(await readFile(path.join(repo, "tools/applications/public-modules.json"), "utf8"));
-  const sharedNames: string[] = [...publicModules.shared, "@zijinhua/app-sdk", "@zijinhua/app-sdk/ui", "@zijinhua/app-sdk/creation"];
+  const publicModules = { sdk: platform.sdk };
+  const sharedNames: string[] = [...Object.keys(platform.shared), "@zijinhua/app-sdk", "@zijinhua/app-sdk/ui", "@zijinhua/app-sdk/creation"];
   const shared: Record<string, string> = {};
   for (const name of sharedNames) {
     const packageName = name.startsWith("@") ? name.split("/").slice(0, 2).join("/") : name.split("/")[0];
-    const version = packageName === "@zijinhua/app-sdk" ? publicModules.sdk : lock.packages[`node_modules/${packageName}`]?.version;
+    const version = packageName === "@zijinhua/app-sdk" ? publicModules.sdk : platform.shared[name];
     if (!version) throw new Error(`共享依赖没有锁定版本：${name}`);
     shared[name] = version;
     await writeFile(path.join(output, "external", `${Buffer.from(name).toString("hex")}.js`), `module.exports = globalThis.__zijinhuaApplications.require(${JSON.stringify(name)}, ${JSON.stringify(appId)});\n`);
   }
   await writeFile(path.join(output, "public-modules.json"), JSON.stringify(shared));
+  await writeFile(path.join(output, "used-modules.json"), "[]");
   const entry = path.join(output, "entry.js");
-  const sourceEntry = await realpath(path.join(root, "index.ts"));
+  const sourceEntry = await realpath(path.join(root, "src/index.ts"));
   await writeFile(entry, `const definition = require(${JSON.stringify(sourceEntry.replaceAll("\\", "/"))}).default;\nglobalThis.__zijinhuaApplications.register(${JSON.stringify(appId)}, definition);\n`);
   process.env.ZIJINHUA_APPLICATION_ROOT = root;
+  process.env.ZIJINHUA_APPLICATION_REPO = repo;
+  process.env.ZIJINHUA_APPLICATION_BASE = String(base);
   process.env.ZIJINHUA_APPLICATION_OUTPUT = output;
   process.env.ZIJINHUA_APPLICATION_ID = appId;
-  const require = createRequire(path.join(mobile, "package.json"));
+  const require = createRequire(import.meta.url);
+  const projectRequire = createRequire(path.join(repo, "package.json"));
+  const rn = JSON.parse(await readFile(projectRequire.resolve("react-native/package.json"), "utf8"));
+  const react = JSON.parse(await readFile(projectRequire.resolve("react/package.json"), "utf8"));
+  if (rn.version !== platform.shared["react-native"] || react.version !== platform.shared.react) throw new Error("React/RN 开发依赖与平台契约不匹配");
   const Metro = require("metro");
-  const bundleOutput = require(path.join(mobile, "node_modules/metro/src/shared/output/bundle.js"));
-  const metroConfig = await Metro.loadConfig({ cwd: mobile, projectRoot: mobile, config: path.join(repo, "tools/applications/metro.config.cjs") });
+  const bundleOutput = require(path.join(path.dirname(require.resolve("metro/package.json")), "src/shared/output/bundle.js"));
+  const metroConfig = await Metro.loadConfig({ cwd: mobile, projectRoot: mobile, config: path.join(sdkDirectory, "metro.config.cjs") });
   const bundleFile = path.join(output, "application.bundle");
   const jsFile = path.join(output, "application.js");
   try {
@@ -50,11 +57,13 @@ export async function buildApplication(repo: string, appId: string) {
     });
   } finally {
     delete process.env.ZIJINHUA_APPLICATION_ROOT;
+    delete process.env.ZIJINHUA_APPLICATION_REPO;
+    delete process.env.ZIJINHUA_APPLICATION_BASE;
     delete process.env.ZIJINHUA_APPLICATION_OUTPUT;
     delete process.env.ZIJINHUA_APPLICATION_ID;
   }
   const folder = process.platform === "win32" ? "win64-bin" : process.platform === "darwin" ? "osx-bin" : "linux64-bin";
-  await run(path.join(mobile, "node_modules/hermes-compiler/hermesc", folder, process.platform === "win32" ? "hermesc.exe" : "hermesc"), ["-w", "-emit-binary", "-out", bundleFile, "-O", jsFile], { windowsHide: true });
+  await run(path.join(path.dirname(require.resolve("hermes-compiler/package.json")), "hermesc", folder, process.platform === "win32" ? "hermesc.exe" : "hermesc"), ["-w", "-emit-binary", "-out", bundleFile, "-O", jsFile], { windowsHide: true });
   const bytes = await readFile(bundleFile);
   const assets: Array<{ name: string; sha256: string; bytes: number }> = [];
   async function collectAssets(directory: string, prefix = "") {
@@ -77,12 +86,18 @@ export async function buildApplication(repo: string, appId: string) {
   const source = (await run("git", ["rev-parse", "HEAD"], { cwd: repo, windowsHide: true })).stdout.trim();
   const dirty = Boolean((await run("git", ["status", "--porcelain", "--untracked-files=normal"], { cwd: repo, windowsHide: true })).stdout.trim());
   const body = {
-    ...config, format: 1, requires: { engineAbi: `rn-${shared["react-native"]}-hermes-${lock.packages["node_modules/hermes-compiler"].version}`, sdk: publicModules.sdk, shared: dependencies },
-    modules: { base: allocations.applications[appId], size: allocations.moduleRangeSize },
-    bundle: { sha256: sha256Hex(bytes), bytes: bytes.length }, assets: assets.sort((a, b) => a.name.localeCompare(b.name)), source: { commit: source, dirty },
+    ...config, format: 1, requires: { engineAbi: platform.engineAbi, sdk: publicModules.sdk, shared: dependencies },
+    modules: { base, size: platform.moduleRangeSize },
+    bundle: { sha256: sha256Hex(bytes), bytes: bytes.length }, assets: assets.sort((a, b) => a.name.localeCompare(b.name)), source: { repository: repositoryFromRemote((await run("git", ["remote", "get-url", "origin"], { cwd: repo, windowsHide: true })).stdout.trim()), commit: source, dirty },
   };
   const manifest = { ...body, releaseId: sha256Hex(JSON.stringify(body)) };
   await writeFile(path.join(output, "manifest.json"), JSON.stringify(manifest, null, 2));
   console.log(JSON.stringify({ appId, releaseId: manifest.releaseId, bytes: bytes.length, output }));
   return { manifest, bundleFile, output };
+}
+
+function repositoryFromRemote(remote: string) {
+  const match = remote.match(/^(?:git@github\.com:|https:\/\/github\.com\/)([^/]+\/[^/]+?)(?:\.git)?$/);
+  if (!match) throw new Error("仅支持明确的 GitHub origin 仓库");
+  return match[1];
 }

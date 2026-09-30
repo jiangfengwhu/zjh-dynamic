@@ -1,14 +1,12 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { writeFile } from "node:fs/promises";
-import { buildApplication } from "../tools/applications/build.js";
-import { publishBundleObjects, publishCatalog, bundleEdgeBase } from "../tools/release/publish-bundle.js";
+import { readFile, writeFile } from "node:fs/promises";
+import { buildApplication } from "./build.js";
+import { publishBundleObjects, publishCatalog, bundleEdgeBase } from "../release/publish-bundle.js";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const appId = process.argv[2];
-if (!appId) throw new Error("用法：npm run publish:application -- <appId>");
+export async function publishApplication(root: string, appId: string) {
 const { manifest, bundleFile, output } = await buildApplication(root, appId);
+if (manifest.source.repository !== "jiangfengwhu/zjh-plugin") throw new Error("应用只能从 zjh-plugin 仓库发布");
 if (manifest.source.dirty) throw new Error("先提交所有源码改动，再发布应用");
 const platformResponse = await fetch(`${bundleEdgeBase()}/v1/runtime`);
 if (!platformResponse.ok) throw new Error("无法读取应用平台契约");
@@ -21,7 +19,14 @@ if (previous.ok) {
   if (prior.dataSchemaVersion !== manifest.dataSchemaVersion) throw new Error("首版 SDK 暂不允许自动改变存储结构版本，请由维护者设计迁移后发布");
   if (prior.modules.base !== manifest.modules.base) throw new Error("应用模块范围不可变更");
   if (!/^[a-f0-9]{40}$/.test(prior.source?.commit)) throw new Error("线上应用提交无效");
-  execFileSync("git", ["merge-base", "--is-ancestor", prior.source.commit, manifest.source.commit], { cwd: root, windowsHide: true, stdio: "pipe" });
+  const previousRepository = prior.source.repository ?? "jiangfengwhu/zjh-dynamic";
+  if (previousRepository === manifest.source.repository) {
+    execFileSync("git", ["merge-base", "--is-ancestor", prior.source.commit, manifest.source.commit], { cwd: root, windowsHide: true, stdio: "pipe" });
+  } else {
+    const transitions = JSON.parse(await readFile(path.join(import.meta.dirname, "repository-migration.json"), "utf8"));
+    const approved = transitions[appId];
+    if (manifest.source.repository !== "jiangfengwhu/zjh-plugin" || !approved || approved.repository !== previousRepository || approved.commit !== prior.source.commit || approved.releaseId !== prior.releaseId) throw new Error("应用跨仓库发布没有匹配的迁移基线");
+  }
 } else if (previous.status !== 404) throw new Error("无法读取应用发布基线");
 const file = path.join(output, "manifest.json");
 await writeFile(file, JSON.stringify(manifest));
@@ -32,6 +37,8 @@ await publishCatalog([
   { key: `v1/applications/${appId}/latest`, file, contentType: "application/json", cacheControl: "no-cache" },
 ]);
 console.log(JSON.stringify({ published: true, appId, releaseId: manifest.releaseId, commit: manifest.source.commit }));
+
+}
 
 function sdkCompatible(required: string, available: string) {
   if (!/^\d+\.\d+\.\d+$/.test(required) || !/^\d+\.\d+\.\d+$/.test(available)) return false;

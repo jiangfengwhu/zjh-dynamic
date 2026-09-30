@@ -67,11 +67,7 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   const applicationContract = { engineAbi: `rn-${shared["react-native"]}-hermes-${dependencyLock.packages["node_modules/hermes-compiler"].version}`, sdk: publicModules.sdk, shared };
   if (!contract.applications || contract.applications.engineAbi !== applicationContract.engineAbi || contract.applications.sdk !== applicationContract.sdk || Object.entries(shared).some(([name, version]) => contract.applications?.shared[name] !== version)) throw new Error("宿主公共依赖与目标 APK 契约不匹配，需要维护者协调发布");
   await writeFile(path.join(mobileDir, "src/runtime/application-contract.json"), JSON.stringify(applicationContract));
-  const applicationIndex: unknown[] = [];
-  for (const id of await readdir(path.join(repoRoot, "packages/features"))) {
-    try { applicationIndex.push(JSON.parse(await readFile(path.join(repoRoot, "packages/features", id, "application.json"), "utf8"))); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-  }
+  const applicationIndex = JSON.parse(await readFile(path.join(repoRoot, "tools/applications/default-applications.json"), "utf8"));
   await writeFile(path.join(mobileDir, "src/runtime/application-index.json"), JSON.stringify(applicationIndex));
 
   await writeFile(
