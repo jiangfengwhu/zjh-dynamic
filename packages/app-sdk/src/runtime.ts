@@ -7,6 +7,7 @@ import { registerFeature } from "../../features/src/featureHost";
 import { phone } from "../../platform/src/phone";
 
 const definitions = new Map<string, AppDefinition>();
+const activated = new Set<string>();
 const contexts = new Map<string, AppContext>();
 const assets = new Map<string, Record<string, string>>();
 export function installApplicationAssets(appId: string, files: Record<string, string>) { assets.set(appId, files); }
@@ -79,7 +80,7 @@ export function registerApplication(appId: string, definition: AppDefinition) {
   if (definitions.has(appId)) throw new Error(`应用已经加载，更新需要重载：${appId}`);
   if (!definition || typeof definition.main !== "function") throw new Error(`应用入口无效：${appId}`);
   definitions.set(appId, definition);
-  if (definition.cards) registerFeedTemplates(appId, definition.cards);
+
   // Main stays lazy; importing a card never executes its page module.
   let Page: ReturnType<AppDefinition["main"]> | undefined;
   function ApplicationPage() {
@@ -90,4 +91,11 @@ export function registerApplication(appId: string, definition: AppDefinition) {
   registerFeature(appId, ApplicationPage);
 }
 
-export function peekApplication(appId: string) { return definitions.get(appId); }
+export function peekRegisteredApplication(appId: string) { return definitions.get(appId); }
+export function peekApplication(appId: string) { return activated.has(appId) ? definitions.get(appId) : undefined; }
+export function activateApplication(appId: string) {
+  const definition = definitions.get(appId);
+  if (!definition || activated.has(appId)) return;
+  activated.add(appId);
+  if (definition.cards) registerFeedTemplates(appId, definition.cards);
+}

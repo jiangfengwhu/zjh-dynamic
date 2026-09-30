@@ -163,8 +163,6 @@ export type ShellNavigatorProps = {
 
 export function ShellNavigator(props: ShellNavigatorProps) {
   const previous = useRef({ label: "", depth: 1 });
-  const preloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const listedIds = props.listed.map((item) => item.id).join("\n");
   const colors = palettes[props.mode];
   const theme = {
     ...DefaultTheme,
@@ -178,24 +176,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
     },
   };
 
-  function warmBundles() {
-    if (preloadTimer.current) clearTimeout(preloadTimer.current);
-    const ids = listedIds.split("\n").filter(Boolean);
-    preloadTimer.current = setTimeout(() => {
-      if (!shellNavigationRef.isReady()) return;
-      for (const id of ids) shellNavigationRef.preload("bundle", { id });
-      if (ids.length) console.log("bundle preload", ids.join(","));
-    }, 400);
-  }
-
   useEffect(() => subscribePackageValue(SHELL_NAV_REQUEST, handleShellRequest), []);
-
-  useEffect(() => {
-    warmBundles();
-    return () => {
-      if (preloadTimer.current) clearTimeout(preloadTimer.current);
-    };
-  }, [listedIds]);
 
   function onStateChange(state: NavigationState | undefined) {
     if (!state) return;
@@ -212,11 +193,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
     }
     const depth = state.routes.length;
     const key = `${label}:${detail}:${depth}`;
-    const cameFromBundle = previous.current.label.startsWith("bundle:");
     if (key === previous.current.label) return;
     if (label === "tab") {
       console.log("route tab", detail);
-      if (cameFromBundle) warmBundles();
     } else if (depth < previous.current.depth) console.log("route pop", label, detail);
     else console.log("route push", label, detail, "depth", depth);
     previous.current = { label: key, depth };

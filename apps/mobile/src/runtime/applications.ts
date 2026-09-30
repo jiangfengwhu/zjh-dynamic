@@ -1,7 +1,7 @@
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
-import { applicationContext, peekApplication, installApplicationAssets } from "../../../../packages/app-sdk/src/runtime";
+import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets } from "../../../../packages/app-sdk/src/runtime";
 import { loadCatalog, saveCatalog } from "../shell/catalog";
 import type { PendingPackage } from "../shell/packageUpdates";
 
@@ -84,10 +84,11 @@ async function load(appId: string) {
   const raw = await NativePluginHost.call("shell", "loadApplication", JSON.stringify(manifest));
   const result = JSON.parse(raw) as { assets: Record<string, string> };
   installApplicationAssets(appId, result.assets);
-  const definition = peekApplication(appId);
+  const definition = peekRegisteredApplication(appId);
   if (!definition) throw new Error(`应用没有登记入口：${appId}`);
-  definition.main(); // Check the entry before promoting the application.
+
   active.set(appId, manifest);
+  activateApplication(appId);
   if (!saved && definition.onInstall) await definition.onInstall(applicationContext(appId));
   if (saved && staged) writeShellValue(`application.previous.${appId}`, saved);
   writeShellValue(key, JSON.stringify(manifest));

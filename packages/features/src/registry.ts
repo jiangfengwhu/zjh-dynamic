@@ -23,8 +23,7 @@ function definition(item: (typeof index)[number]): BundleDefinition {
   };
 }
 export const bundles: BundleDefinition[] = index.map(definition);
-export async function refreshApplications() {
-  const { edgeUrl } = require("../../../apps/mobile/src/shell/evolveHost");
+export async function restoreApplications() {
   const { loadCatalog } = require("../../../apps/mobile/src/shell/catalog");
   const { readShellValue } = require("../../../apps/mobile/src/shell/shellStorage");
   for (const entry of await loadCatalog()) {
@@ -32,9 +31,15 @@ export async function refreshApplications() {
     if (!raw) continue;
     try {
       const item = JSON.parse(raw);
-      if (item.appId === entry.id && typeof item.title === "string" && !bundles.some(bundle => bundle.id === entry.id)) bundles.push(definition(item));
+      if (item.appId !== entry.id || typeof item.title !== "string") continue;
+      const prior = bundles.findIndex(bundle => bundle.id === entry.id);
+      if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
     } catch { /* Keep other installed applications available. */ }
   }
+}
+
+export async function refreshApplications() {
+  const { edgeUrl } = require("../../../apps/mobile/src/shell/evolveHost");
   try {
     const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications`);
     if (!response.ok) throw new Error("无法读取应用目录");
@@ -49,8 +54,7 @@ export async function refreshApplications() {
 
 /** 取一位朋友的页面组件。第一次打开时执行 load；页面模块出错会抛出，由调用方显示。 */
 export async function openFeature(id: string): Promise<FeatureComponent> {
-  const existing = peekFeature(id);
-  if (existing) return existing;
+
   const definition = bundles.find((item) => item.id === id);
   if (!definition) throw new Error(`这个应用还没登记：${id}`);
   console.log("feature load", id);

@@ -2,7 +2,7 @@ import { reportApplicationFailure } from "./src/runtime/applications";
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { bundles, openFeature, refreshApplications } from "../../packages/features/src/registry";
+import { bundles, openFeature, refreshApplications, restoreApplications } from "../../packages/features/src/registry";
 import type { FeatureComponent } from "../../packages/features/src/featureHost";
 import NativePluginHost from "./src/NativePluginHost";
 import { loadCatalog, saveCatalog, type CatalogEntry } from "./src/shell/catalog";
@@ -118,6 +118,24 @@ function ShellApp() {
   }, [pluginsReady]);
 
   useEffect(() => {
+    if (!pluginsReady) return;
+    let disposed = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        // Warm cards after the first frame; main pages remain lazy.
+        for (const bundle of bundles) {
+          if (disposed) return;
+          if (!catalog.some(item => item.id === bundle.id && !item.purged && !item.trashedAt)) continue;
+          await Promise.resolve(bundle.load()).catch((error: unknown) => console.log("application warm failed", bundle.id, String(error)));
+          if (!disposed) setCatalog(current => [...current]);
+        }
+      })();
+      void refreshApplications().then(() => { if (!disposed) setCatalog(current => [...current]); });
+    }, 100);
+    return () => { disposed = true; clearTimeout(timer); };
+  }, [pluginsReady]);
+
+  useEffect(() => {
     return subscribePackageValue("theme.mode", (value) => {
       if (value !== "light" && value !== "dark") return;
       setMode((current) => (current === value ? current : value));
@@ -132,16 +150,13 @@ function ShellApp() {
         const nextMode = appearance.mode === "light" ? "light" : "dark";
         setMode(nextMode);
         let stored = await loadCatalog();
-        await refreshApplications();
+        await restoreApplications();
         if (!await readShellValue("application.bootstrap.v1")) {
           const bootstrap = require("../../tools/applications/bootstrap.json");
           const ids: string[] = stored.length || readFeedPosts().length ? bootstrap.legacyInstalled : bootstrap.defaultInstalled;
           for (const id of ids) if (!stored.some(entry => entry.id === id)) stored.push({ id, hidden: false, pinned: true });
           await saveCatalog(stored);
           writeShellValue("application.bootstrap.v1", "done");
-        }
-        for (const bundle of bundles) {
-          if (stored.some(item => item.id === bundle.id && !item.purged && !item.trashedAt)) await Promise.resolve(bundle.load()).catch((error: unknown) => console.log("application boot failed", bundle.id, String(error)));
         }
         console.log("catalog loaded", stored.length);
         setCatalog(stored);
