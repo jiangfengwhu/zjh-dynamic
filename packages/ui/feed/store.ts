@@ -100,8 +100,8 @@ export function readFeedPosts(): FeedPost[] {
     return parsed.flatMap((item) => {
       const kind = normalizeKind(item?.kind);
       if (!item?.appId || !item.body || !item.createdAt || !kind) return [];
-      // 旧版把工坊的开始、结果和中断发成动态；加载新包后不再展示这些提示及其小结。
-      if (item.appId === "jolly" && (kind === "summary" || ((kind === "activity" || kind === "update") && typeof item.payload?.startedAt === "number"))) return [];
+      // 旧版分开发出的制作提示仍隐藏；新版本使用同一个稳定 ID 更新整次制作。
+      if (item.appId === "jolly" && (kind === "summary" || ((kind === "activity" || kind === "update") && typeof item.payload?.startedAt === "number" && item.payload.workshopPost !== true))) return [];
       return [{
         id: item.id || `${item.appId}-${kind}-${item.createdAt}`,
         appId: item.appId,
@@ -120,6 +120,21 @@ export function readFeedPosts(): FeedPost[] {
 export function subscribeFeedPosts(listener: (posts: FeedPost[]) => void): () => void {
   listener(readFeedPosts());
   return subscribePackageValue(POSTS, () => listener(readFeedPosts()));
+}
+
+/** 更新同一条动态，保留它的 ID、时间和位置，点赞等关联状态不会丢失。 */
+export function upsertFeedPost(post: FeedPost) {
+  const posts = readFeedPosts();
+  const existing = posts.find((item) => item.id === post.id);
+  const next = existing ? { ...post, createdAt: existing.createdAt } : post;
+  if (existing && JSON.stringify(existing) === JSON.stringify(next)) return;
+  writePosts(existing ? posts.map((item) => item.id === post.id ? next : item) : [next, ...posts].slice(0, POST_LIMIT));
+}
+
+export function removeFeedPost(id: string) {
+  const posts = readFeedPosts();
+  const next = posts.filter((post) => post.id !== id);
+  if (next.length !== posts.length) writePosts(next);
 }
 
 export function publishFeedPost(input: { appId: string; kind: FeedSlot; body: string; payload?: Record<string, unknown> }) {
