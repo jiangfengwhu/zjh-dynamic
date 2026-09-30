@@ -4,6 +4,8 @@ import type { AppAvatarProps } from "../avatars/types";
 import "../jolly/cards";
 import { NotepadAvatar } from "../avatars/notepad";
 import "../notepad/cards";
+import { HabitAvatar } from "../avatars/habit";
+import "../habit/cards";
 import { peekFeature, type FeatureComponent } from "./featureHost";
 // 定制应用的页面放在 features/<id>/app.tsx，末尾调用 registerFeature(id, Component)；这里的 load 用 require 引入它。
 // 每个应用也是动态里的一位好友。头像组件放在 features/avatars/<id>.tsx，动态页按 size 直接渲染。三套动态卡片放在 features/<id>/cards.tsx，由这里导入，壳启动时登记。
@@ -37,6 +39,15 @@ export const bundles: BundleDefinition[] = [
     accent: "#7A5BD0",
     avatar: NotepadAvatar,
     load: () => require("../notepad/app"),
+  },
+  {
+    id: "habit",
+    title: "习惯打卡",
+    summary: "温馨可爱的日常小目标",
+    mark: "惯",
+    accent: "#C2652A",
+    avatar: HabitAvatar,
+    load: () => require("../habit/app"),
   },
 ];
 
