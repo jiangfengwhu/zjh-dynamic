@@ -194,10 +194,13 @@ async function sessionAcceptsMessage(name: string): Promise<boolean> {
   return state !== "FAILED";
 }
 
-export async function workshopStatus(session: string): Promise<{ completed: boolean; merged: boolean; state: string }> {
-  const result = await workshop({ action: "status", session });
+export type WorkshopStatus = { completed: boolean; merged: boolean; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string };
+
+export async function workshopStatus(session: string): Promise<WorkshopStatus> {
+  const { buildId } = require("./build-identity.json") as { buildId: string };
+  const result = await workshop({ action: "status", session, buildId });
   if (typeof result.token === "string") writeShellValue(APPROVAL_STORAGE, result.token);
-  return result as { completed: boolean; merged: boolean; state: string };
+  return result as WorkshopStatus;
 }
 
 export async function confirmWorkshop(session: string): Promise<void> {

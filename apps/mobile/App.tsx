@@ -87,6 +87,7 @@ function ShellApp() {
   const [sessionId, setSessionId] = useState("");
   const [sessionLoading, setSessionLoading] = useState(true);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [workshopReady, setWorkshopReady] = useState(false);
   const [awaitingReply, setAwaitingReply] = useState(false);
   const [confirmationBusy, setConfirmationBusy] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
@@ -235,7 +236,7 @@ function ShellApp() {
     }
   }
 
-  async function refreshUpdates(force = false): Promise<PendingPackage[]> {
+  async function refreshUpdates(force = false, strict = false): Promise<PendingPackage[]> {
     try {
       const items = await checkPackageUpdates();
       const signature = updateSignature(items);
@@ -246,6 +247,7 @@ function ShellApp() {
       return visible;
     } catch (error) {
       console.log("package updates failed", error instanceof Error ? error.message : error);
+      if (strict) throw error;
       return [];
     }
   }
@@ -304,16 +306,19 @@ function ShellApp() {
     setRunStartedAt(0);
     setWorkshopPhase("idle");
     setAwaitingConfirmation(false);
+    setWorkshopReady(false);
     setAwaitingReply(false);
     setConfirmationMessage("");
   }
 
   async function confirmWish() {
-    if (!sessionId || !awaitingConfirmation || busyRef.current || confirmingRef.current) return;
+    if (!sessionId || !awaitingConfirmation || !workshopReady || busyRef.current || confirmingRef.current) return;
     confirmingRef.current = true;
     setConfirmationBusy(true);
     setConfirmationMessage("正在为这份心愿落款…");
     try {
+      const delivery = await checkWorkshopDelivery(sessionId);
+      if (delivery.delivery !== "loaded") return;
       await confirmWorkshop(sessionId);
       clearJulesSession();
       setSessionId("");
@@ -330,12 +335,39 @@ function ShellApp() {
     }
   }
 
-  async function loadWish() {
-    if (updateBusy || confirmingRef.current) return;
+  async function checkWorkshopDelivery(session: string) {
+    setWorkshopReady(false);
+    setUpdateCompleted(false);
     try {
-      const ready = await refreshUpdates(true);
-      if (ready.length) await applyUpdatesNow();
-      else setConfirmationMessage("已检查作品更新。确认收下时还会核对正在运行的版本。");
+      const workshop = await workshopStatus(session);
+      setConfirmationMessage(workshop.message || "暂时无法核对作品发布状态，请稍后重试。");
+      if (workshop.delivery === "loaded") {
+        setWorkshopReady(true);
+        setStatus("正在体验这次作品");
+      } else if (workshop.delivery === "update") {
+        const ready = await refreshUpdates(true, true);
+        setUpdateCompleted(ready.length > 0);
+        setStatus(ready.length ? "这次作品可以加载" : "新包暂未就绪，请重新检查");
+      } else {
+        setStatus(workshop.delivery === "blocked" ? "作品交付需要处理" : "代码已完成，等待发布");
+      }
+      return workshop;
+    } catch (error) {
+      setConfirmationMessage(error instanceof Error ? error.message : "作品更新检查失败，请稍后重试");
+      setStatus("作品更新检查失败");
+      throw error;
+    }
+  }
+
+  async function loadWish() {
+    if (updateBusy || confirmingRef.current || !sessionId) return;
+    try {
+      const workshop = await checkWorkshopDelivery(sessionId);
+      if (workshop.delivery === "update") {
+        const ready = await refreshUpdates(true, true);
+        if (ready.length) await applyUpdatesNow();
+        else setConfirmationMessage("新包暂未就绪，请重新检查；确认前会再次核对运行版本。");
+      }
     } catch (error) {
       setConfirmationMessage(error instanceof Error ? error.message : "新作品暂时没接好，请稍后再试");
     }
@@ -395,14 +427,12 @@ function ShellApp() {
       setRequirement("");
       setFeatureKey((value) => value + 1);
       setStatus("正在检查新包");
-      const ready = await refreshUpdates();
-      setUpdateCompleted(ready.length > 0);
-      setStatus(ready.length ? "有新包可以加载" : "已是最新");
+      await checkWorkshopDelivery(cloudRun.current?.runId || await loadJulesSession());
       setBusy(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.log("evolve failed", message);
-      setWorkshopPhase("failed");
+      setWorkshopPhase(waiting ? "ready" : "failed");
       setStatus(message);
       setBusy(false);
     } finally {
@@ -498,14 +528,12 @@ function ShellApp() {
         await syncPlugins();
         setFeatureKey((value) => value + 1);
         setStatus("正在检查新包");
-        const ready = await refreshUpdates();
-        setUpdateCompleted(ready.length > 0);
-        setStatus(ready.length ? "有新包可以加载" : "已是最新");
+        await checkWorkshopDelivery(session);
         setBusy(false);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.log("jules resume failed", message);
-        setWorkshopPhase("failed");
+        setWorkshopPhase(waiting ? "ready" : "failed");
         setStatus(message);
         setBusy(false);
       } finally {
@@ -527,9 +555,7 @@ function ShellApp() {
       console.log("jules resume completed", session);
       try {
         await syncPlugins();
-        const ready = await refreshUpdates();
-        setUpdateCompleted(ready.length > 0);
-        setStatus(ready.length ? "有新包可以加载" : "已是最新");
+        await checkWorkshopDelivery(session);
       } catch (error) {
         console.log("jules resume check failed", error instanceof Error ? error.message : error);
       }
@@ -584,6 +610,7 @@ function ShellApp() {
             sessionLoading={sessionLoading}
             onNewSession={newSession}
             awaitingConfirmation={awaitingConfirmation}
+            workshopReady={workshopReady}
             awaitingReply={awaitingReply}
             confirmationBusy={confirmationBusy}
             confirmationMessage={confirmationMessage}
@@ -601,7 +628,7 @@ function ShellApp() {
             onOpenBundle={openBundle}
             onReplyToFriend={replyToFriend}
             onCheckUpdates={async () => {
-              const ready = await refreshUpdates(true);
+              const ready = await refreshUpdates(true, true);
               return ready.length > 0;
             }}
             onMode={(next) => void changeMode(next)}

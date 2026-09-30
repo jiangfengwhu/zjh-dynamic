@@ -40,6 +40,7 @@ type Props = {
   sessionLoading: boolean;
   onNewSession: () => void;
   awaitingConfirmation: boolean;
+  workshopReady: boolean;
   awaitingReply: boolean;
   confirmationBusy: boolean;
   confirmationMessage: string;
@@ -149,6 +150,7 @@ export const AgentScreen = memo(function AgentScreen({
   sessionLoading,
   onNewSession,
   awaitingConfirmation,
+  workshopReady,
   awaitingReply,
   confirmationBusy,
   confirmationMessage,
@@ -336,7 +338,7 @@ export const AgentScreen = memo(function AgentScreen({
             <View style={styles.sessionSeal}><Icon name="edit" size={16} color={colors.accentText} /></View>
             <View style={styles.heroCopy}>
               <Text style={styles.sessionTitle}>{sessionLoading ? "正在接回你的心愿" : "这一份心愿，我们接着做"}</Text>
-              <Text style={styles.caption}>{awaitingConfirmation ? "作品已做好，等你体验后亲自收下。" : awaitingReply ? "伙伴在等你的回应，回复会留在这次制作里。" : "一次专心做好一件事，不会另开一份制作。"}</Text>
+              <Text style={styles.caption}>{awaitingConfirmation ? (workshopReady ? "正在体验这次作品，满意后亲自收下。" : "代码已完成，正在等待发布或加载。") : awaitingReply ? "伙伴在等你的回应，回复会留在这次制作里。" : "一次专心做好一件事，不会另开一份制作。"}</Text>
             </View>
             {!busy && !awaitingConfirmation && !awaitingReply ? (
               <Pressy accessibilityRole="button" disabled={sessionLoading} onPress={onNewSession} style={styles.sessionButton}>
@@ -363,7 +365,7 @@ export const AgentScreen = memo(function AgentScreen({
                 <Pressy accessibilityRole="button" disabled={confirmationBusy} onPress={onLoadWish} style={styles.ghost}>
                   <Text style={styles.ghostText}>加载最新作品</Text>
                 </Pressy>
-                <Pressy accessibilityRole="button" disabled={confirmationBusy} onPress={onConfirmWish} style={[styles.primary, confirmationBusy && { opacity: 0.6 }]}>
+                <Pressy accessibilityRole="button" disabled={confirmationBusy || !workshopReady} onPress={onConfirmWish} style={[styles.primary, (confirmationBusy || !workshopReady) && { opacity: 0.6 }]}>
                   <Text style={styles.primaryText}>{confirmationBusy ? "正在收好…" : "确认收下并合入"}</Text>
                 </Pressy>
               </View>
@@ -382,7 +384,7 @@ export const AgentScreen = memo(function AgentScreen({
                 <Icon name="edit" size={15} color={colors.ink3} />
               </Pressy>
               <Text style={styles.heroStatus}>
-                {stillRunning ? "正在把你的想法慢慢做好" : awaitingConfirmation ? "作品做好了，等你来体验" : awaitingReply ? "还有一句话想听你说" : hasError ? "遇到一点阻碍" : "这份心愿已经收好"}
+                {stillRunning ? "正在把你的想法慢慢做好" : awaitingConfirmation ? (workshopReady ? "这次作品已打开，等你体验" : "代码完成，交付状态见上方提示") : awaitingReply ? "还有一句话想听你说" : hasError ? "遇到一点阻碍" : "这份心愿已经收好"}
               </Text>
             </View>
           </View>

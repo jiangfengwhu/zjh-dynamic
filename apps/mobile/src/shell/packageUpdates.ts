@@ -25,8 +25,11 @@ export async function checkPackageUpdates(): Promise<PendingPackage[]> {
     "checkUpdates",
     "{}",
   );
-  const parsed = JSON.parse(raw) as { items?: PendingPackage[] };
-  const items = Array.isArray(parsed.items) ? parsed.items : [];
+  const parsed = JSON.parse(raw) as { ok?: boolean; items?: PendingPackage[]; error?: string; message?: string };
+  if (parsed.ok === false || !Array.isArray(parsed.items)) {
+    throw new Error(parsed.message || parsed.error || "更新检查未完成，请稍后重试");
+  }
+  const items = parsed.items;
   console.log("package updates", items.map((item) => `${item.kind}:${item.id}`).join(" ") || "none");
   return items;
 }
