@@ -1,0 +1,18 @@
+{
+  "name": "zjh-dynamic",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "bundle": "tsx scripts/bundle-preview.ts",
+    "publish": "tsx scripts/cloud-publish.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.896.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
