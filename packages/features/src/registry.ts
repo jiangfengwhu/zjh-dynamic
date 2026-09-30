@@ -4,6 +4,8 @@ import type { AppAvatarProps } from "../avatars/types";
 import "../jolly/cards";
 import { NotepadAvatar } from "../avatars/notepad";
 import "../notepad/cards";
+import { PomodoroAvatar } from "../avatars/pomodoro";
+import "../pomodoro/cards";
 import { peekFeature, type FeatureComponent } from "./featureHost";
 // 定制应用的页面放在 features/<id>/app.tsx，末尾调用 registerFeature(id, Component)；这里的 load 用 require 引入它。
 // 每个应用也是动态里的一位好友。头像组件放在 features/avatars/<id>.tsx，动态页按 size 直接渲染。三套动态卡片放在 features/<id>/cards.tsx，由这里导入，壳启动时登记。
@@ -37,6 +39,15 @@ export const bundles: BundleDefinition[] = [
     accent: "#7A5BD0",
     avatar: NotepadAvatar,
     load: () => require("../notepad/app"),
+  },
+  {
+    id: "pomodoro",
+    title: "番茄钟",
+    summary: "专注25分钟，种下一朵小花。",
+    mark: "钟",
+    accent: "#E0A06A",
+    avatar: PomodoroAvatar,
+    load: () => require("../pomodoro/app"),
   },
 ];
 
