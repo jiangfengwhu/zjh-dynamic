@@ -5,6 +5,9 @@ import { Icon, SectionTitle, Surface, type IconName } from "../../../../packages
 
 import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
 import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES } from "../../../../packages/ui/feed";
+import { bundles } from "../../../../packages/features/src/registry";
+
+const bootstrap = require("../../../../tools/applications/bootstrap.json");
 
 type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
 
@@ -26,6 +29,8 @@ export const MineScreen = memo(function MineScreen({
   onAppearance,
 }: Props) {
   const { colors } = useTheme();
+  const companion = bundles.find(item => item.id === bootstrap.defaultApplication);
+  const Avatar = companion?.avatar;
   const [summaryEvery, setSummaryEvery] = useState(() => readSummaryEvery());
   const [check, setCheck] = useState<CheckState>("idle");
   useEffect(() => subscribeSummaryEvery(setSummaryEvery), []);
@@ -58,10 +63,10 @@ export const MineScreen = memo(function MineScreen({
       >
         <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
           <View style={styles.portrait}>
-            <Icon name="box" size={36} color={colors.accent} />
+            {Avatar ? <Avatar size={68} animated borderRadius={22} /> : <Icon name="box" size={36} color={colors.accent} />}
           </View>
           <View style={styles.profileCopy}>
-            <Text style={styles.profileName}>紫金花</Text>
+            <Text style={styles.profileName}>{companion?.title ?? "紫金花"}</Text>
             <Text style={styles.profileHint}>把一句心愿做成能打开的小应用</Text>
           </View>
         </Surface>
