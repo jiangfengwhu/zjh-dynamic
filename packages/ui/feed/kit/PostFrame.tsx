@@ -2,7 +2,7 @@ import { memo, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import Markdown from "react-native-markdown-display";
-import { Icon, Pressy, type IconName } from "../../chrome";
+import { Icon, Pressy } from "../../chrome";
 import { themedStyleSheet, useTheme, type Theme } from "../../theme";
 import type { FeedCardProps, FeedSlot } from "../store";
 import { FriendAvatar } from "./FriendAvatar";
@@ -13,21 +13,6 @@ export const KIND_LABEL: Record<FeedSlot, string> = {
   update: "更新",
   activity: "近况",
   summary: "小结",
-};
-
-/** 一条动态在名字上方的一行小字：这位朋友这次做了什么，扫一眼就能看明白。 */
-export const KIND_VERB: Record<FeedSlot, string> = {
-  welcome: "新伙伴加入",
-  update: "发布了新版本",
-  activity: "最新制作进展",
-  summary: "近期动态小结",
-};
-
-const KIND_ICON: Record<FeedSlot, IconName> = {
-  welcome: "plus",
-  update: "workshop",
-  activity: "clock",
-  summary: "feed",
 };
 
 /** 类别的配色。 */
@@ -49,22 +34,6 @@ export const PostAvatar = memo(function PostAvatar({ friend, onOpen }: Pick<Feed
     <Pressy accessibilityRole="button" accessibilityLabel={`打开${friend.name}`} onPress={onOpen} scale={0.92}>
       <FriendAvatar friend={friend} size={AVATAR} />
     </Pressy>
-  );
-});
-
-/** 名字上方的一行：类别图标加一句「做了什么」。图标落在头像那一列，文字和正文左对齐。 */
-export const PostContext = memo(function PostContext({ post }: Pick<FeedCardProps, "post">) {
-  const { colors } = useTheme();
-  const tone = kindTone(post.kind, colors);
-  return (
-    <View style={styles.context}>
-      <View style={styles.contextIcon}>
-        <Icon name={KIND_ICON[post.kind]} size={12} color={tone.text} strokeWidth={2} />
-      </View>
-      <Text style={[styles.contextText, { color: tone.text }]} numberOfLines={1}>
-        {KIND_VERB[post.kind]}
-      </Text>
-    </View>
   );
 });
 
@@ -144,7 +113,7 @@ export function PostAttachment({ children, style }: { children?: ReactNode; styl
 }
 
 /**
- * 默认的一条动态，长得像 X 的一条推文：左边头像，右边依次是「做了什么」、名字和时间、正文、附件、操作。
+ * 默认的一条动态：左边头像，右边依次是名字和时间、正文、附件、操作。
  * 没有卡片外框，条与条之间的分隔线由壳画。朋友登记的卡片也交给它：
  * 想要自己的内容，正文放进 body（不传就是 post.body，传 null 则不显示），附件放进 children。
  */
@@ -170,7 +139,6 @@ export const PostFrame = memo(function PostFrame({
       onPress={card.onOpen}
       style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.inset }, style]}
     >
-      <PostContext post={card.post} />
       <View style={styles.main}>
         <PostAvatar friend={card.friend} onOpen={card.onOpen} />
         <View style={styles.column}>
@@ -201,22 +169,6 @@ const styles = themedStyleSheet((t) => ({
     paddingTop: 8,
     paddingBottom: 5,
     paddingHorizontal: SIDE,
-  },
-  context: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: GUTTER,
-    marginBottom: 2,
-  },
-  contextIcon: {
-    width: AVATAR,
-    alignItems: "flex-end",
-  },
-  contextText: {
-    flex: 1,
-    fontSize: 11.5,
-    lineHeight: 15,
-    fontWeight: "500",
   },
   main: {
     flexDirection: "row",

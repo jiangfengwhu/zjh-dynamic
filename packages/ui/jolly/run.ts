@@ -1,4 +1,5 @@
 import { readPackageValue, subscribePackageValue, writePackageValue } from "../packageLink";
+import { removeFeedPost, upsertFeedPost } from "../feed/store";
 
 export type JollyPhase = "idle" | "making" | "ready" | "stopped" | "failed";
 
@@ -70,6 +71,24 @@ export function describeJollyRun(run: Pick<JollyRun, "phase" | "wish" | "status"
   if (run.phase === "stopped") return `停下了「${wish}」`;
   if (run.phase === "failed") return `没做成「${wish}」：${clip(run.status, 36) || "出错"}`;
   return "";
+}
+
+/** 一次制作只对应一条动态；进度和结果原位更新，失败或中断移除。 */
+export function syncJollyFeedPost(input: { startedAt: number; phase: JollyPhase; wish: string; status: string; steps: string[] }) {
+  if (!Number.isFinite(input.startedAt) || input.startedAt <= 0 || input.phase === "idle") return;
+  const id = `jolly-workshop-${input.startedAt}`;
+  if (input.phase === "failed" || input.phase === "stopped") {
+    removeFeedPost(id);
+    return;
+  }
+  upsertFeedPost({
+    id,
+    appId: "jolly",
+    kind: input.phase === "ready" ? "update" : "activity",
+    body: describeJollyRun(input),
+    payload: { ...input, workshopPost: true },
+    createdAt: input.startedAt,
+  });
 }
 
 function clip(text: string, max = 42): string {

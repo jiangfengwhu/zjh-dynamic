@@ -8,7 +8,7 @@ import { loadCatalog, saveCatalog, type CatalogEntry } from "./src/shell/catalog
 import { openShellBundle, openShellTab, ShellNavigator } from "./src/shell/navigation";
 import { BackButton } from "./src/shell/BackButton";
 import type { AgentTrace } from "./src/shell/AgentScreen";
-import { jollyPhaseFromStatus, noteJollyRun } from "../../packages/ui/jolly";
+import { jollyPhaseFromStatus, noteJollyRun, syncJollyFeedPost, type JollyPhase } from "../../packages/ui/jolly";
 import { readPackageValue, subscribePackageValue } from "../../packages/ui/packageLink";
 import { theme, palettes, themedStyleSheet, type ThemeMode } from "../../packages/ui/theme";
 import { ThemeProvider } from "../../packages/ui/ThemeProvider";
@@ -83,6 +83,7 @@ function ShellApp() {
   const [updateCompleted, setUpdateCompleted] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [runStartedAt, setRunStartedAt] = useState(0);
+  const [workshopPhase, setWorkshopPhase] = useState<JollyPhase>("idle");
   const [sessionId, setSessionId] = useState("");
   const [sessionLoading, setSessionLoading] = useState(true);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
@@ -146,7 +147,8 @@ function ShellApp() {
     if (phase === "idle" && !prompt.trim()) return;
     const steps = [...new Set(traces.map((item) => item.title.trim()).filter(Boolean))].slice(-4);
     noteJollyRun({ phase, wish: prompt, status, steps });
-  }, [pluginsReady, busy, status, prompt, traces]);
+    syncJollyFeedPost({ startedAt: runStartedAt, phase: workshopPhase, wish: prompt, status, steps });
+  }, [pluginsReady, busy, status, prompt, traces, runStartedAt, workshopPhase]);
 
   useEffect(() => {
     return subscribePackageValue("theme.mode", (value) => {
@@ -300,6 +302,7 @@ function ShellApp() {
     setTraces([]);
     setReport("");
     setRunStartedAt(0);
+    setWorkshopPhase("idle");
     setAwaitingConfirmation(false);
     setAwaitingReply(false);
     setConfirmationMessage("");
@@ -345,9 +348,12 @@ function ShellApp() {
   async function runCloud(text: string, status = "正在生成") {
     busyRef.current = true;
     setBusy(true);
-    const startedAt = Date.now();
+    // 回复同一份心愿沿用动态身份；轮次消息的时间由 cloudEvolve 单独管理。
+    const startedAt = sessionId && runStartedAt > 0 ? runStartedAt : Date.now();
+    const wish = sessionId && prompt.trim() ? prompt : text;
     setRunStartedAt(startedAt);
-    setPrompt(text);
+    setPrompt(wish);
+    setWorkshopPhase("making");
     setAwaitingReply(false);
     setConfirmationMessage("");
     setTraces([]);
@@ -365,12 +371,13 @@ function ShellApp() {
         onRunId: (runId) => {
           setSessionId(runId);
           cloudRun.current = { runId };
-          saveJulesRun({ session: runId, prompt: text, startedAt });
+          saveJulesRun({ session: runId, prompt: wish, startedAt });
         },
         shouldStop: () => cloudStop.current,
       });
       if (outcome === "cancelled") {
         setSessionId("");
+        setWorkshopPhase("stopped");
         setStatus("已停止");
         setBusy(false);
         return;
@@ -382,6 +389,7 @@ function ShellApp() {
       }
       waiting = true;
       setAwaitingConfirmation(true);
+      setWorkshopPhase("ready");
       await workshopStatus(cloudRun.current?.runId || await loadJulesSession());
       await syncPlugins();
       setRequirement("");
@@ -394,6 +402,7 @@ function ShellApp() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.log("evolve failed", message);
+      setWorkshopPhase("failed");
       setStatus(message);
       setBusy(false);
     } finally {
@@ -420,6 +429,10 @@ function ShellApp() {
       if (info) {
         const workshop = await workshopStatus(session);
         if (workshop.merged) {
+          setRunStartedAt(run?.startedAt || info.startedAt);
+          setPrompt(run?.prompt || info.title);
+          setWorkshopPhase("ready");
+          setStatus("这份心愿已收好");
           clearJulesSession();
           setSessionId("");
           return;
@@ -434,6 +447,8 @@ function ShellApp() {
       setSessionLoading(false);
     }
     if (!info || info.state === "FAILED") {
+      setRunStartedAt(run?.startedAt || info?.startedAt || 0);
+      setWorkshopPhase(info?.state === "FAILED" ? "failed" : "stopped");
       clearJulesSession();
       setSessionId("");
       busyRef.current = false;
@@ -447,6 +462,7 @@ function ShellApp() {
       const startedAt = run?.startedAt || info.startedAt;
       setPrompt(promptText);
       setRunStartedAt(startedAt);
+      setWorkshopPhase("making");
       showAgent();
       saveJulesRun({ session, prompt: promptText, startedAt });
       console.log("jules resume", session, info.state);
@@ -465,6 +481,7 @@ function ShellApp() {
         }, startedAt);
         if (outcome === "cancelled") {
           setSessionId("");
+          setWorkshopPhase("stopped");
           setStatus("已停止");
           setBusy(false);
           return;
@@ -476,6 +493,7 @@ function ShellApp() {
         }
         waiting = true;
         setAwaitingConfirmation(true);
+        setWorkshopPhase("ready");
         await workshopStatus(session);
         await syncPlugins();
         setFeatureKey((value) => value + 1);
@@ -487,6 +505,7 @@ function ShellApp() {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.log("jules resume failed", message);
+        setWorkshopPhase("failed");
         setStatus(message);
         setBusy(false);
       } finally {
@@ -500,6 +519,7 @@ function ShellApp() {
     if (info.state === "COMPLETED") {
       setPrompt(run?.prompt || info.title || "这次的心愿");
       setRunStartedAt(run?.startedAt || info.startedAt);
+      setWorkshopPhase("ready");
       showAgent();
       busyRef.current = false;
       setBusy(false);
@@ -517,6 +537,8 @@ function ShellApp() {
       return;
     }
     if (info.state === "PAUSED") {
+      setRunStartedAt(run?.startedAt || info.startedAt);
+      setWorkshopPhase("stopped");
       setAwaitingReply(true);
       setPrompt(run?.prompt || info.title || "线上定制");
       showAgent();
