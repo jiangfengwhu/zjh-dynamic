@@ -27,7 +27,7 @@ export function offerApplication(manifest: ApplicationManifest) { assertCompatib
 
 export async function checkApplicationUpdates(): Promise<PendingPackage[]> {
   for (const [appId, current] of active) {
-    const response = await fetch(`${edgeUrl}/v1/applications/${appId}/latest`);
+    const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/latest`);
     if (!response.ok) throw new Error(`无法检查应用更新：${appId}`);
     const manifest = await response.json() as ApplicationManifest;
     if (manifest.releaseId !== current.releaseId && manifest.releaseId !== await readShellValue(`application.failed.${appId}`)) offerApplication(manifest);
@@ -69,15 +69,14 @@ async function load(appId: string) {
     writeShellValue(`application.attempt.${appId}`, "");
     staged = undefined;
   }
-  const response = !saved && !staged ? await fetch(`${edgeUrl}/v1/applications/${appId}/latest`).catch(() => undefined) : undefined;
   let manifest: ApplicationManifest;
   if (staged) manifest = JSON.parse(staged) as ApplicationManifest;
-  else if (response?.ok) manifest = await response.json() as ApplicationManifest;
   else if (saved) manifest = JSON.parse(saved) as ApplicationManifest;
-  else {
-    const seed = JSON.parse(await NativePluginHost.call("shell", "applicationSeed", JSON.stringify({ appId }))) as { manifest?: ApplicationManifest };
-    if (!seed.manifest) throw new Error(`应用尚未安装或发布：${appId}`);
-    manifest = seed.manifest;
+  else manifest = await firstManifest(appId);
+  try { assertCompatible(manifest, appId); } catch (error) {
+    if (!saved || staged) throw error;
+    // An APK upgrade can change the ABI; retain data and pick a compatible seed/release.
+    manifest = await firstManifest(appId);
   }
   assertCompatible(manifest, appId);
   console.log("application load", appId, manifest.releaseId);
@@ -124,4 +123,20 @@ export async function reportApplicationFailure(appId: string) {
     writeShellValue(`application.failed.${appId}`, current.releaseId);
     writeShellValue(`application.install.${appId}`, previous);
   }
+}
+
+async function firstManifest(appId: string): Promise<ApplicationManifest> {
+  const seed = JSON.parse(await NativePluginHost.call("shell", "applicationSeed", JSON.stringify({ appId }))) as { manifest?: ApplicationManifest };
+  if (seed.manifest) {
+    try { assertCompatible(seed.manifest, appId); return seed.manifest; } catch { /* Need a newer compatible release. */ }
+  }
+  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/latest`);
+  if (!response.ok) throw new Error(`应用尚未安装或发布：${appId}`);
+  return response.json();
+}
+
+export async function fetchApplicationCatalog(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try { return await fetch(url, { signal: controller.signal }); } finally { clearTimeout(timer); }
 }

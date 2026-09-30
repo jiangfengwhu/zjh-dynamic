@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import type { AppAvatarProps } from "../avatars/types";
 import { peekApplication } from "../../app-sdk/src/runtime";
-import { loadApplication } from "../../../apps/mobile/src/runtime/applications";
+import { loadApplication, fetchApplicationCatalog } from "../../../apps/mobile/src/runtime/applications";
 import { peekFeature, type FeatureComponent } from "./featureHost";
 // Metadata only. Application pages, avatars and cards arrive in independent bundles.
 export type BundleDefinition = {
@@ -25,8 +25,18 @@ function definition(item: (typeof index)[number]): BundleDefinition {
 export const bundles: BundleDefinition[] = index.map(definition);
 export async function refreshApplications() {
   const { edgeUrl } = require("../../../apps/mobile/src/shell/evolveHost");
+  const { loadCatalog } = require("../../../apps/mobile/src/shell/catalog");
+  const { readShellValue } = require("../../../apps/mobile/src/shell/shellStorage");
+  for (const entry of await loadCatalog()) {
+    const raw = await readShellValue(`application.pending.${entry.id}`) || await readShellValue(`application.install.${entry.id}`);
+    if (!raw) continue;
+    try {
+      const item = JSON.parse(raw);
+      if (item.appId === entry.id && typeof item.title === "string" && !bundles.some(bundle => bundle.id === entry.id)) bundles.push(definition(item));
+    } catch { /* Keep other installed applications available. */ }
+  }
   try {
-    const response = await fetch(`${edgeUrl}/v1/applications`);
+    const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications`);
     if (!response.ok) throw new Error("无法读取应用目录");
     const payload = await response.json() as { applications: typeof index };
     for (const item of payload.applications) {
