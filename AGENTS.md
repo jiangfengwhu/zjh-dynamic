@@ -1,52 +1,35 @@
-# 云端 Coding Agent 工作与交付要求
+# 云端应用 Coding Agent 工作与交付要求
 
-本文件面向 Jules 等在云端执行本仓库任务的 Coding Agent。它规定云端工作范围与交付流程，不是本地维护者的操作限制。
+本文件面向 Jules 等云端 Coding Agent，不是本地维护者的操作限制。云端唯一开放仓库为 jiangfengwhu/zjh-dynamic，不访问或克隆 Android、server、旧单体仓库。跨仓库能力由本地维护者提供。
 
-## 必须完成的交付
+## 应用入口与 SDK
 
-用户从 App 工坊提出新增应用、修改功能或修复问题时，默认要求发布可在手机中加载的动态包，用户不必额外说“发包”。只完成代码、通过类型检查、运行 `npm run bundle` 或创建 PR，都不算完成交付。
+一次工坊心愿只交付一个应用。应用全部源码放在 packages/features/<appId>/，入口是 index.ts，使用 @zijinhua/app-sdk 的 defineApp；main 延迟返回页面组件，cards 与 avatar 由应用登记。application.json 记录稳定 appId、版本和展示信息；现有应用 ID 和用户数据不得改变。Jolly 也是独立应用，默认安装，工坊页面在其 Workshop.tsx。
 
-交付顺序：
+新增应用执行 npm run init:application -- <appId>，生成最小模板并分配互不重叠的模块范围；不要修改其他应用已分配的范围。无需编辑宿主 registry。依照 packages/features/notepad 和 pomodoro 的入口开发。详细契约和限制见 docs/app-sdk-usage.md。
 
-1. 阅读相关代码并实现需求；默认不单独运行测试、类型检查或预览构建。
-2. 同步本仓库最新 `main` 和线上清单的 `source.commit`，保留已有修改；处理冲突后提交全部源码改动。
-3. 推送最终提交并按现有流程创建或更新本次 PR，保持 PR 待用户确认，不合入 `main`。
-4. **必须执行 `npm run publish`**。该命令负责发布所需构建、兼容性检查、包体上传和线上清单更新，不能用 `npm run bundle` 代替。
-5. 发布成功后核对线上 `/v1/release`：`source.commit` 必须等于本次 PR 最终 head，`source.dirty` 必须为 `false`。只有上传和清单更新均成功，才向用户报告“已发布，可以加载体验”。
-6. 若发布后产生任何新的 Git 提交（包括文档、自动提交或 submit 工具产生的提交），必须从最终 PR head 重新运行 `npm run publish`，否则工坊不能确认收下。
+应用只导入 @zijinhua/app-sdk、@zijinhua/app-sdk/ui 及 tools/applications/public-modules.json 列出的公共第三方入口。getAppContext() 提供绑定当前应用的存储、动态、导航、资源 URI 和手机能力。禁止引用 vendor 内部文件、apps/mobile、packages/ui、packages/platform 或其他应用源码。制作服务 @zijinhua/app-sdk/creation 只授权 Jolly。需要其他原生能力时说明需求，由维护者扩展公开 SDK 和发布支持的 APK。
 
-缺少发布凭证、上传失败、基线或兼容性检查失败时，保留代码和 PR，明确报告“代码已完成，发布未完成”、失败原因及需要维护者处理的事项。不得把 Jules 的 `COMPLETED`、提交成功、PR 创建成功或构建成功描述为新作品已上线，也不得隐瞒失败后结束交付。纯文档任务无需发布；但修改已有待收下 PR 的 head 后，仍需重新发布以保持版本一致。
+纯 JS 依赖可私有打入应用，按任务更新 apps/mobile/package.json 和锁文件；不能私有打包带原生实现的包，也不能复制 React/RN。共享入口禁止深层路径导入，版本必须与目标平台兼容。资源放在应用 assets/，用 ctx.assets.uri("文件名") 取得 URI；第一版不支持应用内 require 图片资源。动态正文和附件由应用绘制，平台不强加卡片边框。创作过程由 Jolly 在开始时生成一条动态并更新进度，失败或中断时删除；新应用安装不再额外发布欢迎动态，仅在工坊展示结果。
 
-## 动态仓库边界
+第一版不提供通用存储结构迁移；应用更新保持 dataSchemaVersion，任何破坏既有数据格式的变更须先由维护者设计迁移。存储键空间及动态身份由 SDK 绑定；升级、重载不清空用户数据。订阅和计时器在 React effect 的清理函数中释放。
 
-本仓库 jiangfengwhu/zjh-dynamic 是云端 Agent 唯一开放的代码仓库。Android 和 server 由本地维护者管理；不访问、克隆或依赖这两个仓库及旧单体仓库，不要求用户向云端开放它们。跨仓库需求说明所需能力和接口，由用户交给本地维护者处理。
+## 必须发布，随后等待用户收下
 
-只维护 RN 与动态应用，不加入 Android/iOS 工程、APK 版本配置、原生补丁、静态壳源码或服务端管理代码。DEX 暂不扩展，除非用户明确提出相关任务。
+用户提出新增、修改或修复应用时，默认要求发包，无需再要求用户说“发布”。只完成代码、构建成功或创建 PR 都不算交付。
 
-## 实现入口
+1. 阅读相关代码并完成可用功能，包含加载、空态、错误反馈与持久化。默认不单独运行测试、类型检查或预览构建，用户在 App 验收；发布必需检查仍执行。安装使用 npm ci 与 npm ci --prefix apps/mobile。
+2. 同步 main 与目标应用线上 source.commit，保留他人修改并处理冲突；提交全部源码改动，推送并按现有流程创建本次 PR。不要合入 main、强推或开始下一份心愿。
+3. **执行 npm run publish:application -- <appId>**。命令负责独立 Metro/Hermes 构建、导入边界及目标平台兼容检查、应用提交基线检查、资源上传和清单发布，不用 npm run build:application 代替。
+4. 核对线上 /v1/applications/<appId>/latest 的 source.commit 等于最终 PR head，source.dirty 为 false。只有包体上传和清单发布实际成功才报告已发布。任何后续源码提交（包括自动提交）都必须从最终 PR head 重新发布。
+5. 用户先加载、体验，再在工坊确认收下。服务端核对该应用实际运行的 releaseId 与 PR head 后合入 main；不要绕过版本确认或替用户合入。调用 prompt 只传用户需求，固定要求来自本文件和 README。
 
-先阅读相关代码，理解用户希望得到的实际行为；沿用现有架构、组件和主题，完成可使用的功能，包括必要的数据持久化、权限处理、加载、空态和错误反馈。需求不明确时采用符合现有产品的合理默认值；涉及关键歧义或缺少必要条件时询问用户。手机能力优先复用 packages/platform/src 和现有 shell 封装，按需申请权限；不虚构接口、硬编码凭证或用演示数据冒充真实功能，只修改完成需求所需的文件。
+缺少凭证、构建失败、依赖不兼容、基线不满足时保留代码和 PR，明确报告“代码已完成，发布未完成”及具体原因，不能将 Jules COMPLETED 当成上线成功。纯文档修改无需发布；已有待收下应用 PR 的 head 改变后仍必须重新发包。
 
-apps/mobile/ 放 RN 入口和容器；packages/features/ 放业务与注册表；packages/ui/ 放共享 UI；packages/platform/src/ 放现有原生能力适配。发布实现位于 tools/release/，命令入口位于 scripts/。
+## 宿主由维护者协调
 
-新增应用在 packages/features/<id>/app.tsx 实现并调用 registerFeature(id, Component)，通过 packages/features/src/registry.ts 延迟加载登记；动态卡片和头像参考 packages/features/jolly 的登记方式。复用现有主题、卡片和持久化接口，保留既有应用 ID、用户数据和其他功能。
+apps/mobile 是平台宿主，packages/app-sdk 是公开契约与适配，packages/ui 和 platform 为平台内部实现，tools/applications 是独立应用工具。普通工坊任务不修改宿主、SDK、构建校验或运行时契约。需要改动这些能力时报告跨平台需求，不绕过检查。
 
-动态内容由各 App 自定义：在自己的 cards.tsx 中调用 registerFeedTemplates，通过 `<PostFrame {...card} content={...} />` 绘制名字与底部操作栏之间的完整区域。正文、排版、图形和交互均由 App 决定；框架不添加内容卡片的白底、边框、圆角或内边距。PostBody 是可选的正文组件，PostAttachment 是无默认样式的容器。不要为了套用框架而给内容加统一白色卡片框；需要这些样式时由 App 自己定义。
+维护者发布宿主仍使用 npm run publish，与 publish:application 分开。宿主运行时契约来自 /v1/runtime，桥接 SDK 下载后校验；不修改 release-migration.json、vendor 逻辑模块键或发布校验来绕过兼容性和提交基线。build-identity.json 为宿主自动生成标记，不提交、不手工维护。DEX 除非明确要求不扩展。
 
-RN 依赖查 apps/mobile/package.json 和 apps/mobile/package-lock.json；根目录清单只管理发布工具。apps/mobile/vendor-libs.js 由打包脚本生成，不手工维护。先复用现有包；纯 JS 依赖按任务更新清单和锁文件。新增或升级带原生实现的包，需要本地壳维护者确认并发布支持它的 APK，不能宣称只发 RN 即可生效。
-
-## 构建与发布
-
-安装使用 npm ci 和 npm ci --prefix apps/mobile。默认不单独运行类型检查、测试或预览构建，完成修改后直接运行发布流程，由用户在 App 中验收；发布必需的构建与兼容性检查仍执行，不绕过失败或提交基线。用户明确要求验证时按其要求执行。纯文档修改无需打包或线上发布。
-
-运行时契约来自 /v1/runtime，桥接 SDK 下载后校验；不得修改契约、release-migration.json 或发布校验来绕过兼容性和提交基线。Metro 保留稳定逻辑模块键，目录调整不能改变已发布 vendor 的编号。
-
-动态功能任务必须使用 npm run publish 发布，不另写上传流程。先确保当前分支包含线上 source.commit；缺少提交时获取本仓库对应历史并按任务要求处理冲突，不覆盖他人改动。不得使用 --force 绕过基线；提交和 PR 按任务要求交付，不自行强推或合并 PR。
-
-App 发起的 Jules 功能任务一次只进行一份心愿。完成代码后先提交所有源码改动，再运行 npm run publish，确保清单 source.commit 对应最终 PR 的 head，source.dirty 为 false；发布后不要再修改或提交源码，否则必须从最终提交重新发布。发布自动生成的 apps/mobile/src/shell/build-identity.json 不提交、不手工维护，它记录当前运行代码的版本标记；不得移除或绕过工坊的版本确认逻辑。
-
-按现有流程创建 PR，但不要合入 main、强推或自行开启下一次任务。会话完成后用户先加载和体验最新包，再在工坊点击确认收下，由服务端核对运行版本和 PR 提交后合入 main；只有确认合入后才能开始下一次制作。调用 prompt 只传用户需求，固定项目要求以本文件和 README.md 为准。最后用中文说明实现内容、发布结果及剩余限制。
-
-用户明确要求构建 DEX 插件时，环境还需 JAVA_HOME 和 ANDROID_HOME 或 ANDROID_SDK_ROOT。
-
-云端发布仅使用维护者注入的 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY 和 BUNDLE_CATALOG_TOKEN。不输出凭证、不获取管理权限、不运行 Wrangler 管理账户登录或直接写 KV；本机 Wrangler 回退是本地维护者流程。凭证缺失或权限不足时保留代码并报告阻塞，不绕过限制。仅命令和线上写入实际成功时报告发布成功。
+云端仅使用维护者注入的 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY、BUNDLE_CATALOG_TOKEN。不输出凭证、不获取管理权限、不运行 Wrangler 管理账户登录或直接写 KV；本机 Wrangler 回退仅供本地维护者使用。缺少权限时报告阻塞。最后用中文说明实现、实际发布结果和剩余限制。

@@ -17,10 +17,11 @@ const { createModuleIdFactory, processModuleFilter } = require('./metro.ids.cjs'
 const featuresDir = path.resolve(__dirname, '../../packages/features');
 const componentsDir = path.resolve(__dirname, '../../packages/ui');
 const config = {
-  watchFolders: [featuresDir, componentsDir, path.resolve(__dirname, '../../packages/platform')],
+  watchFolders: [featuresDir, componentsDir, path.resolve(__dirname, '../../packages/platform'), path.resolve(__dirname, '../../packages/app-sdk'), path.resolve(__dirname, '../../tools/applications')],
   resolver: {
     nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
     resolveRequest: (context, moduleName, platform) => {
+      if (moduleName.startsWith("@zijinhua/")) throw new Error("宿主不能通过应用入口引用 SDK");
       const resolved = context.resolveRequest(context, moduleName, platform);
       if (resolved.type !== 'sourceFile') return resolved;
       const normalized = resolved.filePath.replaceAll('\\', '/');

@@ -1,0 +1,5 @@
+{
+  "defaultApplication": "jolly",
+  "defaultInstalled": ["jolly"],
+  "legacyInstalled": ["jolly", "notepad", "pomodoro"]
+}

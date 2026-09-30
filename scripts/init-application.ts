@@ -1,0 +1,20 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const appId = process.argv[2];
+if (!appId || !/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("用法：npm run init:application -- <appId>，ID 只使用小写字母、数字和连字符");
+const file = path.join(root, "tools/applications/allocations.json");
+const allocations = JSON.parse(await readFile(file, "utf8"));
+if (allocations.applications[appId]) throw new Error("该应用已经存在");
+const base = Math.max(2000000 - allocations.moduleRangeSize, ...Object.values(allocations.applications) as number[]) + allocations.moduleRangeSize;
+if (base + allocations.moduleRangeSize >= 2 ** 31) throw new Error("应用模块空间已用尽");
+const directory = path.join(root, "packages/features", appId);
+await mkdir(directory);
+await writeFile(path.join(directory, "application.json"), JSON.stringify({ appId, version: "1.0.0", title: appId, summary: "", mark: appId[0], accent: "#7A5BD0", dataSchemaVersion: 1 }, null, 2));
+await writeFile(path.join(directory, "index.ts"), 'import { defineApp } from "@zijinhua/app-sdk";\nexport default defineApp({ main: () => require("./app").default });\n');
+await writeFile(path.join(directory, "app.tsx"), 'import { Text, View } from "react-native";\nimport { getAppContext } from "@zijinhua/app-sdk";\nimport { BackChip, useTheme } from "@zijinhua/app-sdk/ui";\nexport default function Application() {\n  const { colors } = useTheme();\n  return <View style={{ flex: 1, padding: 16, backgroundColor: colors.canvas }}><BackChip onPress={getAppContext().navigation.back} /><Text style={{ color: colors.ink1 }}>开始实现你的应用</Text></View>;\n}\n');
+allocations.applications[appId] = base;
+await writeFile(file, JSON.stringify(allocations, null, 2));
+console.log(`应用工程已创建：packages/features/${appId}，模块范围 ${base}..${base + allocations.moduleRangeSize - 1}`);

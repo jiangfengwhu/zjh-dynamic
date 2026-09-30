@@ -1,5 +1,7 @@
-import { readPackageValue, subscribePackageValue, writePackageValue } from "../packageLink";
-import { removeFeedPost, upsertFeedPost } from "../feed/store";
+import { getAppContext } from "@zijinhua/app-sdk";
+const { get: readPackageValue, set: writePackageValue, subscribe: subscribePackageValue } = getAppContext().storage;
+const removeFeedPost = getAppContext().feed.remove;
+const upsertFeedPost = getAppContext().feed.upsert;
 
 export type JollyPhase = "idle" | "making" | "ready" | "stopped" | "failed";
 
@@ -11,7 +13,7 @@ export type JollyRun = {
   at: number;
 };
 
-const KEY = "jolly.run.v1";
+const KEY = "run";
 
 const EMPTY: JollyRun = { phase: "idle", wish: "", status: "", steps: [], at: 0 };
 
@@ -83,7 +85,6 @@ export function syncJollyFeedPost(input: { startedAt: number; phase: JollyPhase;
   }
   upsertFeedPost({
     id,
-    appId: "jolly",
     kind: input.phase === "ready" ? "update" : "activity",
     body: describeJollyRun(input),
     payload: { ...input, workshopPost: true },

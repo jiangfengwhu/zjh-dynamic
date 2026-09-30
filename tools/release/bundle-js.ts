@@ -60,6 +60,20 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   source.buildId = randomUUID();
   await writeFile(path.join(mobileDir, "src", "shell", "build-identity.json"), JSON.stringify({ buildId: source.buildId }));
   await mkdir(outDir, { recursive: true });
+  const dependencyLock = JSON.parse(await readFile(path.join(mobileDir, "package-lock.json"), "utf8"));
+  const publicModules = JSON.parse(await readFile(path.join(repoRoot, "tools/applications/public-modules.json"), "utf8"));
+  const publicNames: string[] = publicModules.shared;
+  const shared = Object.fromEntries(publicNames.map(name => [name, dependencyLock.packages[`node_modules/${name.split("/")[0]}`].version]));
+  const applicationContract = { engineAbi: `rn-${shared["react-native"]}-hermes-${dependencyLock.packages["node_modules/hermes-compiler"].version}`, sdk: publicModules.sdk, shared };
+  if (!contract.applications || contract.applications.engineAbi !== applicationContract.engineAbi || contract.applications.sdk !== applicationContract.sdk || Object.entries(shared).some(([name, version]) => contract.applications?.shared[name] !== version)) throw new Error("宿主公共依赖与目标 APK 契约不匹配，需要维护者协调发布");
+  await writeFile(path.join(mobileDir, "src/runtime/application-contract.json"), JSON.stringify(applicationContract));
+  const applicationIndex: unknown[] = [];
+  for (const id of await readdir(path.join(repoRoot, "packages/features"))) {
+    try { applicationIndex.push(JSON.parse(await readFile(path.join(repoRoot, "packages/features", id, "application.json"), "utf8"))); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  }
+  await writeFile(path.join(mobileDir, "src/runtime/application-index.json"), JSON.stringify(applicationIndex));
+
   await writeFile(
     path.join(mobileDir, "src", "shell", "evolveHost.ts"),
     `export const bundleR2Url = ${JSON.stringify(bundleCdnBase())};\nexport const edgeUrl = ${JSON.stringify(bundleEdgeBase())};\n`,
@@ -280,11 +294,11 @@ const earlyPackages = new Set(["react-native-get-random-values", "react-native-g
 async function writeVendorLibs(repoRoot: string, mobileDir: string) {
   const packageJson = JSON.parse(await readFile(path.join(mobileDir, "package.json"), "utf8")) as { dependencies?: Record<string, string> };
   const specifiers = new Set<string>(Object.keys(packageJson.dependencies ?? {}));
-  const roots = [path.join(mobileDir, "src"), path.join(repoRoot, "packages", "features"), path.join(repoRoot, "packages", "ui"), path.join(repoRoot, "packages", "platform")];
+  const roots = [path.join(mobileDir, "src"), path.join(repoRoot, "packages", "ui"), path.join(repoRoot, "packages", "platform")];
   for (const root of roots) await collectPackageSpecifiers(root, specifiers);
   collectFromSource(await readIfExists(path.join(mobileDir, "App.tsx")).then((bytes) => bytes.toString("utf8")), specifiers);
   const lines = [...specifiers]
-    .filter((item) => item.length > 0 && !item.startsWith(".") && !earlyPackages.has(item))
+    .filter((item) => item.length > 0 && !item.startsWith(".") && !item.startsWith("@zijinhua/") && !earlyPackages.has(item))
     .sort();
   const body = lines.map((item) => `import ${JSON.stringify(item)};`).join("\n");
   await writeFile(path.join(mobileDir, "vendor-libs.js"), `${body}\n`);

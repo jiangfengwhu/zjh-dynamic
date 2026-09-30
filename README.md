@@ -17,7 +17,7 @@
 | plugins/ | 将来维护的 DEX 插件；本次不迁移 DEX |
 | dist/ | bundles、SDK 和插件编译产物；不进入 Git |
 
-应用入口组合 features、ui 和 platform；platform 适配现有原生能力，不依赖业务应用。新增应用使用 packages/features/<id>/app.tsx，并在 packages/features/src/registry.ts 登记，load 使用延迟 require。
+应用通过 @zijinhua/app-sdk 接入平台，代码、动态卡片、头像和资源独立打包，宿主只保留公共能力与容器。Jolly 是默认安装的独立应用。新增应用用 npm run init:application -- <id> 创建，入口 packages/features/<id>/index.ts，宿主不导入应用业务源码。详见 [SDK 使用说明](docs/app-sdk-usage.md) 和 [架构方案](docs/app-sdk-v1.md)。
 
 ### 已引入的 RN 包
 
@@ -34,11 +34,11 @@
 
 1. `npm ci` 和 `npm ci --prefix apps/mobile` 安装发布工具与 RN 依赖。
 2. 完成功能后提交源码；默认不单独运行验证，由用户在 App 中验收。
-3. `npm run publish` 构建并发布线上动态包；命令入口为 scripts/cloud-publish.ts。用户要求时才单独运行 `npm run typecheck` 或 `npm run bundle`。
+3. 应用任务运行 `npm run publish:application -- <appId>`；维护者更新宿主才运行 `npm run publish`。发布命令执行必要构建和兼容检查。用户要求时才单独运行类型检查或预览。
 
 仅修改文档时无需构建或发布 RN 包。提交、PR 和推送遵循当前任务的交付要求，不自行合并 PR 或强推。
 
-工坊一次只制作一份心愿。Jules 完成后创建 PR，并从最终源码提交发布；用户加载最新作品后，在工坊点击「确认收下并合入」。服务端核对当前运行代码的 buildId、线上清单、会话和 PR head，使用普通 merge 合入 main，再允许下一次制作。待确认状态跨 App 重载保留，不能通过重开会话跳过。
+工坊一次只制作一份心愿。Jules 完成后创建 PR，并从最终源码提交发布；用户加载最新作品后，在工坊点击「确认收下并合入」。服务端核对目标应用运行的 releaseId、应用线上清单、会话和 PR head（旧宿主任务仍核对 buildId），使用普通 merge 合入 main，再允许下一次制作。待确认状态跨 App 重载保留，不能通过重开会话跳过。
 
 build-identity.json 由构建流程生成并嵌入当前 app 包，清单 source.buildId 记录同一标记；文件不进入 Git，不手工修改。不以「已经下载」或「没有更新提示」代替运行版本核对。
 

@@ -1,22 +1,21 @@
-import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { reportApplicationFailure } from "./src/runtime/applications";
+import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { bundles, openFeature } from "../../packages/features/src/registry";
+import { bundles, openFeature, refreshApplications } from "../../packages/features/src/registry";
 import type { FeatureComponent } from "../../packages/features/src/featureHost";
 import NativePluginHost from "./src/NativePluginHost";
 import { loadCatalog, saveCatalog, type CatalogEntry } from "./src/shell/catalog";
 import { openShellBundle, openShellTab, ShellNavigator } from "./src/shell/navigation";
 import { BackButton } from "./src/shell/BackButton";
-import type { AgentTrace } from "./src/shell/AgentScreen";
-import { jollyPhaseFromStatus, noteJollyRun, syncJollyFeedPost, type JollyPhase } from "../../packages/ui/jolly";
 import { readPackageValue, subscribePackageValue } from "../../packages/ui/packageLink";
 import { theme, palettes, themedStyleSheet, type ThemeMode } from "../../packages/ui/theme";
 import { ThemeProvider } from "../../packages/ui/ThemeProvider";
-import { JollyLoading } from "../../packages/ui/jolly";
 import { shellAppearance } from "../../packages/platform/src/shellCapabilities";
-import { runCloudEvolve, cancelCloudRun, loadJulesRun, loadJulesSession, saveJulesRun, clearJulesRun, clearJulesSession, inspectJulesSession, julesSessionLive, watchJulesSession, workshopStatus, confirmWorkshop } from "./src/shell/cloudEvolve";
+import { applicationContext } from "../../packages/app-sdk/src/runtime";
 import { readShellValue, removeShellValue, writeShellValue } from "./src/shell/shellStorage";
 import { startFeedSummary } from "./src/shell/feed/summary";
+import { readFeedPosts } from "../../packages/ui/feed/store";
 import { UpdateBanner } from "./src/shell/UpdateBanner";
 import { applyPackageUpdates, checkPackageUpdates, startReleaseWatch, updateSignature, type PendingPackage } from "./src/shell/packageUpdates";
 
@@ -70,33 +69,10 @@ function App() {
 function ShellApp() {
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [pluginsReady, setPluginsReady] = useState(false);
-  const [requirement, setRequirement] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [status, setStatus] = useState("");
-  const [report, setReport] = useState("");
-  const [traces, setTraces] = useState<AgentTrace[]>([]);
-  const [busy, setBusy] = useState(false);
   const [featureKey, setFeatureKey] = useState(0);
-  const [providerId, setProviderId] = useState("jules");
   const [mode, setMode] = useState<ThemeMode>(storedThemeMode);
   const [updates, setUpdates] = useState<PendingPackage[]>([]);
-  const [updateCompleted, setUpdateCompleted] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
-  const [runStartedAt, setRunStartedAt] = useState(0);
-  const [workshopPhase, setWorkshopPhase] = useState<JollyPhase>("idle");
-  const [sessionId, setSessionId] = useState("");
-  const [sessionLoading, setSessionLoading] = useState(true);
-  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
-  const [workshopReady, setWorkshopReady] = useState(false);
-  const [awaitingReply, setAwaitingReply] = useState(false);
-  const [confirmationBusy, setConfirmationBusy] = useState(false);
-  const [confirmationMessage, setConfirmationMessage] = useState("");
-  const confirmingRef = useRef(false);
-  const cloudStop = useRef(false);
-  const cloudRun = useRef<{ runId?: string } | null>(null);
-  const busyRef = useRef(false);
-  const resumedCloud = useRef(false);
-
   useEffect(() => {
     const utils = (globalThis as {
       ErrorUtils?: {
@@ -138,18 +114,8 @@ function ShellApp() {
       }
       console.log("shell warm ms", Date.now() - started);
     })();
-    void resumeCloud();
     startFeedSummary();
   }, [pluginsReady]);
-
-  useEffect(() => {
-    if (!pluginsReady) return;
-    const phase = jollyPhaseFromStatus(busy, status);
-    if (phase === "idle" && !prompt.trim()) return;
-    const steps = [...new Set(traces.map((item) => item.title.trim()).filter(Boolean))].slice(-4);
-    noteJollyRun({ phase, wish: prompt, status, steps });
-    syncJollyFeedPost({ startedAt: runStartedAt, phase: workshopPhase, wish: prompt, status, steps });
-  }, [pluginsReady, busy, status, prompt, traces, runStartedAt, workshopPhase]);
 
   useEffect(() => {
     return subscribePackageValue("theme.mode", (value) => {
@@ -165,7 +131,18 @@ function ShellApp() {
         const appearance = await shellAppearance().catch(() => ({ mode: "dark" as const }));
         const nextMode = appearance.mode === "light" ? "light" : "dark";
         setMode(nextMode);
-        const stored = await loadCatalog();
+        let stored = await loadCatalog();
+        await refreshApplications();
+        if (!await readShellValue("application.bootstrap.v1")) {
+          const bootstrap = require("../../tools/applications/bootstrap.json");
+          const ids: string[] = stored.length || readFeedPosts().length ? bootstrap.legacyInstalled : bootstrap.defaultInstalled;
+          for (const id of ids) if (!stored.some(entry => entry.id === id)) stored.push({ id, hidden: false, pinned: true });
+          await saveCatalog(stored);
+          writeShellValue("application.bootstrap.v1", "done");
+        }
+        for (const bundle of bundles) {
+          if (stored.some(item => item.id === bundle.id && !item.purged && !item.trashedAt)) await Promise.resolve(bundle.load()).catch((error: unknown) => console.log("application boot failed", bundle.id, String(error)));
+        }
         console.log("catalog loaded", stored.length);
         setCatalog(stored);
         removeShellValue("shell.bundleSource.v1");
@@ -180,7 +157,7 @@ function ShellApp() {
   }, []);
 
   const items = useMemo<ShellItem[]>(() => {
-    return bundles.map((bundle) => {
+    return bundles.filter(bundle => catalog.some(entry => entry.id === bundle.id)).map((bundle) => {
       const entry = catalog.find((item) => item.id === bundle.id);
       const pinned = entry?.pinned ?? !(entry?.hidden ?? false);
       const trashedAt = entry?.trashedAt;
@@ -223,8 +200,7 @@ function ShellApp() {
   /** 在动态里对某位朋友说一句：去工坊，用 TA 的名字起个头，接着写想要的变化。 */
   function replyToFriend(id: string) {
     const title = bundles.find((item) => item.id === id)?.title ?? id;
-    setRequirement((current) => (current.trim() ? current : `想让「${title}」`));
-    openShellTab("agent");
+    applicationContext(require("../../tools/applications/bootstrap.json").defaultApplication).navigation.create(`想让「${title}」`);
   }
 
   async function changeMode(next: ThemeMode) {
@@ -266,325 +242,12 @@ function ShellApp() {
   function deferUpdates() {
     const signature = updateSignature(updates);
     if (signature) writeShellValue("shell.updates.dismissed", signature);
-    setUpdateCompleted(false);
     setUpdates([]);
     console.log("package updates deferred", signature);
   }
 
-  async function stop() {
-    cloudStop.current = true;
-    const cloud = cloudRun.current;
-    if (cloud) {
-      setStatus("正在停止");
-      console.log("evolve stop", cloud.runId ?? "pending");
-      if (cloud.runId) {
-        try {
-          await cancelCloudRun(cloud.runId);
-          setSessionId("");
-        } catch (error) {
-          console.log("evolve stop failed", error instanceof Error ? error.message : error);
-        }
-      }
-      return;
-    }
-  }
-
-  function newSession() {
-    if (busyRef.current || sessionLoading || confirmingRef.current) return;
-    if (sessionId) {
-      resumedCloud.current = false;
-      setSessionLoading(true);
-      void resumeCloud();
-      return;
-    }
-    clearJulesSession();
-    setSessionId("");
-    setPrompt("");
-    setStatus("");
-    setTraces([]);
-    setReport("");
-    setRunStartedAt(0);
-    setWorkshopPhase("idle");
-    setAwaitingConfirmation(false);
-    setWorkshopReady(false);
-    setAwaitingReply(false);
-    setConfirmationMessage("");
-  }
-
-  async function confirmWish() {
-    if (!sessionId || !awaitingConfirmation || !workshopReady || busyRef.current || confirmingRef.current) return;
-    confirmingRef.current = true;
-    setConfirmationBusy(true);
-    setConfirmationMessage("正在为这份心愿落款…");
-    try {
-      const delivery = await checkWorkshopDelivery(sessionId);
-      if (delivery.delivery !== "loaded") return;
-      await confirmWorkshop(sessionId);
-      clearJulesSession();
-      setSessionId("");
-      setAwaitingConfirmation(false);
-      setAwaitingReply(false);
-      setConfirmationMessage("");
-      setStatus("这份心愿已收好，可以开始新的心愿了");
-    } catch (error) {
-      setConfirmationMessage(error instanceof Error ? error.message : "这份心愿暂时没能收好，请稍后再试");
-      void refreshUpdates(true);
-    } finally {
-      confirmingRef.current = false;
-      setConfirmationBusy(false);
-    }
-  }
-
-  async function checkWorkshopDelivery(session: string) {
-    setWorkshopReady(false);
-    setUpdateCompleted(false);
-    try {
-      const workshop = await workshopStatus(session);
-      setConfirmationMessage(workshop.message || "暂时无法核对作品发布状态，请稍后重试。");
-      if (workshop.delivery === "loaded") {
-        setWorkshopReady(true);
-        setStatus("正在体验这次作品");
-      } else if (workshop.delivery === "update") {
-        const ready = await refreshUpdates(true, true);
-        setUpdateCompleted(ready.length > 0);
-        setStatus(ready.length ? "这次作品可以加载" : "新包暂未就绪，请重新检查");
-      } else {
-        setStatus(workshop.delivery === "blocked" ? "作品交付需要处理" : "代码已完成，等待发布");
-      }
-      return workshop;
-    } catch (error) {
-      setConfirmationMessage(error instanceof Error ? error.message : "作品更新检查失败，请稍后重试");
-      setStatus("作品更新检查失败");
-      throw error;
-    }
-  }
-
-  async function loadWish() {
-    if (updateBusy || confirmingRef.current || !sessionId) return;
-    try {
-      const workshop = await checkWorkshopDelivery(sessionId);
-      if (workshop.delivery === "update") {
-        const ready = await refreshUpdates(true, true);
-        if (ready.length) await applyUpdatesNow();
-        else setConfirmationMessage("新包暂未就绪，请重新检查；确认前会再次核对运行版本。");
-      }
-    } catch (error) {
-      setConfirmationMessage(error instanceof Error ? error.message : "新作品暂时没接好，请稍后再试");
-    }
-  }
-
   function noteError(where: string, detail: string) {
     console.log("app error", where, detail.trim().slice(0, 4000));
-  }
-
-  async function runCloud(text: string, status = "正在生成") {
-    busyRef.current = true;
-    setBusy(true);
-    // 回复同一份心愿沿用动态身份；轮次消息的时间由 cloudEvolve 单独管理。
-    const startedAt = sessionId && runStartedAt > 0 ? runStartedAt : Date.now();
-    const wish = sessionId && prompt.trim() ? prompt : text;
-    setRunStartedAt(startedAt);
-    setPrompt(wish);
-    setWorkshopPhase("making");
-    setAwaitingReply(false);
-    setConfirmationMessage("");
-    setTraces([]);
-    setReport("");
-    openShellTab("agent");
-    setStatus(status);
-    cloudStop.current = false;
-    cloudRun.current = {};
-    let waiting = false;
-    try {
-      const outcome = await runCloudEvolve({
-        requirement: text,
-        onStatus: setStatus,
-        onTrace: setTraces,
-        onRunId: (runId) => {
-          setSessionId(runId);
-          cloudRun.current = { runId };
-          saveJulesRun({ session: runId, prompt: wish, startedAt });
-        },
-        shouldStop: () => cloudStop.current,
-      });
-      if (outcome === "cancelled") {
-        setSessionId("");
-        setWorkshopPhase("stopped");
-        setStatus("已停止");
-        setBusy(false);
-        return;
-      }
-      if (outcome === "waiting") {
-        waiting = true;
-        setAwaitingReply(true);
-        return;
-      }
-      waiting = true;
-      setAwaitingConfirmation(true);
-      setWorkshopPhase("ready");
-      await workshopStatus(cloudRun.current?.runId || await loadJulesSession());
-      await syncPlugins();
-      setRequirement("");
-      setFeatureKey((value) => value + 1);
-      setStatus("正在检查新包");
-      await checkWorkshopDelivery(cloudRun.current?.runId || await loadJulesSession());
-      setBusy(false);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.log("evolve failed", message);
-      setWorkshopPhase(waiting ? "ready" : "failed");
-      setStatus(message);
-      setBusy(false);
-    } finally {
-      cloudRun.current = null;
-      busyRef.current = false;
-      setBusy(false);
-      if (!waiting) clearJulesRun();
-    }
-  }
-
-  async function resumeCloud() {
-    if (resumedCloud.current || busyRef.current) return;
-    resumedCloud.current = true;
-    const run = await loadJulesRun();
-    const session = run?.session || await loadJulesSession();
-    setSessionId(session);
-    if (!session) {
-      setSessionLoading(false);
-      return;
-    }
-    let info: { state: string; url: string; title: string; startedAt: number } | undefined;
-    try {
-      info = await inspectJulesSession(session);
-      if (info) {
-        const workshop = await workshopStatus(session);
-        if (workshop.merged) {
-          setRunStartedAt(run?.startedAt || info.startedAt);
-          setPrompt(run?.prompt || info.title);
-          setWorkshopPhase("ready");
-          setStatus("这份心愿已收好");
-          clearJulesSession();
-          setSessionId("");
-          return;
-        }
-        setAwaitingConfirmation(workshop.completed);
-        setAwaitingReply(workshop.state === "AWAITING_USER_FEEDBACK");
-      }
-    } catch (error) {
-      console.log("jules resume failed", error instanceof Error ? error.message : error);
-      return;
-    } finally {
-      setSessionLoading(false);
-    }
-    if (!info || info.state === "FAILED") {
-      setRunStartedAt(run?.startedAt || info?.startedAt || 0);
-      setWorkshopPhase(info?.state === "FAILED" ? "failed" : "stopped");
-      clearJulesSession();
-      setSessionId("");
-      busyRef.current = false;
-      setBusy(false);
-      setStatus(info?.state === "FAILED" ? "Jules 失败" : "上次的生成已经中断");
-      console.log("jules resume dropped", session, info?.state ?? "missing");
-      return;
-    }
-    if (julesSessionLive(info.state)) {
-      const promptText = run?.prompt || info.title || "线上定制";
-      const startedAt = run?.startedAt || info.startedAt;
-      setPrompt(promptText);
-      setRunStartedAt(startedAt);
-      setWorkshopPhase("making");
-      showAgent();
-      saveJulesRun({ session, prompt: promptText, startedAt });
-      console.log("jules resume", session, info.state);
-      busyRef.current = true;
-      setBusy(true);
-      setStatus("正在接上");
-      setTraces([{ id: "jules", kind: "status", title: "正在接上", state: "running", detail: info.url }]);
-      cloudStop.current = false;
-      cloudRun.current = { runId: session };
-      let waiting = false;
-      try {
-        const outcome = await watchJulesSession(session, info.url, {
-          onStatus: setStatus,
-          onTrace: setTraces,
-          shouldStop: () => cloudStop.current,
-        }, startedAt);
-        if (outcome === "cancelled") {
-          setSessionId("");
-          setWorkshopPhase("stopped");
-          setStatus("已停止");
-          setBusy(false);
-          return;
-        }
-        if (outcome === "waiting") {
-          waiting = true;
-          setAwaitingReply(true);
-          return;
-        }
-        waiting = true;
-        setAwaitingConfirmation(true);
-        setWorkshopPhase("ready");
-        await workshopStatus(session);
-        await syncPlugins();
-        setFeatureKey((value) => value + 1);
-        setStatus("正在检查新包");
-        await checkWorkshopDelivery(session);
-        setBusy(false);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.log("jules resume failed", message);
-        setWorkshopPhase(waiting ? "ready" : "failed");
-        setStatus(message);
-        setBusy(false);
-      } finally {
-        cloudRun.current = null;
-        busyRef.current = false;
-        setBusy(false);
-        if (!waiting) clearJulesRun();
-      }
-      return;
-    }
-    if (info.state === "COMPLETED") {
-      setPrompt(run?.prompt || info.title || "这次的心愿");
-      setRunStartedAt(run?.startedAt || info.startedAt);
-      setWorkshopPhase("ready");
-      showAgent();
-      busyRef.current = false;
-      setBusy(false);
-      setStatus("正在检查新包");
-      console.log("jules resume completed", session);
-      try {
-        await syncPlugins();
-        await checkWorkshopDelivery(session);
-      } catch (error) {
-        console.log("jules resume check failed", error instanceof Error ? error.message : error);
-      }
-      // 保留这次心愿，重载新包后仍要由用户确认收下。
-      return;
-    }
-    if (info.state === "PAUSED") {
-      setRunStartedAt(run?.startedAt || info.startedAt);
-      setWorkshopPhase("stopped");
-      setAwaitingReply(true);
-      setPrompt(run?.prompt || info.title || "线上定制");
-      showAgent();
-      busyRef.current = false;
-      setBusy(false);
-      setStatus("Jules 已暂停");
-      console.log("jules resume paused", session);
-    }
-  }
-
-  function showAgent() {
-    openShellTab("agent");
-    setTimeout(() => openShellTab("agent"), 400);
-  }
-
-  async function submit() {
-    const text = requirement.trim();
-    if (!text || busyRef.current || sessionLoading || confirmingRef.current || (sessionId && !awaitingReply)) return;
-    console.log("evolve submit", providerId, text);
-    await runCloud(text);
   }
 
   return (
@@ -593,38 +256,12 @@ function ShellApp() {
         <StatusBar barStyle={mode === "light" ? "dark-content" : "light-content"} />
         {!pluginsReady ? (
           <View style={styles.boot}>
-            <JollyLoading size="lg" label="Jolly 正在唤醒灵感空间..." />
+            <Text style={{ color: palettes[mode].ink2 }}>正在打开应用空间…</Text>
           </View>
         ) : (
           <ShellNavigator
             mode={mode}
             listed={listed}
-            requirement={requirement}
-            prompt={prompt}
-            status={status}
-            busy={busy}
-            traces={traces}
-            report={report}
-            startedAt={runStartedAt}
-            sessionId={sessionId}
-            sessionLoading={sessionLoading}
-            onNewSession={newSession}
-            awaitingConfirmation={awaitingConfirmation}
-            workshopReady={workshopReady}
-            awaitingReply={awaitingReply}
-            confirmationBusy={confirmationBusy}
-            confirmationMessage={confirmationMessage}
-            onConfirmWish={() => void confirmWish()}
-            onLoadWish={() => void loadWish()}
-            providerId={providerId}
-            onProviderChange={setProviderId}
-            onRequirement={setRequirement}
-            onSubmit={() => {
-              void submit();
-            }}
-            onStop={() => {
-              void stop();
-            }}
             onOpenBundle={openBundle}
             onReplyToFriend={replyToFriend}
             onCheckUpdates={async () => {
@@ -633,7 +270,7 @@ function ShellApp() {
             }}
             onMode={(next) => void changeMode(next)}
             renderBundle={(id, onBack) => (
-              <FeatureBoundary resetKey={featureKey} onError={(message) => noteError(`feature:${id}`, message)}>
+              <FeatureBoundary resetKey={featureKey} onError={(message) => { noteError(`feature:${id}`, message); void reportApplicationFailure(id); }}>
                 <FeatureHost
                   id={id}
                   onBack={onBack}
@@ -647,7 +284,7 @@ function ShellApp() {
           <UpdateBanner
             items={updates}
             busy={updateBusy}
-            completed={updateCompleted}
+            completed={false}
             onNow={() => {
               void applyUpdatesNow();
             }}
@@ -668,21 +305,19 @@ function FeatureHost({
   onBack?: () => void;
   onError?: (message: string) => void;
 }) {
-  // 页面代码已经在 app 包里，第一次打开时才执行它；已经登记过的页面直接拿来用，没有等待。
-  const opened = useMemo<{ component?: FeatureComponent; failed: string }>(() => {
-    try {
-      return { component: openFeature(id), failed: "" };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.log("feature load failed", id, message);
-      return { failed: message };
-    }
+  const [opened, setOpened] = useState<{ component?: FeatureComponent; failed: string }>({ failed: "" });
+  useEffect(() => {
+    let disposed = false;
+    setOpened({ failed: "" });
+    void openFeature(id).then(component => {
+      if (!disposed) setOpened({ component, failed: "" });
+    }, error => {
+      if (!disposed) setOpened({ failed: error instanceof Error ? error.message : String(error) });
+    });
+    return () => { disposed = true; };
   }, [id]);
   const { component, failed } = opened;
-
-  useEffect(() => {
-    if (failed) onError?.(failed);
-  }, [failed]);
+  useEffect(() => { if (failed) onError?.(failed); }, [failed]);
 
   if (component) {
     const FeatureApp = component;
@@ -695,7 +330,7 @@ function FeatureHost({
           <BackButton onPress={onBack} />
         </View>
       ) : null}
-      <Text style={styles.error}>{failed}</Text>
+      <Text style={styles.error}>{failed || "正在加载应用…"}</Text>
     </View>
   );
 }

@@ -1,8 +1,7 @@
 import { Text, View } from "react-native";
 import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Pressy, Surface } from "../../../../packages/ui/chrome";
-import { JollyVideoPlayer } from "../../../../packages/ui/jolly";
+import { Icon, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import type { PendingPackage } from "./packageUpdates";
 
@@ -35,7 +34,7 @@ export function UpdateBanner({ items, busy, completed, onNow, onLater }: Props) 
       <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.card}>
         <View style={styles.row}>
           <View style={styles.avatar}>
-            <JollyVideoPlayer state="level_up" width={60} height={60} borderRadius={20} resizeMode="cover" />
+            <Icon name="box" size={28} color={colors.accentText} />
           </View>
           <View style={styles.copy}>
             <Text style={styles.title}>{completed ? "你的新作品送到了" : "伙伴们带来了新内容"}</Text>

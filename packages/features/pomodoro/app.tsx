@@ -1,13 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Svg, Circle } from "react-native-svg";
-import { BackChip, Icon, Pressy } from "../../ui/chrome";
-import { themedStyleSheet, useTheme } from "../../ui/theme";
-import { writePackageValue } from "../../ui/packageLink";
-import { registerFeature } from "../src/featureHost";
+import { BackChip, Icon, Pressy } from "@zijinhua/app-sdk/ui";
+import { themedStyleSheet, useTheme } from "@zijinhua/app-sdk/ui";
+import { getAppContext } from "@zijinhua/app-sdk";
 import { readPomodoroStats, subscribePomodoroStats, addPomodoroFlower, type PomodoroStats } from "./storage";
-import { phone } from "../../platform/src/phone";
-import { publishFeedPost } from "../../ui/feed";
+const phone = getAppContext().phone;
+const publishFeedPost = getAppContext().feed.publish;
 
 const FOCUS_DURATION = 25 * 60;
 const BREAK_DURATION = 5 * 60;
@@ -15,7 +14,7 @@ const BREAK_DURATION = 5 * 60;
 type TimerMode = "idle" | "focus" | "break";
 
 function askShell(request: { action: "back" }) {
-  writePackageValue("shell.nav.request", JSON.stringify({ ...request, at: Date.now() }));
+  getAppContext().navigation.back();
 }
 
 function formatTime(seconds: number): string {
@@ -36,7 +35,6 @@ function PomodoroApp() {
     if (mode === "focus") {
       addPomodoroFlower();
       publishFeedPost({
-        appId: "pomodoro",
         kind: "update",
         body: "刚刚完成了一次 25 分钟的专注，获得了一朵小花！",
       });
@@ -288,4 +286,4 @@ const styles = themedStyleSheet((t) => ({
   },
 }));
 
-registerFeature("pomodoro", PomodoroApp);
+export default PomodoroApp;

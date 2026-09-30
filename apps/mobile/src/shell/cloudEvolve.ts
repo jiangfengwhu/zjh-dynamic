@@ -1,5 +1,6 @@
 import { edgeUrl } from "./evolveHost";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
+import { runningApplicationReleases, offerApplication, type ApplicationManifest } from "../runtime/applications";
 
 const SESSION_STORAGE = "shell.julesSession.v1";
 const RUN_STORAGE = "shell.julesRun.v1";
@@ -194,21 +195,22 @@ async function sessionAcceptsMessage(name: string): Promise<boolean> {
   return state !== "FAILED";
 }
 
-export type WorkshopStatus = { completed: boolean; merged: boolean; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string };
+export type WorkshopStatus = { completed: boolean; merged: boolean; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
 
 export async function workshopStatus(session: string): Promise<WorkshopStatus> {
   const { buildId } = require("./build-identity.json") as { buildId: string };
-  const result = await workshop({ action: "status", session, buildId });
+  const result = await workshop({ action: "status", session, buildId, applicationReleases: runningApplicationReleases() });
+  if (result.application && result.delivery === "update") offerApplication(result.application as ApplicationManifest);
   if (typeof result.token === "string") writeShellValue(APPROVAL_STORAGE, result.token);
   return result as WorkshopStatus;
 }
 
 export async function confirmWorkshop(session: string): Promise<void> {
   const { buildId } = require("./build-identity.json") as { buildId: string };
-  await workshop({ action: "confirm", session, buildId });
+  await workshop({ action: "confirm", session, buildId, applicationReleases: runningApplicationReleases() });
 }
 
-async function workshop(input: { action: string; session: string; buildId?: string }): Promise<Record<string, unknown>> {
+async function workshop(input: { action: string; session: string; buildId?: string; applicationReleases?: Record<string, string> }): Promise<Record<string, unknown>> {
   const token = await readShellValue(APPROVAL_STORAGE);
   const response = await fetch(`${edgeUrl}/v1/workshop`, {
     method: "POST",

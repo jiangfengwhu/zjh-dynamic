@@ -28,7 +28,11 @@ import {
   type FeedSlot,
 } from "../../../../../packages/ui/feed";
 import { Icon, Pressy } from "../../../../../packages/ui/chrome";
-import { JollyCompanion } from "../../../../../packages/ui/jolly";
+const bootstrap = require("../../../../../tools/applications/bootstrap.json");
+function DefaultAvatar({ size }: { size: number }) {
+  const Avatar = bundles.find(item => item.id === bootstrap.defaultApplication)?.avatar;
+  return Avatar ? <Avatar size={size} /> : <Icon name="workshop" size={size} />;
+}
 import { themedStyleSheet, useTheme } from "../../../../../packages/ui/theme";
 import { Screen, ScreenBar } from "../../../../../packages/ui/edge";
 import { subscribeFeedSummaryBusy } from "./summary";
@@ -158,9 +162,9 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew }: F
                 {summarizing ? "正在整理这段时间的动态" : todayLabel()}
               </Text>
             </View>
-            <Pressy accessibilityRole="button" accessibilityLabel="打开Jolly" onPress={() => open("jolly")} scale={0.92} hitSlop={8}>
+            <Pressy accessibilityRole="button" accessibilityLabel="打开工坊" onPress={() => open(bootstrap.defaultApplication)} scale={0.92} hitSlop={8}>
               <Halo active={summarizing} size={30}>
-                <JollyCompanion size="avatar" state={summarizing ? "making" : "idle"} showBubble={false} />
+                <DefaultAvatar size={30} />
               </Halo>
             </Pressy>
           </View>
@@ -199,7 +203,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew }: F
 
                   {visible.length === 0 ? (
                     <View style={styles.empty}>
-                      <JollyCompanion size="md" state="idle" showBubble={false} />
+                      <DefaultAvatar size={64} />
                       <Text style={styles.emptyTitle}>{kind ? `还没有${KIND_LABEL[kind]}` : "这里还很安静"}</Text>
                       <Text style={styles.emptyBody}>
                         {kind ? "换一个分类，或者回到全部看看。" : "朋友们有了新动态，会在这里跟你说。"}

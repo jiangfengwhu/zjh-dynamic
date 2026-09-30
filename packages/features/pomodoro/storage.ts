@@ -1,11 +1,12 @@
-import { readPackageValue, writePackageValue, subscribePackageValue } from "../../ui/packageLink";
+import { getAppContext } from "@zijinhua/app-sdk";
+const { get: readPackageValue, set: writePackageValue, subscribe: subscribePackageValue } = getAppContext().storage;
 
 export type PomodoroStats = {
   date: string;
   flowers: number;
 };
 
-const STATS_KEY = "pomodoro.stats.v1";
+const STATS_KEY = "stats";
 
 function getTodayString(): string {
   const d = new Date();

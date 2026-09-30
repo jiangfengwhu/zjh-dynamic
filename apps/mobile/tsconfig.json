@@ -22,6 +22,15 @@
       ],
       "react-native-markdown-display": [
         "./node_modules/react-native-markdown-display"
+      ],
+      "@zijinhua/app-sdk": [
+        "../../packages/app-sdk/src/index.ts"
+      ],
+      "@zijinhua/app-sdk/ui": [
+        "../../packages/app-sdk/src/ui.ts"
+      ],
+      "@zijinhua/app-sdk/creation": [
+        "../../packages/app-sdk/src/creation.ts"
       ]
     }
   },
@@ -32,7 +41,8 @@
     "../../packages/features/**/*.tsx",
     "../../packages/ui/**/*.ts",
     "../../packages/ui/**/*.tsx",
-    "../../packages/platform/**/*.ts"
+    "../../packages/platform/**/*.ts",
+    "../../packages/app-sdk/**/*.ts"
   ],
   "exclude": [
     "**/node_modules",

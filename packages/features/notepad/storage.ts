@@ -1,5 +1,7 @@
-import { readPackageValue, writePackageValue, subscribePackageValue } from "../../ui/packageLink";
-import { publishFeedPost, recordFeedChange } from "../../ui/feed/store";
+import { getAppContext } from "@zijinhua/app-sdk";
+const { get: readPackageValue, set: writePackageValue, subscribe: subscribePackageValue } = getAppContext().storage;
+const publishFeedPost = getAppContext().feed.publish;
+const recordFeedChange = ({ note }: { appId: string; note: string }) => getAppContext().feed.recordChange(note);
 
 export type Note = {
   id: string;
@@ -8,7 +10,7 @@ export type Note = {
   updatedAt: number;
 };
 
-const STORAGE_KEY = "notepad.notes";
+const STORAGE_KEY = "notes";
 
 export function readNotes(): Note[] {
   const raw = readPackageValue(STORAGE_KEY);
@@ -40,7 +42,6 @@ export function writeNotes(notes: Note[]) {
   const body = `${descriptions.slice(0, 3).join("；")}${descriptions.length > 3 ? `等 ${descriptions.length} 项变更` : ""}`;
   recordFeedChange({ appId: "notepad", note: body });
   publishFeedPost({
-    appId: "notepad",
     kind: "activity",
     body,
     payload: { added: added.length, edited: edited.length, deleted: deleted.length, total: notes.length },

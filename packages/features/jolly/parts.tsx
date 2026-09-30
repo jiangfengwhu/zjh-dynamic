@@ -9,9 +9,9 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { Icon } from "../../ui/chrome";
-import { writePackageValue } from "../../ui/packageLink";
-import { themedStyleSheet, useTheme } from "../../ui/theme";
+import { Icon } from "@zijinhua/app-sdk/ui";
+import { getAppContext } from "@zijinhua/app-sdk";
+import { themedStyleSheet, useTheme } from "@zijinhua/app-sdk/ui";
 
 /** Jolly 的卡片和主页共用的零件。这里不登记任何东西，谁引用谁才生效。 */
 
@@ -46,7 +46,9 @@ export function stationIndex(phase: string, status: string): number {
 
 /** 朋友请壳替它跳转：换到某个标签页、打开另一位朋友，或者返回。见 navigation.tsx 里的 SHELL_NAV_REQUEST。 */
 export function askShell(request: { action: "tab"; tab: "feed" | "agent" | "mine" } | { action: "open"; id: string } | { action: "back" }) {
-  writePackageValue("shell.nav.request", JSON.stringify({ ...request, at: Date.now() }));
+  if (request.action === "back") getAppContext().navigation.back();
+  else if (request.action === "tab" && request.tab === "agent") getAppContext().navigation.create();
+  else getAppContext().navigation.open();
 }
 
 /** 「多久以前」。 */

@@ -1,15 +1,9 @@
 import type { ComponentType } from "react";
-import { JollyPortrait } from "../../ui/jolly";
 import type { AppAvatarProps } from "../avatars/types";
-import "../jolly/cards";
-import { NotepadAvatar } from "../avatars/notepad";
-import "../notepad/cards";
-import { PomodoroAvatar } from "../avatars/pomodoro";
-import "../pomodoro/cards";
+import { peekApplication } from "../../app-sdk/src/runtime";
+import { loadApplication } from "../../../apps/mobile/src/runtime/applications";
 import { peekFeature, type FeatureComponent } from "./featureHost";
-// 定制应用的页面放在 features/<id>/app.tsx，末尾调用 registerFeature(id, Component)；这里的 load 用 require 引入它。
-// 每个应用也是动态里的一位好友。头像组件放在 features/avatars/<id>.tsx，动态页按 size 直接渲染。三套动态卡片放在 features/<id>/cards.tsx，由这里导入，壳启动时登记。
-// 这里只登记会显示在动态里的信息。壳启动时不执行应用的页面，打开时才调用 load。
+// Metadata only. Application pages, avatars and cards arrive in independent bundles.
 export type BundleDefinition = {
   id: string;
   title: string;
@@ -17,48 +11,40 @@ export type BundleDefinition = {
   mark: string;
   accent: string;
   avatar?: ComponentType<AppAvatarProps>;
-  /** 执行应用页面模块，模块末尾的 registerFeature 会把页面登记好。必须写成 () => require("../<id>/app")，让页面在打开时才执行。 */
+  /** Install/load an independent application; never import its business source. */
   load: () => unknown;
 };
 
-export const bundles: BundleDefinition[] = [
-  {
-    id: "jolly",
-    title: "Jolly",
-    summary: "把一句心愿做成可以打开的小应用。",
-    mark: "乔",
-    accent: "#E0B785",
-    avatar: JollyPortrait,
-    load: () => require("../jolly/app"),
-  },
-  {
-    id: "notepad",
-    title: "记事本",
-    summary: "记录灵感，支持 Markdown 预览。",
-    mark: "记",
-    accent: "#7A5BD0",
-    avatar: NotepadAvatar,
-    load: () => require("../notepad/app"),
-  },
-  {
-    id: "pomodoro",
-    title: "番茄钟",
-    summary: "专注25分钟，种下一朵小花。",
-    mark: "钟",
-    accent: "#E0A06A",
-    avatar: PomodoroAvatar,
-    load: () => require("../pomodoro/app"),
-  },
-];
+const index = require("../../../apps/mobile/src/runtime/application-index.json") as Array<{ appId: string; title: string; summary: string; mark: string; accent: string }>;
+function definition(item: (typeof index)[number]): BundleDefinition {
+  return { id: item.appId, title: item.title, summary: item.summary, mark: item.mark, accent: item.accent,
+    get avatar() { return peekApplication(item.appId)?.avatar; },
+    load: () => loadApplication(item.appId),
+  };
+}
+export const bundles: BundleDefinition[] = index.map(definition);
+export async function refreshApplications() {
+  const { edgeUrl } = require("../../../apps/mobile/src/shell/evolveHost");
+  try {
+    const response = await fetch(`${edgeUrl}/v1/applications`);
+    if (!response.ok) throw new Error("无法读取应用目录");
+    const payload = await response.json() as { applications: typeof index };
+    for (const item of payload.applications) {
+      if (!/^[a-z][a-z0-9-]{0,63}$/.test(item.appId) || typeof item.title !== "string") continue;
+      const prior = bundles.findIndex(bundle => bundle.id === item.appId);
+      if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
+    }
+  } catch (error) { console.log("application catalog offline", String(error)); }
+}
 
 /** 取一位朋友的页面组件。第一次打开时执行 load；页面模块出错会抛出，由调用方显示。 */
-export function openFeature(id: string): FeatureComponent {
+export async function openFeature(id: string): Promise<FeatureComponent> {
   const existing = peekFeature(id);
   if (existing) return existing;
   const definition = bundles.find((item) => item.id === id);
   if (!definition) throw new Error(`这个应用还没登记：${id}`);
   console.log("feature load", id);
-  definition.load();
+  await definition.load();
   const component = peekFeature(id);
   if (!component) throw new Error(`这个应用的页面没有登记，缺少 registerFeature("${id}", …)`);
   return component;

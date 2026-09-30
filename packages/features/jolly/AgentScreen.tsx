@@ -12,13 +12,14 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { EdgeModal as Modal, Screen, ScreenBar } from "../../../../packages/ui/edge";
-import { PromptBar } from "../../../../packages/ui/beautiful/PromptBar";
-import { GiltLine, Icon, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
-import { JollyLoading, JollyVideoPlayer, type JollyState } from "../../../../packages/ui/jolly";
-import { themedStyleSheet, useTheme, type Theme } from "../../../../packages/ui/theme";
+import { EdgeModal as Modal, Screen, ScreenBar } from "@zijinhua/app-sdk/ui";
+import { PromptBar } from "@zijinhua/app-sdk/ui";
+import { GiltLine, Icon, Pressy, SectionTitle, Surface } from "@zijinhua/app-sdk/ui";
+import { JollyLoading, JollyVideoPlayer, type JollyState } from "./ui";
+import { themedStyleSheet, useTheme, type Theme } from "@zijinhua/app-sdk/ui";
 import { AGENT_PROVIDERS } from "./agentProviders";
-import { readShellValue, writeShellValue } from "./shellStorage";
+import { getCreationService } from "@zijinhua/app-sdk/creation";
+const { readPreference: readShellValue, writePreference: writeShellValue } = getCreationService();
 
 export type AgentTrace = {
   id: string;

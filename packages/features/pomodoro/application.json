@@ -1,0 +1,9 @@
+{
+  "appId": "pomodoro",
+  "version": "1.0.0",
+  "title": "番茄钟",
+  "summary": "专注25分钟，种下一朵小花。",
+  "mark": "钟",
+  "accent": "#E0A06A",
+  "dataSchemaVersion": 1
+}

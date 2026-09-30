@@ -1,21 +1,13 @@
 import { Text, View } from "react-native";
-import { Icon, Pressy } from "../../ui/chrome";
+import { Icon, Pressy } from "@zijinhua/app-sdk/ui";
 import {
   PostAttachment,
   PostBody,
   PostFrame,
-  publishFeedPost,
-  registerFeedTemplates,
   type FeedCardProps,
-} from "../../ui/feed";
-import { themedStyleSheet, useTheme } from "../../ui/theme";
+} from "@zijinhua/app-sdk/ui";
+import { themedStyleSheet, useTheme } from "@zijinhua/app-sdk/ui";
 import { Pulse, WorkProgress, readWork } from "./parts";
-
-publishFeedPost({
-  appId: "jolly",
-  kind: "welcome",
-  body: "大家好，我是 Jolly，心愿工坊的小管家。想做的小应用，跟我说一声就动手，做好了就住进这里，成为新的朋友。",
-});
 
 const HOW = [
   { icon: "edit", label: "说一句心愿" },
@@ -29,7 +21,7 @@ const HOW = [
  */
 
 /** 迎宾：正文是自我介绍，附件把「怎么和我玩」交代成三步，下面直接是许愿。 */
-function IntroCard(card: FeedCardProps) {
+export function IntroCard(card: FeedCardProps) {
   const { colors } = useTheme();
   return (
     <PostFrame {...card} content={
@@ -68,7 +60,7 @@ function IntroCard(card: FeedCardProps) {
 }
 
 /** 心愿达成：正文是这次做了什么，附件是一张「做好了」的回执，大字写心愿，下面是走完的三站。 */
-function DoneCard(card: FeedCardProps) {
+export function DoneCard(card: FeedCardProps) {
   const { colors } = useTheme();
   const work = readWork(card.post.payload, "ready");
   const wish = work.wish || card.post.body;
@@ -97,7 +89,7 @@ function DoneCard(card: FeedCardProps) {
 }
 
 /** 正在做的现场：一颗呼吸的点，大字写在做什么，做到哪一站，最近几步做了什么。 */
-function WorkingCard(card: FeedCardProps) {
+export function WorkingCard(card: FeedCardProps) {
   const { colors } = useTheme();
   const work = readWork(card.post.payload, "making");
   const wish = work.wish || card.post.body;
@@ -218,8 +210,3 @@ const styles = themedStyleSheet((t) => ({
   },
 }));
 
-registerFeedTemplates("jolly", {
-  welcome: IntroCard,
-  update: DoneCard,
-  activity: WorkingCard,
-});

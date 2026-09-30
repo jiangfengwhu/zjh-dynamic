@@ -4,7 +4,7 @@ import { bundleCdnBase, bundleEdgeBase } from './publish-bundle.js';
 import { sha256Hex } from './release-set.js';
 
 type BridgeSdk = { sha256: string; bytes: number };
-type RuntimeContract = { format: number; runtimeVersion: string; dynamicRepository: string; bridgeSdk: BridgeSdk };
+type RuntimeContract = { format: number; runtimeVersion: string; dynamicRepository: string; bridgeSdk: BridgeSdk; applications?: { engineAbi: string; sdk: string; shared: Record<string, string> } };
 
 export async function fetchRuntimeContract(): Promise<RuntimeContract> {
   const response = await fetch(`${bundleEdgeBase()}/v1/runtime`);

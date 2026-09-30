@@ -1,22 +1,14 @@
 import { Text, View } from "react-native";
-import { Icon, Pressy } from "../../ui/chrome";
+import { Icon, Pressy } from "@zijinhua/app-sdk/ui";
 import {
   PostAttachment,
   PostBody,
   PostFrame,
-  publishFeedPost,
-  registerFeedTemplates,
   type FeedCardProps,
-} from "../../ui/feed";
-import { themedStyleSheet, useTheme } from "../../ui/theme";
+} from "@zijinhua/app-sdk/ui";
+import { themedStyleSheet, useTheme } from "@zijinhua/app-sdk/ui";
 
-publishFeedPost({
-  appId: "pomodoro",
-  kind: "welcome",
-  body: "你好，我是番茄钟。每次专注 25 分钟，种下一朵小花。需要专注时随时找我。",
-});
-
-function IntroCard(card: FeedCardProps) {
+export function IntroCard(card: FeedCardProps) {
   const { colors } = useTheme();
   return (
     <PostFrame {...card} content={
@@ -39,7 +31,7 @@ function IntroCard(card: FeedCardProps) {
   );
 }
 
-function UpdateCard(card: FeedCardProps) {
+export function UpdateCard(card: FeedCardProps) {
   const { colors } = useTheme();
   return (
     <PostFrame {...card} content={
@@ -96,7 +88,3 @@ const styles = themedStyleSheet((t) => ({
   },
 }));
 
-registerFeedTemplates("pomodoro", {
-  welcome: IntroCard,
-  update: UpdateCard,
-});

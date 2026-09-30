@@ -5,7 +5,10 @@
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --noEmit -p apps/mobile/tsconfig.json",
     "bundle": "tsx scripts/bundle-preview.ts",
-    "publish": "tsx scripts/cloud-publish.ts"
+    "publish": "tsx scripts/cloud-publish.ts",
+    "init:application": "tsx scripts/init-application.ts",
+    "build:application": "tsx scripts/build-application.ts",
+    "publish:application": "tsx scripts/publish-application.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.896.0"

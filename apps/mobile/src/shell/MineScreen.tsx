@@ -2,7 +2,7 @@ import { Fragment, memo, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { Icon, SectionTitle, Surface, type IconName } from "../../../../packages/ui/chrome";
-import { JollyVideoPlayer } from "../../../../packages/ui/jolly";
+
 import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
 import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES } from "../../../../packages/ui/feed";
 
@@ -58,10 +58,10 @@ export const MineScreen = memo(function MineScreen({
       >
         <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
           <View style={styles.portrait}>
-            <JollyVideoPlayer state="idle" width={68} height={68} borderRadius={22} resizeMode="cover" />
+            <Icon name="box" size={36} color={colors.accent} />
           </View>
           <View style={styles.profileCopy}>
-            <Text style={styles.profileName}>Jolly</Text>
+            <Text style={styles.profileName}>紫金花</Text>
             <Text style={styles.profileHint}>把一句心愿做成能打开的小应用</Text>
           </View>
         </Surface>

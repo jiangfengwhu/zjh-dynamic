@@ -1,5 +1,5 @@
-import { type StyleProp, type ViewStyle } from "react-native";
-import { JollyLoading } from "../jolly";
+import { ActivityIndicator, type StyleProp, type ViewStyle } from "react-native";
+
 
 export type SpinnerProps = {
   size?: "small" | "large";
@@ -9,8 +9,8 @@ export type SpinnerProps = {
 
 export function Spinner({ size = "small", color, style }: SpinnerProps) {
   return (
-    <JollyLoading
-      size={size === "large" ? "lg" : "sm"}
+    <ActivityIndicator
+      size={size}
       color={color}
       style={style}
     />

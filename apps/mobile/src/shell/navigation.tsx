@@ -1,3 +1,4 @@
+const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,7 +16,6 @@ import { createMaterialTopTabNavigator } from "@react-navigation/material-top-ta
 import type { MaterialTopTabBarProps } from "@react-navigation/material-top-tabs";
 import { TabBar, type ShellTabId } from "./TabBar";
 import { FeedScreen } from "./feed/FeedScreen";
-import { AgentScreen, type AgentTrace } from "./AgentScreen";
 import { type AppEntry } from "./catalog";
 import { MineScreen } from "./MineScreen";
 import { ProvidersScreen } from "./ProvidersScreen";
@@ -52,6 +52,7 @@ export function openShellTab(id: ShellTabId) {
 
 export function openShellBundle(id: string) {
   if (!shellNavigationRef.isReady()) return;
+  if (id === bootstrap.defaultApplication) { openShellTab("agent"); return; }
   console.log("route push", "bundle", id);
   shellNavigationRef.navigate("bundle", { id });
 }
@@ -59,7 +60,7 @@ export function openShellBundle(id: string) {
 function goBack() {
   if (shellNavigationRef.isReady() && shellNavigationRef.canGoBack()) {
     shellNavigationRef.goBack();
-  }
+  } else { openShellTab("feed"); }
 }
 
 /**
@@ -152,28 +153,6 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
 export type ShellNavigatorProps = {
   mode: ThemeMode;
   listed: AppEntry[];
-  requirement: string;
-  prompt: string;
-  status: string;
-  busy: boolean;
-  traces: AgentTrace[];
-  report: string;
-  startedAt?: number;
-  sessionId: string;
-  sessionLoading: boolean;
-  onNewSession: () => void;
-  awaitingConfirmation: boolean;
-  workshopReady: boolean;
-  awaitingReply: boolean;
-  confirmationBusy: boolean;
-  confirmationMessage: string;
-  onConfirmWish: () => void;
-  onLoadWish: () => void;
-  providerId: string;
-  onProviderChange: (id: string) => void;
-  onRequirement: (value: string) => void;
-  onSubmit: () => void;
-  onStop: () => void;
   onOpenBundle: (id: string) => void;
   /** 在动态里对某位朋友说一句：去工坊，带着 TA 的名字起个头。 */
   onReplyToFriend: (id: string) => void;
@@ -277,31 +256,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               </Tabs.Screen>
               <Tabs.Screen name="agent">
                 {() => (
-                  <AgentScreen
-                    value={props.requirement}
-                    prompt={props.prompt}
-                    status={props.status}
-                    busy={props.busy}
-                    traces={props.traces}
-                    report={props.report}
-                    startedAt={props.startedAt}
-                    sessionId={props.sessionId}
-                    sessionLoading={props.sessionLoading}
-                    onNewSession={props.onNewSession}
-                    awaitingConfirmation={props.awaitingConfirmation}
-                    workshopReady={props.workshopReady}
-                    awaitingReply={props.awaitingReply}
-                    confirmationBusy={props.confirmationBusy}
-                    confirmationMessage={props.confirmationMessage}
-                    onConfirmWish={props.onConfirmWish}
-                    onLoadWish={props.onLoadWish}
-                    providerId={props.providerId}
-                    onProviderChange={props.onProviderChange}
-                    onChange={props.onRequirement}
-                    onSubmit={props.onSubmit}
-                    onStop={props.onStop}
-                    onBack={() => openShellTab("feed")}
-                  />
+                  <View style={{ flex: 1 }}>{props.renderBundle(bootstrap.defaultApplication, () => openShellTab("feed"))}</View>
                 )}
               </Tabs.Screen>
               <Tabs.Screen name="mine">

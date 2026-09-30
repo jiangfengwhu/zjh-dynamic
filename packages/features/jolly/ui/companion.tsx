@@ -7,7 +7,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { JollyVideoPlayer, type JollyVideoState } from "./video";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import { theme, themedStyleSheet, useTheme } from "@zijinhua/app-sdk/ui";
 
 export type JollyState = JollyVideoState;
 export type JollySize = "avatar" | "sm" | "md" | "lg" | "hero";

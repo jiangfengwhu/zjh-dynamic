@@ -10,3 +10,5 @@ out/
 coverage/
 .metro-health-check*
 apps/mobile/src/shell/build-identity.json
+apps/mobile/src/runtime/application-contract.json
+apps/mobile/src/runtime/application-index.json

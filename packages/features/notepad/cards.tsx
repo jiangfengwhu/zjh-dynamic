@@ -1,23 +1,14 @@
 import { Text, View } from "react-native";
-import { Icon, Pressy } from "../../ui/chrome";
+import { Icon, Pressy } from "@zijinhua/app-sdk/ui";
 import {
   PostAttachment,
   PostBody,
   PostFrame,
-  publishFeedPost,
-  registerFeedTemplates,
   type FeedCardProps,
-} from "../../ui/feed";
-import { themedStyleSheet, useTheme } from "../../ui/theme";
-import { writePackageValue } from "../../ui/packageLink";
+} from "@zijinhua/app-sdk/ui";
+import { themedStyleSheet, useTheme } from "@zijinhua/app-sdk/ui";
 
-publishFeedPost({
-  appId: "notepad",
-  kind: "welcome",
-  body: "你好！我是记事本。随手记录灵感，还支持 Markdown 格式预览。点击下方按钮开始写第一篇笔记吧。",
-});
-
-function IntroCard(card: FeedCardProps) {
+export function IntroCard(card: FeedCardProps) {
   const { colors } = useTheme();
   return (
     <PostFrame {...card} content={
@@ -61,6 +52,3 @@ const styles = themedStyleSheet((t) => ({
   },
 }));
 
-registerFeedTemplates("notepad", {
-  welcome: IntroCard,
-});

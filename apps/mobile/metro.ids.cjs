@@ -34,6 +34,7 @@ function logicalKey(key) {
   if (key.startsWith('apps/mobile/')) return key.slice(5);
   if (key.startsWith('packages/features/')) return key.slice(9);
   if (key.startsWith('packages/ui/')) return 'components/' + key.slice(12);
+  if (key.startsWith('dist/sdk-adapters/')) return key;
   return key;
 }
 
@@ -111,6 +112,7 @@ function createAppIdFactory() {
     if (isThirdParty(filePath)) throw new Error(`第三方模块不在 vendor 包里: ${key}。依赖有变化，需要重新打包 vendor`);
     const cached = local.get(key);
     if (cached != null) return cached;
+    if (next >= 2000000) throw new Error("宿主模块编号范围已用尽");
     local.set(key, next);
     return next++;
   };

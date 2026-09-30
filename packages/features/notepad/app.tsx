@@ -1,14 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { ScrollView, Text, View, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import Markdown from "react-native-markdown-display";
-import { BackChip, Icon, Pressy, Surface } from "../../ui/chrome";
-import { themedStyleSheet, useTheme } from "../../ui/theme";
-import { writePackageValue } from "../../ui/packageLink";
-import { registerFeature } from "../src/featureHost";
+import { BackChip, Icon, Pressy, Surface } from "@zijinhua/app-sdk/ui";
+import { themedStyleSheet, useTheme } from "@zijinhua/app-sdk/ui";
+import { getAppContext } from "@zijinhua/app-sdk";
 import { type Note, readNotes, subscribeNotes, writeNotes } from "./storage";
 
 function askShell(request: { action: "back" }) {
-  writePackageValue("shell.nav.request", JSON.stringify({ ...request, at: Date.now() }));
+  getAppContext().navigation.back();
 }
 
 function NotepadApp() {
@@ -289,4 +288,4 @@ const styles = themedStyleSheet((t) => ({
   },
 }));
 
-registerFeature("notepad", NotepadApp);
+export default NotepadApp;

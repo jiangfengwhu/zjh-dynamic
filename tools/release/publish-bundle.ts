@@ -149,7 +149,7 @@ export async function publishRelease(input: {
   await publishCatalog(catalog);
 }
 
-async function publishCatalog(files: PublishFile[]): Promise<void> {
+export async function publishCatalog(files: PublishFile[]): Promise<void> {
   if (files.length === 0) return;
   const token = process.env.BUNDLE_CATALOG_TOKEN?.trim();
   if (!token) {

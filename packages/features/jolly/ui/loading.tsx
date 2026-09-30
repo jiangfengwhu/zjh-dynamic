@@ -8,7 +8,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import { theme, themedStyleSheet, useTheme } from "@zijinhua/app-sdk/ui";
 
 export type JollyLoadingProps = {
   size?: "sm" | "md" | "lg";

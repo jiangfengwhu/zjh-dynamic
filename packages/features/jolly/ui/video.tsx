@@ -1,3 +1,4 @@
+import { getAppContext } from "@zijinhua/app-sdk";
 import React, { useMemo } from "react";
 import { StyleSheet, View, ViewStyle } from "react-native";
 import Video, { ViewType } from "react-native-video";
@@ -34,7 +35,7 @@ const STATE_TO_VIDEO: Record<JollyVideoState, string> = {
 function sourceOf(name: string): { uri: string } {
   if (/^(https?|file|asset):\/\//.test(name)) return { uri: name };
   const clean = name.split("/").pop()!.replace(/\.[^.]+$/, "").toLowerCase();
-  return { uri: `asset:///jolly/${clean}.mp4` };
+  return { uri: getAppContext().assets.uri(`${clean}.mp4`) };
 }
 
 export function JollyVideoPlayer({
