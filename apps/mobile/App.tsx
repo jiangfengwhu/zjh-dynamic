@@ -8,14 +8,13 @@ import { loadCatalog, saveCatalog, type CatalogEntry } from "./src/shell/catalog
 import { openShellBundle, openShellTab, ShellNavigator } from "./src/shell/navigation";
 import { BackButton } from "./src/shell/BackButton";
 import type { AgentTrace } from "./src/shell/AgentScreen";
-import { publishFeedPost, recordFeedChange } from "../../packages/ui/feed";
-import { describeJollyRun, jollyPhaseFromStatus, noteJollyRun } from "../../packages/ui/jolly";
+import { jollyPhaseFromStatus, noteJollyRun, publishJollyMilestone } from "../../packages/ui/jolly";
 import { readPackageValue, subscribePackageValue } from "../../packages/ui/packageLink";
 import { theme, palettes, themedStyleSheet, type ThemeMode } from "../../packages/ui/theme";
 import { ThemeProvider } from "../../packages/ui/ThemeProvider";
 import { JollyLoading } from "../../packages/ui/jolly";
 import { shellAppearance } from "../../packages/platform/src/shellCapabilities";
-import { runCloudEvolve, cancelCloudRun, loadJulesRun, loadJulesSession, saveJulesRun, clearJulesRun, clearJulesSession, inspectJulesSession, julesSessionLive, watchJulesSession } from "./src/shell/cloudEvolve";
+import { runCloudEvolve, cancelCloudRun, loadJulesRun, loadJulesSession, saveJulesRun, clearJulesRun, clearJulesSession, inspectJulesSession, julesSessionLive, watchJulesSession, workshopStatus, confirmWorkshop } from "./src/shell/cloudEvolve";
 import { readShellValue, removeShellValue, writeShellValue } from "./src/shell/shellStorage";
 import { startFeedSummary } from "./src/shell/feed/summary";
 import { UpdateBanner } from "./src/shell/UpdateBanner";
@@ -84,6 +83,13 @@ function ShellApp() {
   const [updateCompleted, setUpdateCompleted] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [runStartedAt, setRunStartedAt] = useState(0);
+  const [sessionId, setSessionId] = useState("");
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [awaitingReply, setAwaitingReply] = useState(false);
+  const [confirmationBusy, setConfirmationBusy] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
+  const confirmingRef = useRef(false);
   const cloudStop = useRef(false);
   const cloudRun = useRef<{ runId?: string } | null>(null);
   const busyRef = useRef(false);
@@ -139,14 +145,7 @@ function ShellApp() {
     const phase = jollyPhaseFromStatus(busy, status);
     if (phase === "idle" && !prompt.trim()) return;
     const steps = [...new Set(traces.map((item) => item.title.trim()).filter(Boolean))].slice(-4);
-    const change = noteJollyRun({ phase, wish: prompt, status, steps });
-    if (!change) return;
-    const note = describeJollyRun(change.next);
-    if (note && note !== describeJollyRun(change.prev)) recordFeedChange({ appId: "jolly", note });
-    if (!note) return;
-    const payload = { phase: change.next.phase, wish: change.next.wish, status: change.next.status, steps: change.next.steps };
-    if (change.next.phase === "ready") publishFeedPost({ appId: "jolly", kind: "update", body: note, payload });
-    publishFeedPost({ appId: "jolly", kind: "activity", body: note, payload });
+    noteJollyRun({ phase, wish: prompt, status, steps });
   }, [pluginsReady, busy, status, prompt, traces]);
 
   useEffect(() => {
@@ -277,11 +276,65 @@ function ShellApp() {
       if (cloud.runId) {
         try {
           await cancelCloudRun(cloud.runId);
+          setSessionId("");
         } catch (error) {
           console.log("evolve stop failed", error instanceof Error ? error.message : error);
         }
       }
       return;
+    }
+  }
+
+  function newSession() {
+    if (busyRef.current || sessionLoading || confirmingRef.current) return;
+    if (sessionId) {
+      resumedCloud.current = false;
+      setSessionLoading(true);
+      void resumeCloud();
+      return;
+    }
+    clearJulesSession();
+    setSessionId("");
+    setPrompt("");
+    setStatus("");
+    setTraces([]);
+    setReport("");
+    setRunStartedAt(0);
+    setAwaitingConfirmation(false);
+    setAwaitingReply(false);
+    setConfirmationMessage("");
+  }
+
+  async function confirmWish() {
+    if (!sessionId || !awaitingConfirmation || busyRef.current || confirmingRef.current) return;
+    confirmingRef.current = true;
+    setConfirmationBusy(true);
+    setConfirmationMessage("正在为这份心愿落款…");
+    try {
+      await confirmWorkshop(sessionId);
+      clearJulesSession();
+      setSessionId("");
+      setAwaitingConfirmation(false);
+      setAwaitingReply(false);
+      setConfirmationMessage("");
+      setStatus("这份心愿已收好，可以开始新的心愿了");
+    } catch (error) {
+      setConfirmationMessage(error instanceof Error ? error.message : "这份心愿暂时没能收好，请稍后再试");
+      void refreshUpdates(true);
+    } finally {
+      confirmingRef.current = false;
+      setConfirmationBusy(false);
+    }
+  }
+
+  async function loadWish() {
+    if (updateBusy || confirmingRef.current) return;
+    try {
+      const ready = await refreshUpdates(true);
+      if (ready.length) await applyUpdatesNow();
+      else setConfirmationMessage("已检查作品更新。确认收下时还会核对正在运行的版本。");
+    } catch (error) {
+      setConfirmationMessage(error instanceof Error ? error.message : "新作品暂时没接好，请稍后再试");
     }
   }
 
@@ -293,31 +346,45 @@ function ShellApp() {
     busyRef.current = true;
     setBusy(true);
     const startedAt = Date.now();
+    publishJollyMilestone(startedAt, text, "making", "开工");
     setRunStartedAt(startedAt);
     setPrompt(text);
+    setAwaitingReply(false);
+    setConfirmationMessage("");
     setTraces([]);
     setReport("");
     openShellTab("agent");
     setStatus(status);
     cloudStop.current = false;
     cloudRun.current = {};
+    let waiting = false;
     try {
       const outcome = await runCloudEvolve({
         requirement: text,
         onStatus: setStatus,
         onTrace: setTraces,
         onRunId: (runId) => {
+          setSessionId(runId);
           cloudRun.current = { runId };
           saveJulesRun({ session: runId, prompt: text, startedAt });
         },
         shouldStop: () => cloudStop.current,
       });
       if (outcome === "cancelled") {
+        setSessionId("");
+        publishJollyMilestone(startedAt, text, "stopped", "已停止");
         setStatus("已停止");
         setBusy(false);
         return;
       }
-      if (outcome === "waiting") return;
+      if (outcome === "waiting") {
+        waiting = true;
+        setAwaitingReply(true);
+        return;
+      }
+      waiting = true;
+      setAwaitingConfirmation(true);
+      await workshopStatus(cloudRun.current?.runId || await loadJulesSession());
       await syncPlugins();
       setRequirement("");
       setFeatureKey((value) => value + 1);
@@ -325,17 +392,19 @@ function ShellApp() {
       const ready = await refreshUpdates();
       setUpdateCompleted(ready.length > 0);
       setStatus(ready.length ? "有新包可以加载" : "已是最新");
+      publishJollyMilestone(startedAt, text, "ready", ready.length ? "有新包可以加载" : "已是最新");
       setBusy(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.log("evolve failed", message);
       setStatus(message);
+      publishJollyMilestone(startedAt, text, "failed", message);
       setBusy(false);
     } finally {
       cloudRun.current = null;
       busyRef.current = false;
       setBusy(false);
-      clearJulesRun();
+      if (!waiting) clearJulesRun();
     }
   }
 
@@ -344,16 +413,34 @@ function ShellApp() {
     resumedCloud.current = true;
     const run = await loadJulesRun();
     const session = run?.session || await loadJulesSession();
-    if (!session) return;
+    setSessionId(session);
+    if (!session) {
+      setSessionLoading(false);
+      return;
+    }
     let info: { state: string; url: string; title: string; startedAt: number } | undefined;
     try {
       info = await inspectJulesSession(session);
+      if (info) {
+        const workshop = await workshopStatus(session);
+        if (workshop.merged) {
+          clearJulesSession();
+          setSessionId("");
+          return;
+        }
+        setAwaitingConfirmation(workshop.completed);
+        setAwaitingReply(workshop.state === "AWAITING_USER_FEEDBACK");
+      }
     } catch (error) {
       console.log("jules resume failed", error instanceof Error ? error.message : error);
       return;
+    } finally {
+      setSessionLoading(false);
     }
     if (!info || info.state === "FAILED") {
       clearJulesSession();
+      setSessionId("");
+      if (run) publishJollyMilestone(run.startedAt, run.prompt, "failed", info?.state === "FAILED" ? "Jules 失败" : "上次的生成已经中断");
       busyRef.current = false;
       setBusy(false);
       setStatus(info?.state === "FAILED" ? "Jules 失败" : "上次的生成已经中断");
@@ -374,6 +461,7 @@ function ShellApp() {
       setTraces([{ id: "jules", kind: "status", title: "正在接上", state: "running", detail: info.url }]);
       cloudStop.current = false;
       cloudRun.current = { runId: session };
+      let waiting = false;
       try {
         const outcome = await watchJulesSession(session, info.url, {
           onStatus: setStatus,
@@ -381,34 +469,45 @@ function ShellApp() {
           shouldStop: () => cloudStop.current,
         }, startedAt);
         if (outcome === "cancelled") {
+          setSessionId("");
+          publishJollyMilestone(startedAt, promptText, "stopped", "已停止");
           setStatus("已停止");
           setBusy(false);
           return;
         }
-        if (outcome === "waiting") return;
+        if (outcome === "waiting") {
+          waiting = true;
+          setAwaitingReply(true);
+          return;
+        }
+        waiting = true;
+        setAwaitingConfirmation(true);
+        await workshopStatus(session);
         await syncPlugins();
         setFeatureKey((value) => value + 1);
         setStatus("正在检查新包");
         const ready = await refreshUpdates();
         setUpdateCompleted(ready.length > 0);
         setStatus(ready.length ? "有新包可以加载" : "已是最新");
+        publishJollyMilestone(startedAt, promptText, "ready", ready.length ? "有新包可以加载" : "已是最新");
         setBusy(false);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.log("jules resume failed", message);
         setStatus(message);
+        publishJollyMilestone(startedAt, promptText, "failed", message);
         setBusy(false);
       } finally {
         cloudRun.current = null;
         busyRef.current = false;
         setBusy(false);
-        clearJulesRun();
+        if (!waiting) clearJulesRun();
       }
       return;
     }
-    if (info.state === "COMPLETED" && run) {
-      setPrompt(run.prompt);
-      setRunStartedAt(run.startedAt);
+    if (info.state === "COMPLETED") {
+      setPrompt(run?.prompt || info.title || "这次的心愿");
+      setRunStartedAt(run?.startedAt || info.startedAt);
       showAgent();
       busyRef.current = false;
       setBusy(false);
@@ -419,19 +518,21 @@ function ShellApp() {
         const ready = await refreshUpdates();
         setUpdateCompleted(ready.length > 0);
         setStatus(ready.length ? "有新包可以加载" : "已是最新");
+        if (run) publishJollyMilestone(run.startedAt, run.prompt, "ready", ready.length ? "有新包可以加载" : "已是最新");
       } catch (error) {
         console.log("jules resume check failed", error instanceof Error ? error.message : error);
       }
-      clearJulesRun();
+      // 保留这次心愿，重载新包后仍要由用户确认收下。
       return;
     }
     if (info.state === "PAUSED") {
+      setAwaitingReply(true);
       setPrompt(run?.prompt || info.title || "线上定制");
       showAgent();
       busyRef.current = false;
       setBusy(false);
       setStatus("Jules 已暂停");
-      clearJulesRun();
+      if (run) publishJollyMilestone(run.startedAt, run.prompt, "stopped", "Jules 已暂停");
       console.log("jules resume paused", session);
     }
   }
@@ -443,7 +544,7 @@ function ShellApp() {
 
   async function submit() {
     const text = requirement.trim();
-    if (!text || busyRef.current) return;
+    if (!text || busyRef.current || sessionLoading || confirmingRef.current || (sessionId && !awaitingReply)) return;
     console.log("evolve submit", providerId, text);
     await runCloud(text);
   }
@@ -467,6 +568,15 @@ function ShellApp() {
             traces={traces}
             report={report}
             startedAt={runStartedAt}
+            sessionId={sessionId}
+            sessionLoading={sessionLoading}
+            onNewSession={newSession}
+            awaitingConfirmation={awaitingConfirmation}
+            awaitingReply={awaitingReply}
+            confirmationBusy={confirmationBusy}
+            confirmationMessage={confirmationMessage}
+            onConfirmWish={() => void confirmWish()}
+            onLoadWish={() => void loadWish()}
             providerId={providerId}
             onProviderChange={setProviderId}
             onRequirement={setRequirement}

@@ -159,6 +159,15 @@ export type ShellNavigatorProps = {
   traces: AgentTrace[];
   report: string;
   startedAt?: number;
+  sessionId: string;
+  sessionLoading: boolean;
+  onNewSession: () => void;
+  awaitingConfirmation: boolean;
+  awaitingReply: boolean;
+  confirmationBusy: boolean;
+  confirmationMessage: string;
+  onConfirmWish: () => void;
+  onLoadWish: () => void;
   providerId: string;
   onProviderChange: (id: string) => void;
   onRequirement: (value: string) => void;
@@ -275,6 +284,15 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     traces={props.traces}
                     report={props.report}
                     startedAt={props.startedAt}
+                    sessionId={props.sessionId}
+                    sessionLoading={props.sessionLoading}
+                    onNewSession={props.onNewSession}
+                    awaitingConfirmation={props.awaitingConfirmation}
+                    awaitingReply={props.awaitingReply}
+                    confirmationBusy={props.confirmationBusy}
+                    confirmationMessage={props.confirmationMessage}
+                    onConfirmWish={props.onConfirmWish}
+                    onLoadWish={props.onLoadWish}
                     providerId={props.providerId}
                     onProviderChange={props.onProviderChange}
                     onChange={props.onRequirement}

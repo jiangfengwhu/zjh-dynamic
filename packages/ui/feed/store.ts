@@ -128,7 +128,7 @@ export function publishFeedPost(input: { appId: string; kind: FeedSlot; body: st
   if (input.kind === "welcome" && posts.some((item) => item.appId === input.appId && item.kind === "welcome")) return;
   if (input.kind === "update") {
     const latest = posts.find((item) => item.appId === input.appId && item.kind === "update");
-    if (latest?.body === body) return;
+    if (latest?.body === body && latest.payload.startedAt === payload.startedAt) return;
   }
   if (input.kind === "activity") {
     const latest = posts.find((item) => item.appId === input.appId && item.kind === "activity");

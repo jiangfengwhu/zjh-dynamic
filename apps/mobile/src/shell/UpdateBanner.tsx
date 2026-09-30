@@ -38,20 +38,20 @@ export function UpdateBanner({ items, busy, completed, onNow, onLater }: Props) 
             <JollyVideoPlayer state="level_up" width={60} height={60} borderRadius={20} resizeMode="cover" />
           </View>
           <View style={styles.copy}>
-            <Text style={styles.title}>{completed ? "需求完成了" : "有新内容可以加载"}</Text>
+            <Text style={styles.title}>{completed ? "你的新作品送到了" : "伙伴们带来了新内容"}</Text>
             <Text style={styles.detail}>
               {completed
-                ? `${shown}${extra} 已经准备好。现在加载会带上这次的结果，留到下次启动也可以。`
-                : `${shown}${extra} 已下载到本机。现在加载会刷新应用，留到下次启动也可以。`}
+                ? "先加载这次的作品，体验后回到工坊亲自收下。加载时会刷新应用。"
+                : "新内容已经备好。加载时会刷新应用，也可以留到下次见面。"}
             </Text>
           </View>
         </View>
         <View style={styles.actions}>
           <Pressy accessibilityRole="button" disabled={busy} onPress={onLater} style={styles.later}>
-            <Text style={styles.laterText}>下次再说</Text>
+            <Text style={styles.laterText}>稍后体验</Text>
           </Pressy>
           <Pressy accessibilityRole="button" disabled={busy} onPress={onNow} style={[styles.now, busy && styles.nowBusy]}>
-            <Text style={styles.nowText}>{busy ? "正在加载" : "现在加载"}</Text>
+            <Text style={styles.nowText}>{busy ? "正在迎接新作品" : "加载新作品"}</Text>
           </Pressy>
         </View>
       </Surface>

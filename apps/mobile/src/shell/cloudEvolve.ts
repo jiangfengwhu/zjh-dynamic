@@ -3,18 +3,8 @@ import { readShellValue, removeShellValue, writeShellValue } from "./shellStorag
 
 const SESSION_STORAGE = "shell.julesSession.v1";
 const RUN_STORAGE = "shell.julesRun.v1";
+const APPROVAL_STORAGE = "shell.julesApproval.v1";
 const SOURCE = "sources/github/jiangfengwhu/zjh-dynamic";
-
-const SESSION_GUIDANCE = `你正在为紫金花 React Native Android 应用实现用户需求。以下是本会话的项目说明：
-1. 先阅读相关代码，理解用户希望得到的实际行为；沿用现有架构、组件和主题，完成可使用的功能，包括必要的数据持久化、权限处理、加载、空态和错误反馈。需求不明确时采用符合现有产品的合理默认值；涉及关键歧义或缺少必要条件时明确询问用户。
-2. 可复用 UI 位于 packages/ui，生成应用位于 packages/features。新增应用使用 packages/features/<id>/app.tsx 并调用 registerFeature(id, Component)，在 packages/features/src/registry.ts 登记，load 使用延迟 require。若需要动态卡片和头像，参考现有 packages/features/jolly 的登记方式。修改已有应用时保留其 ID、数据和其他功能。
-3. 手机能力优先复用 packages/platform/src 中的封装及现有 shell 能力，按需申请权限。不要虚构接口、硬编码凭证或用演示数据冒充真实功能。只修改完成需求所需的文件。
-4. 优先通过 JS 和现有原生能力实现。当前仓库仅包含 RN 和 DEX 动态应用，Android 壳和 APK 配置在独立仓库，禁止添加或修改 Android 工程、APK 版本配置、原生依赖补丁和服务端代码。兼容性版本从 Android 壳发布的运行时契约读取，不能自行生成或更改。需要新增静态原生能力时说明需要壳维护者发布新 APK。
-5. 按仓库锁文件安装所需依赖，执行与改动相关的类型检查、功能检查和构建验证。不要擅自跳过失败检查、删除检查或绕过版本基线；遇到环境、权限或凭证问题，报告具体原因。
-6. 完成后在仓库根目录运行 npx tsx scripts/cloud-publish.ts，复用现有流程打包并上传 R2、更新发布清单，不要另写发布流程。发布需要环境中已配置的 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY 和 BUNDLE_CATALOG_TOKEN；DEX 插件构建还需要 JAVA_HOME 和 ANDROID_HOME 或 ANDROID_SDK_ROOT。不得输出凭证，也不要使用 --force 绕过线上提交基线。
-7. 发布前确保当前分支包含线上版本的 source.commit，必要时获取并合并最新 main，保留已有改动。按现有 PR 流程交付代码，不自行强推或合并。最后用中文说明实现内容、验证结果、发布结果及剩余限制；只有命令和上传实际成功才能报告发布成功。
-
-下面是用户需求，请以此为本次任务的目标：`;
 
 type CloudOutcome = "finished" | "cancelled" | "waiting";
 
@@ -54,6 +44,7 @@ type JulesActivity = {
 type JulesResult = { status: number; body: string };
 
 type JulesSession = {
+  approvalToken?: string;
   name?: string;
   state?: string;
   url?: string;
@@ -92,6 +83,7 @@ export function clearJulesRun(): void {
 
 export function clearJulesSession(): void {
   removeShellValue(SESSION_STORAGE);
+  removeShellValue(APPROVAL_STORAGE);
   clearJulesRun();
   console.log("jules session cleared");
 }
@@ -122,7 +114,7 @@ export async function runCloudEvolve(options: {
     "POST",
     "/v1alpha/sessions",
     JSON.stringify({
-      prompt: `${SESSION_GUIDANCE}\n${prompt}`,
+      prompt,
       title: options.requirement.slice(0, 80),
       sourceContext: {
         source: SOURCE,
@@ -138,6 +130,7 @@ export async function runCloudEvolve(options: {
   const name = session.name ?? "";
   if (!name.startsWith("sessions/")) throw new Error("Jules 没有返回会话");
   writeShellValue(SESSION_STORAGE, name);
+  if (session.approvalToken) writeShellValue(APPROVAL_STORAGE, session.approvalToken);
   options.onRunId(name);
   console.log("jules session", name);
   if (options.shouldStop()) {
@@ -176,7 +169,9 @@ export function watchJulesSession(
 }
 
 export async function cancelCloudRun(session: string): Promise<void> {
+  if (await loadJulesSession() !== session) return;
   const result = await jules("DELETE", `/v1alpha/${session}`);
+  if (result.status < 200 || result.status >= 300) throw new Error(julesError(result));
   clearJulesSession();
   console.log("jules cancel", session, result.status);
 }
@@ -197,6 +192,29 @@ async function sessionAcceptsMessage(name: string): Promise<boolean> {
   const state = (JSON.parse(current.body) as JulesSession).state ?? "";
   console.log("jules session reuse", name, state);
   return state !== "FAILED";
+}
+
+export async function workshopStatus(session: string): Promise<{ completed: boolean; merged: boolean; state: string }> {
+  const result = await workshop({ action: "status", session });
+  if (typeof result.token === "string") writeShellValue(APPROVAL_STORAGE, result.token);
+  return result as { completed: boolean; merged: boolean; state: string };
+}
+
+export async function confirmWorkshop(session: string): Promise<void> {
+  const { buildId } = require("./build-identity.json") as { buildId: string };
+  await workshop({ action: "confirm", session, buildId });
+}
+
+async function workshop(input: { action: string; session: string; buildId?: string }): Promise<Record<string, unknown>> {
+  const token = await readShellValue(APPROVAL_STORAGE);
+  const response = await fetch(`${edgeUrl}/v1/workshop`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, token }),
+  });
+  const result = await response.json() as Record<string, unknown>;
+  if (!response.ok) throw new Error(typeof result.message === "string" ? result.message : "工坊暂时没有接好，请稍后再试");
+  return result;
 }
 
 async function waitSession(
@@ -396,7 +414,7 @@ async function jules(method: string, path: string, body?: string): Promise<Jules
     const response = await fetch(`${edgeUrl}/v1/jules`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ method, path, body: body ?? "" }),
+      body: JSON.stringify({ method, path, body: body ?? "", approvalToken: await readShellValue(APPROVAL_STORAGE), buildId: (require("./build-identity.json") as { buildId: string }).buildId }),
       signal: controller.signal,
     });
     const result = { status: response.status, body: await response.text() };

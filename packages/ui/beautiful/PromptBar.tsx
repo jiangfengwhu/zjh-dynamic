@@ -32,6 +32,7 @@ export type PromptBarProps = {
   value?: string;
   variant?: PromptBarVariant;
   busy?: boolean;
+  disabled?: boolean;
   placeholder?: string;
   providers?: PromptProvider[];
   providerId?: string;
@@ -46,6 +47,7 @@ export function PromptBar({
   value: controlledValue,
   variant = "Rounded",
   busy = false,
+  disabled = false,
   placeholder = "说说你想做什么小应用",
   providers = PROVIDERS,
   providerId,
@@ -70,7 +72,7 @@ export function PromptBar({
   const closeProviders = () => setProviderOpen(false);
   const listHeight = Math.min(280, Math.max(providers.length, 1) * PROVIDER_ROW_HEIGHT);
 
-  const canSend = value.trim().length > 0 && !busy;
+  const canSend = value.trim().length > 0 && !busy && !disabled;
   const isPill = variant === "Pill";
 
   // 能发送时按钮从暗淡弹到实心，输入框聚焦时边框换成金色

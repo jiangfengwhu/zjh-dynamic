@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import { fetchRuntimeContract, downloadBridgeSdk } from "./runtime-contract.js";
 import { compilePlugins, listPluginIds, pluginSourceHash } from "./compile-plugins.js";
@@ -56,6 +57,8 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   const outDir = path.join(repoRoot, "dist", "bundles");
   // 提交状态要在生成任何文件之前读，才不会把打包自己写的文件算成「未提交的改动」。
   const source = await readSource(repoRoot);
+  source.buildId = randomUUID();
+  await writeFile(path.join(mobileDir, "src", "shell", "build-identity.json"), JSON.stringify({ buildId: source.buildId }));
   await mkdir(outDir, { recursive: true });
   await writeFile(
     path.join(mobileDir, "src", "shell", "evolveHost.ts"),

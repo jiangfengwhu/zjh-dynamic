@@ -9,3 +9,4 @@ out/
 .wrangler/
 coverage/
 .metro-health-check*
+apps/mobile/src/shell/build-identity.json

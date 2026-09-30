@@ -33,6 +33,7 @@ export type ReleaseSource = {
   commit: string;
   dirty: boolean;
   repository?: string;
+  buildId?: string;
 };
 
 export type BundleRelease = {
@@ -124,7 +125,7 @@ export function parseRelease(value: unknown): BundleRelease | undefined {
     vendor: { sha256: vendor.sha256, bytes: vendor.bytes, inputs: vendor.inputs, map: vendor.map },
     app: { sha256: app.sha256, bytes: app.bytes, vendorMap: app.vendorMap },
     plugins,
-    source: { commit: source.commit, dirty: source.dirty, ...(typeof source.repository === "string" ? { repository: source.repository } : {}) },
+    source: { commit: source.commit, dirty: source.dirty, ...(typeof source.repository === "string" ? { repository: source.repository } : {}), ...(typeof source.buildId === "string" ? { buildId: source.buildId } : {}) },
   });
   return release.id === raw.id ? release : undefined;
 }

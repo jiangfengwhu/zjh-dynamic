@@ -33,11 +33,14 @@
 需要 Node.js 22+。
 
 1. `npm ci` 和 `npm ci --prefix apps/mobile` 安装发布工具与 RN 依赖。
-2. `npm run typecheck` 检查发布工具和 RN 代码。
-3. `npm run bundle` 本地构建到 dist/bundles。
-4. `npm run publish` 发布线上动态包；命令入口仍为 scripts/cloud-publish.ts。
+2. 完成功能后提交源码；默认不单独运行验证，由用户在 App 中验收。
+3. `npm run publish` 构建并发布线上动态包；命令入口为 scripts/cloud-publish.ts。用户要求时才单独运行 `npm run typecheck` 或 `npm run bundle`。
 
-仅修改文档时无需构建或发布 RN 包。功能修改按任务授权完成检查和动态发布；提交、PR 和推送遵循当前任务的交付要求，不自行合并 PR 或强推。
+仅修改文档时无需构建或发布 RN 包。提交、PR 和推送遵循当前任务的交付要求，不自行合并 PR 或强推。
+
+工坊一次只制作一份心愿。Jules 完成后创建 PR，并从最终源码提交发布；用户加载最新作品后，在工坊点击「确认收下并合入」。服务端核对当前运行代码的 buildId、线上清单、会话和 PR head，使用普通 merge 合入 main，再允许下一次制作。待确认状态跨 App 重载保留，不能通过重开会话跳过。
+
+build-identity.json 由构建流程生成并嵌入当前 app 包，清单 source.buildId 记录同一标记；文件不进入 Git，不手工修改。不以「已经下载」或「没有更新提示」代替运行版本核对。
 
 发布前读取 /v1/runtime 的兼容版本与桥接 SDK，不自行生成 APK 指纹。发布检查线上提交必须是当前提交的祖先，不支持 --force。release-migration.json 只允许精确指定的旧单体 release 迁移一次。
 

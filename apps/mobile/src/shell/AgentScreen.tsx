@@ -36,6 +36,15 @@ type Props = {
   traces: AgentTrace[];
   report: string;
   startedAt?: number;
+  sessionId: string;
+  sessionLoading: boolean;
+  onNewSession: () => void;
+  awaitingConfirmation: boolean;
+  awaitingReply: boolean;
+  confirmationBusy: boolean;
+  confirmationMessage: string;
+  onConfirmWish: () => void;
+  onLoadWish: () => void;
   providerId: string;
   onProviderChange: (id: string) => void;
   onChange: (value: string) => void;
@@ -136,6 +145,15 @@ export const AgentScreen = memo(function AgentScreen({
   traces,
   report,
   startedAt = 0,
+  sessionId,
+  sessionLoading,
+  onNewSession,
+  awaitingConfirmation,
+  awaitingReply,
+  confirmationBusy,
+  confirmationMessage,
+  onConfirmWish,
+  onLoadWish,
   providerId,
   onProviderChange,
   onChange,
@@ -197,7 +215,7 @@ export const AgentScreen = memo(function AgentScreen({
   }, [busy, prompt, startedAt]);
 
   const actionTraces = useMemo(() => traces.filter((t) => t.kind !== "text"), [traces]);
-  const stillRunning = busy || traces.some((item) => item.state === "running");
+  const stillRunning = busy;
   const latestText = useMemo(
     () => cleanTraceDetail([...traces].reverse().find((t) => t.kind === "text")?.detail),
     [traces]
@@ -280,7 +298,7 @@ export const AgentScreen = memo(function AgentScreen({
   }, [hasSession, stillRunning, traces.length, runningTrace, status, hasError, finalReport]);
 
   const phase: "busy" | "error" | "done" | "idle" = stillRunning ? "busy" : hasError ? "error" : hasSession ? "done" : "idle";
-  const phaseLabel = { busy: "制作中", error: "有提示", done: "已完成", idle: "待命" }[phase];
+  const phaseLabel = awaitingConfirmation ? "待收下" : awaitingReply ? "等你回应" : { busy: "制作中", error: "有提示", done: "已收好", idle: "待命" }[phase];
   const phaseTone =
     phase === "busy"
       ? { dot: colors.accent, text: colors.accentText, tint: colors.accentTint }
@@ -313,6 +331,46 @@ export const AgentScreen = memo(function AgentScreen({
         // 保留视频的原生视图，滚出屏幕后回来时不重建播放表面。
         removeClippedSubviews={false}
       >
+        {sessionId || sessionLoading ? (
+          <Surface tone="inset" style={styles.sessionPanel}>
+            <View style={styles.sessionSeal}><Icon name="edit" size={16} color={colors.accentText} /></View>
+            <View style={styles.heroCopy}>
+              <Text style={styles.sessionTitle}>{sessionLoading ? "正在接回你的心愿" : "这一份心愿，我们接着做"}</Text>
+              <Text style={styles.caption}>{awaitingConfirmation ? "作品已做好，等你体验后亲自收下。" : awaitingReply ? "伙伴在等你的回应，回复会留在这次制作里。" : "一次专心做好一件事，不会另开一份制作。"}</Text>
+            </View>
+            {!busy && !awaitingConfirmation && !awaitingReply ? (
+              <Pressy accessibilityRole="button" disabled={sessionLoading} onPress={onNewSession} style={styles.sessionButton}>
+                <Text style={styles.sessionButtonText}>接回心愿</Text>
+              </Pressy>
+            ) : null}
+          </Surface>
+        ) : hasSession ? (
+          <Pressy accessibilityRole="button" onPress={onNewSession} style={styles.sessionButton}>
+            <Text style={styles.sessionButtonText}>开启新的心愿</Text>
+          </Pressy>
+        ) : null}
+        {awaitingConfirmation ? (
+          <Animated.View entering={FadeInDown.duration(360)}>
+            <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.acceptance}>
+              <GiltLine style={styles.reportEdge} />
+              <View style={styles.reportHead}>
+                <View style={styles.sessionSeal}><Icon name="check" size={17} color={colors.accentText} /></View>
+                <Text style={styles.reportTitle}>先体验，再收下这份心愿</Text>
+              </View>
+              <Text style={styles.acceptanceText}>打开最新作品，看看它是否合你心意。确认收下后，我们会把这次修改合入主线，再陪你做下一个心愿。</Text>
+              {confirmationMessage ? <Text accessibilityLiveRegion="polite" style={styles.acceptanceMessage}>{confirmationMessage}</Text> : null}
+              <View style={styles.acceptanceActions}>
+                <Pressy accessibilityRole="button" disabled={confirmationBusy} onPress={onLoadWish} style={styles.ghost}>
+                  <Text style={styles.ghostText}>加载最新作品</Text>
+                </Pressy>
+                <Pressy accessibilityRole="button" disabled={confirmationBusy} onPress={onConfirmWish} style={[styles.primary, confirmationBusy && { opacity: 0.6 }]}>
+                  <Text style={styles.primaryText}>{confirmationBusy ? "正在收好…" : "确认收下并合入"}</Text>
+                </Pressy>
+              </View>
+              <Text style={styles.acceptanceHint}>收下时会核对你正在使用的版本，旧作品不能误确认。</Text>
+            </Surface>
+          </Animated.View>
+        ) : null}
         {hasSession ? (
           <View style={styles.compactHero}>
             <View style={styles.portraitSmall}>
@@ -324,7 +382,7 @@ export const AgentScreen = memo(function AgentScreen({
                 <Icon name="edit" size={15} color={colors.ink3} />
               </Pressy>
               <Text style={styles.heroStatus}>
-                {stillRunning ? "正在努力制作" : hasError ? "遇到一点阻碍" : "心愿已经达成"}
+                {stillRunning ? "正在把你的想法慢慢做好" : awaitingConfirmation ? "作品做好了，等你来体验" : awaitingReply ? "还有一句话想听你说" : hasError ? "遇到一点阻碍" : "这份心愿已经收好"}
               </Text>
             </View>
           </View>
@@ -468,7 +526,7 @@ export const AgentScreen = memo(function AgentScreen({
                 <View style={styles.reportSeal}>
                   <Icon name="check" size={16} color={colors.onAccent} strokeWidth={2.4} />
                 </View>
-                <Text style={styles.reportTitle}>交付说明</Text>
+                <Text style={styles.reportTitle}>这次为你做了什么</Text>
               </View>
               <Text style={styles.reportText}>{finalReport}</Text>
               {!stillRunning && onBack ? (
@@ -476,7 +534,7 @@ export const AgentScreen = memo(function AgentScreen({
                   <Pressy accessibilityRole="button" onPress={onBack} style={styles.primary}>
                     <Text style={styles.primaryText}>去体验新应用</Text>
                   </Pressy>
-                  {prompt ? (
+                  {prompt && !sessionId ? (
                     <Pressy accessibilityRole="button" onPress={() => onChange(prompt)} style={styles.ghost}>
                       <Text style={styles.ghostText}>继续完善</Text>
                     </Pressy>
@@ -544,6 +602,8 @@ export const AgentScreen = memo(function AgentScreen({
       <PromptBar
         value={value}
         busy={busy}
+        disabled={sessionLoading || confirmationBusy || Boolean(sessionId && !awaitingReply)}
+        placeholder={awaitingConfirmation ? "先收下这份心愿，再开始下一个" : awaitingReply ? "把你的回应告诉伙伴" : "说说你想做什么小应用"}
         providers={AGENT_PROVIDERS}
         providerId={providerId}
         onProviderChange={onProviderChange}
@@ -596,6 +656,47 @@ function PulseDot({ color }: { color: string }) {
 }
 
 const styles = themedStyleSheet((t) => ({
+  sessionSeal: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: t.accentTint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  acceptance: {
+    padding: 18,
+    gap: 14,
+    overflow: "hidden",
+  },
+  acceptanceText: { color: t.ink2, fontSize: 14, lineHeight: 22 },
+  acceptanceMessage: { color: t.accentText, fontSize: 13, lineHeight: 20 },
+  acceptanceActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  acceptanceHint: { color: t.ink3, fontSize: 11, lineHeight: 17 },
+  sessionPanel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+  },
+  sessionTitle: {
+    color: t.ink1,
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  sessionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: t.accentTint,
+  },
+  sessionButtonText: {
+    color: t.accentText,
+    fontSize: 12,
+    fontWeight: "600",
+  },
   screen: {
     backgroundColor: t.canvas,
   },
