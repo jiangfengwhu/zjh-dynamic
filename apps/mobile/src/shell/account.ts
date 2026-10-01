@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import * as Keychain from "react-native-keychain";
-import { launchImageLibrary } from "react-native-image-picker";
+import ImagePicker from "react-native-image-crop-picker";
 import BlobUtil from "react-native-blob-util";
+
 import { edgeUrl } from "./evolveHost";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
@@ -93,31 +94,31 @@ export async function loginWithCode(email: string, code: string) {
 }
 export async function saveAccountName(name: string) { const result = await call<{ user: Account }>("/v1/account", "PATCH", { name }); remember(result.user); }
 export async function removeAccountAvatar() { const result = await call<{ user: Account }>("/v1/account/avatar", "DELETE"); remember(result.user); }
-export async function chooseAccountAvatar(): Promise<boolean> {
-  await initialize();
-  if (!credential || credential.expiresAt <= Date.now()) { await clearAccount(); throw new Error("请先登录"); }
-  const token = credential.token;
-  const selection = await launchImageLibrary({ mediaType: "photo", selectionLimit: 1, maxWidth: 512, maxHeight: 512, quality: 0.8, includeBase64: true, assetRepresentationMode: "compatible", restrictMimeTypes: ["image/jpeg", "image/png", "image/webp"] });
-  if (selection.didCancel) return false;
-  if (selection.errorCode || !selection.assets?.[0]?.base64) throw new Error("未能读取图片，请重新选择");
-  const asset = selection.assets[0];
-  const encoded = asset.base64!;
-  const bytes = encoded.length * 3 / 4 - (encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0);
-  if (!bytes || bytes > 1048576) throw new Error("请选择小于 1 MB 的图片");
-  if (credential?.token !== token) throw new Error("账号已改变，请重新选择头像");
-  let result;
+export async function chooseAccountAvatar(onStatus: (message: string) => void): Promise<boolean> {
+  const ownerId = await currentAccountId(); if (!ownerId || !credential) throw new Error("请先登录");
+  const token = credential.token; let path: string | undefined;
   try {
-    result = await BlobUtil.config({ timeout: 20000 }).fetch("PUT", `${edgeUrl}/v1/account/avatar`, { Authorization: `Bearer ${token}`, "Content-Type": "application/octet-stream" }, encoded);
-  } catch { throw new Error("头像上传失败，请检查网络后重试"); }
-  const status = result.info().status;
-  if (credential?.token !== token) throw new Error("账号已改变，请重试");
-  if (status === 401) { await clearAccount(); throw new Error("登录已失效，请重新登录后更换头像"); }
-  let body: { user?: Account; message?: string };
-  try { body = result.json(); } catch { throw new Error("头像上传失败，请稍后重试"); }
-  if (status < 200 || status >= 300) throw new Error(body.message || "头像上传失败，请重试");
-  if (!body.user?.avatarUrl || body.user.id !== state.user?.id) throw new Error("头像更新结果无效，请重试");
-  remember(body.user);
-  return true;
+    onStatus("选择照片并调整圆形取景框");
+    const image = await ImagePicker.openPicker({ mediaType: "photo", cropping: true, cropperCircleOverlay: true, width: 512, height: 512, compressImageMaxWidth: 512, compressImageMaxHeight: 512, compressImageQuality: 0.78, forceJpg: true, cropperToolbarTitle: "调整头像", cropperChooseText: "保存头像", cropperCancelText: "取消" });
+    path = image.path;
+    if (await currentAccountId() !== ownerId || credential?.token !== token) throw new Error("账号已改变，请重试");
+    if (!path || !image.size || image.size > 1048576) throw new Error("头像处理失败或图片过大，请重新选择");
+    onStatus("正在上传头像到云端…");
+    const response = await BlobUtil.config({ timeout: 20000 }).fetch("PUT", `${edgeUrl}/v1/account/avatar`, { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" }, BlobUtil.wrap(path.replace(/^file:\/\//, "")));
+    if (credential?.token !== token) throw new Error("账号已改变，请重试");
+    const status = response.info().status;
+    if (status === 401) { await clearAccount(); throw new Error("登录已失效，请重新登录"); }
+    let body: { user?: Account; message?: string };
+    try { body = response.json(); } catch { throw new Error("头像上传失败，请检查网络后重试"); }
+    if (status < 200 || status >= 300) throw new Error(body.message || "头像上传失败，请重试");
+    if (!body.user?.avatarUrl || body.user.id !== ownerId) throw new Error("头像保存结果无效，请重试");
+    remember(body.user); return true;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "E_PICKER_CANCELLED") return false;
+    if (code === "E_NO_LIBRARY_PERMISSION") throw new Error("请允许访问相册后重试");
+    throw new Error(error instanceof Error ? error.message : "头像更换失败，请重试");
+  } finally { if (path) await ImagePicker.cleanSingle(path).catch(() => {}); }
 }
 export async function logoutAccount() {
   await call("/v1/auth/logout", "POST");

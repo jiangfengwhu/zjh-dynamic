@@ -180,7 +180,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, ins
             <PullIndicator pull={pull} phase={phase} />
             <Animated.View style={[styles.scroll, lift]}>
               <GestureDetector gesture={scrollGesture}>
-                <Animated.ScrollView
+                <Animated.ScrollView removeClippedSubviews={false}
                   style={styles.scroll}
                   contentContainerStyle={styles.content}
                   showsVerticalScrollIndicator={false}
@@ -225,7 +225,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, ins
                         : undefined;
                     return (
                       <Fragment key={post.id}>
-                        <Animated.View entering={enter} layout={LinearTransition.duration(260)} style={styles.post}>
+                        <Animated.View style={styles.post}>
                           <CardSlot
                             Template={Template}
                             card={{

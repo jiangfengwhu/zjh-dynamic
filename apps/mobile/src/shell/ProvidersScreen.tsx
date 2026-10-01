@@ -74,7 +74,7 @@ export function ProvidersScreen({ onBack }: Props) {
             {items.map((item) => {
               const selected = draft.id === item.id;
               return (
-                <Animated.View key={item.id} entering={FadeIn.duration(260)} layout={LinearTransition.duration(220)}>
+                <Animated.View key={item.id}>
                   <Surface
                     tone={selected ? "raised" : "base"}
                     style={[
@@ -175,7 +175,7 @@ export function ProvidersScreen({ onBack }: Props) {
           </View>
 
           {error ? (
-            <Animated.View entering={FadeIn.duration(200)} style={styles.errorRow}>
+            <Animated.View style={styles.errorRow}>
               <Icon name="alert" size={16} color={colors.redText} />
               <Text style={styles.error}>{error}</Text>
             </Animated.View>

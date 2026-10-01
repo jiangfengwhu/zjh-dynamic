@@ -67,7 +67,7 @@ export const MineScreen = memo(function MineScreen({
       >
         <Pressable accessibilityRole="button" accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount}><Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
           <View style={styles.portrait}>
-            {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={{ width: 68, height: 68, borderRadius: 22 }} /> : <Text style={[styles.profileName, { color: colors.accent, fontSize: 30 }]}>{user ? Array.from(user.name)[0] : "我"}</Text>}
+            {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={{ width: 68, height: 68, borderRadius: 34 }} /> : <Text style={[styles.profileName, { color: colors.accent, fontSize: 30 }]}>{user ? Array.from(user.name)[0] : "我"}</Text>}
           </View>
           <View style={styles.profileCopy}>
             <Text style={styles.profileName}>{user?.name ?? "登录紫金花"}</Text>

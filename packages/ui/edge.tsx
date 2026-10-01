@@ -25,7 +25,7 @@ export function Screen({ style, children, ...rest }: ViewProps) {
   const paddingBottom = edge.bottom && !keyboard ? insets.bottom : 0;
   return (
     <BarContext.Provider value={insets.top}>
-      <View {...rest} style={[styles.fill, style, { paddingTop, paddingBottom }]}>
+      <View {...rest} collapsable={false} style={[styles.fill, style, { paddingTop, paddingBottom }]}>
         {children}
       </View>
     </BarContext.Provider>

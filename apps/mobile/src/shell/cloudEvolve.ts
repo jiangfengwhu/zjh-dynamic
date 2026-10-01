@@ -147,18 +147,27 @@ async function runCloudEvolve(options: {
 }
 
 async function inspectJulesSession(session: string): Promise<{ state: string; url: string; title: string; startedAt: number } | undefined> {
+  const owner = await currentAccountId(); if (!owner) return undefined;
+  const fingerprint = await readShellValue(RUN_STORAGE) || "";
+  const key = `shell.jules.inspection.${owner}.${appId}`;
+  let cached: { at: number; session: string; fingerprint: string; info: { state: string; url: string; title: string; startedAt: number } } | undefined;
+  try { cached = JSON.parse(await readShellValue(key) || "null") ?? undefined; } catch {}
+  if (cached?.session === session && cached.fingerprint === fingerprint && Date.now() - cached.at < 30000) return cached.info;
   const current = await jules("GET", `/v1alpha/${session}`);
-  if (current.status === 404) return undefined;
+  if (await currentAccountId() !== owner) return undefined;
+  if (current.status === 404) { removeShellValue(key); return undefined; }
   if (current.status < 200 || current.status >= 300) throw new Error(julesError(current));
   const body = JSON.parse(current.body) as JulesSession;
   const startedAt = Date.parse(body.createTime ?? "");
   console.log("jules inspect", session, body.state ?? "");
-  return {
+  const info = {
     state: body.state ?? "",
     url: body.url ?? "",
     title: body.title ?? "",
     startedAt: Number.isNaN(startedAt) ? 1 : startedAt,
   };
+  writeShellValue(key, JSON.stringify({ at: Date.now(), session, fingerprint, info }));
+  return info;
 }
 
 function watchJulesSession(

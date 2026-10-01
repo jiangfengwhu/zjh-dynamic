@@ -284,7 +284,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         <Stack.Screen name="myApps">
           {() => <MyApplicationsScreen onOpen={props.onOpenBundle} onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
         </Stack.Screen>
-        <Stack.Screen name="account">
+        <Stack.Screen name="account" options={{ animation: "none" }}>
           {() => <AccountScreen onBack={goBack} />}
         </Stack.Screen>
         <Stack.Screen name="providers">

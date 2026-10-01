@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { BackChip, Icon, Pressy, Surface } from "../../../../packages/ui/chrome";
@@ -14,27 +14,32 @@ export function MarketScreen({ onDetail, onCreate, onBack }: { onDetail: (item: 
   const [installed, setInstalled] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const generation = useRef(0); const loading = useRef(false);
   const [error, setError] = useState("");
-  async function refresh() {
-    setBusy(true); setError("");
+  async function refresh(manual = false) {
+    if (loading.current) return;
+    loading.current = true; const current = ++generation.current;
+    setPulling(manual); setBusy(true); setError("");
     try {
       const cached = await cachedMarket();
-      setItems(cached);
+      if (generation.current !== current) return;
+      setItems(items => items.length ? items : cached);
       const remote = await fetchMarket();
-      setItems(remote);
-    } catch (e) { setError(e instanceof Error ? e.message : "暂时无法获取应用市场"); }
-    finally { setBusy(false); }
+      if (generation.current === current) setItems(remote);
+    } catch (e) { if (generation.current === current) setError(e instanceof Error ? e.message : "暂时无法获取应用市场"); }
+    finally { if (generation.current === current) { loading.current = false; setBusy(false); setPulling(false); } }
   }
   useEffect(() => {
     const update = (entries: Awaited<ReturnType<typeof loadCatalog>>) => setInstalled(entries.filter(entry => !entry.trashedAt && !entry.purged).map(entry => entry.id));
     void loadCatalog().then(update); return subscribeCatalog(update);
   }, []);
-  useEffect(() => { if (focused) void refresh(); }, [focused]);
+  useEffect(() => { if (focused) void refresh(); return () => { generation.current++; loading.current = false; }; }, [focused]);
   useEffect(() => subscribePackageValue("shell.market.changed", () => { if (focused) void refresh(); }), [focused]);
   const visible = items.filter(item => `${item.title || item.manifest.title} ${item.summary || item.manifest.summary}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <Screen style={styles.screen}>
     <ScreenBar style={styles.header}>{onBack ? <BackChip onPress={onBack} /> : null}<View style={{ flex: 1 }}><Text style={styles.title}>应用市场</Text><Text style={styles.caption}>找一个喜欢的应用，从这里开始</Text></View></ScreenBar>
-    <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.accent} />} keyboardShouldPersistTaps="handled">
+    <ScrollView removeClippedSubviews={false} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void refresh(true)} tintColor={colors.accent} />} keyboardShouldPersistTaps="handled">
       <TextInput accessibilityLabel="搜索应用" placeholder="搜索应用或用途" placeholderTextColor={colors.ink3} value={query} onChangeText={setQuery} style={styles.search} />
       {<Pressy onPress={onCreate} accessibilityRole="button"><Surface tone="raised" radius={20} style={styles.invite}><Icon name="workshop" size={23} color={colors.accent} /><View style={{ flex: 1, gap: 4 }}><Text style={styles.name}>让 Jolly 帮我做一个</Text><Text style={styles.caption}>有想法了？去 Jolly 的工坊聊聊</Text></View><Icon name="chevron" size={16} color={colors.ink3} /></Surface></Pressy>}
       {error ? <Pressy onPress={() => void refresh()}><Text style={styles.error}>{error} · 点此重试</Text></Pressy> : null}

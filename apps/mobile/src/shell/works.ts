@@ -2,8 +2,8 @@ import { currentAccountId } from "./account";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { creationService, type WorkshopStatus } from "./cloudEvolve";
 import { cachedSharing, installedMarket, loadSharing, type MarketApplication, type SharingState } from "./market";
-import { readShellValue } from "./shellStorage";
-import { restoreWorks } from "./workRecovery";
+import { readShellValue, writeShellValue } from "./shellStorage";
+import { restoreWorks, hydrateWorksCache } from "./workRecovery";
 
 export type WorkStage = "draft" | "making" | "reply" | "load" | "ready" | "paused" | "failed" | "blocked";
 export type MyWork = { appId: string; title: string; wish: string; stage: WorkStage; message: string; manifest?: MarketApplication["manifest"]; sharing?: SharingState; stale?: boolean };
@@ -13,7 +13,8 @@ function parsed<T>(raw?: string): T | undefined { try { return raw ? JSON.parse(
 export async function readMyWorks(): Promise<MyWork[]> {
   const accountId = await currentAccountId();
   if (!accountId) return [];
-  await restoreWorks().catch(() => {});
+  await hydrateWorksCache();
+  void restoreWorks().catch(() => {});
   if (await currentAccountId() !== accountId) return [];
   const context = applicationContext("jolly");
   let workspaces = parsed<Array<{ appId: string; title: string }>>(context.storage.get("workspaces")) ?? [];
@@ -38,23 +39,29 @@ export function stageFromWorkshop(status: WorkshopStatus): WorkStage {
   if (status.delivery === "update") return "load";
   return "blocked";
 }
-export async function refreshMyWork(work: MyWork): Promise<MyWork> {
+export async function refreshMyWork(work: MyWork, force = false): Promise<MyWork> {
+  const owner = await currentAccountId(); if (!owner) return work;
+  const key = `shell.work.status.${owner}.${work.appId}`;
+  const cached = parsed<{ at: number; work: MyWork }>(await readShellValue(key));
+  if (!force && cached && Date.now() - cached.at < 30000) return { ...work, ...cached.work };
   if (!await readShellValue(`shell.jules.apps.${work.appId}.token`)) return work;
   let next = work;
   try {
-    const sharing = await loadSharing(work.appId);
-    next = { ...work, sharing, manifest: work.manifest ?? sharing.application ?? undefined };
     const service = creationService(work.appId);
     const session = await service.loadJulesSession();
     if (!session) return { ...next, stale: true, message: "制作记录暂未接回，请进入工坊处理" };
-    const status = await service.workshopStatus(session);
+    const [sharing, status] = await Promise.all([loadSharing(work.appId), service.workshopStatus(session)]);
+    if (await currentAccountId() !== owner) return work;
+    next = { ...work, sharing, manifest: work.manifest ?? sharing.application ?? undefined };
     const manifest = status.application ?? next.manifest;
     const context = applicationContext("jolly");
     const run = parsed<Record<string, unknown>>(context.storage.get(`run:${work.appId}`)) ?? {};
     const stage = stageFromWorkshop(status);
     const phase = stage === "ready" || stage === "load" || stage === "blocked" ? "ready" : stage === "failed" ? "failed" : stage === "paused" ? "stopped" : "making";
     context.storage.set(`run:${work.appId}`, JSON.stringify({ ...run, stage, phase, wish: work.wish, status: status.message ?? work.message, steps: run.steps ?? [], at: Date.now() }));
-    return { ...next, manifest, title: manifest?.title && manifest.title !== work.appId ? manifest.title : work.title, stage: stageFromWorkshop(status), message: status.message ?? "" };
+    const result = { ...next, manifest, title: manifest?.title && manifest.title !== work.appId ? manifest.title : work.title, stage: stageFromWorkshop(status), message: status.message ?? "" };
+    writeShellValue(key, JSON.stringify({ at: Date.now(), work: result }));
+    return result;
   } catch { return { ...next, stale: true }; }
 }
 export function sharingLabel(work: MyWork): string {

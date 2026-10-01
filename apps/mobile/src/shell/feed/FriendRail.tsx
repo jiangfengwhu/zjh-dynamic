@@ -47,7 +47,6 @@ export function FriendRail({
       {friends.map((friend, index) => (
         <Animated.View
           key={friend.id}
-          entering={FadeInRight.delay(80 + index * 60).duration(420).easing(Easing.out(Easing.cubic))}
         >
           <Pressy
             accessibilityRole="button"

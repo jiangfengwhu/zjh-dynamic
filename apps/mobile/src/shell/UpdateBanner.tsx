@@ -27,8 +27,6 @@ export function UpdateBanner({ items, busy, completed, onNow, onLater }: Props) 
   const extra = names.length > 3 ? ` 等 ${names.length} 个` : "";
   return (
     <Animated.View
-      entering={FadeInUp.duration(420)}
-      exiting={FadeOutUp.duration(220)}
       style={[styles.wrap, { top: insets.top + 8 }]}
     >
       <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.card}>
