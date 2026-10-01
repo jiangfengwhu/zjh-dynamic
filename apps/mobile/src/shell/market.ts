@@ -7,7 +7,7 @@ import { registerApplicationMetadata, bundles } from "../../../../packages/featu
 import NativePluginHost from "../NativePluginHost";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
-export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: string | null; authorName: string; authorAvatarUrl?: string | null; originalAppId: string | null; title?: string; summary?: string; owned?: boolean; latest?: boolean };
+export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: string | null; authorName: string; authorAvatarUrl?: string | null; authorOfficial?: boolean; originalAppId: string | null; title?: string; summary?: string; owned?: boolean; latest?: boolean };
 const CACHE = "market.catalog.v1";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export async function cachedMarket(): Promise<MarketApplication[]> {

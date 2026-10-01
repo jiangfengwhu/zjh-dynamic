@@ -6,7 +6,7 @@ import { edgeUrl } from "./evolveHost";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
 
-export type Account = { id: string; email: string; name: string; avatarUrl: string | null; createdAt: number };
+export type Account = { id: string; email: string | null; name: string; avatarUrl: string | null; createdAt: number };
 type Credential = { token: string; expiresAt: number };
 type State = { user: Account | null; ready: boolean; storageError: boolean };
 const service = "com.zijinhua.account";
