@@ -214,7 +214,7 @@ const styles = themedStyleSheet((t) => ({
     justifyContent: "center",
     width: 68,
     height: 68,
-    borderRadius: 22,
+    borderRadius: 34,
     overflow: "hidden",
     borderWidth: 1.5,
     borderColor: t.accentSoft,
