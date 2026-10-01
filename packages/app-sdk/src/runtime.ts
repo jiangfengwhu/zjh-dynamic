@@ -1,6 +1,6 @@
 const bootstrap = require("../../../tools/applications/bootstrap.json");
 import type { AppContext, AppDefinition } from "./index";
-import { createElement } from "react";
+import { createElement, useEffect } from "react";
 import { readPackageValue, subscribePackageValue, writePackageValue } from "../../ui/packageLink";
 import { publishFeedPost, recordFeedChange, registerFeedTemplates, upsertFeedPost, removeFeedPost } from "../../ui/feed/store";
 import { registerFeature } from "../../features/src/featureHost";
@@ -10,6 +10,15 @@ const definitions = new Map<string, AppDefinition>();
 const activated = new Set<string>();
 const contexts = new Map<string, AppContext>();
 const assets = new Map<string, Record<string, string>>();
+let accountScope = "guest";
+const scopeListeners = new Set<() => void>();
+let pageReady: (appId: string) => void = () => {};
+let pageAttempt: (appId: string) => void = () => {};
+let creationNavigation: (appId: string, prompt?: string) => void = () => {};
+export function setApplicationCreationNavigation(handler: typeof creationNavigation) { creationNavigation = handler; }
+export function setApplicationAccountScope(id: string | null) { const next = id ?? "guest"; if (next !== accountScope) { accountScope = next; scopeListeners.forEach(listener => listener()); } }
+export function onApplicationPageReady(handler: (appId: string) => void) { pageReady = handler; }
+export function onApplicationPageAttempt(handler: (appId: string) => void) { pageAttempt = handler; }
 export function installApplicationAssets(appId: string, files: Record<string, string>) { assets.set(appId, files); }
 export function applicationContext(appId: string): AppContext {
   const existing = contexts.get(appId);
@@ -17,7 +26,7 @@ export function applicationContext(appId: string): AppContext {
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("应用身份无效");
   const keyFor = (key: string) => {
     if (!key || key.length > 200) throw new Error("应用存储键无效");
-    return `application.${appId}.${key}`;
+    return appId === bootstrap.defaultApplication ? `application.${appId}.accounts.${accountScope}.${key}` : `application.${appId}.${key}`;
   };
   const navigate = (request: object) => writePackageValue("shell.nav.request", JSON.stringify({ ...request, at: Date.now() }));
   const context: AppContext = {
@@ -29,18 +38,24 @@ export function applicationContext(appId: string): AppContext {
     } },
     storage: {
       get: (key) => {
+        if (appId === bootstrap.defaultApplication && key === "__accountScope") return accountScope;
         const target = keyFor(key);
         return readPackageValue(target);
       },
       set: (key, value) => writePackageValue(keyFor(key), value),
-      subscribe: (key, listener) => subscribePackageValue(keyFor(key), listener),
+      subscribe: (key, listener) => {
+        let unsubscribe = subscribePackageValue(keyFor(key), listener);
+        const changed = () => { unsubscribe(); unsubscribe = subscribePackageValue(keyFor(key), listener); listener(readPackageValue(keyFor(key))); };
+        if (appId === bootstrap.defaultApplication) scopeListeners.add(changed);
+        return () => { unsubscribe(); scopeListeners.delete(changed); };
+      },
     },
     feed: {
-      publish: (post) => publishFeedPost({ ...post, appId }),
+      publish: (post) => publishFeedPost({ ...post, appId, payload: appId === bootstrap.defaultApplication && post.payload?.workshopPost ? { ...post.payload, ownerId: accountScope } : post.payload }),
       recordChange: (note) => recordFeedChange({ appId, note }),
       upsert: (post) => {
         if (!post.id.startsWith(`${appId}-`)) throw new Error("动态身份不属于当前应用");
-        upsertFeedPost({ ...post, appId });
+        upsertFeedPost({ ...post, appId, payload: appId === bootstrap.defaultApplication && post.payload?.workshopPost ? { ...post.payload, ownerId: accountScope } : post.payload });
       },
       remove: (id) => {
         if (!id.startsWith(`${appId}-`)) throw new Error("动态身份不属于当前应用");
@@ -50,17 +65,7 @@ export function applicationContext(appId: string): AppContext {
     navigation: {
       back: () => navigate({ action: "back" }),
       open: () => navigate({ action: "open", id: appId }),
-      create: (prompt) => {
-        const companion = applicationContext(bootstrap.defaultApplication);
-        const target = appId === bootstrap.defaultApplication ? `app-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}` : appId;
-        const workspaces = JSON.parse(companion.storage.get("workspaces") || "[]") as Array<{ appId: string; title: string }>;
-        if (!workspaces.some(item => item.appId === target)) workspaces.push({ appId: target, title: target === appId ? appId : "新应用" });
-        companion.storage.set("workspaces", JSON.stringify(workspaces));
-        companion.storage.set("workshopTarget", target);
-        if (prompt) companion.storage.set(`pendingPrompt.${target}`, prompt);
-        companion.storage.set("openWorkshop", String(Date.now()));
-        navigate({ action: "open", id: bootstrap.defaultApplication });
-      },
+      create: (prompt) => creationNavigation(appId, prompt),
     },
     phone: { vibrate: phone.vibrate, speak: phone.speak, notify: (id, title, body) => phone.notify(`${appId}:${id}`, title, body), schedule: (id, title, body, atMs) => phone.schedule(`${appId}:${id}`, title, body, atMs), keepAwake: phone.keepAwake },
   };
@@ -80,6 +85,8 @@ export function registerApplication(appId: string, definition: AppDefinition) {
   // Main stays lazy; importing a card never executes its page module.
   let Page: ReturnType<AppDefinition["main"]> | undefined;
   function ApplicationPage() {
+    useEffect(() => { pageReady(appId); }, []);
+    pageAttempt(appId);
     Page ??= definition.main();
     if (!Page) throw new Error(`应用页面无效：${appId}`);
     return createElement(Page);

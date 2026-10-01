@@ -1,8 +1,9 @@
-import { bindApplicationSdk, registerApplication } from "../../../../packages/app-sdk/src/runtime";
+import { bindApplicationSdk, registerApplication, setApplicationCreationNavigation } from "../../../../packages/app-sdk/src/runtime";
 import * as ui from "../../../../packages/app-sdk/src/host-ui";
 import { creationService } from "../shell/cloudEvolve";
 import { checkPackageUpdates, applyPackageUpdates } from "../shell/packageUpdates";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
+import { openCreationRequest } from "../shell/workshopNavigation";
 
 const modules: Record<string, unknown> = {
   react: require("react"),
@@ -22,10 +23,13 @@ const modules: Record<string, unknown> = {
 export function installApplicationPlatform() {
   const target = globalThis as typeof globalThis & { __zijinhuaApplications?: unknown };
   if (target.__zijinhuaApplications) return;
+  setApplicationCreationNavigation((appId, prompt) => { void openCreationRequest(appId, prompt).catch(() => {}); });
   target.__zijinhuaApplications = Object.freeze({
     require: (name: string, appId: string) => {
       if (name === "@zijinhua/app-sdk") return bindApplicationSdk(appId);
       if (name === "@zijinhua/app-sdk/creation") {
+        // Engineering API selection only: shared JS has no trustworthy caller appId.
+        // Execution review, server ownership checks and host consent form the trust boundary.
         if (appId !== "jolly") throw new Error("当前应用未获得制作能力");
         return { getCreationService: (targetAppId: string, originalAppId?: string) => ({ ...creationService(targetAppId, originalAppId), checkPackageUpdates, applyPackageUpdates,
           readPreference: (key: string) => {

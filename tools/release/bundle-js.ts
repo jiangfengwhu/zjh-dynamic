@@ -57,6 +57,7 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   const outDir = path.join(repoRoot, "dist", "bundles");
   // 提交状态要在生成任何文件之前读，才不会把打包自己写的文件算成「未提交的改动」。
   const source = await readSource(repoRoot);
+  if (options.publish && (source.dirty || !/^[a-f0-9]{40}$/.test(source.commit))) throw new Error("发布必须来自干净的 Git 提交，请先提交全部源码改动");
   source.buildId = randomUUID();
   await writeFile(path.join(mobileDir, "src", "shell", "build-identity.json"), JSON.stringify({ buildId: source.buildId }));
   await mkdir(outDir, { recursive: true });
@@ -220,6 +221,7 @@ async function readSource(repoRoot: string): Promise<ReleaseSource> {
     return { commit: "", dirty: false, repository: "jiangfengwhu/zjh-dynamic" };
   }
   const status = await git(repoRoot, ["status", "--porcelain"]);
+  if (status.code !== 0) throw new Error("无法核对源码状态，已停止打包");
   const dirty = status.stdout.trim().length > 0;
   if (dirty) console.log("working tree has uncommitted changes; they are part of this release");
   return { commit: head.stdout.trim(), dirty, repository: "jiangfengwhu/zjh-dynamic" };
@@ -238,11 +240,10 @@ async function assertBaseline(repoRoot: string, remote: BundleRelease | undefine
   const base = remote?.source.commit;
   if (!remote || !base) return;
   if (remote.source.dirty) {
-    console.log(`warning: 线上这一版（${base.slice(0, 8)}）打包时工作区有未提交的改动，这些改动可能不在仓库里`);
+    throw new Error(`线上版本 ${base.slice(0, 8)} 来自未提交改动，请维护者核实源码后建立可追溯基线`);
   }
   if (!source.commit) {
-    console.log("warning: 当前不是 git 仓库，无法核对线上版本的基线");
-    return;
+    throw new Error("当前不是 Git 仓库，无法核对线上提交基线");
   }
   const known = await git(repoRoot, ["cat-file", "-e", `${base}^{commit}`]);
   const ancestor = known.code === 0 ? await git(repoRoot, ["merge-base", "--is-ancestor", base, "HEAD"]) : undefined;

@@ -114,6 +114,12 @@ export function parseRelease(value: unknown): BundleRelease | undefined {
   if (!app || !hex(app.sha256) || !positive(app.bytes) || !hex(app.vendorMap)) return undefined;
   if (app.vendorMap !== vendor.map) return undefined;
   if (!source || typeof source.commit !== "string" || typeof source.dirty !== "boolean") return undefined;
+  let applications: BundleRelease["applications"];
+  if (raw.applications !== undefined) {
+    const contract = raw.applications as BundleRelease["applications"];
+    if (!contract || typeof contract.engineAbi !== "string" || !/^\d+\.\d+\.\d+$/.test(contract.sdk) || !contract.shared || typeof contract.shared !== "object" || Array.isArray(contract.shared) || Object.values(contract.shared).some(version => typeof version !== "string")) return undefined;
+    applications = { engineAbi: contract.engineAbi, sdk: contract.sdk, shared: contract.shared };
+  }
   if (!Array.isArray(raw.plugins)) return undefined;
   const plugins: ReleasePlugin[] = [];
   for (const item of raw.plugins) {
@@ -122,6 +128,7 @@ export function parseRelease(value: unknown): BundleRelease | undefined {
     plugins.push(plugin);
   }
   const release = sealRelease({
+    ...(applications ? { applications } : {}),
     runtimeVersion: raw.runtimeVersion,
     vendor: { sha256: vendor.sha256, bytes: vendor.bytes, inputs: vendor.inputs, map: vendor.map },
     app: { sha256: app.sha256, bytes: app.bytes, vendorMap: app.vendorMap },

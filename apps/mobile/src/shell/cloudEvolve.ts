@@ -3,6 +3,8 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { edgeUrl } from "./evolveHost";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
 import { runningApplicationReleases, offerApplication, type ApplicationManifest } from "../runtime/applications";
+import { restoreWorks } from "./workRecovery";
+import { confirmCreation } from "./creationConsent";
 
 const SOURCE = "sources/github/jiangfengwhu/zjh-plugin";
 type CloudOutcome = "finished" | "cancelled" | "waiting";
@@ -59,6 +61,8 @@ const SESSION_STORAGE = `shell.jules.apps.${appId}.session`;
 const RUN_STORAGE = `shell.jules.apps.${appId}.run`;
 const APPROVAL_STORAGE = `shell.jules.apps.${appId}.token`;
 async function loadJulesRun(): Promise<JulesRun | undefined> {
+  const owner = await currentAccountId();
+  if (!owner || await readShellValue(`shell.jules.apps.${appId}.owner`) !== owner) return undefined;
   const raw = await readShellValue(RUN_STORAGE);
   if (!raw) return undefined;
   try {
@@ -97,6 +101,7 @@ async function runCloudEvolve(options: {
   if (!await requireAccount()) throw new Error("请先登录后再创作");
   options.onStatus("正在提交到 Jules");
   const prompt = options.requirement.trim();
+  await confirmCreation("制作", appId, prompt);
   const existing = await loadJulesSession();
   if (existing && (await sessionAcceptsMessage(existing))) {
     options.onRunId(existing);
@@ -120,7 +125,7 @@ async function runCloudEvolve(options: {
       sourceContext: {
         source: SOURCE,
         githubRepoContext: { startingBranch: "main" },
-        environmentVariablesEnabled: true,
+        environmentVariablesEnabled: false,
       },
       requirePlanApproval: false,
       automationMode: "AUTO_CREATE_PR",
@@ -171,12 +176,16 @@ function watchJulesSession(
 
 async function cancelCloudRun(session: string): Promise<void> {
   if (await loadJulesSession() !== session) return;
+  await confirmCreation("停止制作", appId);
   await workshop({ action: "stop", session });
   clearJulesRun();
   console.log("jules stop requested", session);
 }
 
 async function loadJulesSession(): Promise<string> {
+  const owner = await currentAccountId(); if (!owner) return "";
+  if (await readShellValue(`shell.jules.apps.${appId}.owner`) !== owner || !await readShellValue(APPROVAL_STORAGE)) await restoreWorks(true);
+  if (await readShellValue(`shell.jules.apps.${appId}.owner`) !== owner || await currentAccountId() !== owner) return "";
   const saved = (await readShellValue(SESSION_STORAGE))?.trim() ?? "";
   return saved.startsWith("sessions/") ? saved : "";
 }
@@ -208,6 +217,7 @@ async function workshopStatus(session: string): Promise<WorkshopStatus> {
     if (workspace && manifest.title && workspace.title !== manifest.title) { workspace.title = manifest.title; context.storage.set("workspaces", JSON.stringify(workspaces)); }
   }
   if (result.application && result.delivery === "update") { if (ownerId && await currentAccountId() === ownerId) offerApplication(result.application as ApplicationManifest, ownerId); }
+  if (await currentAccountId() !== ownerId) throw new Error("账号已改变，请重试");
   if (result.accepted) {
     writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
     const context = applicationContext("jolly");
@@ -218,6 +228,7 @@ async function workshopStatus(session: string): Promise<WorkshopStatus> {
 }
 
 async function confirmWorkshop(session: string): Promise<void> {
+  await confirmCreation("收下作品", appId, "确认后将合入本轮作品的代码。");
   const { buildId } = require("./build-identity.json") as { buildId: string };
   const result = await workshop({ action: "confirm", session, buildId, applicationReleases: runningApplicationReleases() });
   if (result.accepted) {
@@ -432,10 +443,16 @@ async function jules(method: string, path: string, body?: string): Promise<Jules
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
+    const context = applicationContext("jolly");
+    let workspace: { originalAppId?: string; originalReleaseId?: string } | undefined;
+    try { workspace = JSON.parse(context.storage.get("workspaces") || "[]").find((item: { appId: string }) => item.appId === appId); } catch {}
+    const requestKey = `requestId.${appId}`;
+    let requestId = context.storage.get(requestKey);
+    if (path === "/v1alpha/sessions" && !requestId) { requestId = `${appId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`; context.storage.set(requestKey, requestId); }
     const response = await accountFetch(`${edgeUrl}/v1/jules`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ appId, originalAppId, method, path, body: body ?? "", approvalToken: await readShellValue(APPROVAL_STORAGE), buildId: (require("./build-identity.json") as { buildId: string }).buildId }),
+      body: JSON.stringify({ appId, originalAppId: workspace?.originalAppId ?? originalAppId, originalReleaseId: workspace?.originalReleaseId, requestId, method, path, body: body ?? "", approvalToken: await readShellValue(APPROVAL_STORAGE), buildId: (require("./build-identity.json") as { buildId: string }).buildId }),
       signal: controller.signal,
     }, method !== "GET");
     const result = { status: response.status, body: await response.text() };

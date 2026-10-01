@@ -7,6 +7,7 @@ import { registerApplicationMetadata, bundles } from "../../../../packages/featu
 import NativePluginHost from "../NativePluginHost";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
+import { confirmCreation } from "./creationConsent";
 export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: string | null; authorName: string; authorAvatarUrl?: string | null; authorOfficial?: boolean; originalAppId: string | null; title?: string; summary?: string; owned?: boolean; latest?: boolean };
 const CACHE = "market.catalog.v1";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
@@ -28,12 +29,15 @@ export async function installedMarket(): Promise<MarketApplication[]> {
   const accountId = await currentAccountId();
   const market = await cachedMarket();
   for (const entry of entries.filter(entry => !entry.trashedAt && !entry.purged)) {
+    const accessRaw = await readShellValue(`application.pending.${entry.id}`) ? await readShellValue(`application.pending.access.${entry.id}`) : await readShellValue(`application.access.${entry.id}`);
+    try { const access = JSON.parse(accessRaw || "{}"); if (access.ownerId && access.ownerId !== accountId) continue; } catch { continue; }
     const raw = await readShellValue(`application.pending.${entry.id}`) || await readShellValue(`application.install.${entry.id}`);
     if (!raw) continue;
     try {
       const saved = await readShellValue(`application.market.${entry.id}`);
       const author = market.find(item => item.manifest.appId === entry.id) ?? (saved ? JSON.parse(saved) as MarketApplication : undefined);
-      items.push({ ...author, manifest: JSON.parse(raw), authorId: author?.authorId ?? null, authorName: author?.authorName ?? "社区创作者", originalAppId: author?.originalAppId ?? null, latest: false, owned: Boolean(accountId) && await readShellValue(`shell.jules.apps.${entry.id}.owner`) === accountId });
+      const owned = Boolean(accountId) && await readShellValue(`shell.jules.apps.${entry.id}.owner`) === accountId;
+      items.push({ ...author, manifest: JSON.parse(raw), authorId: owned ? accountId! : author?.authorId ?? null, authorName: author?.authorName ?? "社区创作者", originalAppId: author?.originalAppId ?? null, latest: false, owned });
     } catch { /* Keep other applications available. */ }
   }
   return items;
@@ -76,12 +80,13 @@ export async function uninstallMarketApplication(appId: string) {
 }
 export function marketDefinition(item: MarketApplication) { return bundles.find(bundle => bundle.id === item.manifest.appId); }
 
-export type SharingState = { shared: MarketApplication | null; accepted: { releaseId: string; commit: string } | null; application: MarketApplication["manifest"] | null };
+export type SharingState = { shared: MarketApplication | null; submission?: MarketApplication | null; reviewPending?: boolean; reviewRejected?: boolean; accepted: { releaseId: string; commit: string } | null; application: MarketApplication["manifest"] | null };
 export async function cachedSharing(appId: string): Promise<SharingState | undefined> {
   const raw = await readShellValue(`shell.market.state.${appId}`);
   try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; }
 }
 async function marketAction(appId: string, input: { action: string; releaseId?: string; title?: string; summary?: string }): Promise<SharingState> {
+  if (input.action !== "status") await confirmCreation(input.action === "withdraw" ? "撤回分享" : input.action === "edit" ? "修改市场介绍" : "提交市场审核", appId, input.action === "withdraw" ? "作品会从市场移除；已安装版本和你的作品仍保留。" : [input.title, input.summary].filter(Boolean).join("\n"));
   const token = await readShellValue(`shell.jules.apps.${appId}.token`);
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000);
   try {
@@ -91,7 +96,7 @@ async function marketAction(appId: string, input: { action: string; releaseId?: 
     const state = result as SharingState;
     writeShellValue(`shell.market.state.${appId}`, JSON.stringify(state));
     writeShellValue(`shell.workshop.accepted.${appId}`, state.accepted ? JSON.stringify(state.accepted) : "");
-    applicationContext(bootstrap.defaultApplication).storage.set(`sharing.${appId}`, JSON.stringify({ releaseId: state.shared?.manifest.releaseId ?? "", hasUpdate: Boolean(state.shared && state.accepted && state.shared.manifest.releaseId !== state.accepted.releaseId) }));
+    applicationContext(bootstrap.defaultApplication).storage.set(`sharing.${appId}`, JSON.stringify({ releaseId: state.shared?.manifest.releaseId ?? "", reviewPending: state.reviewPending, hasUpdate: Boolean(state.shared && state.accepted && state.shared.manifest.releaseId !== state.accepted.releaseId) }));
     if (input.action !== "status") {
       const items = (await cachedMarket()).filter(item => item.manifest.appId !== appId);
       if (state.shared) items.unshift(state.shared);

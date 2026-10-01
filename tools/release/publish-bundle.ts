@@ -91,7 +91,7 @@ export async function publishBundleObjects(files: PublishFile[]): Promise<void> 
 
 const IMMUTABLE = "max-age=31536000";
 
-/** 读线上现行的整套清单。线上还没有就返回 undefined；读不到就报错，不当作「没有」。格式不认识（例如开发期留下的旧格式）按「没有」处理，这次发布会把它替换掉。 */
+/** 读线上清单；只有 404 表示尚未发布，未知格式或身份校验失败必须停止。 */
 export async function fetchRemoteRelease(): Promise<BundleRelease | undefined> {
   const response = await fetch(`${bundleEdgeBase()}/v1/release`);
   if (response.status === 404) {
@@ -101,8 +101,7 @@ export async function fetchRemoteRelease(): Promise<BundleRelease | undefined> {
   if (!response.ok) throw new Error(`读线上清单失败 status=${response.status}`);
   const release = parseRelease(await response.json());
   if (!release) {
-    console.log("remote release has an unknown format; treated as absent");
-    return undefined;
+    throw new Error("线上清单格式或内容校验失败，无法核对发布基线，已停止覆盖");
   }
   console.log(`remote release id=${release.id} commit=${release.source.commit.slice(0, 8)} dirty=${release.source.dirty}`);
   return release;
@@ -149,9 +148,9 @@ export async function publishRelease(input: {
   await publishCatalog(catalog);
 }
 
-export async function publishCatalog(files: PublishFile[], expectedReleases?: Record<string, string | null>): Promise<void> {
+export async function publishCatalog(files: PublishFile[], expectedReleases?: Record<string, string | null>, publisherToken?: string): Promise<void> {
   if (files.length === 0) return;
-  const token = process.env.BUNDLE_CATALOG_TOKEN?.trim() || process.env.OFFICIAL_PUBLISH_TOKEN?.trim();
+  const token = publisherToken || process.env.OFFICIAL_PUBLISH_TOKEN?.trim() || process.env.BUNDLE_CATALOG_TOKEN?.trim();
   if (!token) {
     if (expectedReleases) throw new Error("候选发布必须使用鉴权 API 的原子基线检查，不允许直接写 KV");
     console.log("BUNDLE_CATALOG_TOKEN 未设置，通过已登录的 wrangler kv 提交清单");

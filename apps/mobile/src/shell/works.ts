@@ -3,6 +3,7 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { creationService, type WorkshopStatus } from "./cloudEvolve";
 import { cachedSharing, installedMarket, loadSharing, type MarketApplication, type SharingState } from "./market";
 import { readShellValue } from "./shellStorage";
+import { restoreWorks } from "./workRecovery";
 
 export type WorkStage = "draft" | "making" | "reply" | "load" | "accept" | "accepted" | "paused" | "failed" | "blocked";
 export type MyWork = { appId: string; title: string; wish: string; stage: WorkStage; message: string; manifest?: MarketApplication["manifest"]; sharing?: SharingState; stale?: boolean };
@@ -11,6 +12,9 @@ export const workActions: Record<WorkStage, string> = { draft: "开始制作", m
 function parsed<T>(raw?: string): T | undefined { try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; } }
 export async function readMyWorks(): Promise<MyWork[]> {
   const accountId = await currentAccountId();
+  if (!accountId) return [];
+  await restoreWorks().catch(() => {});
+  if (await currentAccountId() !== accountId) return [];
   const context = applicationContext("jolly");
   let workspaces = parsed<Array<{ appId: string; title: string }>>(context.storage.get("workspaces")) ?? [];
   workspaces = (await Promise.all(workspaces.map(async workspace => { const owner = await readShellValue(`shell.jules.apps.${workspace.appId}.owner`); return owner && owner !== accountId ? undefined : workspace; }))).filter((workspace): workspace is { appId: string; title: string } => Boolean(workspace));
@@ -55,6 +59,8 @@ export async function refreshMyWork(work: MyWork): Promise<MyWork> {
   } catch { return { ...next, stale: true }; }
 }
 export function sharingLabel(work: MyWork): string {
+  if (work.sharing?.reviewRejected) return "市场审核未通过，请处理后提交新版本";
+  if (work.sharing?.reviewPending) return work.sharing.shared ? "已分享 · 新版本审核中" : "市场审核中";
   if (!work.sharing?.shared) return "未分享";
   return work.sharing.accepted?.releaseId !== work.sharing.shared.manifest.releaseId ? "已分享 · 有新版本待分享" : "已分享";
 }

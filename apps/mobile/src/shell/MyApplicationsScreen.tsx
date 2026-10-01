@@ -17,6 +17,7 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
   const { colors } = useTheme(); const focused = useIsFocused();
   const [tab, setTab] = useState<"works" | "installed">("works");
   const [works, setWorks] = useState<MyWork[]>([]); const [installed, setInstalled] = useState<MarketApplication[]>([]);
+  const [worksOwner, setWorksOwner] = useState<string>();
   const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [query, setQuery] = useState("");
   const generation = useRef(0); const refreshing = useRef(false);
   async function refresh() {
@@ -24,7 +25,7 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
     try {
       const [local, apps] = await Promise.all([readMyWorks(), installedMarket()]);
       if (generation.current !== current) return;
-      setWorks(local); setInstalled(apps);
+      setWorks(local); setInstalled(apps); setWorksOwner(user?.id);
       const updated: MyWork[] = [];
       for (const work of local) { if (generation.current !== current) return; updated.push(await refreshMyWork(work)); }
       if (generation.current !== current) return;
@@ -42,8 +43,8 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
     return () => { offCatalog(); offSharing(); offWorkspaces(); };
   }, [focused]);
   function detail(work: MyWork) { if (work.manifest) onDetail({ manifest: work.manifest, title: work.title, authorId: user?.id ?? null, authorName: user?.name ?? "社区创作者", authorAvatarUrl: user?.avatarUrl, originalAppId: null, owned: true }); }
-  const term = query.trim().toLowerCase(); const visibleWorks = works.filter(work => `${work.title} ${work.wish}`.toLowerCase().includes(term));
-  const visibleApps = installed.filter(item => !works.some(work => work.appId === item.manifest.appId) && `${item.manifest.title} ${item.manifest.summary}`.toLowerCase().includes(term));
+  const term = query.trim().toLowerCase(); const visibleWorks = worksOwner === user?.id ? works.filter(work => `${work.title} ${work.wish}`.toLowerCase().includes(term)) : [];
+  const visibleApps = worksOwner === user?.id ? installed.filter(item => !works.some(work => work.appId === item.manifest.appId) && `${item.manifest.title} ${item.manifest.summary}`.toLowerCase().includes(term)) : [];
   return <Screen style={styles.screen}><ScreenBar style={styles.header}><BackChip onPress={onBack} /><View style={{ flex: 1 }}><Text style={styles.title}>我的作品与应用</Text><Text style={styles.caption}>创作进度、分享和已安装应用</Text></View></ScreenBar>
     <View style={styles.tabs}>{([['works', '我创作的'], ['installed', '我安装的']] as const).map(([id, label]) => <Pressy key={id} accessibilityRole="tab" accessibilityState={{ selected: tab === id }} onPress={() => setTab(id)} style={[styles.tab, tab === id && { backgroundColor: colors.accentTint }]}><Text style={{ color: tab === id ? colors.accentText : colors.ink3 }}>{label}</Text></Pressy>)}</View>
     <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.accent} />} keyboardShouldPersistTaps="handled">

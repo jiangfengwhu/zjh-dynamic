@@ -37,6 +37,7 @@ import { themedStyleSheet, useTheme } from "../../../../../packages/ui/theme";
 import { Screen, ScreenBar } from "../../../../../packages/ui/edge";
 import { subscribeFeedSummaryBusy } from "./summary";
 import { FriendRail } from "./FriendRail";
+import { useAccount } from "../account";
 import { CardSlot } from "./CardSlot";
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
@@ -58,9 +59,10 @@ type FeedProps = {
 };
 
 export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, installedIds }: FeedProps) {
+  const { user } = useAccount();
   const { colors } = useTheme();
   const [allPosts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
-  const posts = useMemo(() => allPosts.filter(post => installedIds.includes(post.appId)), [allPosts, installedIds]);
+  const posts = useMemo(() => allPosts.filter(post => installedIds.includes(post.appId) && (post.appId !== bootstrap.defaultApplication || !post.payload.workshopPost || Boolean(user && post.payload.ownerId === user.id))), [allPosts, installedIds, user?.id]);
   const [seen, setSeen] = useState<SeenMap>({});
   const [likes, setLikes] = useState<string[]>([]);
   const [kind, setKind] = useState<FeedSlot | null>(null);

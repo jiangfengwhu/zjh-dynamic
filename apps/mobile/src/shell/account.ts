@@ -5,6 +5,7 @@ import BlobUtil from "react-native-blob-util";
 import { edgeUrl } from "./evolveHost";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
+import { setApplicationAccountScope } from "../../../../packages/app-sdk/src/runtime";
 
 export type Account = { id: string; email: string | null; name: string; avatarUrl: string | null; createdAt: number };
 type Credential = { token: string; expiresAt: number };
@@ -17,7 +18,7 @@ let initialization: Promise<void> | undefined;
 const listeners = new Set<(value: State) => void>();
 const identityListeners = new Set<(id: string | null) => void>();
 export function subscribeAccountIdentity(listener: (id: string | null) => void) { identityListeners.add(listener); return () => { identityListeners.delete(listener); }; }
-function emit(value: State) { const changed = state.user?.id !== value.user?.id; state = value; listeners.forEach(listener => listener(value)); if (changed) identityListeners.forEach(listener => listener(value.user?.id ?? null)); }
+function emit(value: State) { const changed = state.user?.id !== value.user?.id; state = value; setApplicationAccountScope(value.user?.id ?? null); listeners.forEach(listener => listener(value)); if (changed) identityListeners.forEach(listener => listener(value.user?.id ?? null)); }
 function remember(user: Account) { writeShellValue(cacheKey, JSON.stringify(user)); emit({ user, ready: true, storageError: false }); }
 async function clearAccount() {
   // Never report a successful logout while the persistent credential remains.
@@ -66,6 +67,7 @@ async function call<T>(path: string, method: string, body?: unknown): Promise<T>
     const result = await response.json() as T & { message?: string };
     if (response.status === 401 && credential?.token === token) await clearAccount();
     if (!response.ok) throw new Error(result.message || "操作未完成，请稍后重试");
+    if (token && credential?.token !== token) throw new Error("账号已改变，请重试");
     return result;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw new Error("连接超时，请稍后重试");
@@ -96,9 +98,11 @@ export async function chooseAccountAvatar() {
   if ((asset.fileSize || 0) > 1048576) throw new Error("请选择小于 1 MB 的图片");
   await initialize();
   if (!credential || credential.expiresAt <= Date.now()) { await clearAccount(); throw new Error("请先登录"); }
-  const result = await BlobUtil.config({ timeout: 20000 }).fetch("PUT", `${edgeUrl}/v1/account/avatar`, { Authorization: `Bearer ${credential.token}`, "Content-Type": asset.type || "image/jpeg" }, BlobUtil.wrap(asset.uri!.replace(/^file:\/\//, "")));
+  const token = credential.token;
+  const result = await BlobUtil.config({ timeout: 20000 }).fetch("PUT", `${edgeUrl}/v1/account/avatar`, { Authorization: `Bearer ${token}`, "Content-Type": asset.type || "image/jpeg" }, BlobUtil.wrap(asset.uri!.replace(/^file:\/\//, "")));
   const status = result.info().status;
   const body = result.json() as { user: Account; message?: string };
+  if (credential?.token !== token) throw new Error("账号已改变，请重试");
   if (status === 401) await clearAccount();
   if (status < 200 || status >= 300) throw new Error(body.message || "头像上传失败，请重试");
   remember(body.user);
@@ -121,6 +125,12 @@ export async function accountFetch(url: string, options: RequestInit, prompt = t
   if (!await requireAccount(prompt)) throw new Error("请先登录后再操作作品");
   const token = credential!.token; const headers = new Headers(options.headers); headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(url, { ...options, headers });
+  if (credential?.token !== token) throw new Error("账号已改变，请重试");
   if (response.status === 401) { if (credential?.token === token) await clearAccount(); if (prompt) openLogin(); }
+  else {
+    const readJson = response.json.bind(response), readText = response.text.bind(response);
+    response.json = async () => { const result = await readJson(); if (credential?.token !== token) throw new Error("账号已改变，请重试"); return result; };
+    response.text = async () => { const result = await readText(); if (credential?.token !== token) throw new Error("账号已改变，请重试"); return result; };
+  }
   return response;
 }
