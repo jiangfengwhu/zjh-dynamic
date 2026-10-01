@@ -2,7 +2,6 @@ import { accountFetch, currentAccountId } from "./account";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import { edgeUrl } from "./evolveHost";
-import { readPackageValue } from "../../../../packages/ui/packageLink";
 
 type Work = { appId: string; ownerId: string; session: string; approvalToken: string; title: string; wish: string; startedAt?: number; phase: string; originalAppId?: string; originalReleaseId?: string; accepted?: { releaseId: string } };
 const restoring = new Map<string, Promise<void>>();
@@ -22,7 +21,6 @@ async function restore(owner: string) {
     const { works } = await response.json() as { works: Work[] };
     if (await currentAccountId() !== owner) return;
     const context = applicationContext("jolly");
-    const freshRuns = new Set<string>();
     let workspaces: Array<{ appId: string; title: string; originalAppId?: string; originalReleaseId?: string }> = [];
     try { workspaces = JSON.parse(context.storage.get("workspaces") || "[]"); } catch {}
     for (const work of works) {
@@ -34,19 +32,7 @@ async function restore(owner: string) {
       const index = workspaces.findIndex(item => item.appId === work.appId);
       if (index < 0) workspaces.push(item); else workspaces[index] = { ...workspaces[index], ...item };
       if (work.accepted) writeShellValue(`shell.workshop.accepted.${work.appId}`, JSON.stringify(work.accepted));
-      if (!context.storage.get(`run:${work.appId}`)) { freshRuns.add(work.appId); context.storage.set(`run:${work.appId}`, JSON.stringify({ appId: work.appId, wish: work.wish, at: work.startedAt ?? Date.now(), phase: work.phase === "working" ? "making" : work.phase === "paused" ? "stopped" : "ready", stage: work.phase === "accepted" ? "accepted" : work.phase === "working" ? "making" : work.phase === "paused" ? "paused" : "blocked", status: "已接回制作记录", steps: [] })); }
-    }
-    // Migrate only records whose owner matches this account; never claim anonymous records.
-    const legacy = readPackageValue("application.jolly.workspaces");
-    let old: typeof workspaces = []; try { old = JSON.parse(legacy || "[]"); } catch {}
-    for (const item of old) {
-      if (await readShellValue(`shell.jules.apps.${item.appId}.owner`) !== owner || await currentAccountId() !== owner) continue;
-      if (!workspaces.some(work => work.appId === item.appId)) workspaces.push(item);
-      for (const key of [`run:${item.appId}`, `sharing.${item.appId}`, `pendingPrompt.${item.appId}`]) {
-        const value = readPackageValue(`application.jolly.${key}`);
-        if (await currentAccountId() !== owner) return;
-        if (value && (!context.storage.get(key) || (key.startsWith("run:") && freshRuns.has(item.appId)))) context.storage.set(key, value);
-      }
+      if (!context.storage.get(`run:${work.appId}`)) { context.storage.set(`run:${work.appId}`, JSON.stringify({ appId: work.appId, wish: work.wish, at: work.startedAt ?? Date.now(), phase: work.phase === "working" ? "making" : work.phase === "paused" ? "stopped" : "ready", stage: work.phase === "accepted" ? "accepted" : work.phase === "working" ? "making" : work.phase === "paused" ? "paused" : "blocked", status: "已接回制作记录", steps: [] })); }
     }
     const serialized = JSON.stringify(workspaces);
     if (await currentAccountId() === owner && context.storage.get("workspaces") !== serialized) context.storage.set("workspaces", serialized);

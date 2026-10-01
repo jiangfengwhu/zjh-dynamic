@@ -59,8 +59,6 @@ export async function refreshMyWork(work: MyWork): Promise<MyWork> {
   } catch { return { ...next, stale: true }; }
 }
 export function sharingLabel(work: MyWork): string {
-  if (work.sharing?.reviewRejected) return "市场审核未通过，请处理后提交新版本";
-  if (work.sharing?.reviewPending) return work.sharing.shared ? "已分享 · 新版本审核中" : "市场审核中";
   if (!work.sharing?.shared) return "未分享";
   return work.sharing.accepted?.releaseId !== work.sharing.shared.manifest.releaseId ? "已分享 · 有新版本待分享" : "已分享";
 }

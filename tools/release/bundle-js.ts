@@ -230,11 +230,6 @@ async function readSource(repoRoot: string): Promise<ReleaseSource> {
 /** 线上这一版是从哪次提交打出来的；当前分支必须包含它，否则这次发布会把线上已有的内容悄悄覆盖掉。 */
 async function assertBaseline(repoRoot: string, remote: BundleRelease | undefined, source: ReleaseSource) {
   if (remote && remote.source.repository !== "jiangfengwhu/zjh-dynamic") {
-    const migration = JSON.parse(await readFile(path.join(repoRoot, "release-migration.json"), "utf8")) as { legacyReleaseId: string };
-    if (!remote.source.repository && remote.id === migration.legacyReleaseId) {
-      console.log("baseline: approved migration from the pinned legacy release");
-      return;
-    }
     throw new Error("线上发布来源不是 zjh-dynamic，停止覆盖");
   }
   const base = remote?.source.commit;

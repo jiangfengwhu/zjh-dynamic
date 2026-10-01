@@ -20,6 +20,7 @@ async function installedPackage(resolver: ReturnType<typeof createRequire>, name
 
 /** SDK owns platform dependencies; applications own only their extra JS dependencies. */
 export async function assertApplicationDependencies(repo: string, sdkDirectory: string, shared: Record<string, string>) {
+  const platform = JSON.parse(await readFile(path.join(sdkDirectory, "platform.json"), "utf8")) as { dependencyArtifacts?: Record<string, { version: string; url: string }> };
   const sdk = await readPackage(path.resolve(sdkDirectory, "../package.json"));
   const root = await readPackage(path.join(repo, "package.json"));
   if (root.overrides) throw new Error("插件仓库不能通过 overrides 改写 SDK 的固定依赖");
@@ -41,7 +42,9 @@ export async function assertApplicationDependencies(repo: string, sdkDirectory: 
   }
   const sdkRequire = createRequire(path.join(sdkDirectory, "cli.mjs"));
   for (const [name, version] of new Map(Object.entries(shared).map(([entry, version]) => [packageName(entry), version]))) {
-    if (sdk.dependencies?.[name] !== version || (await installedPackage(sdkRequire, name)).version !== version) throw new Error(`SDK 安装依赖与平台契约不匹配：${name}`);
+    const artifact = platform.dependencyArtifacts?.[name];
+    const pinned = sdk.dependencies?.[name] === version || (artifact?.version === version && sdk.dependencies?.[name] === artifact.url);
+    if (!pinned || (await installedPackage(sdkRequire, name)).version !== version) throw new Error(`SDK 安装依赖与平台契约不匹配：${name}`);
     for (const entry of directories) {
       if (!entry.isDirectory()) continue;
       const appRequire = createRequire(path.join(apps, entry.name, "package.json"));

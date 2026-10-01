@@ -22,7 +22,7 @@ const loading = new Map<string, Promise<void>>();
 const evaluating = new Set<string>();
 const quarantined = new Set<string>();
 const active = new Map<string, ApplicationManifest>();
-type Access = { releaseId: string; ownerId: string | null; reviewed?: boolean };
+type Access = { releaseId: string; ownerId: string | null; public?: boolean };
 class AccessDenied extends Error {}
 const healthy = new Set<string>();
 onApplicationPageAttempt(appId => { const manifest = active.get(appId); if (manifest && !healthy.has(appId)) writeShellValue(`application.attempt.${appId}`, manifest.releaseId); });
@@ -41,11 +41,11 @@ async function verifyAccess(manifest: ApplicationManifest, ownerId: string | nul
     if ([401, 403, 404].includes(response.status) || await currentAccountId() !== ownerId) throw new AccessDenied("候选版本的制作权限已失效");
     if (!response.ok) throw new Error("暂时无法核对制作权限，请联网重试");
   } else {
-    const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/execution/${manifest.releaseId}`);
-    if ([401, 403, 404].includes(response.status)) throw new AccessDenied("这个执行版本尚未通过维护者审核");
+    const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/releases/${manifest.releaseId}`);
+    if ([401, 403, 404].includes(response.status)) throw new AccessDenied("这个版本尚未公开发布");
     if (!response.ok) throw new Error("暂时无法核对执行版本，请联网重试");
-    const review = await response.json();
-    if (!review.approved || review.bundleSha256 !== manifest.bundle.sha256 || review.sourceCommit !== manifest.source.commit) throw new AccessDenied("这个执行版本尚未通过维护者审核");
+    const published = await response.json();
+    if (published.releaseId !== manifest.releaseId || published.bundle.sha256 !== manifest.bundle.sha256 || published.source.commit !== manifest.source.commit) throw new AccessDenied("这个版本尚未公开发布");
   }
 }
 export async function preparePublicApplication(manifest: ApplicationManifest) {
@@ -54,7 +54,7 @@ export async function preparePublicApplication(manifest: ApplicationManifest) {
   assertCompatible(manifest, manifest.appId); await verifyAccess(manifest, null);
   await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
   await verifyAccess(manifest, null);
-  writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, reviewed: true }));
+  writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
 }
 // Generated from the dependency lock at host build time.
 const contract = require("./application-contract.json") as { engineAbi: string; sdk: string; shared: Record<string, string> };
@@ -91,14 +91,14 @@ export async function checkApplicationUpdates(): Promise<PendingPackage[]> {
 export async function stageApplicationUpdates(): Promise<number> {
   const pending = [...offered.values()].filter(item => active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId);
   for (const { manifest, ownerId } of pending) {
-    if (ownerId) await confirmCreation("体验候选版本", manifest.appId, "此版本未经维护者审核，将在同一个 RN 环境执行。请确认信任本轮制作的代码。");
+    if (ownerId) await confirmCreation("体验候选版本", manifest.appId, "加载本轮制作的候选版本，体验后可决定是否收下。");
     await verifyAccess(manifest, ownerId);
     await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
   }
   const catalog = await loadCatalog();
   for (const { manifest, ownerId } of pending) {
     await verifyAccess(manifest, ownerId);
-    writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId, reviewed: !ownerId }));
+    writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId, public: !ownerId }));
     writeShellValue(`application.pending.${manifest.appId}`, JSON.stringify(manifest));
     if (!catalog.some(entry => entry.id === manifest.appId)) catalog.push({ id: manifest.appId, hidden: false, pinned: true });
   }
@@ -143,17 +143,17 @@ async function load(appId: string) {
   const accessRaw = await readShellValue(staged ? `application.pending.access.${appId}` : `application.access.${appId}`);
   try { access = accessRaw ? JSON.parse(accessRaw) : undefined; } catch {}
   if (access?.releaseId !== manifest.releaseId) access = undefined;
-  if (!access || access.ownerId || !access.reviewed || !staged) {
+  if (!access || access.ownerId || !access.public || !staged) {
     try {
       const ownerId = access?.ownerId ?? null;
       await verifyAccess(manifest, ownerId);
-      access = { releaseId: manifest.releaseId, ownerId, reviewed: !ownerId };
+      access = { releaseId: manifest.releaseId, ownerId, public: !ownerId };
     } catch (error) {
-      if (!(error instanceof AccessDenied)) { if (!access?.reviewed || access.ownerId) throw error; }
+      if (!(error instanceof AccessDenied)) { if (!access?.public || access.ownerId) throw error; }
       else {
         writeShellValue(`application.pending.${appId}`, ""); staged = undefined;
         manifest = await firstManifest(appId);
-        access = { releaseId: manifest.releaseId, ownerId: null, reviewed: true };
+        access = { releaseId: manifest.releaseId, ownerId: null, public: true };
       }
     }
   }
@@ -244,7 +244,7 @@ async function commitHealthy(appId: string) {
 async function firstManifest(appId: string): Promise<ApplicationManifest> {
   const seed = JSON.parse(await NativePluginHost.call("shell", "applicationSeed", JSON.stringify({ appId }))) as { manifest?: ApplicationManifest };
   if (seed.manifest && (appId !== bootstrap.defaultApplication || seed.manifest.requires.sdk === contract.sdk)) {
-    try { assertCompatible(seed.manifest, appId); writeShellValue(`application.access.${appId}`, JSON.stringify({ releaseId: seed.manifest.releaseId, ownerId: null, reviewed: true })); return seed.manifest; } catch { /* Need a newer compatible release. */ }
+    try { assertCompatible(seed.manifest, appId); writeShellValue(`application.access.${appId}`, JSON.stringify({ releaseId: seed.manifest.releaseId, ownerId: null, public: true })); return seed.manifest; } catch { /* Need a newer compatible release. */ }
   }
   const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/public`);
   if (!response.ok) throw new Error(`应用尚未安装或发布：${appId}`);

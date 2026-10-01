@@ -80,13 +80,13 @@ export async function uninstallMarketApplication(appId: string) {
 }
 export function marketDefinition(item: MarketApplication) { return bundles.find(bundle => bundle.id === item.manifest.appId); }
 
-export type SharingState = { shared: MarketApplication | null; submission?: MarketApplication | null; reviewPending?: boolean; reviewRejected?: boolean; accepted: { releaseId: string; commit: string } | null; application: MarketApplication["manifest"] | null };
+export type SharingState = { shared: MarketApplication | null; accepted: { releaseId: string; commit: string } | null; application: MarketApplication["manifest"] | null };
 export async function cachedSharing(appId: string): Promise<SharingState | undefined> {
   const raw = await readShellValue(`shell.market.state.${appId}`);
   try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; }
 }
 async function marketAction(appId: string, input: { action: string; releaseId?: string; title?: string; summary?: string }): Promise<SharingState> {
-  if (input.action !== "status") await confirmCreation(input.action === "withdraw" ? "撤回分享" : input.action === "edit" ? "修改市场介绍" : "提交市场审核", appId, input.action === "withdraw" ? "作品会从市场移除；已安装版本和你的作品仍保留。" : [input.title, input.summary].filter(Boolean).join("\n"));
+  if (input.action !== "status") await confirmCreation(input.action === "withdraw" ? "撤回分享" : input.action === "edit" ? "修改市场介绍" : "上架到应用市场", appId, input.action === "withdraw" ? "作品会从市场移除；已安装版本和你的作品仍保留。" : [input.title, input.summary].filter(Boolean).join("\n"));
   const token = await readShellValue(`shell.jules.apps.${appId}.token`);
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000);
   try {
@@ -96,7 +96,7 @@ async function marketAction(appId: string, input: { action: string; releaseId?: 
     const state = result as SharingState;
     writeShellValue(`shell.market.state.${appId}`, JSON.stringify(state));
     writeShellValue(`shell.workshop.accepted.${appId}`, state.accepted ? JSON.stringify(state.accepted) : "");
-    applicationContext(bootstrap.defaultApplication).storage.set(`sharing.${appId}`, JSON.stringify({ releaseId: state.shared?.manifest.releaseId ?? "", reviewPending: state.reviewPending, hasUpdate: Boolean(state.shared && state.accepted && state.shared.manifest.releaseId !== state.accepted.releaseId) }));
+    applicationContext(bootstrap.defaultApplication).storage.set(`sharing.${appId}`, JSON.stringify({ releaseId: state.shared?.manifest.releaseId ?? "", hasUpdate: Boolean(state.shared && state.accepted && state.shared.manifest.releaseId !== state.accepted.releaseId) }));
     if (input.action !== "status") {
       const items = (await cachedMarket()).filter(item => item.manifest.appId !== appId);
       if (state.shared) items.unshift(state.shared);

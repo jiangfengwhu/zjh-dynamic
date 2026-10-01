@@ -22,14 +22,8 @@ if (previous.ok) {
   expectedRelease = prior.releaseId;
   if (prior.modules.base !== manifest.modules.base) throw new Error("应用模块范围不可变更");
   if (!/^[a-f0-9]{40}$/.test(prior.source?.commit)) throw new Error("线上应用提交无效");
-  const previousRepository = prior.source.repository ?? "jiangfengwhu/zjh-dynamic";
-  if (previousRepository === manifest.source.repository) {
-    execFileSync("git", ["merge-base", "--is-ancestor", prior.source.commit, manifest.source.commit], { cwd: root, windowsHide: true, stdio: "pipe" });
-  } else {
-    const transitions = JSON.parse(await readFile(path.join(import.meta.dirname, "repository-migration.json"), "utf8"));
-    const approved = transitions[appId];
-    if (manifest.source.repository !== "jiangfengwhu/zjh-plugin" || !approved || approved.repository !== previousRepository || approved.commit !== prior.source.commit || approved.releaseId !== prior.releaseId) throw new Error("应用跨仓库发布没有匹配的迁移基线");
-  }
+  if (prior.source.repository !== manifest.source.repository) throw new Error("线上应用仓库与当前源码不一致");
+  execFileSync("git", ["merge-base", "--is-ancestor", prior.source.commit, manifest.source.commit], { cwd: root, windowsHide: true, stdio: "pipe" });
 } else if (previous.status !== 404) throw new Error("无法读取应用发布基线");
 const file = path.join(output, "manifest.json");
 await writeFile(file, JSON.stringify(manifest));

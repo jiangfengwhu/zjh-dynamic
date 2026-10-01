@@ -55,7 +55,7 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
     mutation.current = true; setBusy(true); setError("");
     try {
       const state = editMode === "edit" ? await editMarketApplication(app.appId, shareTitle, shareSummary) : await shareMarketApplication(app.appId, sharing!.accepted!.releaseId, shareTitle, shareSummary);
-      setSharing(state); setEditMode(null); setShareNotice(state.reviewPending ? "已提交市场审核，通过后会公开这个版本。" : editMode === "edit" ? "分享信息已保存，公开版本保持不变。" : "已将收下的版本分享到应用市场。");
+      setSharing(state); setEditMode(null); setShareNotice(editMode === "edit" ? "分享信息已保存，公开版本保持不变。" : "已将收下的版本分享到应用市场。");
     } catch (e) { setError(e instanceof Error ? e.message : "分享未完成，请重试"); }
     finally { mutation.current = false; setBusy(false); }
   }
@@ -89,12 +89,12 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
     {installed && update ? <Pressy disabled={busy} onPress={() => onOpen(app.appId)}><Text style={styles.secondary}>先打开已安装版本</Text></Pressy> : null}
     {installed || owner ? <Pressy disabled={busy} onPress={() => { void requireAccount().then(allowed => { if (allowed) void openApplicationWorkshop(app.appId, app.title, !owner, !owner, app.releaseId).catch(e => setError(String(e))); }); }}><Text style={styles.secondary}>{owner ? "继续修改这个作品" : "基于它创作新应用"}</Text></Pressy> : null}
     {owner ? <Surface radius={20} style={styles.description}><Text style={styles.subtitle}>管理分享</Text>
-      <Text style={styles.copy}>{sharing?.reviewRejected ? "市场审核未通过，请修改后提交新版本" : sharing?.reviewPending ? "市场审核中，通过后公开新版本" : shared ? hasNewVersion ? "已分享 · 有新版本待分享" : "已分享到应用市场" : "尚未分享"}</Text>
+      <Text style={styles.copy}>{shared ? hasNewVersion ? "已分享 · 有新版本待分享" : "已分享到应用市场" : "尚未分享"}</Text>
       {shared ? <><Text style={styles.copy}>分享名称：{shared.title || shared.manifest.title}</Text><Text style={styles.caption}>{shared.summary ?? shared.manifest.summary}</Text></> : null}
       {shared ? <Text style={styles.caption}>当前公开版本 {versionName(shared.manifest)}</Text> : null}
       {sharing?.application ? <Text style={styles.caption}>最近收下版本 {versionName(sharing.application)}</Text> : <Text style={styles.caption}>加载作品并确认收下后，就可以分享。</Text>}
       {shareNotice ? <Text style={styles.caption}>{shareNotice}</Text> : null}
-      {sharing?.accepted ? <Pressy disabled={busy || !sharingReady} onPress={() => begin("share")}><Text style={styles.secondary}>{sharing?.reviewRejected ? "市场审核未通过，请修改后提交新版本" : sharing?.reviewPending ? "市场审核中，通过后公开新版本" : shared ? hasNewVersion ? "将新版本分享到市场" : "重新分享已收下的版本" : "分享已收下的版本"}</Text></Pressy> : null}
+      {sharing?.accepted ? <Pressy disabled={busy || !sharingReady} onPress={() => begin("share")}><Text style={styles.secondary}>{shared ? hasNewVersion ? "将新版本分享到市场" : "重新分享已收下的版本" : "分享已收下的版本"}</Text></Pressy> : null}
       {shared ? <><Pressy disabled={busy || !sharingReady} onPress={() => begin("edit")}><Text style={styles.secondary}>修改分享名称与介绍</Text></Pressy><Pressy disabled={busy || !sharingReady} onPress={withdraw}><Text style={styles.secondary}>撤回分享</Text></Pressy></> : null}
       {editMode ? <><Text style={styles.subtitle}>{editMode === "edit" ? "编辑分享信息" : "分享收下的作品"}</Text><TextInput accessibilityLabel="分享名称" value={shareTitle} onChangeText={setShareTitle} maxLength={60} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><TextInput accessibilityLabel="分享介绍" value={shareSummary} onChangeText={setShareSummary} multiline maxLength={300} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><Text style={styles.caption}>{editMode === "edit" ? "只修改展示信息，保留当前公开版本。" : "分享锁定最近收下的版本，之后制作的版本不会自动公开。"}</Text><Pressy disabled={busy || !sharingReady || !shareTitle.trim()} onPress={() => void save()}><Text style={styles.secondary}>{editMode === "edit" ? "保存分享信息" : "确认分享到市场"}</Text></Pressy><Pressy disabled={busy} onPress={() => setEditMode(null)}><Text style={styles.secondary}>取消</Text></Pressy></> : null}
     </Surface> : null}

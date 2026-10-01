@@ -22,5 +22,11 @@
   },
   "moduleRangeSize": 100000,
   "repository": "jiangfengwhu/zjh-plugin",
-  "edge": "https://zijinhua.297782.xyz"
+  "edge": "https://zijinhua.297782.xyz",
+  "dependencyArtifacts": {
+    "react-native-markdown-display": {
+      "version": "7.0.2",
+      "url": "https://zjh-cdn.297782.xyz/v1/sdk/54cfd21437451fdf3c5347b76343a1d8dfabfa7df4158d42e91e338b08166806"
+    }
+  }
 }
