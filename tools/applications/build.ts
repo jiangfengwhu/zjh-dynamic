@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { assertApplicationDependencies } from "./dependencies.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, readFile, writeFile, realpath, readdir, stat, copyFile } from "node:fs/promises";
@@ -16,6 +17,7 @@ export async function buildApplication(repo: string, appId: string) {
   if (config.appId !== appId || !/^\d+\.\d+\.\d+$/.test(config.version)) throw new Error("应用配置无效");
   const sdkDirectory = import.meta.dirname;
   const platform = JSON.parse(await readFile(path.join(sdkDirectory, "platform.json"), "utf8"));
+  await assertApplicationDependencies(repo, sdkDirectory, platform.shared);
   const base = config.moduleBase;
   if (!Number.isSafeInteger(base) || base < 2000000 || base % platform.moduleRangeSize || base + platform.moduleRangeSize >= 2 ** 31) throw new Error("应用模块范围无效");
   if (platform.reservedModules[appId] !== undefined && platform.reservedModules[appId] !== base) throw new Error("应用模块范围不可变更");
@@ -41,10 +43,6 @@ export async function buildApplication(repo: string, appId: string) {
   process.env.ZIJINHUA_APPLICATION_OUTPUT = output;
   process.env.ZIJINHUA_APPLICATION_ID = appId;
   const require = createRequire(import.meta.url);
-  const projectRequire = createRequire(path.join(repo, "package.json"));
-  const rn = JSON.parse(await readFile(projectRequire.resolve("react-native/package.json"), "utf8"));
-  const react = JSON.parse(await readFile(projectRequire.resolve("react/package.json"), "utf8"));
-  if (rn.version !== platform.shared["react-native"] || react.version !== platform.shared.react) throw new Error("React/RN 开发依赖与平台契约不匹配");
   const Metro = require("metro");
   const bundleOutput = require(path.join(path.dirname(require.resolve("metro/package.json")), "src/shared/output/bundle.js"));
   const metroConfig = await Metro.loadConfig({ cwd: mobile, projectRoot: mobile, config: path.join(sdkDirectory, "metro.config.cjs") });

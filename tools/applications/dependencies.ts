@@ -1,0 +1,51 @@
+import { createRequire } from "node:module";
+import { readFile, readdir } from "node:fs/promises";
+import path from "node:path";
+
+type Package = { name?: string; version?: string; overrides?: unknown; dependencies?: Record<string, string>; devDependencies?: Record<string, string>; peerDependencies?: Record<string, string>; optionalDependencies?: Record<string, string> };
+const sections = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;
+const packageName = (entry: string) => entry.startsWith("@") ? entry.split("/").slice(0, 2).join("/") : entry.split("/")[0];
+const readPackage = async (file: string): Promise<Package> => JSON.parse(await readFile(file, "utf8"));
+
+async function installedPackage(resolver: ReturnType<typeof createRequire>, name: string): Promise<Package> {
+  let directory = path.dirname(resolver.resolve(name));
+  while (true) {
+    try { const pkg = await readPackage(path.join(directory, "package.json")); if (pkg.name === name) return pkg; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    const parent = path.dirname(directory);
+    if (parent === directory) throw new Error(`无法解析 SDK 依赖：${name}`);
+    directory = parent;
+  }
+}
+
+/** SDK owns platform dependencies; applications own only their extra JS dependencies. */
+export async function assertApplicationDependencies(repo: string, sdkDirectory: string, shared: Record<string, string>) {
+  const sdk = await readPackage(path.resolve(sdkDirectory, "../package.json"));
+  const root = await readPackage(path.join(repo, "package.json"));
+  if (root.overrides) throw new Error("插件仓库不能通过 overrides 改写 SDK 的固定依赖");
+  for (const section of sections) for (const name of Object.keys(root[section] ?? {})) {
+    if (name !== "@zijinhua/app-sdk") throw new Error(`根 package.json 只声明 SDK；应用的纯 JS 依赖写入对应应用：${name}`);
+  }
+  const managed = new Set([...Object.keys(shared).map(packageName), "@zijinhua/app-sdk", "@types/react", "typescript"]);
+  const apps = path.join(repo, "apps");
+  const directories = (await readdir(apps, { withFileTypes: true })).filter(entry => entry.isDirectory());
+  for (const entry of directories) {
+    const file = path.join(apps, entry.name, "package.json");
+    let pkg: Package;
+    try { pkg = await readPackage(file); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
+    if (pkg.overrides) throw new Error(`应用不能改写 SDK 依赖：${entry.name}`);
+    for (const section of sections) for (const name of Object.keys(pkg[section] ?? {})) {
+      const target = pkg[section]![name].match(/^npm:((?:@[^/]+\/)?[^@]+)@/)?.[1];
+      if (managed.has(name) || (target && managed.has(target))) throw new Error(`应用 ${entry.name} 不能重复声明或覆盖 SDK 管理的依赖：${name}`);
+    }
+  }
+  const sdkRequire = createRequire(path.join(sdkDirectory, "cli.mjs"));
+  for (const [name, version] of new Map(Object.entries(shared).map(([entry, version]) => [packageName(entry), version]))) {
+    if (sdk.dependencies?.[name] !== version || (await installedPackage(sdkRequire, name)).version !== version) throw new Error(`SDK 安装依赖与平台契约不匹配：${name}`);
+    for (const entry of directories) {
+      if (!entry.isDirectory()) continue;
+      const appRequire = createRequire(path.join(apps, entry.name, "package.json"));
+      if ((await installedPackage(appRequire, name)).version !== version) throw new Error(`应用 ${entry.name} 解析到了不同的共享依赖版本：${name}`);
+    }
+  }
+}

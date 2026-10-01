@@ -17,3 +17,7 @@ assets/ 按 SHA-256 发布，通过 ctx.assets.uri(name) 使用，不支持 requ
 已有包回滚及存储键迁移仍由平台加载器处理；首版不允许直接改变 dataSchemaVersion。JS 运行环境共享，工程隔离不是恶意代码沙箱。市场权限、每应用令牌、历史兼容版本选择和多实例留待后续。
 
 SDK 可通过 npm run pack:sdk 生成 tarball；当前插件依赖 CDN 固定哈希地址，npm registry 公开发布需维护者登录。工坊任务只能在插件仓库逐应用发布，用户体验后确认收下再合入 main。
+
+共享依赖归 SDK 统一管理：plugin 根 package.json 仅依赖固定 SDK，SDK 精确安装共享 RN 库、React 类型与 TypeScript。各应用 package.json 仅声明 workspace 身份及其额外纯 JS 依赖，application.json 管理应用版本。CLI 在构建前校验声明和实际安装版本，拒绝重复共享依赖、共享库 npm 别名及 overrides；共享库内部路径不能打入应用。
+
+SDK 工具包补丁版本与运行时 API 最低版本可分开：npm 包 1.1.1 的 platform.json.sdk 仍为 1.1.0，不要求更新 APK 或宿主 API。

@@ -6,6 +6,12 @@ import { dts } from 'rollup-plugin-dts';
 const root=process.cwd();
 const sdk=path.join(root,'packages/app-sdk');
 const out=path.join(sdk,'dist');
+const manifest=JSON.parse(await fs.readFile(path.join(sdk,'package.json'),'utf8'));
+const platform=JSON.parse(await fs.readFile(path.join(sdk,'platform.json'),'utf8'));
+for (const [entry,version] of Object.entries(platform.shared)) {
+ const name=entry.startsWith('@')?entry.split('/').slice(0,2).join('/'):entry.split('/')[0];
+ if(manifest.dependencies[name]!==version)throw new Error(`SDK 共享依赖与运行时契约不一致：${name}`);
+}
 await fs.mkdir(out,{recursive:true});
 for(const [entry,name] of [['index','index'],['creation','creation'],['host-ui','ui']]) {
  const bundle=await rollup({input:path.join(sdk,`src/${entry}.ts`),plugins:[dts({tsconfig:path.join(root,'apps/mobile/tsconfig.json')})],external:id=>!id.startsWith('.')&&!path.isAbsolute(id)});

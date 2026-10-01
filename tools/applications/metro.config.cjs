@@ -27,23 +27,24 @@ module.exports = mergeConfig(getDefaultConfig(mobile), {
   projectRoot: mobile,
   watchFolders: [root, output],
   resolver: {
-    nodeModulesPaths: [path.join(root, 'node_modules'), path.join(mobile, 'node_modules')],
+    nodeModulesPaths: [path.join(root, 'node_modules'), path.resolve(__dirname, '../node_modules'), path.join(mobile, 'node_modules')],
     resolveRequest(context, name, platform) {
       if (shared[name]) {
         used.add(name);
         fs.writeFileSync(path.join(output, 'used-modules.json'), JSON.stringify([...used].sort()));
         return { type: 'sourceFile', filePath: path.join(output, 'external', `${Buffer.from(name).toString('hex')}.js`) };
       }
-      if (name.startsWith('@zijinhua/') || /^(?:react|react-native)(?:\/|$)/.test(name)) throw new Error(`未公开的共享模块入口：${name}`);
+      if (name.startsWith('@zijinhua/') || Object.keys(shared).some(entry => name.startsWith(entry + '/'))) throw new Error(`未公开的共享模块入口：${name}`);
       const result = context.resolveRequest(context, name, platform);
       if (result.type !== 'sourceFile') throw new Error(`首版应用暂不支持这个资源类型：${name}`);
-      if (within(result.filePath, root) || within(result.filePath, output)) return result;
       const normalized = result.filePath.replaceAll('\\', '/');
+      if (within(result.filePath, output) || (within(result.filePath, root) && !normalized.includes('/node_modules/'))) return result;
       if (normalized.includes('/node_modules/')) {
         const packageRoot = normalized.match(/^(.*\/node_modules\/(?:@[^/]+\/)?[^/]+)\//)?.[1];
         if (packageRoot && !checkedPackages.has(packageRoot)) {
           checkedPackages.add(packageRoot);
           const json = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+          if (shared[json.name]) throw new Error(`不能将平台共享库的内部文件或别名打入应用：${json.name}`);
           if (json.codegenConfig || fs.existsSync(path.join(packageRoot, 'android')) || fs.existsSync(path.join(packageRoot, 'ios')) || fs.existsSync(path.join(packageRoot, 'react-native.config.js'))) throw new Error(`原生依赖必须由平台提供：${json.name}`);
         }
         return result;
