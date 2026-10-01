@@ -1,3 +1,4 @@
+import { openApplicationWorkshop } from "./src/shell/workshopNavigation";
 import { reportApplicationFailure } from "./src/runtime/applications";
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { StatusBar, StyleSheet, Text, View } from "react-native";
@@ -217,7 +218,7 @@ function ShellApp() {
   /** 在动态里对某位朋友说一句：去工坊，用 TA 的名字起个头，接着写想要的变化。 */
   function replyToFriend(id: string) {
     const title = bundles.find((item) => item.id === id)?.title ?? id;
-    applicationContext(require("../../tools/applications/bootstrap.json").defaultApplication).navigation.create(`想让「${title}」`);
+    openApplicationWorkshop(id, title);
   }
 
   async function changeMode(next: ThemeMode) {

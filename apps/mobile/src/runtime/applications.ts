@@ -14,6 +14,7 @@ export type ApplicationManifest = {
   source: { commit: string; dirty: boolean };
 };
 
+const bootstrap = require("../../../../tools/applications/bootstrap.json");
 const loading = new Map<string, Promise<void>>();
 const active = new Map<string, ApplicationManifest>();
 const offered = new Map<string, ApplicationManifest>();
@@ -29,11 +30,17 @@ export function runningApplicationReleases() { return Object.fromEntries([...act
 export function offerApplication(manifest: ApplicationManifest) { assertCompatible(manifest, manifest.appId); offered.set(manifest.appId, manifest); }
 
 export async function checkApplicationUpdates(): Promise<PendingPackage[]> {
+  const marketResponse = await fetchApplicationCatalog(`${edgeUrl}/v1/market`);
+  if (!marketResponse.ok) throw new Error("无法检查市场应用更新");
+  const market = await marketResponse.json() as { applications: Array<{ manifest: ApplicationManifest }> };
   for (const [appId, current] of active) {
-    const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/latest`);
-    if (!response.ok) throw new Error(`无法检查应用更新：${appId}`);
-    const manifest = await response.json() as ApplicationManifest;
-    if (manifest.releaseId !== current.releaseId && manifest.releaseId !== await readShellValue(`application.failed.${appId}`)) offerApplication(manifest);
+    let manifest = market.applications.find(item => item.manifest.appId === appId)?.manifest;
+    if (await readShellValue(`shell.jules.apps.${appId}.token`)) {
+      const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/latest`);
+      if (!response.ok) throw new Error(`无法检查应用更新：${appId}`);
+      manifest = await response.json() as ApplicationManifest;
+    }
+    if (manifest && manifest.releaseId !== current.releaseId && manifest.releaseId !== await readShellValue(`application.failed.${appId}`)) offerApplication(manifest);
   }
   return [...offered.values()].filter(manifest => active.get(manifest.appId)?.releaseId !== manifest.releaseId).map(manifest => ({ id: manifest.appId, kind: "application", bytes: manifest.bundle.bytes, sha256: manifest.releaseId }));
 }
@@ -76,6 +83,8 @@ async function load(appId: string) {
   if (staged) manifest = JSON.parse(staged) as ApplicationManifest;
   else if (saved) manifest = JSON.parse(saved) as ApplicationManifest;
   else manifest = await firstManifest(appId);
+  // The default companion is shipped alongside the host SDK API.
+  if (!staged && appId === bootstrap.defaultApplication && manifest.requires.sdk !== contract.sdk) manifest = await firstManifest(appId);
   try { assertCompatible(manifest, appId); } catch (error) {
     if (!saved || staged) throw error;
     // An APK upgrade can change the ABI; retain data and pick a compatible seed/release.
@@ -133,7 +142,7 @@ export async function reportApplicationFailure(appId: string) {
 
 async function firstManifest(appId: string): Promise<ApplicationManifest> {
   const seed = JSON.parse(await NativePluginHost.call("shell", "applicationSeed", JSON.stringify({ appId }))) as { manifest?: ApplicationManifest };
-  if (seed.manifest) {
+  if (seed.manifest && (appId !== bootstrap.defaultApplication || seed.manifest.requires.sdk === contract.sdk)) {
     try { assertCompatible(seed.manifest, appId); return seed.manifest; } catch { /* Need a newer compatible release. */ }
   }
   const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/latest`);

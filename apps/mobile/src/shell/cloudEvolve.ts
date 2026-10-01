@@ -2,24 +2,8 @@ import { edgeUrl } from "./evolveHost";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
 import { runningApplicationReleases, offerApplication, type ApplicationManifest } from "../runtime/applications";
 
-const SESSION_STORAGE = "shell.julesSession.v1";
-const RUN_STORAGE = "shell.julesRun.v1";
-const APPROVAL_STORAGE = "shell.julesApproval.v1";
 const SOURCE = "sources/github/jiangfengwhu/zjh-plugin";
-
 type CloudOutcome = "finished" | "cancelled" | "waiting";
-
-export const CLOUD_CDN = edgeUrl;
-
-void forgetPhoneJulesKey();
-
-async function forgetPhoneJulesKey(): Promise<void> {
-  const saved = await readShellValue("shell.julesKey.v1");
-  if (!saved) return;
-  removeShellValue("shell.julesKey.v1");
-  console.log("jules key removed from phone");
-}
-
 export type CloudTrace = {
   id: string;
   kind: "text" | "tool" | "status";
@@ -59,7 +43,19 @@ export type JulesRun = {
   startedAt: number;
 };
 
-export async function loadJulesRun(): Promise<JulesRun | undefined> {
+export type WorkshopStatus = { completed: boolean; merged: boolean; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
+const services = new Map<string, ReturnType<typeof createService>>();
+export function creationService(appId: string, originalAppId?: string) {
+  if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("应用 ID 无效");
+  let service = services.get(appId);
+  if (!service) { service = createService(appId, originalAppId); services.set(appId, service); }
+  return service;
+}
+function createService(appId: string, originalAppId?: string) {
+const SESSION_STORAGE = `shell.jules.apps.${appId}.session`;
+const RUN_STORAGE = `shell.jules.apps.${appId}.run`;
+const APPROVAL_STORAGE = `shell.jules.apps.${appId}.token`;
+async function loadJulesRun(): Promise<JulesRun | undefined> {
   const raw = await readShellValue(RUN_STORAGE);
   if (!raw) return undefined;
   try {
@@ -72,24 +68,23 @@ export async function loadJulesRun(): Promise<JulesRun | undefined> {
   }
 }
 
-export function saveJulesRun(run: JulesRun): void {
+function saveJulesRun(run: JulesRun): void {
   writeShellValue(RUN_STORAGE, JSON.stringify(run));
   console.log("jules run saved", run.session);
 }
 
-export function clearJulesRun(): void {
+function clearJulesRun(): void {
   removeShellValue(RUN_STORAGE);
   console.log("jules run cleared");
 }
 
-export function clearJulesSession(): void {
+function clearJulesSession(): void {
   removeShellValue(SESSION_STORAGE);
-  removeShellValue(APPROVAL_STORAGE);
   clearJulesRun();
   console.log("jules session cleared");
 }
 
-export async function runCloudEvolve(options: {
+async function runCloudEvolve(options: {
   requirement: string;
   onStatus: (status: string) => void;
   onTrace: (traces: CloudTrace[]) => void;
@@ -101,7 +96,7 @@ export async function runCloudEvolve(options: {
   const existing = await loadJulesSession();
   if (existing && (await sessionAcceptsMessage(existing))) {
     options.onRunId(existing);
-    options.onStatus("正在继续同一个会话");
+    options.onStatus("正在继续这个应用的会话");
     const continuedAt = Date.now();
     const sent = await jules("POST", `/v1alpha/${existing}:sendMessage`, JSON.stringify({ prompt }));
     if (sent.status >= 200 && sent.status < 300) {
@@ -110,6 +105,7 @@ export async function runCloudEvolve(options: {
     }
     throw new Error(julesError(sent));
   }
+  if (existing) throw new Error("这个应用的 session 暂时不能继续，请停止后再重试");
   const startedAt = Date.now();
   const created = await jules(
     "POST",
@@ -135,13 +131,12 @@ export async function runCloudEvolve(options: {
   options.onRunId(name);
   console.log("jules session", name);
   if (options.shouldStop()) {
-    await cancelCloudRun(name);
     return "cancelled";
   }
   return waitSession(name, session.url ?? "", options, false, startedAt);
 }
 
-export async function inspectJulesSession(session: string): Promise<{ state: string; url: string; title: string; startedAt: number } | undefined> {
+async function inspectJulesSession(session: string): Promise<{ state: string; url: string; title: string; startedAt: number } | undefined> {
   const current = await jules("GET", `/v1alpha/${session}`);
   if (current.status === 404) return undefined;
   if (current.status < 200 || current.status >= 300) throw new Error(julesError(current));
@@ -156,7 +151,7 @@ export async function inspectJulesSession(session: string): Promise<{ state: str
   };
 }
 
-export function watchJulesSession(
+function watchJulesSession(
   session: string,
   url: string,
   options: {
@@ -169,20 +164,19 @@ export function watchJulesSession(
   return waitSession(session, url, options, false, sinceMs);
 }
 
-export async function cancelCloudRun(session: string): Promise<void> {
+async function cancelCloudRun(session: string): Promise<void> {
   if (await loadJulesSession() !== session) return;
-  const result = await jules("DELETE", `/v1alpha/${session}`);
-  if (result.status < 200 || result.status >= 300) throw new Error(julesError(result));
-  clearJulesSession();
-  console.log("jules cancel", session, result.status);
+  await workshop({ action: "stop", session });
+  clearJulesRun();
+  console.log("jules stop requested", session);
 }
 
-export async function loadJulesSession(): Promise<string> {
+async function loadJulesSession(): Promise<string> {
   const saved = (await readShellValue(SESSION_STORAGE))?.trim() ?? "";
   return saved.startsWith("sessions/") ? saved : "";
 }
 
-export function julesSessionLive(state: string): boolean {
+function julesSessionLive(state: string): boolean {
   return state === "QUEUED" || state === "PLANNING" || state === "IN_PROGRESS" || state === "AWAITING_PLAN_APPROVAL" || state === "AWAITING_USER_FEEDBACK";
 }
 
@@ -192,22 +186,23 @@ async function sessionAcceptsMessage(name: string): Promise<boolean> {
   if (current.status < 200 || current.status >= 300) throw new Error(julesError(current));
   const state = (JSON.parse(current.body) as JulesSession).state ?? "";
   console.log("jules session reuse", name, state);
-  return state !== "FAILED";
+  return Boolean(state);
 }
 
-export type WorkshopStatus = { completed: boolean; merged: boolean; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
 
-export async function workshopStatus(session: string): Promise<WorkshopStatus> {
+async function workshopStatus(session: string): Promise<WorkshopStatus> {
   const { buildId } = require("./build-identity.json") as { buildId: string };
   const result = await workshop({ action: "status", session, buildId, applicationReleases: runningApplicationReleases() });
   if (result.application && result.delivery === "update") offerApplication(result.application as ApplicationManifest);
-  if (typeof result.token === "string") writeShellValue(APPROVAL_STORAGE, result.token);
+  if (result.accepted) writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
   return result as WorkshopStatus;
 }
 
-export async function confirmWorkshop(session: string): Promise<void> {
+async function confirmWorkshop(session: string): Promise<void> {
   const { buildId } = require("./build-identity.json") as { buildId: string };
-  await workshop({ action: "confirm", session, buildId, applicationReleases: runningApplicationReleases() });
+  const result = await workshop({ action: "confirm", session, buildId, applicationReleases: runningApplicationReleases() });
+  if (result.accepted) writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
+  clearJulesRun();
 }
 
 async function workshop(input: { action: string; session: string; buildId?: string; applicationReleases?: Record<string, string> }): Promise<Record<string, unknown>> {
@@ -215,7 +210,7 @@ async function workshop(input: { action: string; session: string; buildId?: stri
   const response = await fetch(`${edgeUrl}/v1/workshop`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...input, token }),
+    body: JSON.stringify({ ...input, appId, token }),
   });
   const result = await response.json() as Record<string, unknown>;
   if (!response.ok) throw new Error(typeof result.message === "string" ? result.message : "工坊暂时没有接好，请稍后再试");
@@ -238,10 +233,7 @@ async function waitSession(
   let approved = false;
   let sawWork = !expectRestart;
   while (Date.now() < deadline) {
-    if (options.shouldStop()) {
-      await cancelCloudRun(name);
-      return "cancelled";
-    }
+    if (options.shouldStop()) return "cancelled";
     await delay(5000);
     const current = await jules("GET", `/v1alpha/${name}`);
     if (current.status < 200 || current.status >= 300) throw new Error(julesError(current));
@@ -419,7 +411,7 @@ async function jules(method: string, path: string, body?: string): Promise<Jules
     const response = await fetch(`${edgeUrl}/v1/jules`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ method, path, body: body ?? "", approvalToken: await readShellValue(APPROVAL_STORAGE), buildId: (require("./build-identity.json") as { buildId: string }).buildId }),
+      body: JSON.stringify({ appId, originalAppId, method, path, body: body ?? "", approvalToken: await readShellValue(APPROVAL_STORAGE), buildId: (require("./build-identity.json") as { buildId: string }).buildId }),
       signal: controller.signal,
     });
     const result = { status: response.status, body: await response.text() };
@@ -450,4 +442,7 @@ function delay(ms: number) {
   return new Promise((resolve) => {
     setTimeout(() => resolve(undefined), ms);
   });
+}
+
+return { runCloudEvolve, cancelCloudRun, loadJulesRun, saveJulesRun, clearJulesRun, clearJulesSession, loadJulesSession, inspectJulesSession, julesSessionLive, watchJulesSession, workshopStatus, confirmWorkshop };
 }

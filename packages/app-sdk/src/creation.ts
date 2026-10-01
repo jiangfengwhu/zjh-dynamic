@@ -23,4 +23,4 @@ export type CreationService = {
   readPreference: (key: string) => Promise<string | undefined>;
   writePreference: (key: string, value: string) => void;
 };
-export function getCreationService(): CreationService { throw new Error("当前应用未获得制作能力"); }
+export function getCreationService(appId: string, originalAppId?: string): CreationService { throw new Error("当前应用未获得制作能力"); }

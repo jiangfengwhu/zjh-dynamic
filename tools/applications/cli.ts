@@ -11,14 +11,13 @@ if (command === "build") await buildApplication(root, appId);
 else if (command === "publish") await publishApplication(root, appId);
 else if (command === "init") {
   const platform = JSON.parse(await readFile(path.join(import.meta.dirname, "platform.json"), "utf8"));
-  let base = Math.max(...Object.values(platform.reservedModules) as number[]);
   await mkdir(path.join(root, "apps"), { recursive: true });
-  for (const id of await readdir(path.join(root, "apps"))) {
-    const config = JSON.parse(await readFile(path.join(root, "apps", id, "application.json"), "utf8"));
-    base = Math.max(base, config.moduleBase);
-  }
-  base += platform.moduleRangeSize;
-  if (base + platform.moduleRangeSize >= 2 ** 31) throw new Error("应用模块编号已用尽");
+  const url = `${process.env.BUNDLE_EDGE_BASE || platform.edge}/v1/application-allocation/${appId}`;
+  let response = await fetch(url);
+  if (response.status === 404 && process.env.BUNDLE_CATALOG_TOKEN) response = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${process.env.BUNDLE_CATALOG_TOKEN}` } });
+  if (!response.ok) throw new Error("尚未分配应用模块范围，请先在 Jolly 发起这个应用的创作");
+  const { moduleBase: base } = await response.json();
+  if (!Number.isSafeInteger(base) || base < 2000000 || base % platform.moduleRangeSize || base + platform.moduleRangeSize >= 2 ** 31) throw new Error("服务端模块范围无效");
   const directory = path.join(root, "apps", appId);
   await mkdir(directory);
   const template = path.join(root, "templates/basic");

@@ -16,7 +16,6 @@ for (const [name, version] of Object.entries(manifest.requires.shared)) if (plat
 const previous = await fetch(`${bundleEdgeBase()}/v1/applications/${appId}/latest`);
 if (previous.ok) {
   const prior = await previous.json();
-  if (prior.dataSchemaVersion !== manifest.dataSchemaVersion) throw new Error("首版 SDK 暂不允许自动改变存储结构版本，请由维护者设计迁移后发布");
   if (prior.modules.base !== manifest.modules.base) throw new Error("应用模块范围不可变更");
   if (!/^[a-f0-9]{40}$/.test(prior.source?.commit)) throw new Error("线上应用提交无效");
   const previousRepository = prior.source.repository ?? "jiangfengwhu/zjh-dynamic";

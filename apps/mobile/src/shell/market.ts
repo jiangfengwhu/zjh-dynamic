@@ -4,7 +4,7 @@ import { loadCatalog, saveCatalog } from "./catalog";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import { registerApplicationMetadata, bundles } from "../../../../packages/features/src/registry";
 import NativePluginHost from "../NativePluginHost";
-export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: null; authorName: string; originalAppId: string | null; latest?: boolean };
+export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: null; authorName: string; originalAppId: string | null; title?: string; summary?: string; owned?: boolean; latest?: boolean };
 const CACHE = "market.catalog.v1";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export async function cachedMarket(): Promise<MarketApplication[]> {
@@ -25,7 +25,7 @@ export async function installedMarket(): Promise<MarketApplication[]> {
   for (const entry of entries.filter(entry => !entry.trashedAt && !entry.purged)) {
     const raw = await readShellValue(`application.pending.${entry.id}`) || await readShellValue(`application.install.${entry.id}`);
     if (!raw) continue;
-    try { items.push({ manifest: JSON.parse(raw), authorId: null, authorName: "社区创作者", originalAppId: null }); } catch { /* Keep other applications available. */ }
+    try { items.push({ manifest: JSON.parse(raw), authorId: null, authorName: "社区创作者", originalAppId: null, owned: Boolean(await readShellValue(`shell.jules.apps.${entry.id}.token`)) }); } catch { /* Keep other applications available. */ }
   }
   return items;
 }
@@ -65,3 +65,11 @@ export async function uninstallMarketApplication(appId: string) {
   await NativePluginHost.call("shell", "reloadApplications", "{}");
 }
 export function marketDefinition(item: MarketApplication) { return bundles.find(bundle => bundle.id === item.manifest.appId); }
+
+export async function shareMarketApplication(appId: string, releaseId: string, title: string, summary: string) {
+ const token = await readShellValue(`shell.jules.apps.${appId}.token`);
+ const response = await fetch(`${edgeUrl}/v1/market`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId, token, releaseId, title, summary }) });
+ const result = await response.json();
+ if (!response.ok) throw new Error(result.message || "分享没有完成，请重试");
+ return result;
+}

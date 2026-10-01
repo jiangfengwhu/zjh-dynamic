@@ -16,3 +16,7 @@ npm ci 与 npm ci --prefix apps/mobile 安装平台依赖。npm run pack:sdk 构
 工坊新会话来源为 sources/github/jiangfengwhu/zjh-plugin，云端只开放该仓库。应用开发输入、逐应用发包和 PR 规则见插件仓库 AGENTS.md。平台变更由本地维护者协调 Android/server，不把这些仓库作为应用开发依赖。
 
 依赖与兼容规则见 [SDK 使用说明](docs/app-sdk-usage.md)。SDK 版本、RN/Hermes ABI 和共享原生依赖与 /v1/runtime 保持一致；不通过修改提交基线、vendor 编号或校验绕过不兼容。新增原生实现仍需发布支持的 APK。
+
+制作服务按 appId 隔离 session、凭据、进度与收下状态；同一应用复用 session，新应用建立新 session。不同应用并行制作，模块范围由服务端原子预留，合入串行核对冲突。
+
+市场分享固定在用户已收下的 releaseId，修改不会自动更新公开版本；拥有本机 session 凭据的应用跟踪制作包，市场用户只跟踪公开分享。作者暂用默认值，不接登录。早期不维护旧业务数据兼容或迁移。

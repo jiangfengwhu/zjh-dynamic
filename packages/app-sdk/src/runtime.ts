@@ -11,12 +11,6 @@ const activated = new Set<string>();
 const contexts = new Map<string, AppContext>();
 const assets = new Map<string, Record<string, string>>();
 export function installApplicationAssets(appId: string, files: Record<string, string>) { assets.set(appId, files); }
-const legacyKeys: Record<string, Record<string, string>> = {
-  notepad: { notes: "notepad.notes" },
-  pomodoro: { stats: "pomodoro.stats.v1" },
-  jolly: { run: "jolly.run.v1" },
-};
-
 export function applicationContext(appId: string): AppContext {
   const existing = contexts.get(appId);
   if (existing) return existing;
@@ -36,12 +30,7 @@ export function applicationContext(appId: string): AppContext {
     storage: {
       get: (key) => {
         const target = keyFor(key);
-        const stored = readPackageValue(target);
-        if (stored !== undefined) return stored;
-        const legacy = legacyKeys[appId]?.[key];
-        const value = legacy ? readPackageValue(legacy) : undefined;
-        if (value !== undefined) writePackageValue(target, value);
-        return value;
+        return readPackageValue(target);
       },
       set: (key, value) => writePackageValue(keyFor(key), value),
       subscribe: (key, listener) => subscribePackageValue(keyFor(key), listener),
@@ -62,8 +51,14 @@ export function applicationContext(appId: string): AppContext {
       back: () => navigate({ action: "back" }),
       open: () => navigate({ action: "open", id: appId }),
       create: (prompt) => {
-        if (prompt) applicationContext(bootstrap.defaultApplication).storage.set("pendingPrompt", prompt);
-        applicationContext(bootstrap.defaultApplication).storage.set("openWorkshop", String(Date.now()));
+        const companion = applicationContext(bootstrap.defaultApplication);
+        const target = appId === bootstrap.defaultApplication ? `app-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}` : appId;
+        const workspaces = JSON.parse(companion.storage.get("workspaces") || "[]") as Array<{ appId: string; title: string }>;
+        if (!workspaces.some(item => item.appId === target)) workspaces.push({ appId: target, title: target === appId ? appId : "新应用" });
+        companion.storage.set("workspaces", JSON.stringify(workspaces));
+        companion.storage.set("workshopTarget", target);
+        if (prompt) companion.storage.set(`pendingPrompt.${target}`, prompt);
+        companion.storage.set("openWorkshop", String(Date.now()));
         navigate({ action: "open", id: bootstrap.defaultApplication });
       },
     },

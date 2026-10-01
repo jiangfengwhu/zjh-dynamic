@@ -1,6 +1,6 @@
 import { bindApplicationSdk, registerApplication } from "../../../../packages/app-sdk/src/runtime";
 import * as ui from "../../../../packages/app-sdk/src/host-ui";
-import * as cloud from "../shell/cloudEvolve";
+import { creationService } from "../shell/cloudEvolve";
 import { checkPackageUpdates, applyPackageUpdates } from "../shell/packageUpdates";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
 
@@ -27,7 +27,7 @@ export function installApplicationPlatform() {
       if (name === "@zijinhua/app-sdk") return bindApplicationSdk(appId);
       if (name === "@zijinhua/app-sdk/creation") {
         if (appId !== "jolly") throw new Error("当前应用未获得制作能力");
-        return { getCreationService: () => ({ ...cloud, checkPackageUpdates, applyPackageUpdates,
+        return { getCreationService: (targetAppId: string, originalAppId?: string) => ({ ...creationService(targetAppId, originalAppId), checkPackageUpdates, applyPackageUpdates,
           readPreference: (key: string) => {
             if (key !== "shell.companion.name.v1") throw new Error("制作偏好键无效");
             return readShellValue(key);
