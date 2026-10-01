@@ -57,6 +57,14 @@ for (const blob of [{ sha256: manifest.bundle.sha256, file: bundleFile }, ...man
   if (!response.ok) throw new Error(`应用包上传失败 status=${response.status}`);
 }
 
+await publishCatalog([
+  { key: `v1/applications/${appId}/releases/${manifest.releaseId}`, file, contentType: "application/json", cacheControl: "no-cache" },
+  { key: `v1/applications/${appId}/latest`, file, contentType: "application/json", cacheControl: "no-cache" },
+], { [appId]: expectedRelease }, publishToken);
+console.log(JSON.stringify({ published: true, stage: "candidate", appId, releaseId: manifest.releaseId, commit: manifest.source.commit }));
+
+}
+
 function releaseContent(manifest: Record<string, unknown>, normalizeBundle = false): string {
   const { source, releaseId, ...content } = manifest;
   if (normalizeBundle) content.bundle = { ...content.bundle as object, sha256: "<bytecode>", bytes: 0 };
@@ -86,13 +94,6 @@ async function equivalentBytecode(prior: { sha256: string; bytes: number }, curr
   const priorDump = normalizeCompilerFilename((await run(compiler, ["-b", "-dump-bytecode", previous], { encoding: "utf8", windowsHide: true, maxBuffer: 128 * 1024 * 1024 })).stdout);
   const currentDump = normalizeCompilerFilename((await run(compiler, ["-b", "-dump-bytecode", current], { encoding: "utf8", windowsHide: true, maxBuffer: 128 * 1024 * 1024 })).stdout);
   return priorDump !== undefined && currentDump !== undefined && priorDump === currentDump;
-}
-await publishCatalog([
-  { key: `v1/applications/${appId}/releases/${manifest.releaseId}`, file, contentType: "application/json", cacheControl: "no-cache" },
-  { key: `v1/applications/${appId}/latest`, file, contentType: "application/json", cacheControl: "no-cache" },
-], { [appId]: expectedRelease }, publishToken);
-console.log(JSON.stringify({ published: true, stage: "candidate", appId, releaseId: manifest.releaseId, commit: manifest.source.commit }));
-
 }
 
 function sdkCompatible(required: string, available: string) {
