@@ -266,7 +266,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     onAccount={() => shellNavigationRef.navigate("account")}
                     mode={props.mode}
                     onApplications={() => shellNavigationRef.navigate("myApps")}
-                    onCompanion={() => props.onOpenBundle(bootstrap.defaultApplication)}
                     onProviders={() => shellNavigationRef.navigate("providers")}
                     onInfo={() => shellNavigationRef.navigate("info")}
                     onCheckUpdates={props.onCheckUpdates}

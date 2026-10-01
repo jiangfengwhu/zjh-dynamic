@@ -6,9 +6,9 @@ import { Icon, SectionTitle, Surface, type IconName } from "../../../../packages
 
 import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
 import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES } from "../../../../packages/ui/feed";
-import { bundles } from "../../../../packages/features/src/registry";
 
-const bootstrap = require("../../../../tools/applications/bootstrap.json");
+
+
 
 type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
 
@@ -16,7 +16,6 @@ type Props = {
   mode: ThemeMode;
   onApplications: () => void;
   onAccount: () => void;
-  onCompanion: () => void;
   onProviders: () => void;
   onInfo: () => void;
   onCheckUpdates: () => Promise<boolean>;
@@ -28,7 +27,6 @@ export const MineScreen = memo(function MineScreen({
   mode,
   onApplications,
   onAccount,
-  onCompanion,
   onProviders,
   onInfo,
   onCheckUpdates,
@@ -37,8 +35,6 @@ export const MineScreen = memo(function MineScreen({
 }: Props) {
   const { colors } = useTheme();
   const { user } = useAccount();
-  const companion = bundles.find(item => item.id === bootstrap.defaultApplication);
-  const Avatar = companion?.avatar;
   const [summaryEvery, setSummaryEvery] = useState(() => readSummaryEvery());
   const [check, setCheck] = useState<CheckState>("idle");
   useEffect(() => subscribeSummaryEvery(setSummaryEvery), []);
@@ -76,16 +72,6 @@ export const MineScreen = memo(function MineScreen({
           <View style={styles.profileCopy}>
             <Text style={styles.profileName}>{user?.name ?? "登录紫金花"}</Text>
             <Text style={styles.profileHint}>{user ? "更换头像与昵称" : "用邮箱验证码登录"}</Text>
-          </View>
-        </Surface></Pressable>
-
-        <Pressable accessibilityRole="button" accessibilityLabel="打开 Jolly" onPress={onCompanion}><Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
-          <View style={styles.portrait}>
-            {Avatar ? <Avatar size={68} animated borderRadius={22} /> : <Icon name="box" size={36} color={colors.accent} />}
-          </View>
-          <View style={styles.profileCopy}>
-            <Text style={styles.profileName}>{companion?.title ?? "紫金花"}</Text>
-            <Text style={styles.profileHint}>把一句心愿做成能打开的小应用</Text>
           </View>
         </Surface></Pressable>
 

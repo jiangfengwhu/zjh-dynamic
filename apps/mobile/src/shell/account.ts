@@ -19,11 +19,11 @@ const listeners = new Set<(value: State) => void>();
 const identityListeners = new Set<(id: string | null) => void>();
 export function subscribeAccountIdentity(listener: (id: string | null) => void) { identityListeners.add(listener); return () => { identityListeners.delete(listener); }; }
 function emit(value: State) { const changed = state.user?.id !== value.user?.id; state = value; setApplicationAccountScope(value.user?.id ?? null); listeners.forEach(listener => listener(value)); if (changed) identityListeners.forEach(listener => listener(value.user?.id ?? null)); }
-function remember(user: Account) { writeShellValue(cacheKey, JSON.stringify(user)); emit({ user, ready: true, storageError: false }); }
+function remember(user: Account) { profileRevision++; writeShellValue(cacheKey, JSON.stringify(user)); emit({ user, ready: true, storageError: false }); }
 async function clearAccount() {
   // Never report a successful logout while the persistent credential remains.
   await Keychain.resetGenericPassword({ service });
-  credential = null; removeShellValue(cacheKey); emit({ user: null, ready: true, storageError: false });
+  profileRevision++; credential = null; removeShellValue(cacheKey); emit({ user: null, ready: true, storageError: false });
 }
 async function initialize() {
   if (!initialization) initialization = (async () => {
@@ -42,6 +42,9 @@ async function initialize() {
   })();
   await initialization;
 }
+let profileRevision = 0;
+let loginRequest: { promise: Promise<boolean>; resolve: (allowed: boolean) => void } | undefined;
+export function finishLoginRequest(allowed: boolean) { const request = loginRequest; loginRequest = undefined; request?.resolve(allowed); }
 let refreshStarted = false;
 export function useAccount() {
   const [value, setValue] = useState(state);
@@ -49,8 +52,8 @@ export function useAccount() {
     listeners.add(setValue); setValue(state);
     void initialize().then(() => {
       if (credential && !refreshStarted) {
-        refreshStarted = true; const token = credential.token;
-        void call<{ user: Account }>("/v1/account", "GET").then(result => { if (credential?.token === token) remember(result.user); }).catch(() => {});
+        refreshStarted = true; const token = credential.token; const revision = profileRevision;
+        void call<{ user: Account }>("/v1/account", "GET").then(result => { if (credential?.token === token && profileRevision === revision) remember(result.user); }).catch(() => {});
       }
     });
     return () => { listeners.delete(setValue); };
@@ -90,22 +93,31 @@ export async function loginWithCode(email: string, code: string) {
 }
 export async function saveAccountName(name: string) { const result = await call<{ user: Account }>("/v1/account", "PATCH", { name }); remember(result.user); }
 export async function removeAccountAvatar() { const result = await call<{ user: Account }>("/v1/account/avatar", "DELETE"); remember(result.user); }
-export async function chooseAccountAvatar() {
-  const selection = await launchImageLibrary({ mediaType: "photo", selectionLimit: 1, maxWidth: 512, maxHeight: 512, quality: 0.8 });
-  if (selection.didCancel) return;
-  if (selection.errorCode || !selection.assets?.[0]?.uri) throw new Error("未能读取图片，请重新选择");
-  const asset = selection.assets[0];
-  if ((asset.fileSize || 0) > 1048576) throw new Error("请选择小于 1 MB 的图片");
+export async function chooseAccountAvatar(): Promise<boolean> {
   await initialize();
   if (!credential || credential.expiresAt <= Date.now()) { await clearAccount(); throw new Error("请先登录"); }
   const token = credential.token;
-  const result = await BlobUtil.config({ timeout: 20000 }).fetch("PUT", `${edgeUrl}/v1/account/avatar`, { Authorization: `Bearer ${token}`, "Content-Type": asset.type || "image/jpeg" }, BlobUtil.wrap(asset.uri!.replace(/^file:\/\//, "")));
+  const selection = await launchImageLibrary({ mediaType: "photo", selectionLimit: 1, maxWidth: 512, maxHeight: 512, quality: 0.8, includeBase64: true, assetRepresentationMode: "compatible", restrictMimeTypes: ["image/jpeg", "image/png", "image/webp"] });
+  if (selection.didCancel) return false;
+  if (selection.errorCode || !selection.assets?.[0]?.base64) throw new Error("未能读取图片，请重新选择");
+  const asset = selection.assets[0];
+  const encoded = asset.base64!;
+  const bytes = encoded.length * 3 / 4 - (encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0);
+  if (!bytes || bytes > 1048576) throw new Error("请选择小于 1 MB 的图片");
+  if (credential?.token !== token) throw new Error("账号已改变，请重新选择头像");
+  let result;
+  try {
+    result = await BlobUtil.config({ timeout: 20000 }).fetch("PUT", `${edgeUrl}/v1/account/avatar`, { Authorization: `Bearer ${token}`, "Content-Type": "application/octet-stream" }, encoded);
+  } catch { throw new Error("头像上传失败，请检查网络后重试"); }
   const status = result.info().status;
-  const body = result.json() as { user: Account; message?: string };
   if (credential?.token !== token) throw new Error("账号已改变，请重试");
-  if (status === 401) await clearAccount();
+  if (status === 401) { await clearAccount(); throw new Error("登录已失效，请重新登录后更换头像"); }
+  let body: { user?: Account; message?: string };
+  try { body = result.json(); } catch { throw new Error("头像上传失败，请稍后重试"); }
   if (status < 200 || status >= 300) throw new Error(body.message || "头像上传失败，请重试");
+  if (!body.user?.avatarUrl || body.user.id !== state.user?.id) throw new Error("头像更新结果无效，请重试");
   remember(body.user);
+  return true;
 }
 export async function logoutAccount() {
   await call("/v1/auth/logout", "POST");
@@ -117,8 +129,14 @@ export async function requireAccount(prompt = true): Promise<boolean> {
   await initialize();
   if (credential && credential.expiresAt <= Date.now()) await clearAccount();
   if (credential) return true;
-  if (prompt) openLogin();
-  return false;
+  if (!prompt) return false;
+  if (!loginRequest) {
+    let resolve!: (allowed: boolean) => void;
+    const promise = new Promise<boolean>(done => { resolve = done; });
+    loginRequest = { promise, resolve };
+    openLogin();
+  }
+  return loginRequest.promise;
 }
 /** Private host transport: credentials never enter plugin contexts or application storage. */
 export async function accountFetch(url: string, options: RequestInit, prompt = true): Promise<Response> {
