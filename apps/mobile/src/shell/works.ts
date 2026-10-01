@@ -30,7 +30,7 @@ export async function readMyWorks(): Promise<MyWork[]> {
   }));
 }
 export function stageFromWorkshop(status: WorkshopStatus): WorkStage {
-  if (status.merged) return "accepted";
+  if (status.collected ?? status.merged) return "accepted";
   if (status.state === "FAILED") return "failed";
   if (status.state === "PAUSED") return "paused";
   if (status.state === "AWAITING_USER_FEEDBACK") return "reply";

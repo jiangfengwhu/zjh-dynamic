@@ -11,7 +11,7 @@ React、React Native 及平台共享原生依赖由宿主提供，版本记录�
 平台不兼容时发布会失败，不能通过改清单绕过。SDK 改动遵循语义版本，并与 APK 的运行时契约配套发布。
 发布前必须提交全部源码，发布清单记录仓库、提交和依赖；不允许脏工作区发包或覆盖非祖先版本。
 
-云端任务使用平台在制作轮次中签发的应用授权，先执行 `zjh-app authorize <id> '<grant>'`。授权只写入 Git 元数据目录，不输出或提交。SDK 1.1.7 通过服务端上传包体和候选清单，不使用共享 R2、BUNDLE_CATALOG_TOKEN 或 Wrangler 凭据。维护者仍可使用独立 OFFICIAL_PUBLISH_TOKEN。
+云端任务使用平台在制作轮次中签发的应用授权，先执行 `zjh-app authorize <id> '<grant>'`。授权只写入 Git 元数据目录，不输出或提交。SDK 1.1.8 通过服务端上传包体和候选清单，不使用共享 R2、BUNDLE_CATALOG_TOKEN 或 Wrangler 凭据。维护者仍可使用独立 OFFICIAL_PUBLISH_TOKEN。
 
 Jolly 使用 `getCreationService(appId, originalAppId?)` 获取按应用隔离的制作服务。修改应用继续已有 session；新 appId 创建新 session。初始化前平台为 appId 原子分配模块范围，CLI 从 `/v1/application-allocation/<id>` 读取；不同应用不依靠本地目录扫描分配范围。
 
@@ -19,7 +19,7 @@ Jolly 使用 `getCreationService(appId, originalAppId?)` 获取按应用隔离�
 
 SDK 精确声明全部公开共享库、React 类型与 TypeScript。插件根 package.json 只声明 SDK，不重复安装或 overrides 改写这些依赖；应用 package.json 保留 name/private 与自身纯 JS 依赖，应用版本以 application.json 为准。标准公开库入口仍可直接导入，手机运行时由宿主提供，不随应用打包。
 
-SDK npm 包的补丁版本可仅更新工具链；platform.json.sdk 表示所需的宿主 API 版本。包 1.1.7 仍使用运行时契约 1.1.0，原生与共享库版本保持一致；须与新的服务端发布接口协调上线。
+SDK npm 包的补丁版本可仅更新工具链；platform.json.sdk 表示所需的宿主 API 版本。包 1.1.8 仍使用运行时契约 1.1.0，原生与共享库版本保持一致；须与新的服务端发布接口协调上线。
 
 ### 候选发布与公开版本
 
@@ -31,6 +31,6 @@ SDK npm 包的补丁版本可仅更新工具链；platform.json.sdk 表示所需
 
 Markdown 显示库使用平台维护的不可变 tarball：保持 7.0.2 的渲染源码及公开接口，仅将 markdown-it 更新至 15.0.2。platform.json.dependencyArtifacts 锁定产物地址和接口版本，SDK 自带安全依赖，应用无需 overrides。上游源码与许可证保留，构建时校验上游 SHA-512。
 
-候选 source.tree 绑定完整 Git 源码内容，允许 Jules 导出 PR 时重新生成提交号；服务端验证源码树并锁定最终 PR head 合入。发布基线优先检查提交祖先；提交重写仅在 Git 源码树相同，或全部重建包体、资源、配置、版本及契约完全相同时允许衔接，CAS 检查保留。
+用户应用在 Jules 自动创建的应用分支持续迭代，不同步或合入 main。候选发包不再检查源码提交祖先或 PR 内容；保留本轮授权、expectedReleases 原子比较和运行时兼容校验。收下只选定已体验的 releaseId，作者主动决定是否上架。Remix 从原应用分支创建新应用，保留来源版本。
 
 Linux/Windows 旧候选仅调试路径不同时，SDK 下载并校验原包，要求完整 Hermes 反汇编只差单个编译输入路径，其他发布配置、资源、版本、契约完全一致，才允许重建衔接。新包从固定 application.js 路径编译，不含机器绝对路径。

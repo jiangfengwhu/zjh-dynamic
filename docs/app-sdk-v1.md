@@ -203,7 +203,7 @@ application/
 
 `npm run publish` 完成必需构建、导入与兼容性校验、上传和清单发布，输出 appId/releaseId/sourceCommit。发布权限由服务端绑定目标应用，不能由本地 manifest 自行证明。保留源码映射，以 appId/releaseId 查到具体源码提交。
 
-应用发布不再要求包含全局宿主线上 source.commit，而是遵守该应用的交付提交与平台开发契约；工坊确认核对运行的应用 releaseId 与对应 PR head。宿主继续使用自己的发布基线，两个流程不混用。
+应用发布不再要求包含全局宿主线上 source.commit，而是遵守该应用的交付提交与平台开发契约；工坊收下只核对正在运行的应用 releaseId 与本轮候选，不依赖 PR 或 main。宿主继续使用自己的发布基线，两个流程不混用。
 
 ## 八、首版交付清单与顺序
 

@@ -48,7 +48,7 @@ export type JulesRun = {
   startedAt: number;
 };
 
-export type WorkshopStatus = { completed: boolean; merged: boolean; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
+export type WorkshopStatus = { completed: boolean; collected?: boolean; /** @deprecated Use collected. */ merged: boolean; branch?: string; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
 const services = new Map<string, ReturnType<typeof createService>>();
 export function creationService(appId: string, originalAppId?: string) {
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("应用 ID 无效");
@@ -228,7 +228,7 @@ async function workshopStatus(session: string): Promise<WorkshopStatus> {
 }
 
 async function confirmWorkshop(session: string): Promise<void> {
-  await confirmCreation("收下作品", appId, "确认后将合入本轮作品的代码。");
+  await confirmCreation("收下作品", appId, "确认后将本轮体验的版本设为已收下，你可以继续修改或决定是否上架。");
   const { buildId } = require("./build-identity.json") as { buildId: string };
   const result = await workshop({ action: "confirm", session, buildId, applicationReleases: runningApplicationReleases() });
   if (result.accepted) {
