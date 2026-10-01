@@ -147,7 +147,7 @@ async function firstManifest(appId: string): Promise<ApplicationManifest> {
   if (seed.manifest && (appId !== bootstrap.defaultApplication || seed.manifest.requires.sdk === contract.sdk)) {
     try { assertCompatible(seed.manifest, appId); return seed.manifest; } catch { /* Need a newer compatible release. */ }
   }
-  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/latest`);
+  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/public`);
   if (!response.ok) throw new Error(`应用尚未安装或发布：${appId}`);
   return response.json();
 }
