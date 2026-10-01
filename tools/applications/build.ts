@@ -61,7 +61,7 @@ export async function buildApplication(repo: string, appId: string) {
     delete process.env.ZIJINHUA_APPLICATION_ID;
   }
   const folder = process.platform === "win32" ? "win64-bin" : process.platform === "darwin" ? "osx-bin" : "linux64-bin";
-  await run(path.join(path.dirname(require.resolve("hermes-compiler/package.json")), "hermesc", folder, process.platform === "win32" ? "hermesc.exe" : "hermesc"), ["-w", "-emit-binary", "-out", bundleFile, "-O", jsFile], { windowsHide: true });
+  await run(path.join(path.dirname(require.resolve("hermes-compiler/package.json")), "hermesc", folder, process.platform === "win32" ? "hermesc.exe" : "hermesc"), ["-w", "-emit-binary", "-out", bundleFile, "-O", path.basename(jsFile)], { cwd: output, windowsHide: true });
   const bytes = await readFile(bundleFile);
   const assets: Array<{ name: string; sha256: string; bytes: number }> = [];
   async function collectAssets(directory: string, prefix = "") {

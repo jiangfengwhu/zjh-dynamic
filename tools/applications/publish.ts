@@ -1,8 +1,11 @@
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { promisify } from "node:util";
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { buildApplication } from "./build.js";
-import { publishBundleObjects, publishCatalog, bundleEdgeBase } from "../release/publish-bundle.js";
+import { publishCatalog, bundleEdgeBase, bundleCdnBase } from "../release/publish-bundle.js";
+import { sha256Hex } from "../release/release-set.js";
 import { applicationPublisher } from "./authorization.js";
 
 export async function publishApplication(root: string, appId: string) {
@@ -41,7 +44,9 @@ if (previous.ok) {
     // Jules can recreate a commit when exporting its PR. Only identical source or
     // byte-for-byte identical release content can reconcile that rewritten baseline.
     const sameTree = prior.source.tree && prior.source.tree === manifest.source.tree;
-    if (!exportedAncestor && !sameTree && releaseContent(prior) !== releaseContent(manifest)) throw new Error("候选源码基线不一致，且源码树及重建产物均不匹配；请同步当前版本后重新发布");
+    const sameContent = releaseContent(prior) === releaseContent(manifest);
+    const sameBytecode = !exportedAncestor && !sameTree && !sameContent && releaseContent(prior, true) === releaseContent(manifest, true) && await equivalentBytecode(prior.bundle, bundleFile, output);
+    if (!exportedAncestor && !sameTree && !sameContent && !sameBytecode) throw new Error("候选源码基线不一致，且源码树及重建产物均不匹配；请同步当前版本后重新发布");
     console.log(exportedAncestor ? "baseline verified: exported GitHub commit is an ancestor with matching source tree" : sameTree ? "baseline reconciled: identical Git source tree" : "baseline reconciled: identical rebuilt bundle, assets and application contract");
   }
 } else if (previous.status !== 404) throw new Error("无法读取应用发布基线");
@@ -52,10 +57,35 @@ for (const blob of [{ sha256: manifest.bundle.sha256, file: bundleFile }, ...man
   if (!response.ok) throw new Error(`应用包上传失败 status=${response.status}`);
 }
 
-function releaseContent(manifest: Record<string, unknown>): string {
+function releaseContent(manifest: Record<string, unknown>, normalizeBundle = false): string {
   const { source, releaseId, ...content } = manifest;
+  if (normalizeBundle) content.bundle = { ...content.bundle as object, sha256: "<bytecode>", bytes: 0 };
   const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)])) : value;
   return JSON.stringify(canonical(content));
+}
+
+// The entire disassembly must match; only the single compiler input filename
+// in the debug filename table may differ between Linux and Windows.
+export function normalizeCompilerFilename(dump: string): string | undefined {
+  const normalized = dump.replace(/\r\n/g, "\n");
+  const table = /\nDebug filename table:\n  0: [^\n]*application\.js\n\nDebug file table:\n/;
+  return table.test(normalized) ? normalized.replace(table, "\nDebug filename table:\n  0: <application.js>\n\nDebug file table:\n") : undefined;
+}
+
+async function equivalentBytecode(prior: { sha256: string; bytes: number }, current: string, output: string): Promise<boolean> {
+  if (!/^[a-f0-9]{64}$/.test(prior.sha256) || !Number.isSafeInteger(prior.bytes) || prior.bytes <= 0 || prior.bytes > 40 * 1024 * 1024) return false;
+  const response = await fetch(`${bundleCdnBase()}/v1/app/${prior.sha256}`);
+  if (!response.ok) throw new Error("无法下载候选包核对重建结果");
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length !== prior.bytes || sha256Hex(bytes) !== prior.sha256) throw new Error("候选包内容校验失败");
+  const previous = path.join(output, `baseline-${prior.sha256}.bundle`); await writeFile(previous, bytes);
+  const require = createRequire(import.meta.url);
+  const folder = process.platform === "win32" ? "win64-bin" : process.platform === "darwin" ? "osx-bin" : "linux64-bin";
+  const compiler = path.join(path.dirname(require.resolve("hermes-compiler/package.json")), "hermesc", folder, process.platform === "win32" ? "hermesc.exe" : "hermesc");
+  const run = promisify(execFile);
+  const priorDump = normalizeCompilerFilename((await run(compiler, ["-b", "-dump-bytecode", previous], { encoding: "utf8", windowsHide: true, maxBuffer: 128 * 1024 * 1024 })).stdout);
+  const currentDump = normalizeCompilerFilename((await run(compiler, ["-b", "-dump-bytecode", current], { encoding: "utf8", windowsHide: true, maxBuffer: 128 * 1024 * 1024 })).stdout);
+  return priorDump !== undefined && currentDump !== undefined && priorDump === currentDump;
 }
 await publishCatalog([
   { key: `v1/applications/${appId}/releases/${manifest.releaseId}`, file, contentType: "application/json", cacheControl: "no-cache" },

@@ -20,4 +20,4 @@ SDK 可通过 npm run pack:sdk 生成 tarball；当前插件依赖 CDN 固定哈
 
 共享依赖归 SDK 统一管理：plugin 根 package.json 仅依赖固定 SDK，SDK 精确安装共享 RN 库、React 类型与 TypeScript。各应用 package.json 仅声明 workspace 身份及其额外纯 JS 依赖，application.json 管理应用版本。CLI 在构建前校验声明和实际安装版本，拒绝重复共享依赖、共享库 npm 别名及 overrides；共享库内部路径不能打入应用。
 
-SDK 工具包补丁版本与运行时 API 最低版本可分开：npm 包 1.1.6 的 platform.json.sdk 仍为 1.1.0，共享原生依赖未变化。SDK 与新的服务端接口、宿主确认流程须协调上线；发布顺序及旧凭据撤销见 [市场信任与发布流程](market-trust.md)。
+SDK 工具包补丁版本与运行时 API 最低版本可分开：npm 包 1.1.7 的 platform.json.sdk 仍为 1.1.0，共享原生依赖未变化。SDK 与新的服务端接口、宿主确认流程须协调上线；发布顺序及旧凭据撤销见 [市场信任与发布流程](market-trust.md)。
