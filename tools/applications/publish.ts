@@ -37,7 +37,7 @@ await publishCatalog([
   { key: `v1/applications/${appId}/releases/${manifest.releaseId}`, file, contentType: "application/json", cacheControl: "no-cache" },
   { key: `v1/applications/${appId}/latest`, file, contentType: "application/json", cacheControl: "no-cache" },
 ]);
-console.log(JSON.stringify({ published: true, appId, releaseId: manifest.releaseId, commit: manifest.source.commit }));
+console.log(JSON.stringify({ published: true, stage: "candidate", appId, releaseId: manifest.releaseId, commit: manifest.source.commit }));
 
 }
 

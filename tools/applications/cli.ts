@@ -14,7 +14,8 @@ else if (command === "init") {
   await mkdir(path.join(root, "apps"), { recursive: true });
   const url = `${process.env.BUNDLE_EDGE_BASE || platform.edge}/v1/application-allocation/${appId}`;
   let response = await fetch(url);
-  if (response.status === 404 && process.env.BUNDLE_CATALOG_TOKEN) response = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${process.env.BUNDLE_CATALOG_TOKEN}` } });
+  const token = process.env.BUNDLE_CATALOG_TOKEN?.trim() || process.env.OFFICIAL_PUBLISH_TOKEN?.trim();
+  if (response.status === 404 && token) response = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) throw new Error("尚未分配应用模块范围，请先在 Jolly 发起这个应用的创作");
   const { moduleBase: base } = await response.json();
   if (!Number.isSafeInteger(base) || base < 2000000 || base % platform.moduleRangeSize || base + platform.moduleRangeSize >= 2 ** 31) throw new Error("服务端模块范围无效");
