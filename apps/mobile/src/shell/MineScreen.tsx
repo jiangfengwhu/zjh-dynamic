@@ -77,7 +77,7 @@ export const MineScreen = memo(function MineScreen({
 
         <SectionTitle>管理</SectionTitle>
         <Surface style={styles.group}>
-          <Row icon="box" title="我的应用" hint="打开、更新与卸载" onPress={onApplications} />
+          <Row icon="box" title="我的作品与应用" hint="创作、分享与安装管理" onPress={onApplications} />
           <Row icon="info" title="应用信息" hint="各个包的体积" onPress={onInfo} />
           <Row
             icon="cloud"

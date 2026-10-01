@@ -4,6 +4,8 @@ import { loadCatalog, saveCatalog } from "./catalog";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import { registerApplicationMetadata, bundles } from "../../../../packages/features/src/registry";
 import NativePluginHost from "../NativePluginHost";
+import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
+import { writePackageValue } from "../../../../packages/ui/packageLink";
 export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: null; authorName: string; originalAppId: string | null; title?: string; summary?: string; owned?: boolean; latest?: boolean };
 const CACHE = "market.catalog.v1";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
@@ -66,10 +68,32 @@ export async function uninstallMarketApplication(appId: string) {
 }
 export function marketDefinition(item: MarketApplication) { return bundles.find(bundle => bundle.id === item.manifest.appId); }
 
-export async function shareMarketApplication(appId: string, releaseId: string, title: string, summary: string) {
- const token = await readShellValue(`shell.jules.apps.${appId}.token`);
- const response = await fetch(`${edgeUrl}/v1/market`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId, token, releaseId, title, summary }) });
- const result = await response.json();
- if (!response.ok) throw new Error(result.message || "分享没有完成，请重试");
- return result;
+export type SharingState = { shared: MarketApplication | null; accepted: { releaseId: string; commit: string } | null; application: MarketApplication["manifest"] | null };
+export async function cachedSharing(appId: string): Promise<SharingState | undefined> {
+  const raw = await readShellValue(`shell.market.state.${appId}`);
+  try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; }
 }
+async function marketAction(appId: string, input: { action: string; releaseId?: string; title?: string; summary?: string }): Promise<SharingState> {
+  const token = await readShellValue(`shell.jules.apps.${appId}.token`);
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch(`${edgeUrl}/v1/market`, { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId, token, ...input }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || "分享操作未完成，请重试");
+    const state = result as SharingState;
+    writeShellValue(`shell.market.state.${appId}`, JSON.stringify(state));
+    writeShellValue(`shell.workshop.accepted.${appId}`, state.accepted ? JSON.stringify(state.accepted) : "");
+    applicationContext(bootstrap.defaultApplication).storage.set(`sharing.${appId}`, JSON.stringify({ releaseId: state.shared?.manifest.releaseId ?? "", hasUpdate: Boolean(state.shared && state.accepted && state.shared.manifest.releaseId !== state.accepted.releaseId) }));
+    if (input.action !== "status") {
+      const items = (await cachedMarket()).filter(item => item.manifest.appId !== appId);
+      if (state.shared) items.unshift(state.shared);
+      writeShellValue(CACHE, JSON.stringify(items));
+      writePackageValue("shell.market.changed", String(Date.now()));
+    }
+    return state;
+  } finally { clearTimeout(timer); }
+}
+export const loadSharing = (appId: string) => marketAction(appId, { action: "status" });
+export const shareMarketApplication = (appId: string, releaseId: string, title: string, summary: string) => marketAction(appId, { action: "share", releaseId, title, summary });
+export const editMarketApplication = (appId: string, title: string, summary: string) => marketAction(appId, { action: "edit", title, summary });
+export const withdrawMarketApplication = (appId: string) => marketAction(appId, { action: "withdraw" });

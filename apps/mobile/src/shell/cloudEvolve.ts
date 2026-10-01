@@ -1,3 +1,4 @@
+import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { edgeUrl } from "./evolveHost";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
 import { runningApplicationReleases, offerApplication, type ApplicationManifest } from "../runtime/applications";
@@ -193,15 +194,33 @@ async function sessionAcceptsMessage(name: string): Promise<boolean> {
 async function workshopStatus(session: string): Promise<WorkshopStatus> {
   const { buildId } = require("./build-identity.json") as { buildId: string };
   const result = await workshop({ action: "status", session, buildId, applicationReleases: runningApplicationReleases() });
+  if (result.application) {
+    const manifest = result.application as ApplicationManifest;
+    writeShellValue(`shell.workshop.application.${appId}`, JSON.stringify(manifest));
+    const context = applicationContext("jolly");
+    const workspaces = JSON.parse(context.storage.get("workspaces") || "[]") as Array<{ appId: string; title: string }>;
+    const workspace = workspaces.find(item => item.appId === appId);
+    if (workspace && manifest.title && workspace.title !== manifest.title) { workspace.title = manifest.title; context.storage.set("workspaces", JSON.stringify(workspaces)); }
+  }
   if (result.application && result.delivery === "update") offerApplication(result.application as ApplicationManifest);
-  if (result.accepted) writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
+  if (result.accepted) {
+    writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
+    const context = applicationContext("jolly");
+    const sharing = JSON.parse(context.storage.get(`sharing.${appId}`) || "{}");
+    context.storage.set(`sharing.${appId}`, JSON.stringify({ ...sharing, hasUpdate: Boolean(sharing.releaseId && sharing.releaseId !== (result.accepted as { releaseId: string }).releaseId) }));
+  }
   return result as WorkshopStatus;
 }
 
 async function confirmWorkshop(session: string): Promise<void> {
   const { buildId } = require("./build-identity.json") as { buildId: string };
   const result = await workshop({ action: "confirm", session, buildId, applicationReleases: runningApplicationReleases() });
-  if (result.accepted) writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
+  if (result.accepted) {
+    writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
+    const context = applicationContext("jolly");
+    const sharing = JSON.parse(context.storage.get(`sharing.${appId}`) || "{}");
+    context.storage.set(`sharing.${appId}`, JSON.stringify({ ...sharing, hasUpdate: Boolean(sharing.releaseId && sharing.releaseId !== (result.accepted as { releaseId: string }).releaseId) }));
+  }
   clearJulesRun();
 }
 

@@ -17,6 +17,7 @@ import type { MaterialTopTabBarProps } from "@react-navigation/material-top-tabs
 import { TabBar, type ShellTabId } from "./TabBar";
 import { FeedScreen } from "./feed/FeedScreen";
 import { type AppEntry } from "./catalog";
+import { MyApplicationsScreen } from "./MyApplicationsScreen";
 import { MarketScreen } from "./MarketScreen";
 import { MarketDetailScreen } from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
@@ -266,7 +267,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           {({ route }) => <MarketDetailScreen item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} />}
         </Stack.Screen>
         <Stack.Screen name="myApps">
-          {() => <MarketScreen installedOnly onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => applicationContext(bootstrap.defaultApplication).navigation.create()} />}
+          {() => <MyApplicationsScreen onOpen={props.onOpenBundle} onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => applicationContext(bootstrap.defaultApplication).navigation.create()} />}
         </Stack.Screen>
         <Stack.Screen name="providers">
           {() => <ProvidersScreen onBack={goBack} />}
