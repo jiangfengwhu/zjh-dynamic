@@ -106,7 +106,7 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
 
 
   const plugins = options.publish ? await resolvePlugins(repoRoot, remote) : { records: remote?.plugins ?? [], built: [] };
-  const release = sealRelease({ runtimeVersion: runtime, vendor, app, plugins: plugins.records, source });
+  const release = sealRelease({ applications: applicationContract, runtimeVersion: runtime, vendor, app, plugins: plugins.records, source });
   console.log(`release ready id=${release.id} vendor=${vendor.sha256.slice(0, 12)} app=${app.sha256.slice(0, 12)} plugins=${release.plugins.length} summary=${summary.slice(0, 80)}`);
   if (!options.publish) {
     console.log("skip publish");

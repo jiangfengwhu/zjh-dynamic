@@ -15,7 +15,9 @@ let credential: Credential | null = null;
 let state: State = { user: null, ready: false, storageError: false };
 let initialization: Promise<void> | undefined;
 const listeners = new Set<(value: State) => void>();
-function emit(value: State) { state = value; listeners.forEach(listener => listener(value)); }
+const identityListeners = new Set<(id: string | null) => void>();
+export function subscribeAccountIdentity(listener: (id: string | null) => void) { identityListeners.add(listener); return () => { identityListeners.delete(listener); }; }
+function emit(value: State) { const changed = state.user?.id !== value.user?.id; state = value; listeners.forEach(listener => listener(value)); if (changed) identityListeners.forEach(listener => listener(value.user?.id ?? null)); }
 function remember(user: Account) { writeShellValue(cacheKey, JSON.stringify(user)); emit({ user, ready: true, storageError: false }); }
 async function clearAccount() {
   // Never report a successful logout while the persistent credential remains.

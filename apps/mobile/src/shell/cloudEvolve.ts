@@ -1,4 +1,4 @@
-import { accountFetch, requireAccount } from "./account";
+import { accountFetch, currentAccountId, requireAccount } from "./account";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { edgeUrl } from "./evolveHost";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
@@ -197,6 +197,7 @@ async function sessionAcceptsMessage(name: string): Promise<boolean> {
 
 async function workshopStatus(session: string): Promise<WorkshopStatus> {
   const { buildId } = require("./build-identity.json") as { buildId: string };
+  const ownerId = await currentAccountId();
   const result = await workshop({ action: "status", session, buildId, applicationReleases: runningApplicationReleases() });
   if (result.application) {
     const manifest = result.application as ApplicationManifest;
@@ -206,7 +207,7 @@ async function workshopStatus(session: string): Promise<WorkshopStatus> {
     const workspace = workspaces.find(item => item.appId === appId);
     if (workspace && manifest.title && workspace.title !== manifest.title) { workspace.title = manifest.title; context.storage.set("workspaces", JSON.stringify(workspaces)); }
   }
-  if (result.application && result.delivery === "update") offerApplication(result.application as ApplicationManifest);
+  if (result.application && result.delivery === "update") { if (ownerId && await currentAccountId() === ownerId) offerApplication(result.application as ApplicationManifest, ownerId); }
   if (result.accepted) {
     writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
     const context = applicationContext("jolly");

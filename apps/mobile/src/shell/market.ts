@@ -1,5 +1,5 @@
 import { accountFetch, currentAccountId } from "./account";
-import { fetchApplicationCatalog, runningApplication, loadApplication, validateApplication, applicationNeedsReload, type ApplicationManifest } from "../runtime/applications";
+import { fetchApplicationCatalog, runningApplication, loadApplication, preparePublicApplication, validateApplication, applicationNeedsReload, type ApplicationManifest } from "../runtime/applications";
 import { edgeUrl } from "./evolveHost";
 import { loadCatalog, saveCatalog } from "./catalog";
 import { readShellValue, writeShellValue } from "./shellStorage";
@@ -42,7 +42,7 @@ export async function installMarketApplication(item: MarketApplication) {
   const manifest = item.manifest;
   // Compatibility is checked before downloading or changing the installed catalog.
   validateApplication(manifest);
-  await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
+  await preparePublicApplication(manifest);
   writeShellValue(`application.market.${manifest.appId}`, JSON.stringify(item));
   writeShellValue(`application.pending.${manifest.appId}`, JSON.stringify(manifest));
   writeShellValue(`application.failed.${manifest.appId}`, "");

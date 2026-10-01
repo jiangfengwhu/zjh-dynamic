@@ -16,8 +16,10 @@ for (const [name, version] of Object.entries(manifest.requires.shared)) if (plat
 const publishToken = process.env.BUNDLE_CATALOG_TOKEN?.trim() || process.env.OFFICIAL_PUBLISH_TOKEN?.trim();
 if (!publishToken) throw new Error("发布候选包需要配置 BUNDLE_CATALOG_TOKEN 或维护者 OFFICIAL_PUBLISH_TOKEN");
 const previous = await fetch(`${bundleEdgeBase()}/v1/applications/${appId}/candidate`, { headers: { Authorization: `Bearer ${publishToken}` } });
+let expectedRelease: string | null = null;
 if (previous.ok) {
   const prior = await previous.json();
+  expectedRelease = prior.releaseId;
   if (prior.modules.base !== manifest.modules.base) throw new Error("应用模块范围不可变更");
   if (!/^[a-f0-9]{40}$/.test(prior.source?.commit)) throw new Error("线上应用提交无效");
   const previousRepository = prior.source.repository ?? "jiangfengwhu/zjh-dynamic";
@@ -36,7 +38,7 @@ await publishBundleObjects(manifest.assets.map(asset => ({ key: `v1/app/${asset.
 await publishCatalog([
   { key: `v1/applications/${appId}/releases/${manifest.releaseId}`, file, contentType: "application/json", cacheControl: "no-cache" },
   { key: `v1/applications/${appId}/latest`, file, contentType: "application/json", cacheControl: "no-cache" },
-]);
+], { [appId]: expectedRelease });
 console.log(JSON.stringify({ published: true, stage: "candidate", appId, releaseId: manifest.releaseId, commit: manifest.source.commit }));
 
 }

@@ -37,6 +37,7 @@ export type ReleaseSource = {
 };
 
 export type BundleRelease = {
+  applications?: { engineAbi: string; sdk: string; shared: Record<string, string> };
   id: string;
   format: number;
   runtimeVersion: string;

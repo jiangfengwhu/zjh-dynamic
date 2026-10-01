@@ -1,7 +1,7 @@
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
-import { accountFetch, currentAccountId } from "../shell/account";
+import { accountFetch, currentAccountId, subscribeAccountIdentity } from "../shell/account";
 import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets } from "../../../../packages/app-sdk/src/runtime";
 import { loadCatalog, saveCatalog } from "../shell/catalog";
 import type { PendingPackage } from "../shell/packageUpdates";
@@ -18,7 +18,29 @@ export type ApplicationManifest = {
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 const loading = new Map<string, Promise<void>>();
 const active = new Map<string, ApplicationManifest>();
-const offered = new Map<string, ApplicationManifest>();
+type Access = { releaseId: string; ownerId: string | null };
+const offered = new Map<string, { manifest: ApplicationManifest; ownerId: string | null }>();
+const activeAccess = new Map<string, Access>();
+subscribeAccountIdentity(id => {
+  offered.clear();
+  if ([...activeAccess.values()].some(access => access.ownerId && access.ownerId !== id)) void NativePluginHost.call("shell", "reloadApplications", "{}").catch(() => {});
+});
+async function verifyAccess(manifest: ApplicationManifest, ownerId: string | null): Promise<void> {
+  if (ownerId) {
+    if (await currentAccountId() !== ownerId) throw new Error("请登录作品所属账号后再体验候选版本");
+    const response = await accountFetch(`${edgeUrl}/v1/applications/${manifest.appId}/releases/${manifest.releaseId}`, { headers: { "X-Workshop-Token": await readShellValue(`shell.jules.apps.${manifest.appId}.token`) || "" } }, false);
+    if (!response.ok || await currentAccountId() !== ownerId) throw new Error("候选版本的制作权限已失效");
+  } else {
+    const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/public`);
+    if (!response.ok || (await response.json()).releaseId !== manifest.releaseId) throw new Error("公开版本已改变，请刷新应用市场");
+  }
+}
+export async function preparePublicApplication(manifest: ApplicationManifest) {
+  assertCompatible(manifest, manifest.appId); await verifyAccess(manifest, null);
+  await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
+  await verifyAccess(manifest, null);
+  writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null }));
+}
 // Generated from the dependency lock at host build time.
 const contract = require("./application-contract.json") as { engineAbi: string; sdk: string; shared: Record<string, string> };
 const allocations = require("../../../../tools/applications/allocations.json") as { applications: Record<string, number>; moduleRangeSize: number };
@@ -28,32 +50,39 @@ export function applicationNeedsReload(manifest: ApplicationManifest) {
   return loading.has(manifest.appId) && active.get(manifest.appId)?.releaseId !== manifest.releaseId;
 }
 export function runningApplicationReleases() { return Object.fromEntries([...active].map(([id, manifest]) => [id, manifest.releaseId])); }
-export function offerApplication(manifest: ApplicationManifest) { assertCompatible(manifest, manifest.appId); offered.set(manifest.appId, manifest); }
+export function offerApplication(manifest: ApplicationManifest, ownerId: string | null = null) { assertCompatible(manifest, manifest.appId); offered.set(manifest.appId, { manifest, ownerId }); }
 
 export async function checkApplicationUpdates(): Promise<PendingPackage[]> {
   const marketResponse = await fetchApplicationCatalog(`${edgeUrl}/v1/market`);
   if (!marketResponse.ok) throw new Error("无法检查市场应用更新");
   const market = await marketResponse.json() as { applications: Array<{ manifest: ApplicationManifest }> };
+  offered.clear();
   for (const [appId, current] of active) {
     let manifest = market.applications.find(item => item.manifest.appId === appId)?.manifest;
     const accountId = await currentAccountId();
+    let ownerId: string | null = null;
     if (accountId && await readShellValue(`shell.jules.apps.${appId}.owner`) === accountId) {
       const response = await accountFetch(`${edgeUrl}/v1/applications/${appId}/candidate`, { headers: { "X-Workshop-Token": await readShellValue(`shell.jules.apps.${appId}.token`) || "" } }, false);
       if (!response.ok) throw new Error(`无法检查应用更新：${appId}`);
       manifest = await response.json() as ApplicationManifest;
+      if (await currentAccountId() !== accountId) continue;
+      ownerId = accountId;
     }
-    if (manifest && manifest.releaseId !== current.releaseId && manifest.releaseId !== await readShellValue(`application.failed.${appId}`)) offerApplication(manifest);
+    if (manifest && manifest.releaseId !== current.releaseId && manifest.releaseId !== await readShellValue(`application.failed.${appId}`)) offerApplication(manifest, ownerId);
   }
-  return [...offered.values()].filter(manifest => active.get(manifest.appId)?.releaseId !== manifest.releaseId).map(manifest => ({ id: manifest.appId, kind: "application", bytes: manifest.bundle.bytes, sha256: manifest.releaseId }));
+  return [...offered.values()].map(item => item.manifest).filter(manifest => active.get(manifest.appId)?.releaseId !== manifest.releaseId).map(manifest => ({ id: manifest.appId, kind: "application", bytes: manifest.bundle.bytes, sha256: manifest.releaseId }));
 }
 
 export async function stageApplicationUpdates(): Promise<number> {
-  const pending = [...offered.values()].filter(manifest => active.get(manifest.appId)?.releaseId !== manifest.releaseId);
-  for (const manifest of pending) {
+  const pending = [...offered.values()].filter(item => active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId);
+  for (const { manifest, ownerId } of pending) {
+    await verifyAccess(manifest, ownerId);
     await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
   }
   const catalog = await loadCatalog();
-  for (const manifest of pending) {
+  for (const { manifest, ownerId } of pending) {
+    await verifyAccess(manifest, ownerId);
+    writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId }));
     writeShellValue(`application.pending.${manifest.appId}`, JSON.stringify(manifest));
     if (!catalog.some(entry => entry.id === manifest.appId)) catalog.push({ id: manifest.appId, hidden: false, pinned: true });
   }
@@ -92,7 +121,24 @@ async function load(appId: string) {
     // An APK upgrade can change the ABI; retain data and pick a compatible seed/release.
     manifest = await firstManifest(appId);
   }
+  let access: Access | undefined;
+  const accessRaw = await readShellValue(staged ? `application.pending.access.${appId}` : `application.access.${appId}`);
+  try { access = accessRaw ? JSON.parse(accessRaw) : undefined; } catch {}
+  if (access?.releaseId !== manifest.releaseId) access = undefined;
+  if (!access || access.ownerId) {
+    try {
+      const ownerId = access?.ownerId ?? null;
+      await verifyAccess(manifest, ownerId);
+      access = { releaseId: manifest.releaseId, ownerId };
+    } catch {
+      writeShellValue(`application.pending.${appId}`, ""); staged = undefined;
+      manifest = await firstManifest(appId);
+      access = { releaseId: manifest.releaseId, ownerId: null };
+    }
+  }
   assertCompatible(manifest, appId);
+  if (access.ownerId && await currentAccountId() !== access.ownerId) throw new Error("作品账号已改变，请重载");
+  activeAccess.set(appId, access);
   console.log("application load", appId, manifest.releaseId);
   if (staged) writeShellValue(`application.attempt.${appId}`, manifest.releaseId);
   const raw = await NativePluginHost.call("shell", "loadApplication", JSON.stringify(manifest));
@@ -104,7 +150,11 @@ async function load(appId: string) {
   active.set(appId, manifest);
   activateApplication(appId);
   if (!saved && definition.onInstall) await definition.onInstall(applicationContext(appId));
-  if (saved && staged) writeShellValue(`application.previous.${appId}`, saved);
+  if (saved && staged) {
+    writeShellValue(`application.previous.${appId}`, saved);
+    writeShellValue(`application.previous.access.${appId}`, await readShellValue(`application.access.${appId}`) || "");
+  }
+  writeShellValue(`application.access.${appId}`, JSON.stringify(access));
   writeShellValue(key, JSON.stringify(manifest));
   writeShellValue(`application.pending.${appId}`, "");
   writeShellValue(`application.attempt.${appId}`, "");
@@ -139,6 +189,7 @@ export async function reportApplicationFailure(appId: string) {
   if (previous) {
     writeShellValue(`application.failed.${appId}`, current.releaseId);
     writeShellValue(`application.install.${appId}`, previous);
+    writeShellValue(`application.access.${appId}`, await readShellValue(`application.previous.access.${appId}`) || "");
   }
 }
 
