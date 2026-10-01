@@ -26,11 +26,23 @@ if (previous.ok) {
   try {
     execFileSync("git", ["merge-base", "--is-ancestor", prior.source.commit, manifest.source.commit], { cwd: root, windowsHide: true, stdio: "pipe" });
   } catch {
+    let exportedAncestor = false;
+    const exported = previous.headers.get("X-Application-Source-Commit");
+    if (prior.source.tree && exported && /^[a-f0-9]{40}$/.test(exported)) {
+      try {
+        try { execFileSync("git", ["cat-file", "-e", `${exported}^{commit}`], { cwd: root, windowsHide: true, stdio: "pipe" }); }
+        catch { execFileSync("git", ["fetch", "origin", exported], { cwd: root, windowsHide: true, stdio: "pipe" }); }
+        const tree = execFileSync("git", ["rev-parse", `${exported}^{tree}`], { cwd: root, windowsHide: true, encoding: "utf8", stdio: "pipe" }).trim();
+        if (tree !== prior.source.tree) throw new Error("导出提交源码树不匹配");
+        execFileSync("git", ["merge-base", "--is-ancestor", exported, manifest.source.commit], { cwd: root, windowsHide: true, stdio: "pipe" });
+        exportedAncestor = true;
+      } catch { /* Fall back only to verifiably identical content. */ }
+    }
     // Jules can recreate a commit when exporting its PR. Only identical source or
     // byte-for-byte identical release content can reconcile that rewritten baseline.
     const sameTree = prior.source.tree && prior.source.tree === manifest.source.tree;
-    if (!sameTree && releaseContent(prior) !== releaseContent(manifest)) throw new Error("候选源码基线不一致，且源码树及重建产物均不匹配；请同步当前版本后重新发布");
-    console.log(sameTree ? "baseline reconciled: identical Git source tree" : "baseline reconciled: identical rebuilt bundle, assets and application contract");
+    if (!exportedAncestor && !sameTree && releaseContent(prior) !== releaseContent(manifest)) throw new Error("候选源码基线不一致，且源码树及重建产物均不匹配；请同步当前版本后重新发布");
+    console.log(exportedAncestor ? "baseline verified: exported GitHub commit is an ancestor with matching source tree" : sameTree ? "baseline reconciled: identical Git source tree" : "baseline reconciled: identical rebuilt bundle, assets and application contract");
   }
 } else if (previous.status !== 404) throw new Error("无法读取应用发布基线");
 const file = path.join(output, "manifest.json");
