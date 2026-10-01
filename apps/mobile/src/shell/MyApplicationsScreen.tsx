@@ -11,7 +11,7 @@ import { subscribeCatalog } from "./catalog";
 import { installedMarket, type MarketApplication } from "./market";
 import { openApplicationWorkshop } from "./workshopNavigation";
 import { restoreWorks } from "./workRecovery";
-import { readMyWorks, refreshMyWork, sharingLabel, workActions, workLabels, type MyWork } from "./works";
+import { readMyWorks, sharingLabel, workActions, workLabels, type MyWork } from "./works";
 
 export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { onBack: () => void; onCreate: () => void; onDetail: (item: MarketApplication) => void; onOpen: (id: string) => void }) {
   const { user } = useAccount();
@@ -27,11 +27,11 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
     setPulling(manual);
     const current = ++generation.current; refreshing.current = true; setBusy(true); setError("");
     try {
-      if (manual) await restoreWorks(true);
       const [local, apps] = await Promise.all([readMyWorks(), installedMarket()]);
       if (generation.current !== current) return;
       setWorks(local); setInstalled(apps); setWorksOwner(user?.id);
-      const updated = await Promise.all(local.map(work => refreshMyWork(work, manual)));
+      await restoreWorks(manual, true);
+      const updated = await readMyWorks();
       if (generation.current !== current) return;
       setWorks(updated);
       if (updated.some(work => work.stale)) setError("部分制作状态暂未接回，显示的是本机记录。下拉可重试。");

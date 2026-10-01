@@ -2,30 +2,33 @@ import { accountFetch, currentAccountId } from "./account";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import { edgeUrl } from "./evolveHost";
+import { runningApplicationReleases, offerApplication } from "../runtime/applications";
+import type { WorkshopStatus } from "./cloudEvolve";
+import type { SharingState } from "./market";
 
-type Work = { appId: string; ownerId: string; session: string; approvalToken: string; title: string; wish: string; startedAt?: number; phase: string; originalAppId?: string; originalReleaseId?: string; };
+type Work = { appId: string; ownerId: string; session: string; approvalToken: string; title: string; wish: string; startedAt?: number; phase: string; originalAppId?: string; originalReleaseId?: string; status?: WorkshopStatus & { stale?: boolean }; sharing?: SharingState };
 const restoring = new Map<string, Promise<void>>();
 const refreshed = new Map<string, number>();
 const hydrated = new Set<string>();
 export async function hydrateWorksCache(): Promise<void> {
   const owner = await currentAccountId(); if (!owner || hydrated.has(owner)) return;
-  try { const cached = JSON.parse(await readShellValue(`shell.works.cache.${owner}`) || "null"); if (cached) { await applyWorks(owner, cached.works); hydrated.add(owner); } } catch {}
+  try { const cached = JSON.parse(await readShellValue(`shell.works.cache.${owner}`) || "null"); if (cached) { await applyWorks(owner, cached.works, true); hydrated.add(owner); } } catch {}
 }
-export async function restoreWorks(force = false): Promise<void> {
+export async function restoreWorks(force = false, wait = false): Promise<void> {
   const owner = await currentAccountId(); if (!owner) return;
   let cached: { at: number; works: Work[] } | undefined;
   try { cached = JSON.parse(await readShellValue(`shell.works.cache.${owner}`) || "null") ?? undefined; } catch {}
   await hydrateWorksCache();
   if (!force && Date.now() - (refreshed.get(owner) ?? cached?.at ?? 0) < 30000) return;
-  const prior = restoring.get(owner); if (prior) { if (force) await prior; return; }
-  const pending = restore(owner).then(() => { refreshed.set(owner, Date.now()); }).finally(() => restoring.delete(owner));
+  const prior = restoring.get(owner); if (prior) { if (force || wait) await prior; return; }
+  const pending = restore(owner, force).then(() => { refreshed.set(owner, Date.now()); }).finally(() => restoring.delete(owner));
   restoring.set(owner, pending);
-  if (force || !cached) await pending; else void pending.catch(() => {});
+  if (force || wait || !cached) await pending; else void pending.catch(() => {});
 }
-async function restore(owner: string) {
+async function restore(owner: string, force: boolean) {
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000);
   try {
-    const response = await accountFetch(`${edgeUrl}/v1/works`, { signal: controller.signal }, false);
+    const response = await accountFetch(`${edgeUrl}/v1/works${force ? "?refresh=1" : ""}`, { signal: controller.signal }, false);
     if (!response.ok) throw new Error("暂时无法接回作品，请稍后重试");
     const { works } = await response.json() as { works: Work[] };
     if (await currentAccountId() !== owner) return;
@@ -34,7 +37,7 @@ async function restore(owner: string) {
   } finally { clearTimeout(timer); }
 }
 
-async function applyWorks(owner: string, works: Work[]) {
+async function applyWorks(owner: string, works: Work[], fromCache = false) {
   if (await currentAccountId() !== owner || !Array.isArray(works)) return;
     const context = applicationContext("jolly");
     let workspaces: Array<{ appId: string; title: string; originalAppId?: string; originalReleaseId?: string }> = [];
@@ -44,7 +47,26 @@ async function applyWorks(owner: string, works: Work[]) {
       writeShellValue(`shell.jules.apps.${work.appId}.owner`, owner);
       writeShellValue(`shell.jules.apps.${work.appId}.token`, work.approvalToken);
       if (work.session) writeShellValue(`shell.jules.apps.${work.appId}.session`, work.session);
-      const item = { appId: work.appId, title: work.title, originalAppId: work.originalAppId, originalReleaseId: work.originalReleaseId };
+      if (work.sharing && !fromCache) writeShellValue(`shell.market.state.${work.appId}`, JSON.stringify(work.sharing));
+      if (work.status && !fromCache) {
+        const status = work.status;
+        const manifest = status.application;
+        const loaded = manifest && runningApplicationReleases()[work.appId] === manifest.releaseId;
+        const stage = status.state === "FAILED" ? "failed" : status.state === "PAUSED" ? "paused" : status.state === "AWAITING_USER_FEEDBACK" ? "reply" : !status.completed ? "making" : manifest ? loaded ? "ready" : "load" : "blocked";
+        let run: Record<string, unknown> = {}; try { run = JSON.parse(context.storage.get(`run:${work.appId}`) || "{}"); } catch {}
+        if (!status.stale || !run.stage) {
+          context.storage.set(`run:${work.appId}`, JSON.stringify({ ...run, appId: work.appId, wish: work.wish, stage, phase: ["ready", "load", "blocked"].includes(stage) ? "ready" : stage === "paused" ? "stopped" : stage === "failed" ? "failed" : "making", status: status.message, steps: run.steps ?? [], at: work.startedAt ?? Date.now() }));
+        }
+        writeShellValue(`shell.work.summary.${owner}.${work.appId}`, JSON.stringify({ stale: Boolean(status.stale) }));
+        if (manifest) {
+          writeShellValue(`shell.workshop.application.${work.appId}`, JSON.stringify(manifest));
+          if (!status.stale && !loaded) {
+            try { offerApplication(manifest, owner); }
+            catch { writeShellValue(`shell.work.summary.${owner}.${work.appId}`, JSON.stringify({ stale: true })); }
+          }
+        }
+      }
+      const item = { appId: work.appId, title: work.status?.application?.title || work.title, originalAppId: work.originalAppId, originalReleaseId: work.originalReleaseId };
       const index = workspaces.findIndex(item => item.appId === work.appId);
       if (index < 0) workspaces.push(item); else workspaces[index] = { ...workspaces[index], ...item };
       if (!context.storage.get(`run:${work.appId}`)) { context.storage.set(`run:${work.appId}`, JSON.stringify({ appId: work.appId, wish: work.wish, at: work.startedAt ?? Date.now(), phase: work.phase === "working" ? "making" : work.phase === "paused" ? "stopped" : "ready", stage: work.phase === "working" ? "making" : work.phase === "paused" ? "paused" : "ready", status: "已接回制作记录", steps: [] })); }
