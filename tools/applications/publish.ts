@@ -13,7 +13,9 @@ if (!platformResponse.ok) throw new Error("无法读取应用平台契约");
 const platform = (await platformResponse.json()).applications;
 if (!platform || platform.engineAbi !== manifest.requires.engineAbi || !sdkCompatible(manifest.requires.sdk, platform.sdk)) throw new Error("目标平台尚不支持此应用，需要维护者更新 APK 和宿主");
 for (const [name, version] of Object.entries(manifest.requires.shared)) if (platform.shared[name] !== version) throw new Error(`平台依赖不匹配：${name}`);
-const previous = await fetch(`${bundleEdgeBase()}/v1/applications/${appId}/latest`);
+const publishToken = process.env.BUNDLE_CATALOG_TOKEN?.trim() || process.env.OFFICIAL_PUBLISH_TOKEN?.trim();
+if (!publishToken) throw new Error("发布候选包需要配置 BUNDLE_CATALOG_TOKEN 或维护者 OFFICIAL_PUBLISH_TOKEN");
+const previous = await fetch(`${bundleEdgeBase()}/v1/applications/${appId}/candidate`, { headers: { Authorization: `Bearer ${publishToken}` } });
 if (previous.ok) {
   const prior = await previous.json();
   if (prior.modules.base !== manifest.modules.base) throw new Error("应用模块范围不可变更");

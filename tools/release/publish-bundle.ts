@@ -151,7 +151,7 @@ export async function publishRelease(input: {
 
 export async function publishCatalog(files: PublishFile[]): Promise<void> {
   if (files.length === 0) return;
-  const token = process.env.BUNDLE_CATALOG_TOKEN?.trim();
+  const token = process.env.BUNDLE_CATALOG_TOKEN?.trim() || process.env.OFFICIAL_PUBLISH_TOKEN?.trim();
   if (!token) {
     console.log("BUNDLE_CATALOG_TOKEN 未设置，通过已登录的 wrangler kv 提交清单");
     const namespaceId = process.env.BUNDLE_CATALOG_NAMESPACE_ID?.trim() || "da19ca26504047a596afd448b36a9d6e";
