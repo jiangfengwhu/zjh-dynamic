@@ -1,5 +1,6 @@
 import { Fragment, memo, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useAccount } from "./account";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { Icon, SectionTitle, Surface, type IconName } from "../../../../packages/ui/chrome";
 
@@ -14,6 +15,7 @@ type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
 type Props = {
   mode: ThemeMode;
   onApplications: () => void;
+  onAccount: () => void;
   onCompanion: () => void;
   onProviders: () => void;
   onInfo: () => void;
@@ -25,6 +27,7 @@ type Props = {
 export const MineScreen = memo(function MineScreen({
   mode,
   onApplications,
+  onAccount,
   onCompanion,
   onProviders,
   onInfo,
@@ -33,6 +36,7 @@ export const MineScreen = memo(function MineScreen({
   onAppearance,
 }: Props) {
   const { colors } = useTheme();
+  const { user } = useAccount();
   const companion = bundles.find(item => item.id === bootstrap.defaultApplication);
   const Avatar = companion?.avatar;
   const [summaryEvery, setSummaryEvery] = useState(() => readSummaryEvery());
@@ -56,7 +60,7 @@ export const MineScreen = memo(function MineScreen({
     <Screen style={styles.screen}>
       <ScreenBar style={styles.header}>
         <Text style={styles.title}>我的</Text>
-        <Text style={styles.caption}>一切都存在这台手机里</Text>
+        <Text style={styles.caption}>你的资料、作品与偏好</Text>
       </ScreenBar>
 
       <ScrollView
@@ -65,6 +69,16 @@ export const MineScreen = memo(function MineScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <Pressable accessibilityRole="button" accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount}><Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
+          <View style={styles.portrait}>
+            {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={{ width: 68, height: 68, borderRadius: 22 }} /> : <Text style={[styles.profileName, { color: colors.accent, fontSize: 30 }]}>{user ? Array.from(user.name)[0] : "我"}</Text>}
+          </View>
+          <View style={styles.profileCopy}>
+            <Text style={styles.profileName}>{user?.name ?? "登录紫金花"}</Text>
+            <Text style={styles.profileHint}>{user ? "更换头像与昵称" : "用邮箱验证码登录"}</Text>
+          </View>
+        </Surface></Pressable>
+
         <Pressable accessibilityRole="button" accessibilityLabel="打开 Jolly" onPress={onCompanion}><Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
           <View style={styles.portrait}>
             {Avatar ? <Avatar size={68} animated borderRadius={22} /> : <Icon name="box" size={36} color={colors.accent} />}
@@ -210,6 +224,8 @@ const styles = themedStyleSheet((t) => ({
     marginBottom: 6,
   },
   portrait: {
+    alignItems: "center",
+    justifyContent: "center",
     width: 68,
     height: 68,
     borderRadius: 22,

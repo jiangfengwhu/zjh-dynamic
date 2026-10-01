@@ -23,6 +23,7 @@ import { MarketDetailScreen } from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { MineScreen } from "./MineScreen";
+import { AccountScreen } from "./AccountScreen";
 import { ProvidersScreen } from "./ProvidersScreen";
 import { AppInfoScreen } from "./AppInfoScreen";
 import { AppearanceScreen } from "./AppearanceScreen";
@@ -45,6 +46,7 @@ export type RootParamList = {
   bundle: { id: string };
   marketDetail: { item: MarketApplication };
   myApps: undefined;
+  account: undefined;
 };
 
 export const shellNavigationRef = createNavigationContainerRef<RootParamList>();
@@ -248,6 +250,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="mine">
                 {() => (
                   <MineScreen
+                    onAccount={() => shellNavigationRef.navigate("account")}
                     mode={props.mode}
                     onApplications={() => shellNavigationRef.navigate("myApps")}
                     onCompanion={() => props.onOpenBundle(bootstrap.defaultApplication)}
@@ -268,6 +271,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         </Stack.Screen>
         <Stack.Screen name="myApps">
           {() => <MyApplicationsScreen onOpen={props.onOpenBundle} onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => applicationContext(bootstrap.defaultApplication).navigation.create()} />}
+        </Stack.Screen>
+        <Stack.Screen name="account">
+          {() => <AccountScreen onBack={goBack} />}
         </Stack.Screen>
         <Stack.Screen name="providers">
           {() => <ProvidersScreen onBack={goBack} />}
