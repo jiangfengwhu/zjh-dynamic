@@ -1,6 +1,7 @@
+import { currentAccountId, requireAccount, useAccount } from "./account";
 import { openApplicationWorkshop } from "./workshopNavigation";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, ScrollView, Text, TextInput, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { BackChip, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
@@ -10,9 +11,10 @@ import { readShellValue } from "./shellStorage";
 import { cachedSharing, loadSharing, editMarketApplication, withdrawMarketApplication, shareMarketApplication, installMarketApplication, uninstallMarketApplication, marketDefinition, type MarketApplication, type SharingState } from "./market";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketApplication; onBack: () => void; onOpen: (id: string) => void }) {
+  const { user } = useAccount();
   const { colors } = useTheme(); const app = item.manifest; const focused = useIsFocused();
   const [installed, setInstalled] = useState(false); const [release, setRelease] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
-  const [owner, setOwner] = useState(Boolean(item.owned)); const [sharing, setSharing] = useState<SharingState>();
+  const [owner, setOwner] = useState(false); const [sharing, setSharing] = useState<SharingState>();
   const [sharingReady, setSharingReady] = useState(false); const [shareNotice, setShareNotice] = useState("");
   const [editMode, setEditMode] = useState<"edit" | "share" | null>(null);
   const [shareTitle, setShareTitle] = useState(item.title || app.title); const [shareSummary, setShareSummary] = useState(item.summary || app.summary);
@@ -33,15 +35,16 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
     let live = true;
     async function refresh() {
       setSharingReady(false);
-      const owned = Boolean(await readShellValue(`shell.jules.apps.${app.appId}.token`));
+      const accountId = await currentAccountId();
+      const owned = Boolean(accountId) && await readShellValue(`shell.jules.apps.${app.appId}.owner`) === accountId;
       if (!live) return; setOwner(owned);
-      if (!owned) return;
+      if (!owned) { setSharing(undefined); setEditMode(null); return; }
       const cached = await cachedSharing(app.appId); if (live && cached) setSharing(cached);
       try { const state = await loadSharing(app.appId); if (live) { setSharing(state); setSharingReady(true); setShareNotice(""); } }
       catch { if (live) setShareNotice("分享状态暂未接回，请稍后重新打开详情。"); }
     }
     void refresh(); return () => { live = false; };
-  }, [app.appId, focused]);
+  }, [app.appId, focused, user?.id]);
   function begin(mode: "edit" | "share") {
     setShareTitle(sharing?.shared?.title || sharing?.application?.title || item.title || app.title);
     setShareSummary(sharing?.shared?.summary ?? sharing?.application?.summary ?? item.summary ?? app.summary);
@@ -74,16 +77,18 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
   }
   const Avatar = marketDefinition(item)?.avatar; const bytes = app.bundle.bytes + app.assets.reduce((total, asset) => total + asset.bytes, 0);
   const shared = sharing?.shared; const hasNewVersion = Boolean(shared && sharing?.accepted && shared.manifest.releaseId !== sharing.accepted.releaseId);
+  const authorName = owner && user ? user.name : item.authorName;
+  const authorAvatar = owner && user ? user.avatarUrl : item.authorAvatarUrl;
   const versionName = (manifest: MarketApplication["manifest"]) => `${manifest.version || "1.0.0"}`;
   return <Screen style={styles.screen}><ScreenBar style={styles.bar}><BackChip onPress={onBack} /><Text style={styles.barTitle}>{owner ? "作品详情" : "应用详情"}</Text></ScreenBar><ScrollView contentContainerStyle={styles.content}>
-    <View style={styles.hero}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={84} animated /> : <Text style={{ fontSize: 36, color: app.accent }}>{app.mark}</Text>}</View><Text style={styles.title}>{item.title || app.title}</Text><Text style={styles.caption}>{item.authorName || "社区创作者"}</Text></View>
+    <View style={styles.hero}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={84} animated /> : <Text style={{ fontSize: 36, color: app.accent }}>{app.mark}</Text>}</View><Text style={styles.title}>{item.title || app.title}</Text><Text style={styles.caption}>{authorName || "社区创作者"}</Text>{authorAvatar ? <Image accessibilityLabel="作者头像" source={{ uri: authorAvatar }} style={{ width: 32, height: 32, borderRadius: 16 }} /> : null}</View>
     <Surface style={styles.description} radius={20}><Text style={styles.subtitle}>它能帮你做什么</Text><Text style={styles.copy}>{item.summary || app.summary || "打开应用，看看它能带来什么。"}</Text></Surface>
     <View style={styles.facts}><Text style={styles.caption}>版本 {app.version || "1.0.0"}</Text><Text style={styles.caption}>安装包 {bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`}</Text><Text style={styles.caption}>数据保存在本机</Text></View>
     {item.originalAppId ? <Text style={styles.caption}>基于其他作品创作</Text> : null}
     {error ? <Text style={styles.error}>{error}</Text> : null}
     <Pressy accessibilityRole="button" disabled={busy} onPress={() => installed && !update ? onOpen(app.appId) : void install()} style={styles.primary}>{busy ? <ActivityIndicator color={colors.canvas} /> : <Text style={styles.primaryText}>{installed ? update ? "更新应用 · 完成后重载" : "打开应用" : "安装应用"}</Text>}</Pressy>
     {installed && update ? <Pressy disabled={busy} onPress={() => onOpen(app.appId)}><Text style={styles.secondary}>先打开已安装版本</Text></Pressy> : null}
-    {installed || owner ? <Pressy disabled={busy} onPress={() => openApplicationWorkshop(app.appId, app.title, !owner, !owner)}><Text style={styles.secondary}>{owner ? "继续修改这个作品" : "基于它创作新应用"}</Text></Pressy> : null}
+    {installed || owner ? <Pressy disabled={busy} onPress={() => { void requireAccount().then(allowed => { if (allowed) openApplicationWorkshop(app.appId, app.title, !owner, !owner); }); }}><Text style={styles.secondary}>{owner ? "继续修改这个作品" : "基于它创作新应用"}</Text></Pressy> : null}
     {owner ? <Surface radius={20} style={styles.description}><Text style={styles.subtitle}>管理分享</Text>
       <Text style={styles.copy}>{shared ? hasNewVersion ? "已分享 · 有新版本待分享" : "已分享到应用市场" : "尚未分享"}</Text>
       {shared ? <><Text style={styles.copy}>分享名称：{shared.title || shared.manifest.title}</Text><Text style={styles.caption}>{shared.summary ?? shared.manifest.summary}</Text></> : null}

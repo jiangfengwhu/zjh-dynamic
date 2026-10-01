@@ -1,3 +1,4 @@
+import { useAccount } from "./account";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
@@ -12,6 +13,7 @@ import { openApplicationWorkshop } from "./workshopNavigation";
 import { readMyWorks, refreshMyWork, sharingLabel, workActions, workLabels, type MyWork } from "./works";
 
 export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { onBack: () => void; onCreate: () => void; onDetail: (item: MarketApplication) => void; onOpen: (id: string) => void }) {
+  const { user } = useAccount();
   const { colors } = useTheme(); const focused = useIsFocused();
   const [tab, setTab] = useState<"works" | "installed">("works");
   const [works, setWorks] = useState<MyWork[]>([]); const [installed, setInstalled] = useState<MarketApplication[]>([]);
@@ -31,7 +33,7 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
     } catch { if (generation.current === current) setError("暂时无法读取作品，下拉可重试"); }
     finally { if (generation.current === current) { refreshing.current = false; setBusy(false); } }
   }
-  useEffect(() => { if (focused) void refresh(); return () => { generation.current++; }; }, [focused]);
+  useEffect(() => { if (focused) void refresh(); return () => { generation.current++; }; }, [focused, user?.id]);
   useEffect(() => { if (!focused) return; const timer = setInterval(() => { if (!refreshing.current) void refresh(); }, 30000); return () => clearInterval(timer); }, [focused]);
   useEffect(() => {
     const reload = () => { if (focused) void refresh(); };
@@ -39,7 +41,7 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
     const offWorkspaces = applicationContext("jolly").storage.subscribe("workspaces", reload);
     return () => { offCatalog(); offSharing(); offWorkspaces(); };
   }, [focused]);
-  function detail(work: MyWork) { if (work.manifest) onDetail({ manifest: work.manifest, title: work.title, authorId: null, authorName: "社区创作者", originalAppId: null, owned: true }); }
+  function detail(work: MyWork) { if (work.manifest) onDetail({ manifest: work.manifest, title: work.title, authorId: user?.id ?? null, authorName: user?.name ?? "社区创作者", authorAvatarUrl: user?.avatarUrl, originalAppId: null, owned: true }); }
   const term = query.trim().toLowerCase(); const visibleWorks = works.filter(work => `${work.title} ${work.wish}`.toLowerCase().includes(term));
   const visibleApps = installed.filter(item => !works.some(work => work.appId === item.manifest.appId) && `${item.manifest.title} ${item.manifest.summary}`.toLowerCase().includes(term));
   return <Screen style={styles.screen}><ScreenBar style={styles.header}><BackChip onPress={onBack} /><View style={{ flex: 1 }}><Text style={styles.title}>我的作品与应用</Text><Text style={styles.caption}>创作进度、分享和已安装应用</Text></View></ScreenBar>

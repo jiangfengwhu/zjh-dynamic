@@ -1,3 +1,4 @@
+import { currentAccountId } from "./account";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { creationService, type WorkshopStatus } from "./cloudEvolve";
 import { cachedSharing, installedMarket, loadSharing, type MarketApplication, type SharingState } from "./market";
@@ -9,8 +10,10 @@ export const workLabels: Record<WorkStage, string> = { draft: "尚未开始", ma
 export const workActions: Record<WorkStage, string> = { draft: "开始制作", making: "查看进度", reply: "回复 Jolly", load: "加载并体验", accept: "体验并收下", accepted: "管理分享", paused: "继续制作", failed: "继续处理", blocked: "处理交付" };
 function parsed<T>(raw?: string): T | undefined { try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; } }
 export async function readMyWorks(): Promise<MyWork[]> {
+  const accountId = await currentAccountId();
   const context = applicationContext("jolly");
-  const workspaces = parsed<Array<{ appId: string; title: string }>>(context.storage.get("workspaces")) ?? [];
+  let workspaces = parsed<Array<{ appId: string; title: string }>>(context.storage.get("workspaces")) ?? [];
+  workspaces = (await Promise.all(workspaces.map(async workspace => { const owner = await readShellValue(`shell.jules.apps.${workspace.appId}.owner`); return owner && owner !== accountId ? undefined : workspace; }))).filter((workspace): workspace is { appId: string; title: string } => Boolean(workspace));
   const installed = await installedMarket();
   for (const item of installed.filter(item => item.owned)) if (!workspaces.some(work => work.appId === item.manifest.appId)) workspaces.push({ appId: item.manifest.appId, title: item.manifest.title });
   return Promise.all(workspaces.map(async workspace => {

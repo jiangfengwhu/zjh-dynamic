@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { BackChip, Icon, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
@@ -39,7 +39,7 @@ export function MarketScreen({ onDetail, onCreate, onBack }: { onDetail: (item: 
       {<Pressy onPress={onCreate} accessibilityRole="button"><Surface tone="raised" radius={20} style={styles.invite}><Icon name="workshop" size={23} color={colors.accent} /><View style={{ flex: 1, gap: 4 }}><Text style={styles.name}>让 Jolly 帮我做一个</Text><Text style={styles.caption}>有想法了？去 Jolly 的工坊聊聊</Text></View><Icon name="chevron" size={16} color={colors.ink3} /></Surface></Pressy>}
       {error ? <Pressy onPress={() => void refresh()}><Text style={styles.error}>{error} · 点此重试</Text></Pressy> : null}
       {busy && !items.length ? <ActivityIndicator color={colors.accent} /> : null}
-      {visible.map(item => { const app = item.manifest; const Avatar = marketDefinition(item)?.avatar; return <Pressy key={app.appId} accessibilityRole="button" accessibilityLabel={`查看${app.title}`} onPress={() => onDetail(item)}><View style={styles.row}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={52} /> : <Text style={{ fontSize: 25, color: app.accent }}>{app.mark}</Text>}</View><View style={{ flex: 1, gap: 5 }}><Text style={styles.name}>{item.title || app.title}</Text><Text style={styles.summary} numberOfLines={2}>{item.summary || app.summary}</Text><Text style={styles.caption}>{item.authorName || "社区创作者"}</Text></View><Text style={styles.badge}>{installed.includes(app.appId) ? "已安装" : "查看"}</Text></View></Pressy>; })}
+      {visible.map(item => { const app = item.manifest; const Avatar = marketDefinition(item)?.avatar; return <Pressy key={app.appId} accessibilityRole="button" accessibilityLabel={`查看${app.title}`} onPress={() => onDetail(item)}><View style={styles.row}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={52} /> : <Text style={{ fontSize: 25, color: app.accent }}>{app.mark}</Text>}</View><View style={{ flex: 1, gap: 5 }}><Text style={styles.name}>{item.title || app.title}</Text><Text style={styles.summary} numberOfLines={2}>{item.summary || app.summary}</Text><View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>{item.authorAvatarUrl ? <Image source={{ uri: item.authorAvatarUrl }} style={{ width: 18, height: 18, borderRadius: 9 }} /> : null}<Text style={styles.caption}>{item.authorName || "社区创作者"}</Text></View></View><Text style={styles.badge}>{installed.includes(app.appId) ? "已安装" : "查看"}</Text></View></Pressy>; })}
       {!busy && !visible.length ? <Text style={styles.empty}>{query ? "没有找到匹配的应用，换个关键词试试" : "应用正在准备中，稍后再来看看"}</Text> : null}
     </ScrollView>
   </Screen>;

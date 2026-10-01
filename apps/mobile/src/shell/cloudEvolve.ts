@@ -1,3 +1,4 @@
+import { accountFetch, requireAccount } from "./account";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { edgeUrl } from "./evolveHost";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
@@ -30,6 +31,7 @@ type JulesActivity = {
 type JulesResult = { status: number; body: string };
 
 type JulesSession = {
+  ownerId?: string;
   approvalToken?: string;
   name?: string;
   state?: string;
@@ -92,6 +94,7 @@ async function runCloudEvolve(options: {
   onRunId: (session: string) => void;
   shouldStop: () => boolean;
 }): Promise<CloudOutcome> {
+  if (!await requireAccount()) throw new Error("请先登录后再创作");
   options.onStatus("正在提交到 Jules");
   const prompt = options.requirement.trim();
   const existing = await loadJulesSession();
@@ -128,6 +131,7 @@ async function runCloudEvolve(options: {
   const name = session.name ?? "";
   if (!name.startsWith("sessions/")) throw new Error("Jules 没有返回会话");
   writeShellValue(SESSION_STORAGE, name);
+  if (session.ownerId) writeShellValue(`shell.jules.apps.${appId}.owner`, session.ownerId);
   if (session.approvalToken) writeShellValue(APPROVAL_STORAGE, session.approvalToken);
   options.onRunId(name);
   console.log("jules session", name);
@@ -226,11 +230,11 @@ async function confirmWorkshop(session: string): Promise<void> {
 
 async function workshop(input: { action: string; session: string; buildId?: string; applicationReleases?: Record<string, string> }): Promise<Record<string, unknown>> {
   const token = await readShellValue(APPROVAL_STORAGE);
-  const response = await fetch(`${edgeUrl}/v1/workshop`, {
+  const response = await accountFetch(`${edgeUrl}/v1/workshop`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...input, appId, token }),
-  });
+  }, input.action !== "status");
   const result = await response.json() as Record<string, unknown>;
   if (!response.ok) throw new Error(typeof result.message === "string" ? result.message : "工坊暂时没有接好，请稍后再试");
   return result;
@@ -427,12 +431,12 @@ async function jules(method: string, path: string, body?: string): Promise<Jules
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
-    const response = await fetch(`${edgeUrl}/v1/jules`, {
+    const response = await accountFetch(`${edgeUrl}/v1/jules`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ appId, originalAppId, method, path, body: body ?? "", approvalToken: await readShellValue(APPROVAL_STORAGE), buildId: (require("./build-identity.json") as { buildId: string }).buildId }),
       signal: controller.signal,
-    });
+    }, method !== "GET");
     const result = { status: response.status, body: await response.text() };
     console.log("jules", method, path, result.status);
     return result;
@@ -446,7 +450,7 @@ async function jules(method: string, path: string, body?: string): Promise<Jules
 }
 
 function julesError(result: JulesResult): string {
-  if (result.status === 401 || result.status === 403) return "密钥无效";
+  if (result.status === 401) return "请重新登录后再操作作品";
   try {
     const message = (JSON.parse(result.body) as { error?: { message?: string }; message?: string }).error?.message
       ?? (JSON.parse(result.body) as { message?: string }).message;

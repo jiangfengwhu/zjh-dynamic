@@ -1,6 +1,7 @@
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
+import { currentAccountId } from "../shell/account";
 import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets } from "../../../../packages/app-sdk/src/runtime";
 import { loadCatalog, saveCatalog } from "../shell/catalog";
 import type { PendingPackage } from "../shell/packageUpdates";
@@ -35,7 +36,8 @@ export async function checkApplicationUpdates(): Promise<PendingPackage[]> {
   const market = await marketResponse.json() as { applications: Array<{ manifest: ApplicationManifest }> };
   for (const [appId, current] of active) {
     let manifest = market.applications.find(item => item.manifest.appId === appId)?.manifest;
-    if (await readShellValue(`shell.jules.apps.${appId}.token`)) {
+    const accountId = await currentAccountId();
+    if (accountId && await readShellValue(`shell.jules.apps.${appId}.owner`) === accountId) {
       const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/latest`);
       if (!response.ok) throw new Error(`无法检查应用更新：${appId}`);
       manifest = await response.json() as ApplicationManifest;

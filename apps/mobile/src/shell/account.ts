@@ -3,6 +3,7 @@ import * as Keychain from "react-native-keychain";
 import { launchImageLibrary } from "react-native-image-picker";
 import BlobUtil from "react-native-blob-util";
 import { edgeUrl } from "./evolveHost";
+import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
 
 export type Account = { id: string; email: string; name: string; avatarUrl: string | null; createdAt: number };
@@ -103,4 +104,21 @@ export async function chooseAccountAvatar() {
 export async function logoutAccount() {
   await call("/v1/auth/logout", "POST");
   await clearAccount();
+}
+function openLogin() { writePackageValue("shell.nav.request", JSON.stringify({ action: "account", at: Date.now() })); }
+export async function currentAccountId(): Promise<string | undefined> { await initialize(); return credential && credential.expiresAt > Date.now() ? state.user?.id : undefined; }
+export async function requireAccount(prompt = true): Promise<boolean> {
+  await initialize();
+  if (credential && credential.expiresAt <= Date.now()) await clearAccount();
+  if (credential) return true;
+  if (prompt) openLogin();
+  return false;
+}
+/** Private host transport: credentials never enter plugin contexts or application storage. */
+export async function accountFetch(url: string, options: RequestInit, prompt = true): Promise<Response> {
+  if (!await requireAccount(prompt)) throw new Error("请先登录后再操作作品");
+  const token = credential!.token; const headers = new Headers(options.headers); headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401) { if (credential?.token === token) await clearAccount(); if (prompt) openLogin(); }
+  return response;
 }

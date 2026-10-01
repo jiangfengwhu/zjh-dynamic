@@ -23,6 +23,7 @@ import { MarketDetailScreen } from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { MineScreen } from "./MineScreen";
+import { requireAccount } from "./account";
 import { AccountScreen } from "./AccountScreen";
 import { ProvidersScreen } from "./ProvidersScreen";
 import { AppInfoScreen } from "./AppInfoScreen";
@@ -85,7 +86,8 @@ function handleShellRequest(raw: string | undefined) {
   try {
     const request = JSON.parse(raw) as { action?: string; tab?: string; id?: string };
     console.log("shell request", request.action, request.tab ?? request.id ?? "");
-    if (request.action === "back") goBack();
+    if (request.action === "account") shellNavigationRef.navigate("account");
+    else if (request.action === "back") goBack();
     else if (request.action === "tab" && request.tab === "agent") applicationContext(bootstrap.defaultApplication).navigation.create();
     else if (request.action === "tab" && request.tab && SHELL_TAB_IDS.includes(request.tab)) openShellTab(request.tab as ShellTabId);
     else if (request.action === "open" && request.id) openShellBundle(request.id);
@@ -245,7 +247,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 )}
               </Tabs.Screen>
               <Tabs.Screen name="market">
-                {() => <MarketScreen onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => applicationContext(bootstrap.defaultApplication).navigation.create()} />}
+                {() => <MarketScreen onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
               </Tabs.Screen>
               <Tabs.Screen name="mine">
                 {() => (
@@ -270,7 +272,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           {({ route }) => <MarketDetailScreen item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} />}
         </Stack.Screen>
         <Stack.Screen name="myApps">
-          {() => <MyApplicationsScreen onOpen={props.onOpenBundle} onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => applicationContext(bootstrap.defaultApplication).navigation.create()} />}
+          {() => <MyApplicationsScreen onOpen={props.onOpenBundle} onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
         </Stack.Screen>
         <Stack.Screen name="account">
           {() => <AccountScreen onBack={goBack} />}

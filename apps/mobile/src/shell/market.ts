@@ -1,3 +1,4 @@
+import { accountFetch, currentAccountId } from "./account";
 import { fetchApplicationCatalog, runningApplication, loadApplication, validateApplication, applicationNeedsReload, type ApplicationManifest } from "../runtime/applications";
 import { edgeUrl } from "./evolveHost";
 import { loadCatalog, saveCatalog } from "./catalog";
@@ -6,7 +7,7 @@ import { registerApplicationMetadata, bundles } from "../../../../packages/featu
 import NativePluginHost from "../NativePluginHost";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
-export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: null; authorName: string; originalAppId: string | null; title?: string; summary?: string; owned?: boolean; latest?: boolean };
+export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: string | null; authorName: string; authorAvatarUrl?: string | null; originalAppId: string | null; title?: string; summary?: string; owned?: boolean; latest?: boolean };
 const CACHE = "market.catalog.v1";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export async function cachedMarket(): Promise<MarketApplication[]> {
@@ -24,10 +25,16 @@ export async function fetchMarket(): Promise<MarketApplication[]> {
 export async function installedMarket(): Promise<MarketApplication[]> {
   const entries = await loadCatalog();
   const items: MarketApplication[] = [];
+  const accountId = await currentAccountId();
+  const market = await cachedMarket();
   for (const entry of entries.filter(entry => !entry.trashedAt && !entry.purged)) {
     const raw = await readShellValue(`application.pending.${entry.id}`) || await readShellValue(`application.install.${entry.id}`);
     if (!raw) continue;
-    try { items.push({ manifest: JSON.parse(raw), authorId: null, authorName: "社区创作者", originalAppId: null, owned: Boolean(await readShellValue(`shell.jules.apps.${entry.id}.token`)) }); } catch { /* Keep other applications available. */ }
+    try {
+      const saved = await readShellValue(`application.market.${entry.id}`);
+      const author = market.find(item => item.manifest.appId === entry.id) ?? (saved ? JSON.parse(saved) as MarketApplication : undefined);
+      items.push({ ...author, manifest: JSON.parse(raw), authorId: author?.authorId ?? null, authorName: author?.authorName ?? "社区创作者", originalAppId: author?.originalAppId ?? null, latest: false, owned: Boolean(accountId) && await readShellValue(`shell.jules.apps.${entry.id}.owner`) === accountId });
+    } catch { /* Keep other applications available. */ }
   }
   return items;
 }
@@ -36,6 +43,7 @@ export async function installMarketApplication(item: MarketApplication) {
   // Compatibility is checked before downloading or changing the installed catalog.
   validateApplication(manifest);
   await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
+  writeShellValue(`application.market.${manifest.appId}`, JSON.stringify(item));
   writeShellValue(`application.pending.${manifest.appId}`, JSON.stringify(manifest));
   writeShellValue(`application.failed.${manifest.appId}`, "");
   writeShellValue(`application.attempt.${manifest.appId}`, "");
@@ -77,7 +85,7 @@ async function marketAction(appId: string, input: { action: string; releaseId?: 
   const token = await readShellValue(`shell.jules.apps.${appId}.token`);
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000);
   try {
-    const response = await fetch(`${edgeUrl}/v1/market`, { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId, token, ...input }) });
+    const response = await accountFetch(`${edgeUrl}/v1/market`, { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId, token, ...input }) }, input.action !== "status");
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || "分享操作未完成，请重试");
     const state = result as SharingState;
