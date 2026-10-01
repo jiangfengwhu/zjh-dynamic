@@ -48,7 +48,7 @@ export type JulesRun = {
   startedAt: number;
 };
 
-export type WorkshopStatus = { completed: boolean; collected?: boolean; /** @deprecated Use collected. */ merged: boolean; branch?: string; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
+export type WorkshopStatus = { completed: boolean; branch?: string; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
 const services = new Map<string, ReturnType<typeof createService>>();
 export function creationService(appId: string, originalAppId?: string) {
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("应用 ID 无效");
@@ -218,26 +218,7 @@ async function workshopStatus(session: string): Promise<WorkshopStatus> {
   }
   if (result.application && result.delivery === "update") { if (ownerId && await currentAccountId() === ownerId) offerApplication(result.application as ApplicationManifest, ownerId); }
   if (await currentAccountId() !== ownerId) throw new Error("账号已改变，请重试");
-  if (result.accepted) {
-    writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
-    const context = applicationContext("jolly");
-    const sharing = JSON.parse(context.storage.get(`sharing.${appId}`) || "{}");
-    context.storage.set(`sharing.${appId}`, JSON.stringify({ ...sharing, hasUpdate: Boolean(sharing.releaseId && sharing.releaseId !== (result.accepted as { releaseId: string }).releaseId) }));
-  }
   return result as WorkshopStatus;
-}
-
-async function confirmWorkshop(session: string): Promise<void> {
-  await confirmCreation("收下作品", appId, "确认后将本轮体验的版本设为已收下，你可以继续修改或决定是否上架。");
-  const { buildId } = require("./build-identity.json") as { buildId: string };
-  const result = await workshop({ action: "confirm", session, buildId, applicationReleases: runningApplicationReleases() });
-  if (result.accepted) {
-    writeShellValue(`shell.workshop.accepted.${appId}`, JSON.stringify(result.accepted));
-    const context = applicationContext("jolly");
-    const sharing = JSON.parse(context.storage.get(`sharing.${appId}`) || "{}");
-    context.storage.set(`sharing.${appId}`, JSON.stringify({ ...sharing, hasUpdate: Boolean(sharing.releaseId && sharing.releaseId !== (result.accepted as { releaseId: string }).releaseId) }));
-  }
-  clearJulesRun();
 }
 
 async function workshop(input: { action: string; session: string; buildId?: string; applicationReleases?: Record<string, string> }): Promise<Record<string, unknown>> {
@@ -485,5 +466,5 @@ function delay(ms: number) {
   });
 }
 
-return { runCloudEvolve, cancelCloudRun, loadJulesRun, saveJulesRun, clearJulesRun, clearJulesSession, loadJulesSession, inspectJulesSession, julesSessionLive, watchJulesSession, workshopStatus, confirmWorkshop };
+return { runCloudEvolve, cancelCloudRun, loadJulesRun, saveJulesRun, clearJulesRun, clearJulesSession, loadJulesSession, inspectJulesSession, julesSessionLive, watchJulesSession, workshopStatus };
 }

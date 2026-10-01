@@ -4,7 +4,7 @@ export type JulesRun = { session: string; prompt: string; startedAt: number };
 export type CloudOutcome = "finished" | "cancelled" | "waiting";
 export type WatchOptions = { onStatus: (status: string) => void; onTrace: (traces: CloudTrace[]) => void; shouldStop: () => boolean };
 export type PendingPackage = { id: string; kind: "layer" | "application"; bytes: number; sha256: string };
-export type WorkshopStatus = { completed: boolean; collected?: boolean; /** @deprecated Use collected. */ merged: boolean; branch?: string; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
+export type WorkshopStatus = { completed: boolean; branch?: string; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
 export type CreationService = {
   runCloudEvolve: (options: WatchOptions & { requirement: string; onRunId: (session: string) => void }) => Promise<CloudOutcome>;
   cancelCloudRun: (session: string) => Promise<void>;
@@ -17,7 +17,6 @@ export type CreationService = {
   julesSessionLive: (state: string) => boolean;
   watchJulesSession: (session: string, url: string, options: WatchOptions, sinceMs: number) => Promise<CloudOutcome>;
   workshopStatus: (session: string) => Promise<WorkshopStatus>;
-  confirmWorkshop: (session: string) => Promise<void>;
   checkPackageUpdates: () => Promise<PendingPackage[]>;
   applyPackageUpdates: () => Promise<number>;
   readPreference: (key: string) => Promise<string | undefined>;

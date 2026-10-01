@@ -56,8 +56,8 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
         <View style={styles.line}><Text style={[styles.name, { flex: 1 }]}>{work.title}</Text><Text style={styles.badge}>{workLabels[work.stage]}</Text></View>
         {work.wish ? <Text style={styles.copy} numberOfLines={2}>{work.wish}</Text> : null}
         <Text style={styles.caption}>{sharingLabel(work)}{work.stale ? " · 状态待刷新" : ""}</Text>
-        <View style={styles.actions}><Pressy onPress={() => work.stage === "accepted" && work.manifest ? detail(work) : openApplicationWorkshop(work.appId, work.title, false, false)}><Text style={styles.link}>{workActions[work.stage]}</Text></Pressy>
-          {work.manifest && work.stage !== "accepted" ? <Pressy onPress={() => detail(work)}><Text style={styles.secondary}>作品详情与分享</Text></Pressy> : null}
+        <View style={styles.actions}><Pressy onPress={() => work.stage === "ready" && work.manifest ? detail(work) : openApplicationWorkshop(work.appId, work.title, false, false)}><Text style={styles.link}>{workActions[work.stage]}</Text></Pressy>
+          {work.manifest && work.stage !== "ready" ? <Pressy onPress={() => detail(work)}><Text style={styles.secondary}>作品详情与分享</Text></Pressy> : null}
           {installed.some(item => item.manifest.appId === work.appId) ? <Pressy onPress={() => onOpen(work.appId)}><Text style={styles.secondary}>打开作品</Text></Pressy> : null}</View>
       </Surface>) : visibleApps.map(item => <Pressy key={item.manifest.appId} onPress={() => onDetail(item)}><Surface radius={20} style={styles.card}><Text style={styles.name}>{item.manifest.title}</Text><Text style={styles.copy}>{item.manifest.summary}</Text><Text style={styles.link}>打开详情 · 更新与卸载</Text></Surface></Pressy>)}
       {!busy && !(tab === "works" ? visibleWorks.length : visibleApps.length) ? <Text style={styles.caption}>{term ? "没有找到匹配的作品" : tab === "works" ? "还没有创作作品，从一个小心愿开始吧。" : "还没有安装市场应用，去应用市场看看吧。"}</Text> : null}

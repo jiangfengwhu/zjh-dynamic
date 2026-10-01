@@ -3,7 +3,7 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import { edgeUrl } from "./evolveHost";
 
-type Work = { appId: string; ownerId: string; session: string; approvalToken: string; title: string; wish: string; startedAt?: number; phase: string; originalAppId?: string; originalReleaseId?: string; accepted?: { releaseId: string } };
+type Work = { appId: string; ownerId: string; session: string; approvalToken: string; title: string; wish: string; startedAt?: number; phase: string; originalAppId?: string; originalReleaseId?: string; };
 const restoring = new Map<string, Promise<void>>();
 const refreshed = new Map<string, number>();
 export async function restoreWorks(force = false): Promise<void> {
@@ -31,8 +31,7 @@ async function restore(owner: string) {
       const item = { appId: work.appId, title: work.title, originalAppId: work.originalAppId, originalReleaseId: work.originalReleaseId };
       const index = workspaces.findIndex(item => item.appId === work.appId);
       if (index < 0) workspaces.push(item); else workspaces[index] = { ...workspaces[index], ...item };
-      if (work.accepted) writeShellValue(`shell.workshop.accepted.${work.appId}`, JSON.stringify(work.accepted));
-      if (!context.storage.get(`run:${work.appId}`)) { context.storage.set(`run:${work.appId}`, JSON.stringify({ appId: work.appId, wish: work.wish, at: work.startedAt ?? Date.now(), phase: work.phase === "working" ? "making" : work.phase === "paused" ? "stopped" : "ready", stage: work.phase === "accepted" ? "accepted" : work.phase === "working" ? "making" : work.phase === "paused" ? "paused" : "blocked", status: "已接回制作记录", steps: [] })); }
+      if (!context.storage.get(`run:${work.appId}`)) { context.storage.set(`run:${work.appId}`, JSON.stringify({ appId: work.appId, wish: work.wish, at: work.startedAt ?? Date.now(), phase: work.phase === "working" ? "making" : work.phase === "paused" ? "stopped" : "ready", stage: work.phase === "working" ? "making" : work.phase === "paused" ? "paused" : "ready", status: "已接回制作记录", steps: [] })); }
     }
     const serialized = JSON.stringify(workspaces);
     if (await currentAccountId() === owner && context.storage.get("workspaces") !== serialized) context.storage.set("workspaces", serialized);

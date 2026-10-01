@@ -95,7 +95,7 @@ export async function checkApplicationUpdates(): Promise<PendingPackage[]> {
 export async function stageApplicationUpdates(): Promise<number> {
   const pending = [...offered.values()].filter(item => active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId);
   for (const { manifest, ownerId } of pending) {
-    if (ownerId) await confirmCreation("体验候选版本", manifest.appId, "加载本轮制作的候选版本，体验后可决定是否收下。");
+    if (ownerId) await confirmCreation("体验候选版本", manifest.appId, "加载最新制作的版本，随时可以继续修改或决定是否上架。");
     await verifyAccess(manifest, ownerId);
     await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
   }

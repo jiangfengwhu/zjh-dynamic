@@ -80,7 +80,7 @@ export async function uninstallMarketApplication(appId: string) {
 }
 export function marketDefinition(item: MarketApplication) { return bundles.find(bundle => bundle.id === item.manifest.appId); }
 
-export type SharingState = { shared: MarketApplication | null; accepted: { releaseId: string; commit: string } | null; application: MarketApplication["manifest"] | null };
+export type SharingState = { shared: MarketApplication | null; application: MarketApplication["manifest"] | null };
 export async function cachedSharing(appId: string): Promise<SharingState | undefined> {
   const raw = await readShellValue(`shell.market.state.${appId}`);
   try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; }
@@ -95,8 +95,7 @@ async function marketAction(appId: string, input: { action: string; releaseId?: 
     if (!response.ok) throw new Error(result.message || "分享操作未完成，请重试");
     const state = result as SharingState;
     writeShellValue(`shell.market.state.${appId}`, JSON.stringify(state));
-    writeShellValue(`shell.workshop.accepted.${appId}`, state.accepted ? JSON.stringify(state.accepted) : "");
-    applicationContext(bootstrap.defaultApplication).storage.set(`sharing.${appId}`, JSON.stringify({ releaseId: state.shared?.manifest.releaseId ?? "", hasUpdate: Boolean(state.shared && state.accepted && state.shared.manifest.releaseId !== state.accepted.releaseId) }));
+    applicationContext(bootstrap.defaultApplication).storage.set(`sharing.${appId}`, JSON.stringify({ releaseId: state.shared?.manifest.releaseId ?? "", hasUpdate: Boolean(state.shared && state.application && state.shared.manifest.releaseId !== state.application.releaseId) }));
     if (input.action !== "status") {
       const items = (await cachedMarket()).filter(item => item.manifest.appId !== appId);
       if (state.shared) items.unshift(state.shared);

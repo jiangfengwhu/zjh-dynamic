@@ -5,10 +5,10 @@ import { cachedSharing, installedMarket, loadSharing, type MarketApplication, ty
 import { readShellValue } from "./shellStorage";
 import { restoreWorks } from "./workRecovery";
 
-export type WorkStage = "draft" | "making" | "reply" | "load" | "accept" | "accepted" | "paused" | "failed" | "blocked";
+export type WorkStage = "draft" | "making" | "reply" | "load" | "ready" | "paused" | "failed" | "blocked";
 export type MyWork = { appId: string; title: string; wish: string; stage: WorkStage; message: string; manifest?: MarketApplication["manifest"]; sharing?: SharingState; stale?: boolean };
-export const workLabels: Record<WorkStage, string> = { draft: "尚未开始", making: "制作中", reply: "等待回复", load: "待体验", accept: "待收下", accepted: "已收下", paused: "已暂停", failed: "制作未完成", blocked: "需要处理" };
-export const workActions: Record<WorkStage, string> = { draft: "开始制作", making: "查看进度", reply: "回复 Jolly", load: "加载并体验", accept: "体验并收下", accepted: "管理分享", paused: "继续制作", failed: "继续处理", blocked: "处理交付" };
+export const workLabels: Record<WorkStage, string> = { draft: "尚未开始", making: "制作中", reply: "等待回复", load: "待体验", ready: "可使用", paused: "已暂停", failed: "制作未完成", blocked: "需要处理" };
+export const workActions: Record<WorkStage, string> = { draft: "开始制作", making: "查看进度", reply: "回复 Jolly", load: "加载并体验", ready: "作品详情与上架", paused: "继续制作", failed: "继续处理", blocked: "处理交付" };
 function parsed<T>(raw?: string): T | undefined { try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; } }
 export async function readMyWorks(): Promise<MyWork[]> {
   const accountId = await currentAccountId();
@@ -25,17 +25,16 @@ export async function readMyWorks(): Promise<MyWork[]> {
     const sharing = await cachedSharing(workspace.appId);
     const manifest = parsed<MarketApplication["manifest"]>(await readShellValue(`shell.workshop.application.${workspace.appId}`)) ?? installed.find(item => item.manifest.appId === workspace.appId)?.manifest ?? sharing?.application ?? undefined;
     const title = manifest?.title || workspace.title;
-    const stage: WorkStage = run?.stage ?? (sharing?.accepted ? "accepted" : "draft");
+    const stage: WorkStage = run?.stage && Object.hasOwn(workLabels, run.stage) ? run.stage : manifest ? "ready" : "draft";
     return { appId: workspace.appId, title: title && title !== workspace.appId ? title : "未命名作品", wish: run?.wish ?? "", stage, message: run?.status ?? "", manifest, sharing };
   }));
 }
 export function stageFromWorkshop(status: WorkshopStatus): WorkStage {
-  if (status.collected ?? status.merged) return "accepted";
   if (status.state === "FAILED") return "failed";
   if (status.state === "PAUSED") return "paused";
   if (status.state === "AWAITING_USER_FEEDBACK") return "reply";
   if (!status.completed) return "making";
-  if (status.delivery === "loaded") return "accept";
+  if (status.delivery === "loaded") return "ready";
   if (status.delivery === "update") return "load";
   return "blocked";
 }
@@ -53,12 +52,12 @@ export async function refreshMyWork(work: MyWork): Promise<MyWork> {
     const context = applicationContext("jolly");
     const run = parsed<Record<string, unknown>>(context.storage.get(`run:${work.appId}`)) ?? {};
     const stage = stageFromWorkshop(status);
-    const phase = stage === "accepted" || stage === "load" || stage === "accept" || stage === "blocked" ? "ready" : stage === "failed" ? "failed" : stage === "paused" ? "stopped" : "making";
+    const phase = stage === "ready" || stage === "load" || stage === "blocked" ? "ready" : stage === "failed" ? "failed" : stage === "paused" ? "stopped" : "making";
     context.storage.set(`run:${work.appId}`, JSON.stringify({ ...run, stage, phase, wish: work.wish, status: status.message ?? work.message, steps: run.steps ?? [], at: Date.now() }));
     return { ...next, manifest, title: manifest?.title && manifest.title !== work.appId ? manifest.title : work.title, stage: stageFromWorkshop(status), message: status.message ?? "" };
   } catch { return { ...next, stale: true }; }
 }
 export function sharingLabel(work: MyWork): string {
   if (!work.sharing?.shared) return "未分享";
-  return work.sharing.accepted?.releaseId !== work.sharing.shared.manifest.releaseId ? "已分享 · 有新版本待分享" : "已分享";
+  return work.sharing.application?.releaseId !== work.sharing.shared.manifest.releaseId ? "已分享 · 有新版本待分享" : "已分享";
 }

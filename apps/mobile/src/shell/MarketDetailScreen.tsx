@@ -8,6 +8,8 @@ import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { loadCatalog, subscribeCatalog } from "./catalog";
 import { readShellValue } from "./shellStorage";
+import { offerApplication } from "../runtime/applications";
+import { applyPackageUpdates } from "./packageUpdates";
 import { cachedSharing, loadSharing, editMarketApplication, withdrawMarketApplication, shareMarketApplication, installMarketApplication, uninstallMarketApplication, marketDefinition, type MarketApplication, type SharingState } from "./market";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketApplication; onBack: () => void; onOpen: (id: string) => void }) {
@@ -54,8 +56,8 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
     if (mutation.current || !sharingReady || !editMode) return;
     mutation.current = true; setBusy(true); setError("");
     try {
-      const state = editMode === "edit" ? await editMarketApplication(app.appId, shareTitle, shareSummary) : await shareMarketApplication(app.appId, sharing!.accepted!.releaseId, shareTitle, shareSummary);
-      setSharing(state); setEditMode(null); setShareNotice(editMode === "edit" ? "分享信息已保存，公开版本保持不变。" : "已将收下的版本分享到应用市场。");
+      const state = editMode === "edit" ? await editMarketApplication(app.appId, shareTitle, shareSummary) : await shareMarketApplication(app.appId, sharing!.application!.releaseId, shareTitle, shareSummary);
+      setSharing(state); setEditMode(null); setShareNotice(editMode === "edit" ? "分享信息已保存，公开版本保持不变。" : "已将选定版本分享到应用市场。");
     } catch (e) { setError(e instanceof Error ? e.message : "分享未完成，请重试"); }
     finally { mutation.current = false; setBusy(false); }
   }
@@ -63,10 +65,16 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
       if (mutation.current) return; mutation.current = true; setBusy(true); setError("");
       void withdrawMarketApplication(app.appId).then(state => { setSharing(state); setEditMode(null); setShareNotice("已撤回分享，作品仍保留在我的作品中。"); }).catch(e => setError(e instanceof Error ? e.message : "撤回未完成")).finally(() => { mutation.current = false; setBusy(false); });
   }
-  const update = installed && !owner && item.latest && release && release !== app.releaseId;
+  const targetRelease = owner ? sharing?.application?.releaseId ?? app.releaseId : app.releaseId;
+  const update = installed && (owner || item.latest) && release && release !== targetRelease;
   async function install() {
     if (mutation.current) return; mutation.current = true; setBusy(true); setError("");
-    try { await installMarketApplication(item); setInstalled(true); setRelease(app.releaseId); }
+    try {
+      if (owner && user) {
+        offerApplication(sharing?.application ?? app, user.id);
+        await applyPackageUpdates();
+      } else { await installMarketApplication(item); setInstalled(true); setRelease(app.releaseId); }
+    }
     catch (e) { setError(e instanceof Error ? e.message : "安装没有完成，请重试"); }
     finally { mutation.current = false; setBusy(false); }
   }
@@ -74,7 +82,7 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
     Alert.alert("卸载应用？", "会从这台手机的应用列表移除，保留本机数据与缓存。重新安装可继续使用。", [{ text: "取消", style: "cancel" }, { text: "卸载", style: "destructive", onPress: () => { if (mutation.current) return; mutation.current = true; setBusy(true); void uninstallMarketApplication(app.appId).catch(e => { setError(String(e)); mutation.current = false; setBusy(false); }); } }]);
   }
   const Avatar = marketDefinition(item)?.avatar; const bytes = app.bundle.bytes + app.assets.reduce((total, asset) => total + asset.bytes, 0);
-  const shared = sharing?.shared; const hasNewVersion = Boolean(shared && sharing?.accepted && shared.manifest.releaseId !== sharing.accepted.releaseId);
+  const shared = sharing?.shared; const hasNewVersion = Boolean(shared && sharing?.application && shared.manifest.releaseId !== sharing.application.releaseId);
   const authorName = owner && user ? user.name : item.authorName;
   const authorAvatar = owner && user ? user.avatarUrl : item.authorAvatarUrl;
   const versionName = (manifest: MarketApplication["manifest"]) => `${manifest.version || "1.0.0"}`;
@@ -85,18 +93,18 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
     <View style={styles.facts}><Text style={styles.caption}>版本 {app.version || "1.0.0"}</Text><Text style={styles.caption}>安装包 {bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`}</Text><Text style={styles.caption}>数据保存在本机</Text></View>
     {item.originalAppId ? <Text style={styles.caption}>基于其他作品创作</Text> : null}
     {error ? <Text style={styles.error}>{error}</Text> : null}
-    <Pressy accessibilityRole="button" disabled={busy} onPress={() => installed && !update ? onOpen(app.appId) : void install()} style={styles.primary}>{busy ? <ActivityIndicator color={colors.canvas} /> : <Text style={styles.primaryText}>{installed ? update ? "更新应用 · 完成后重载" : "打开应用" : "安装应用"}</Text>}</Pressy>
+    <Pressy accessibilityRole="button" disabled={busy} onPress={() => installed && !update ? onOpen(app.appId) : void install()} style={styles.primary}>{busy ? <ActivityIndicator color={colors.canvas} /> : <Text style={styles.primaryText}>{installed ? update ? "加载最新作品" : "打开应用" : owner ? "加载并体验" : "安装应用"}</Text>}</Pressy>
     {installed && update ? <Pressy disabled={busy} onPress={() => onOpen(app.appId)}><Text style={styles.secondary}>先打开已安装版本</Text></Pressy> : null}
     {installed || owner ? <Pressy disabled={busy} onPress={() => { void requireAccount().then(allowed => { if (allowed) void openApplicationWorkshop(app.appId, app.title, !owner, !owner, app.releaseId).catch(e => setError(String(e))); }); }}><Text style={styles.secondary}>{owner ? "继续修改这个作品" : "基于它创作新应用"}</Text></Pressy> : null}
     {owner ? <Surface radius={20} style={styles.description}><Text style={styles.subtitle}>管理分享</Text>
       <Text style={styles.copy}>{shared ? hasNewVersion ? "已分享 · 有新版本待分享" : "已分享到应用市场" : "尚未分享"}</Text>
       {shared ? <><Text style={styles.copy}>分享名称：{shared.title || shared.manifest.title}</Text><Text style={styles.caption}>{shared.summary ?? shared.manifest.summary}</Text></> : null}
       {shared ? <Text style={styles.caption}>当前公开版本 {versionName(shared.manifest)}</Text> : null}
-      {sharing?.application ? <Text style={styles.caption}>最近收下版本 {versionName(sharing.application)}</Text> : <Text style={styles.caption}>加载作品并确认收下后，就可以分享。</Text>}
+      {sharing?.application ? <Text style={styles.caption}>最新制作版本 {versionName(sharing.application)}</Text> : <Text style={styles.caption}>完成发包后，就可以上架。</Text>}
       {shareNotice ? <Text style={styles.caption}>{shareNotice}</Text> : null}
-      {sharing?.accepted ? <Pressy disabled={busy || !sharingReady} onPress={() => begin("share")}><Text style={styles.secondary}>{shared ? hasNewVersion ? "将新版本分享到市场" : "重新分享已收下的版本" : "分享已收下的版本"}</Text></Pressy> : null}
+      {sharing?.application ? <Pressy disabled={busy || !sharingReady} onPress={() => begin("share")}><Text style={styles.secondary}>{shared ? hasNewVersion ? "将新版本分享到市场" : "重新分享最新制作版本" : "分享最新制作版本"}</Text></Pressy> : null}
       {shared ? <><Pressy disabled={busy || !sharingReady} onPress={() => begin("edit")}><Text style={styles.secondary}>修改分享名称与介绍</Text></Pressy><Pressy disabled={busy || !sharingReady} onPress={withdraw}><Text style={styles.secondary}>撤回分享</Text></Pressy></> : null}
-      {editMode ? <><Text style={styles.subtitle}>{editMode === "edit" ? "编辑分享信息" : "分享收下的作品"}</Text><TextInput accessibilityLabel="分享名称" value={shareTitle} onChangeText={setShareTitle} maxLength={60} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><TextInput accessibilityLabel="分享介绍" value={shareSummary} onChangeText={setShareSummary} multiline maxLength={300} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><Text style={styles.caption}>{editMode === "edit" ? "只修改展示信息，保留当前公开版本。" : "分享锁定最近收下的版本，之后制作的版本不会自动公开。"}</Text><Pressy disabled={busy || !sharingReady || !shareTitle.trim()} onPress={() => void save()}><Text style={styles.secondary}>{editMode === "edit" ? "保存分享信息" : "确认分享到市场"}</Text></Pressy><Pressy disabled={busy} onPress={() => setEditMode(null)}><Text style={styles.secondary}>取消</Text></Pressy></> : null}
+      {editMode ? <><Text style={styles.subtitle}>{editMode === "edit" ? "编辑分享信息" : "分享作品"}</Text><TextInput accessibilityLabel="分享名称" value={shareTitle} onChangeText={setShareTitle} maxLength={60} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><TextInput accessibilityLabel="分享介绍" value={shareSummary} onChangeText={setShareSummary} multiline maxLength={300} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><Text style={styles.caption}>{editMode === "edit" ? "只修改展示信息，保留当前公开版本。" : "上架当前选定的版本，之后制作的版本不会自动公开。"}</Text><Pressy disabled={busy || !sharingReady || !shareTitle.trim()} onPress={() => void save()}><Text style={styles.secondary}>{editMode === "edit" ? "保存分享信息" : "确认分享到市场"}</Text></Pressy><Pressy disabled={busy} onPress={() => setEditMode(null)}><Text style={styles.secondary}>取消</Text></Pressy></> : null}
     </Surface> : null}
     {installed && app.appId !== bootstrap.defaultApplication ? <Pressy disabled={busy} onPress={uninstall}><Text style={styles.secondary}>卸载应用</Text></Pressy> : null}
     {app.appId === bootstrap.defaultApplication ? <Text style={styles.caption}>Jolly 是默认伙伴，工坊就在它的主页里。</Text> : null}

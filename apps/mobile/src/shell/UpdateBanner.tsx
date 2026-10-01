@@ -40,7 +40,7 @@ export function UpdateBanner({ items, busy, completed, onNow, onLater }: Props) 
             <Text style={styles.title}>{completed ? "你的新作品送到了" : "伙伴们带来了新内容"}</Text>
             <Text style={styles.detail}>
               {completed
-                ? "先加载这次的作品，体验后回到工坊亲自收下。加载时会刷新应用。"
+                ? "加载这次的作品，即可体验。加载时会刷新应用。"
                 : "新内容已经备好。加载时会刷新应用，也可以留到下次见面。"}
             </Text>
           </View>
