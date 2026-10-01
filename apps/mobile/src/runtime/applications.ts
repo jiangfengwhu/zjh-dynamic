@@ -4,7 +4,6 @@ import { readShellValue, writeShellValue } from "../shell/shellStorage";
 import { accountFetch, currentAccountId, subscribeAccountIdentity } from "../shell/account";
 import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt } from "../../../../packages/app-sdk/src/runtime";
 import { restoreWorks } from "../shell/workRecovery";
-import { confirmCreation } from "../shell/creationConsent";
 import { loadCatalog, saveCatalog } from "../shell/catalog";
 import type { PendingPackage } from "../shell/packageUpdates";
 
@@ -67,7 +66,17 @@ export function applicationNeedsReload(manifest: ApplicationManifest) {
 export function runningApplicationReleases() { return Object.fromEntries([...active].filter(([id]) => healthy.has(id)).map(([id, manifest]) => [id, manifest.releaseId])); }
 export function offerApplication(manifest: ApplicationManifest, ownerId: string | null = null) { assertCompatible(manifest, manifest.appId); offered.set(manifest.appId, { manifest, ownerId }); }
 
-export async function checkApplicationUpdates(): Promise<PendingPackage[]> {
+export async function checkApplicationUpdates(targetAppId?: string): Promise<PendingPackage[]> {
+  if (targetAppId) {
+    const ownerId = await currentAccountId();
+    if (!ownerId || await readShellValue(`shell.jules.apps.${targetAppId}.owner`) !== ownerId) throw new Error("请登录作品所属账号");
+    const response = await accountFetch(`${edgeUrl}/v1/applications/${targetAppId}/candidate`, { headers: { "X-Workshop-Token": await readShellValue(`shell.jules.apps.${targetAppId}.token`) || "" } }, false);
+    if (!response.ok) throw new Error("暂时无法获取本次作品，请重试");
+    const manifest = await response.json() as ApplicationManifest;
+    if (await currentAccountId() !== ownerId) throw new Error("账号已改变，请重试");
+    offerApplication(manifest, ownerId);
+    return active.get(targetAppId)?.releaseId === manifest.releaseId ? [] : [{ id: targetAppId, kind: "application", bytes: manifest.bundle.bytes, sha256: manifest.releaseId }];
+  }
   const marketResponse = await fetchApplicationCatalog(`${edgeUrl}/v1/market`);
   if (!marketResponse.ok) throw new Error("无法检查市场应用更新");
   const market = await marketResponse.json() as { applications: Array<{ manifest: ApplicationManifest }> };
@@ -92,10 +101,9 @@ export async function checkApplicationUpdates(): Promise<PendingPackage[]> {
   return [...offered.values()].map(item => item.manifest).filter(manifest => active.get(manifest.appId)?.releaseId !== manifest.releaseId).map(manifest => ({ id: manifest.appId, kind: "application", bytes: manifest.bundle.bytes, sha256: manifest.releaseId }));
 }
 
-export async function stageApplicationUpdates(): Promise<number> {
-  const pending = [...offered.values()].filter(item => active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId);
+export async function stageApplicationUpdates(appId?: string): Promise<number> {
+  const pending = [...offered.values()].filter(item => (!appId || item.manifest.appId === appId) && active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId);
   for (const { manifest, ownerId } of pending) {
-    if (ownerId) await confirmCreation("体验候选版本", manifest.appId, "加载最新制作的版本，随时可以继续修改或决定是否上架。");
     await verifyAccess(manifest, ownerId);
     await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
   }
@@ -108,6 +116,16 @@ export async function stageApplicationUpdates(): Promise<number> {
   }
   if (pending.length) await saveCatalog(catalog);
   return pending.length;
+}
+
+export async function applyApplicationUpdate(appId: string): Promise<number> {
+  const count = await stageApplicationUpdates(appId);
+  if (count) {
+    writeShellValue("application.openAfterReload", JSON.stringify({ appId, ownerId: await currentAccountId() }));
+    try { await NativePluginHost.call("shell", "reloadApplications", "{}"); }
+    catch (error) { writeShellValue("application.openAfterReload", ""); throw error; }
+  }
+  return count;
 }
 
 export async function loadApplication(appId: string): Promise<void> {

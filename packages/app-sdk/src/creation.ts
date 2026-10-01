@@ -19,6 +19,7 @@ export type CreationService = {
   workshopStatus: (session: string) => Promise<WorkshopStatus>;
   checkPackageUpdates: () => Promise<PendingPackage[]>;
   applyPackageUpdates: () => Promise<number>;
+  openPublication: () => Promise<void>;
   readPreference: (key: string) => Promise<string | undefined>;
   writePreference: (key: string, value: string) => void;
 };

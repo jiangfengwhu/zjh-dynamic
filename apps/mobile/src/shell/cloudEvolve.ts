@@ -101,7 +101,7 @@ async function runCloudEvolve(options: {
   if (!await requireAccount()) throw new Error("请先登录后再创作");
   options.onStatus("正在提交到 Jules");
   const prompt = options.requirement.trim();
-  await confirmCreation("制作", appId, prompt);
+  if (!prompt) throw new Error("请描述想做什么");
   const existing = await loadJulesSession();
   if (existing && (await sessionAcceptsMessage(existing))) {
     options.onRunId(existing);

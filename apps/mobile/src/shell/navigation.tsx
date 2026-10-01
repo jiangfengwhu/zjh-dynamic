@@ -23,7 +23,8 @@ import { MarketDetailScreen } from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { MineScreen } from "./MineScreen";
-import { requireAccount } from "./account";
+import { requireAccount, currentAccountId } from "./account";
+import { readShellValue, removeShellValue } from "./shellStorage";
 import { AccountScreen } from "./AccountScreen";
 import { ProvidersScreen } from "./ProvidersScreen";
 import { AppInfoScreen } from "./AppInfoScreen";
@@ -45,7 +46,7 @@ export type RootParamList = {
   summary: undefined;
   appearance: undefined;
   bundle: { id: string };
-  marketDetail: { item: MarketApplication };
+  marketDetail: { item: MarketApplication; publish?: boolean };
   myApps: undefined;
   account: undefined;
 };
@@ -214,7 +215,17 @@ export function ShellNavigator(props: ShellNavigatorProps) {
   }
 
   return (
-    <NavigationContainer ref={shellNavigationRef} theme={theme} onStateChange={onStateChange}>
+    <NavigationContainer ref={shellNavigationRef} theme={theme} onStateChange={onStateChange} onReady={() => {
+      void (async () => {
+        const raw = await readShellValue("application.openAfterReload");
+        removeShellValue("application.openAfterReload");
+        if (!raw) return;
+        try {
+          const request = JSON.parse(raw);
+          if (request.ownerId === await currentAccountId() && /^[a-z][a-z0-9-]{0,63}$/.test(request.appId)) openShellBundle(request.appId);
+        } catch { /* Ignore an incomplete navigation request. */ }
+      })();
+    }}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
@@ -269,7 +280,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           )}
         </Stack.Screen>
         <Stack.Screen name="marketDetail">
-          {({ route }) => <MarketDetailScreen item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} />}
+          {({ route }) => <MarketDetailScreen publish={route.params.publish} item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} />}
         </Stack.Screen>
         <Stack.Screen name="myApps">
           {() => <MyApplicationsScreen onOpen={props.onOpenBundle} onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}

@@ -19,7 +19,7 @@ Jolly 使用 `getCreationService(appId, originalAppId?)` 获取按应用隔离�
 
 SDK 精确声明全部公开共享库、React 类型与 TypeScript。插件根 package.json 只声明 SDK，不重复安装或 overrides 改写这些依赖；应用 package.json 保留 name/private 与自身纯 JS 依赖，应用版本以 application.json 为准。标准公开库入口仍可直接导入，手机运行时由宿主提供，不随应用打包。
 
-SDK npm 包的补丁版本可仅更新工具链；platform.json.sdk 表示所需的宿主 API 版本。包 1.1.9 仍使用运行时契约 1.1.0，原生与共享库版本保持一致；须与新的服务端发布接口协调上线。
+SDK npm 包的补丁版本可仅更新工具链；platform.json.sdk 表示所需的宿主 API 版本。包 1.1.10 仍使用运行时契约 1.1.0，原生与共享库版本保持一致；须与新的服务端发布接口协调上线。
 
 ### 候选发布与公开版本
 
@@ -27,10 +27,12 @@ SDK npm 包的补丁版本可仅更新工具链；platform.json.sdk 表示所需
 
 候选发布携带 expectedReleases，服务端基线变化时返回 409；同步后重新构建发布，不覆盖或绕过基线。授权绑定 appId、账号、制作轮次和有效期，制作完成、暂停或开启新轮次后失效；不能修改其他应用、宿主或 vendor 编号表。原作复制锁定 originalReleaseId/originalCommit，由 init 读取对应 Git 提交。
 
-应用在同一个 RN/JS 环境执行，appId 命名空间不构成恶意代码沙箱。当前开发阶段由开发者决定上架，不提供逐版本审核。作者体验候选、制作和市场变更由宿主确认。未来 AI 恶意代码检测系统另行建设。Jolly 的工坊存储和订阅按账号分开，重新登录从服务端恢复所属作品。
+应用在同一个 RN/JS 环境执行，appId 命名空间不构成恶意代码沙箱。当前开发阶段由开发者决定上架，不提供逐版本审核。作者在制作界面主动提交需求、体验候选，并在宿主发布表单明确选择公开版本；这些操作不重复弹窗确认。停止、撤回等操作保留确认。未来 AI 恶意代码检测系统另行建设。Jolly 的工坊存储和订阅按账号分开，重新登录从服务端恢复所属作品。
 
 Markdown 显示库使用平台维护的不可变 tarball：保持 7.0.2 的渲染源码及公开接口，仅将 markdown-it 更新至 15.0.2。platform.json.dependencyArtifacts 锁定产物地址和接口版本，SDK 自带安全依赖，应用无需 overrides。上游源码与许可证保留，构建时校验上游 SHA-512。
 
 用户应用在 Jules 自动创建的应用分支持续迭代，不同步或合入 main。候选发包不再检查源码提交祖先或 PR 内容；保留本轮授权、expectedReleases 原子比较和运行时兼容校验。作者可以直接体验、继续修改或上架候选版本。Remix 从原应用分支创建新应用，保留来源版本。
 
 Linux/Windows 旧候选仅调试路径不同时，SDK 下载并校验原包，要求完整 Hermes 反汇编只差单个编译输入路径，其他发布配置、资源、版本、契约完全一致，才允许重建衔接。新包从固定 application.js 路径编译，不含机器绝对路径。
+
+制作服务的 checkPackageUpdates/applyPackageUpdates 只处理绑定的目标应用，不检查或应用宿主更新及其他作品。openPublication 打开宿主发布表单，显示并锁定所选候选版本；尚未体验也可发布。

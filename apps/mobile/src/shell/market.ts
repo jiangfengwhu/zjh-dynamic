@@ -86,7 +86,7 @@ export async function cachedSharing(appId: string): Promise<SharingState | undef
   try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; }
 }
 async function marketAction(appId: string, input: { action: string; releaseId?: string; title?: string; summary?: string }): Promise<SharingState> {
-  if (input.action !== "status") await confirmCreation(input.action === "withdraw" ? "撤回分享" : input.action === "edit" ? "修改市场介绍" : "上架到应用市场", appId, input.action === "withdraw" ? "作品会从市场移除；已安装版本和你的作品仍保留。" : [input.title, input.summary].filter(Boolean).join("\n"));
+  if (input.action === "withdraw") await confirmCreation(input.action === "withdraw" ? "撤回分享" : input.action === "edit" ? "修改市场介绍" : "上架到应用市场", appId, input.action === "withdraw" ? "作品会从市场移除；已安装版本和你的作品仍保留。" : [input.title, input.summary].filter(Boolean).join("\n"));
   const token = await readShellValue(`shell.jules.apps.${appId}.token`);
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000);
   try {

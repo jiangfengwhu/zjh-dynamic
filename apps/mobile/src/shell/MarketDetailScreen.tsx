@@ -8,19 +8,24 @@ import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { loadCatalog, subscribeCatalog } from "./catalog";
 import { readShellValue } from "./shellStorage";
-import { offerApplication } from "../runtime/applications";
-import { applyPackageUpdates } from "./packageUpdates";
+import { offerApplication, applyApplicationUpdate, runningApplicationReleases } from "../runtime/applications";
+
 import { cachedSharing, loadSharing, editMarketApplication, withdrawMarketApplication, shareMarketApplication, installMarketApplication, uninstallMarketApplication, marketDefinition, type MarketApplication, type SharingState } from "./market";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
-export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketApplication; onBack: () => void; onOpen: (id: string) => void }) {
+export function MarketDetailScreen({ item, publish, onBack, onOpen }: { publish?: boolean; item: MarketApplication; onBack: () => void; onOpen: (id: string) => void }) {
   const { user } = useAccount();
   const { colors } = useTheme(); const app = item.manifest; const focused = useIsFocused();
   const [installed, setInstalled] = useState(false); const [release, setRelease] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   const [owner, setOwner] = useState(false); const [sharing, setSharing] = useState<SharingState>();
   const [sharingReady, setSharingReady] = useState(false); const [shareNotice, setShareNotice] = useState("");
   const [editMode, setEditMode] = useState<"edit" | "share" | null>(null);
+  const [selectedRelease, setSelectedRelease] = useState("");
   const [shareTitle, setShareTitle] = useState(item.title || app.title); const [shareSummary, setShareSummary] = useState(item.summary || app.summary);
   const mutation = useRef(false);
+  const publicationOpened = useRef(false);
+  useEffect(() => {
+    if (publish && sharingReady && sharing?.application && !publicationOpened.current) { publicationOpened.current = true; begin("share"); }
+  }, [publish, sharingReady, sharing]);
   useEffect(() => {
     let live = true;
     const update = async (entries: Awaited<ReturnType<typeof loadCatalog>>) => {
@@ -50,13 +55,14 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
   function begin(mode: "edit" | "share") {
     setShareTitle(sharing?.shared?.title || sharing?.application?.title || item.title || app.title);
     setShareSummary(sharing?.shared?.summary ?? sharing?.application?.summary ?? item.summary ?? app.summary);
+    setSelectedRelease(sharing?.application?.releaseId || "");
     setEditMode(mode); setShareNotice("");
   }
   async function save() {
     if (mutation.current || !sharingReady || !editMode) return;
     mutation.current = true; setBusy(true); setError("");
     try {
-      const state = editMode === "edit" ? await editMarketApplication(app.appId, shareTitle, shareSummary) : await shareMarketApplication(app.appId, sharing!.application!.releaseId, shareTitle, shareSummary);
+      const state = editMode === "edit" ? await editMarketApplication(app.appId, shareTitle, shareSummary) : await shareMarketApplication(app.appId, selectedRelease, shareTitle, shareSummary);
       setSharing(state); setEditMode(null); setShareNotice(editMode === "edit" ? "分享信息已保存，公开版本保持不变。" : "已将选定版本分享到应用市场。");
     } catch (e) { setError(e instanceof Error ? e.message : "分享未完成，请重试"); }
     finally { mutation.current = false; setBusy(false); }
@@ -72,7 +78,7 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
     try {
       if (owner && user) {
         offerApplication(sharing?.application ?? app, user.id);
-        await applyPackageUpdates();
+        await applyApplicationUpdate(app.appId);
       } else { await installMarketApplication(item); setInstalled(true); setRelease(app.releaseId); }
     }
     catch (e) { setError(e instanceof Error ? e.message : "安装没有完成，请重试"); }
@@ -104,7 +110,7 @@ export function MarketDetailScreen({ item, onBack, onOpen }: { item: MarketAppli
       {shareNotice ? <Text style={styles.caption}>{shareNotice}</Text> : null}
       {sharing?.application ? <Pressy disabled={busy || !sharingReady} onPress={() => begin("share")}><Text style={styles.secondary}>{shared ? hasNewVersion ? "将新版本分享到市场" : "重新分享最新制作版本" : "分享最新制作版本"}</Text></Pressy> : null}
       {shared ? <><Pressy disabled={busy || !sharingReady} onPress={() => begin("edit")}><Text style={styles.secondary}>修改分享名称与介绍</Text></Pressy><Pressy disabled={busy || !sharingReady} onPress={withdraw}><Text style={styles.secondary}>撤回分享</Text></Pressy></> : null}
-      {editMode ? <><Text style={styles.subtitle}>{editMode === "edit" ? "编辑分享信息" : "分享作品"}</Text><TextInput accessibilityLabel="分享名称" value={shareTitle} onChangeText={setShareTitle} maxLength={60} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><TextInput accessibilityLabel="分享介绍" value={shareSummary} onChangeText={setShareSummary} multiline maxLength={300} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><Text style={styles.caption}>{editMode === "edit" ? "只修改展示信息，保留当前公开版本。" : "上架当前选定的版本，之后制作的版本不会自动公开。"}</Text><Pressy disabled={busy || !sharingReady || !shareTitle.trim()} onPress={() => void save()}><Text style={styles.secondary}>{editMode === "edit" ? "保存分享信息" : "确认分享到市场"}</Text></Pressy><Pressy disabled={busy} onPress={() => setEditMode(null)}><Text style={styles.secondary}>取消</Text></Pressy></> : null}
+      {editMode ? <><Text style={styles.subtitle}>{editMode === "edit" ? "编辑分享信息" : "分享作品"}</Text><TextInput accessibilityLabel="分享名称" value={shareTitle} onChangeText={setShareTitle} maxLength={60} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><TextInput accessibilityLabel="分享介绍" value={shareSummary} onChangeText={setShareSummary} multiline maxLength={300} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><Text style={styles.caption}>{editMode === "edit" ? "只修改展示信息，保留当前公开版本。" : `发布版本 ${selectedRelease.slice(0, 8)} · ${runningApplicationReleases()[app.appId] === selectedRelease ? "正在体验此版本" : "此版本尚未体验"}。之后制作的版本不会自动公开。`}</Text><Pressy disabled={busy || !sharingReady || !shareTitle.trim()} onPress={() => void save()}><Text style={styles.secondary}>{editMode === "edit" ? "保存分享信息" : "发布到市场"}</Text></Pressy><Pressy disabled={busy} onPress={() => setEditMode(null)}><Text style={styles.secondary}>取消</Text></Pressy></> : null}
     </Surface> : null}
     {installed && app.appId !== bootstrap.defaultApplication ? <Pressy disabled={busy} onPress={uninstall}><Text style={styles.secondary}>卸载应用</Text></Pressy> : null}
     {app.appId === bootstrap.defaultApplication ? <Text style={styles.caption}>Jolly 是默认伙伴，工坊就在它的主页里。</Text> : null}
