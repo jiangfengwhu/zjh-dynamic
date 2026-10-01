@@ -1,5 +1,7 @@
 {
   "format": 1,
   "moduleRangeSize": 100000,
-  "applications": { "jolly": 2000000, "notepad": 2100000, "pomodoro": 2200000 }
+  "applications": {
+    "jolly": 2000000
+  }
 }

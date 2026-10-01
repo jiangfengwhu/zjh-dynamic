@@ -7,23 +7,5 @@
     "mark": "乔",
     "accent": "#E0B785",
     "dataSchemaVersion": 1
-  },
-  {
-    "appId": "notepad",
-    "version": "1.0.0",
-    "title": "记事本",
-    "summary": "记录灵感，支持 Markdown 预览。",
-    "mark": "记",
-    "accent": "#7A5BD0",
-    "dataSchemaVersion": 1
-  },
-  {
-    "appId": "pomodoro",
-    "version": "1.0.0",
-    "title": "番茄钟",
-    "summary": "专注25分钟，种下一朵小花。",
-    "mark": "钟",
-    "accent": "#E0A06A",
-    "dataSchemaVersion": 1
   }
 ]

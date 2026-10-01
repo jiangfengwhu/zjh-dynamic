@@ -154,7 +154,7 @@ function ShellApp() {
         await restoreApplications();
         if (!await readShellValue("application.bootstrap.v1")) {
           const bootstrap = require("../../tools/applications/bootstrap.json");
-          const ids: string[] = stored.length || readFeedPosts().length ? bootstrap.legacyInstalled : bootstrap.defaultInstalled;
+          const ids: string[] = bootstrap.defaultInstalled;
           for (const id of ids) if (!stored.some(entry => entry.id === id)) stored.push({ id, hidden: false, pinned: true });
           await saveCatalog(stored);
           writeShellValue("application.bootstrap.v1", "done");

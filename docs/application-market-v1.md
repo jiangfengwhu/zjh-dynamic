@@ -2,7 +2,7 @@
 
 底部为动态、应用市场、我的。市场由平台提供，工坊与制作进度归 Jolly；SDK navigation.create(prompt) 带需求打开 Jolly 内的工坊。旧包的 agent Tab 请求仍兼容转入 Jolly。
 
-GET /v1/market 提供维护者精选条目，当前上架 jolly、notepad、pomodoro。条目包含原始不可变 manifest 与 authorId: null、authorName: 社区创作者、originalAppId: null 默认元数据，不改写清单或 releaseId。不接登录，不自动公开工坊创建的应用。
+GET /v1/market 仅提供显式公开的版本；内置官方应用只有 Jolly。条目携带不可变 manifest、真实作者身份与原作信息；浏览和安装无需登录，创作与上架验证账号，不自动公开工坊候选。
 
 列表支持搜索、离线缓存、空态和重试。详情安装前检查平台兼容性，通过现有原生缓存下载并校验包体与媒体。新安装可直接打开；运行中应用更新会重载 JS，避免在同一模块范围覆盖旧包。安装与目录变化实时通知宿主和动态页。
 
