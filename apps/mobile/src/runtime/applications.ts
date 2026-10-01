@@ -71,10 +71,14 @@ export async function checkApplicationUpdates(): Promise<PendingPackage[]> {
   const marketResponse = await fetchApplicationCatalog(`${edgeUrl}/v1/market`);
   if (!marketResponse.ok) throw new Error("无法检查市场应用更新");
   const market = await marketResponse.json() as { applications: Array<{ manifest: ApplicationManifest }> };
-  offered.clear();
+  const accountId = await currentAccountId();
+  // Workshop offers include first installs, which are absent from active and market.
+  // Refresh public updates without discarding the current author's private candidates.
+  for (const [appId, item] of offered) {
+    if (!item.ownerId || item.ownerId !== accountId || item.manifest.releaseId === await readShellValue(`application.failed.${appId}`)) offered.delete(appId);
+  }
   for (const [appId, current] of active) {
     let manifest = market.applications.find(item => item.manifest.appId === appId)?.manifest;
-    const accountId = await currentAccountId();
     let ownerId: string | null = null;
     if (accountId && await readShellValue(`shell.jules.apps.${appId}.owner`) === accountId) {
       const response = await accountFetch(`${edgeUrl}/v1/applications/${appId}/candidate`, { headers: { "X-Workshop-Token": await readShellValue(`shell.jules.apps.${appId}.token`) || "" } }, false);
