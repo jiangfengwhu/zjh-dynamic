@@ -5,7 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { bundles, openFeature, refreshApplications, restoreApplications } from "../../packages/features/src/registry";
 import type { FeatureComponent } from "../../packages/features/src/featureHost";
 import NativePluginHost from "./src/NativePluginHost";
-import { loadCatalog, saveCatalog, type CatalogEntry } from "./src/shell/catalog";
+import { loadCatalog, saveCatalog, subscribeCatalog, type CatalogEntry } from "./src/shell/catalog";
 import { openShellBundle, openShellTab, ShellNavigator } from "./src/shell/navigation";
 import { BackButton } from "./src/shell/BackButton";
 import { readPackageValue, subscribePackageValue } from "../../packages/ui/packageLink";
@@ -171,6 +171,8 @@ function ShellApp() {
     })();
   }, []);
 
+  useEffect(() => subscribeCatalog(setCatalog), []);
+
   const items = useMemo<ShellItem[]>(() => {
     return bundles.filter(bundle => catalog.some(entry => entry.id === bundle.id)).map((bundle) => {
       const entry = catalog.find((item) => item.id === bundle.id);
@@ -192,7 +194,7 @@ function ShellApp() {
   const listed = items.filter((item) => !item.trashedAt && !item.purged);
 
   async function patchCatalog(id: string, patch: Partial<CatalogEntry>) {
-    const next = upsert(catalog, id, patch);
+    const next = upsert(await loadCatalog(), id, patch);
     setCatalog(next);
     try {
       await saveCatalog(next);

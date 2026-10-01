@@ -1,6 +1,11 @@
 import { readShellValue, writeShellValue } from "./shellStorage";
 
 const CATALOG_KEY = "shell.bundles.v1";
+const listeners = new Set<(entries: CatalogEntry[]) => void>();
+export function subscribeCatalog(listener: (entries: CatalogEntry[]) => void) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
 
 export type CatalogEntry = {
   id: string;
@@ -40,4 +45,5 @@ export async function loadCatalog(): Promise<CatalogEntry[]> {
 export async function saveCatalog(entries: CatalogEntry[]) {
   const file: CatalogFile = { entries };
   writeShellValue(CATALOG_KEY, JSON.stringify(file));
+  for (const listener of listeners) listener(entries);
 }

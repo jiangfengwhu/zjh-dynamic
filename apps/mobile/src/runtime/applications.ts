@@ -22,6 +22,9 @@ const contract = require("./application-contract.json") as { engineAbi: string; 
 const allocations = require("../../../../tools/applications/allocations.json") as { applications: Record<string, number>; moduleRangeSize: number };
 
 export function runningApplication(appId: string) { return active.get(appId); }
+export function applicationNeedsReload(manifest: ApplicationManifest) {
+  return loading.has(manifest.appId) && active.get(manifest.appId)?.releaseId !== manifest.releaseId;
+}
 export function runningApplicationReleases() { return Object.fromEntries([...active].map(([id, manifest]) => [id, manifest.releaseId])); }
 export function offerApplication(manifest: ApplicationManifest) { assertCompatible(manifest, manifest.appId); offered.set(manifest.appId, manifest); }
 
@@ -96,6 +99,8 @@ async function load(appId: string) {
   writeShellValue(`application.attempt.${appId}`, "");
   console.log("application ready", appId, manifest.releaseId);
 }
+
+export function validateApplication(manifest: ApplicationManifest) { assertCompatible(manifest, manifest.appId); }
 
 function assertCompatible(manifest: ApplicationManifest, appId: string) {
   if (manifest.format !== 1 || manifest.appId !== appId || !/^[a-f0-9]{64}$/.test(manifest.releaseId) || !/^[a-f0-9]{64}$/.test(manifest.bundle?.sha256) || manifest.source.dirty) throw new Error("应用清单无效");

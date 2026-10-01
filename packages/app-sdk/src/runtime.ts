@@ -63,7 +63,8 @@ export function applicationContext(appId: string): AppContext {
       open: () => navigate({ action: "open", id: appId }),
       create: (prompt) => {
         if (prompt) applicationContext(bootstrap.defaultApplication).storage.set("pendingPrompt", prompt);
-        navigate({ action: "tab", tab: "agent" });
+        applicationContext(bootstrap.defaultApplication).storage.set("openWorkshop", String(Date.now()));
+        navigate({ action: "open", id: bootstrap.defaultApplication });
       },
     },
     phone: { vibrate: phone.vibrate, speak: phone.speak, notify: (id, title, body) => phone.notify(`${appId}:${id}`, title, body), schedule: (id, title, body, atMs) => phone.schedule(`${appId}:${id}`, title, body, atMs), keepAwake: phone.keepAwake },

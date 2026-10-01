@@ -23,6 +23,10 @@ function definition(item: (typeof index)[number]): BundleDefinition {
   };
 }
 export const bundles: BundleDefinition[] = index.map(definition);
+export function registerApplicationMetadata(item: (typeof index)[number]) {
+  const prior = bundles.findIndex(bundle => bundle.id === item.appId);
+  if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
+}
 export async function restoreApplications() {
   const { loadCatalog } = require("../../../apps/mobile/src/shell/catalog");
   const { readShellValue } = require("../../../apps/mobile/src/shell/shellStorage");

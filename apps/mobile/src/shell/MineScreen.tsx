@@ -13,6 +13,8 @@ type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
 
 type Props = {
   mode: ThemeMode;
+  onApplications: () => void;
+  onCompanion: () => void;
   onProviders: () => void;
   onInfo: () => void;
   onCheckUpdates: () => Promise<boolean>;
@@ -22,6 +24,8 @@ type Props = {
 
 export const MineScreen = memo(function MineScreen({
   mode,
+  onApplications,
+  onCompanion,
   onProviders,
   onInfo,
   onCheckUpdates,
@@ -61,7 +65,7 @@ export const MineScreen = memo(function MineScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
+        <Pressable accessibilityRole="button" accessibilityLabel="打开 Jolly" onPress={onCompanion}><Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
           <View style={styles.portrait}>
             {Avatar ? <Avatar size={68} animated borderRadius={22} /> : <Icon name="box" size={36} color={colors.accent} />}
           </View>
@@ -69,10 +73,11 @@ export const MineScreen = memo(function MineScreen({
             <Text style={styles.profileName}>{companion?.title ?? "紫金花"}</Text>
             <Text style={styles.profileHint}>把一句心愿做成能打开的小应用</Text>
           </View>
-        </Surface>
+        </Surface></Pressable>
 
         <SectionTitle>管理</SectionTitle>
         <Surface style={styles.group}>
+          <Row icon="box" title="我的应用" hint="打开、更新与卸载" onPress={onApplications} />
           <Row icon="info" title="应用信息" hint="各个包的体积" onPress={onInfo} />
           <Row
             icon="cloud"

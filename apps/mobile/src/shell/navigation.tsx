@@ -17,6 +17,10 @@ import type { MaterialTopTabBarProps } from "@react-navigation/material-top-tabs
 import { TabBar, type ShellTabId } from "./TabBar";
 import { FeedScreen } from "./feed/FeedScreen";
 import { type AppEntry } from "./catalog";
+import { MarketScreen } from "./MarketScreen";
+import { MarketDetailScreen } from "./MarketDetailScreen";
+import type { MarketApplication } from "./market";
+import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { MineScreen } from "./MineScreen";
 import { ProvidersScreen } from "./ProvidersScreen";
 import { AppInfoScreen } from "./AppInfoScreen";
@@ -27,7 +31,7 @@ import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 
 export type TabParamList = {
   feed: undefined;
-  agent: undefined;
+  market: undefined;
   mine: undefined;
 };
 
@@ -38,6 +42,8 @@ export type RootParamList = {
   summary: undefined;
   appearance: undefined;
   bundle: { id: string };
+  marketDetail: { item: MarketApplication };
+  myApps: undefined;
 };
 
 export const shellNavigationRef = createNavigationContainerRef<RootParamList>();
@@ -52,7 +58,6 @@ export function openShellTab(id: ShellTabId) {
 
 export function openShellBundle(id: string) {
   if (!shellNavigationRef.isReady()) return;
-  if (id === bootstrap.defaultApplication) { openShellTab("agent"); return; }
   console.log("route push", "bundle", id);
   shellNavigationRef.navigate("bundle", { id });
 }
@@ -70,7 +75,7 @@ function goBack() {
  */
 export const SHELL_NAV_REQUEST = "shell.nav.request";
 
-const SHELL_TAB_IDS: readonly string[] = ["feed", "agent", "mine"];
+const SHELL_TAB_IDS: readonly string[] = ["feed", "market", "mine"];
 
 function handleShellRequest(raw: string | undefined) {
   if (!raw) return;
@@ -78,6 +83,7 @@ function handleShellRequest(raw: string | undefined) {
     const request = JSON.parse(raw) as { action?: string; tab?: string; id?: string };
     console.log("shell request", request.action, request.tab ?? request.id ?? "");
     if (request.action === "back") goBack();
+    else if (request.action === "tab" && request.tab === "agent") applicationContext(bootstrap.defaultApplication).navigation.create();
     else if (request.action === "tab" && request.tab && SHELL_TAB_IDS.includes(request.tab)) openShellTab(request.tab as ShellTabId);
     else if (request.action === "open" && request.id) openShellBundle(request.id);
   } catch (error) {
@@ -123,12 +129,13 @@ function BundlePage({
       clearTimeout(timer);
     };
   }, [focused, id, navigation, shown]);
+  const Page = id === bootstrap.defaultApplication ? View : Screen;
   return (
-    <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
+    <Page style={{ flex: 1, backgroundColor: colors.canvas }}>
       <View style={styles.feature}>
         {shown ? render(id, goBack) : null}
       </View>
-    </Screen>
+    </Page>
   );
 }
 
@@ -220,7 +227,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               tabBar={(tabProps) => <ShellTabBar {...tabProps} />}
               screenOptions={{
                 swipeEnabled: true,
-                lazy: false,
+                lazy: true,
                 sceneStyle: { backgroundColor: colors.canvas },
               }}
             >
@@ -229,19 +236,20 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   <FeedScreen
                     onOpen={props.onOpenBundle}
                     onReply={props.onReplyToFriend}
-                    onNew={() => openShellTab("agent")}
+                    installedIds={props.listed.map(item => item.id)}
+                    onNew={() => openShellTab("market")}
                   />
                 )}
               </Tabs.Screen>
-              <Tabs.Screen name="agent">
-                {() => (
-                  <View style={{ flex: 1 }}>{props.renderBundle(bootstrap.defaultApplication, () => openShellTab("feed"))}</View>
-                )}
+              <Tabs.Screen name="market">
+                {() => <MarketScreen onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => applicationContext(bootstrap.defaultApplication).navigation.create()} />}
               </Tabs.Screen>
               <Tabs.Screen name="mine">
                 {() => (
                   <MineScreen
                     mode={props.mode}
+                    onApplications={() => shellNavigationRef.navigate("myApps")}
+                    onCompanion={() => props.onOpenBundle(bootstrap.defaultApplication)}
                     onProviders={() => shellNavigationRef.navigate("providers")}
                     onInfo={() => shellNavigationRef.navigate("info")}
                     onCheckUpdates={props.onCheckUpdates}
@@ -253,6 +261,12 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             </Tabs.Navigator>
             </ScreenEdge>
           )}
+        </Stack.Screen>
+        <Stack.Screen name="marketDetail">
+          {({ route }) => <MarketDetailScreen item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} />}
+        </Stack.Screen>
+        <Stack.Screen name="myApps">
+          {() => <MarketScreen installedOnly onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => applicationContext(bootstrap.defaultApplication).navigation.create()} />}
         </Stack.Screen>
         <Stack.Screen name="providers">
           {() => <ProvidersScreen onBack={goBack} />}

@@ -12,7 +12,7 @@ import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 
 export const SHELL_TABS = [
   { id: "feed", title: "动态", icon: "feed" },
-  { id: "agent", title: "工坊", icon: "workshop" },
+  { id: "market", title: "应用市场", icon: "box" },
   { id: "mine", title: "我的", icon: "mine" },
 ] as const;
 

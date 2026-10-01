@@ -49,16 +49,18 @@ const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const REVEAL_COUNT = 5;
 
 type FeedProps = {
+  installedIds: string[];
   onOpen: (id: string) => void;
   /** 对某位朋友说一句：带着 TA 的名字去工坊。 */
   onReply: (id: string) => void;
-  /** 找新朋友：去工坊许一个新心愿。 */
+  /** 找新朋友：去应用市场发现应用。 */
   onNew: () => void;
 };
 
-export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew }: FeedProps) {
+export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, installedIds }: FeedProps) {
   const { colors } = useTheme();
-  const [posts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
+  const [allPosts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
+  const posts = useMemo(() => allPosts.filter(post => installedIds.includes(post.appId)), [allPosts, installedIds]);
   const [seen, setSeen] = useState<SeenMap>({});
   const [likes, setLikes] = useState<string[]>([]);
   const [kind, setKind] = useState<FeedSlot | null>(null);
@@ -96,11 +98,11 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew }: F
 
   const friends = useMemo(() => {
     const map = new Map<string, FeedFriend>();
-    for (const bundle of bundles) {
+    for (const bundle of bundles.filter(item => installedIds.includes(item.id))) {
       map.set(bundle.id, { id: bundle.id, name: bundle.title, mark: bundle.mark, accent: bundle.accent, Avatar: bundle.avatar });
     }
     return map;
-  }, []);
+  }, [installedIds, cardsReady]);
 
   /** 每位朋友最近一条动态的时间，用来判断有没有没看过的。 */
   const latest = useMemo(() => {
@@ -162,7 +164,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew }: F
                 {summarizing ? "正在整理这段时间的动态" : todayLabel()}
               </Text>
             </View>
-            <Pressy accessibilityRole="button" accessibilityLabel="打开工坊" onPress={() => open(bootstrap.defaultApplication)} scale={0.92} hitSlop={8}>
+            <Pressy accessibilityRole="button" accessibilityLabel="打开 Jolly" onPress={() => open(bootstrap.defaultApplication)} scale={0.92} hitSlop={8}>
               <Halo active={summarizing} size={30}>
                 <DefaultAvatar size={30} />
               </Halo>
