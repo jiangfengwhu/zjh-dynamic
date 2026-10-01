@@ -23,13 +23,27 @@ if (previous.ok) {
   if (prior.modules.base !== manifest.modules.base) throw new Error("应用模块范围不可变更");
   if (!/^[a-f0-9]{40}$/.test(prior.source?.commit)) throw new Error("线上应用提交无效");
   if (prior.source.repository !== manifest.source.repository) throw new Error("线上应用仓库与当前源码不一致");
-  execFileSync("git", ["merge-base", "--is-ancestor", prior.source.commit, manifest.source.commit], { cwd: root, windowsHide: true, stdio: "pipe" });
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", prior.source.commit, manifest.source.commit], { cwd: root, windowsHide: true, stdio: "pipe" });
+  } catch {
+    // Jules can recreate a commit when exporting its PR. Only identical source or
+    // byte-for-byte identical release content can reconcile that rewritten baseline.
+    const sameTree = prior.source.tree && prior.source.tree === manifest.source.tree;
+    if (!sameTree && releaseContent(prior) !== releaseContent(manifest)) throw new Error("候选源码基线不一致，且源码树及重建产物均不匹配；请同步当前版本后重新发布");
+    console.log(sameTree ? "baseline reconciled: identical Git source tree" : "baseline reconciled: identical rebuilt bundle, assets and application contract");
+  }
 } else if (previous.status !== 404) throw new Error("无法读取应用发布基线");
 const file = path.join(output, "manifest.json");
 await writeFile(file, JSON.stringify(manifest));
 for (const blob of [{ sha256: manifest.bundle.sha256, file: bundleFile }, ...manifest.assets.map(asset => ({ sha256: asset.sha256, file: path.join(output, "assets", asset.sha256) }))]) {
   const response = await fetch(`${bundleEdgeBase()}/v1/application-blobs/${appId}/${blob.sha256}`, { method: "PUT", headers: { Authorization: `Bearer ${publishToken}`, "Content-Type": "application/octet-stream" }, body: await readFile(blob.file) });
   if (!response.ok) throw new Error(`应用包上传失败 status=${response.status}`);
+}
+
+function releaseContent(manifest: Record<string, unknown>): string {
+  const { source, releaseId, ...content } = manifest;
+  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)])) : value;
+  return JSON.stringify(canonical(content));
 }
 await publishCatalog([
   { key: `v1/applications/${appId}/releases/${manifest.releaseId}`, file, contentType: "application/json", cacheControl: "no-cache" },

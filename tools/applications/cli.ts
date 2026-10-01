@@ -19,7 +19,7 @@ else if (command === "init") {
   let response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (response.status === 404 && token) response = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) throw new Error("尚未分配应用模块范围，请先在 Jolly 发起这个应用的创作");
-  const { moduleBase: base, originalAppId, originalReleaseId, originalCommit } = await response.json();
+  const { moduleBase: base, title: draftTitle, originalAppId, originalReleaseId, originalCommit } = await response.json();
   if (!Number.isSafeInteger(base) || base < 2000000 || base % platform.moduleRangeSize || base + platform.moduleRangeSize >= 2 ** 31) throw new Error("服务端模块范围无效");
   const directory = path.join(root, "apps", appId);
   await mkdir(directory);
@@ -45,7 +45,7 @@ else if (command === "init") {
     dependencies = priorPackage.dependencies;
     original = { title: prior.title, summary: prior.summary, mark: prior.mark, accent: prior.accent, originalAppId, originalReleaseId, originalCommit };
   }
-  await writeFile(path.join(directory, "application.json"), JSON.stringify({ title: appId, summary: "", mark: appId[0], accent: "#7A5BD0", ...original, appId, version: "1.0.0", dataSchemaVersion: 1, moduleBase: base }, null, 2));
+  await writeFile(path.join(directory, "application.json"), JSON.stringify({ title: typeof draftTitle === "string" && draftTitle.trim() ? draftTitle.trim().slice(0, 60) : "新作品", summary: "", mark: appId[0], accent: "#7A5BD0", ...original, appId, version: "1.0.0", dataSchemaVersion: 1, moduleBase: base }, null, 2));
   await writeFile(path.join(directory, "package.json"), JSON.stringify({ name: `@zjh-plugin/${appId}`, private: true, ...(dependencies ? { dependencies } : {}) }, null, 2));
   const run = promisify(execFile);
   await run(process.platform === "win32" ? "npm.cmd" : "npm", ["install", "--package-lock-only", "--ignore-scripts"], { cwd: root, windowsHide: true, shell: process.platform === "win32" });

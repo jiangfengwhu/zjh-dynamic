@@ -4,7 +4,7 @@
 
 需求由登录账号提交，requestId 幂等创建。请求 Jules 前保存任务，响应丢失时接回同一会话；GET /v1/works 只返回本账号作品。登录凭据保存在系统安全存储，Jolly 存储和订阅按账号分开，换机或重新登录可恢复所属作品。不迁移旧匿名记录或历史仓库发布。默认每天 10 轮、同时最多 3 个制作任务；工坊按应用串行，市場读取和其他应用不等待云端请求。
 
-每轮使用绑定 appId、ownerId、轮次和有效期的 HMAC 发布授权，SDK 1.1.5 将其保存到 Git 元数据。包体通过按应用授权的接口校验哈希上传；清单以 expectedReleases 比较权威 candidate 基线。source.commit 对应真实、干净的源码提交；稳定模块键、模块范围和兼容检查继续执行。原作复制锁定 originalReleaseId/originalCommit。
+每轮使用绑定 appId、ownerId、轮次和有效期的 HMAC 发布授权，SDK 1.1.6 将其保存到 Git 元数据。包体通过按应用授权的接口校验哈希上传；清单以 expectedReleases 比较权威 candidate 基线。source.commit 对应真实、干净的源码提交；稳定模块键、模块范围和兼容检查继续执行。原作复制锁定 originalReleaseId/originalCommit。
 
 流程为：需求 → 自动制作和打包候选 → 开发者加载体验 → 确认收下并核对 PR → accepted → 开发者主动上架 → public。发包不会自动上架，之后的制作不会改变原公开版本。编辑介绍不改变版本，撤回不删除作品、已安装版本或业务数据。已经上架过的不可变快照保持可读，已安装公开包可离线启动。
 
@@ -14,7 +14,7 @@
 
 1. 提交 SDK、宿主和工具源码，构建并上传不可变 Markdown 安全依赖与 SDK tarball。插件根固定 SDK 地址和锁文件，提交后重发应用。
 2. 服务端执行类型检查和 Wrangler dry-run，部署后通过维护者开发清库入口清除旧工坊任务及应用清单。保留账号、宿主/runtime 清单、SDK 和不可变包体，然后重新发布三个官方应用。开发清库需要维护者凭证及精确确认字段，不提供给云端任务。
-3. 构建并发布宿主、Jolly 等官方公开版本。Markdown 渲染源码/API 仍为 7.0.2，只更新纯 JS 解析器；SDK 工具包 1.1.5 仍使用运行时 API 1.1.0，无新增原生能力，无需更换 APK。
+3. 构建并发布宿主、Jolly 等官方公开版本。Markdown 渲染源码/API 仍为 7.0.2，只更新纯 JS 解析器；SDK 工具包 1.1.6 仍使用运行时 API 1.1.0，无新增原生能力，无需更换 APK。
 4. 撤销旧云端共享 R2 凭据，并从 Jules 集成环境删除。新会话禁用共享环境变量，无法收回历史会话已经得到的密钥。Jules/GitHub 集成仅开放 zjh-plugin。
 
 Markdown 安全产物由 scripts/build-markdown-dependency.mjs 从已校验 SHA-512 的上游 7.0.2 构建，保留源码和许可证，仅将 markdown-it 升级到 15.0.2；SDK 自带固定产物，无需应用配置 overrides 或关闭 npm audit。

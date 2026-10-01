@@ -82,11 +82,12 @@ export async function buildApplication(repo: string, appId: string) {
   const used = JSON.parse(await readFile(path.join(output, "used-modules.json"), "utf8")) as string[];
   const dependencies = Object.fromEntries(used.filter(name => !name.startsWith("@zijinhua/")).map(name => [name, shared[name]]));
   const source = (await run("git", ["rev-parse", "HEAD"], { cwd: repo, windowsHide: true })).stdout.trim();
+  const sourceTree = (await run("git", ["rev-parse", `${source}^{tree}`], { cwd: repo, windowsHide: true })).stdout.trim();
   const dirty = Boolean((await run("git", ["status", "--porcelain", "--untracked-files=normal"], { cwd: repo, windowsHide: true })).stdout.trim());
   const body = {
     ...config, format: 1, requires: { engineAbi: platform.engineAbi, sdk: publicModules.sdk, shared: dependencies },
     modules: { base, size: platform.moduleRangeSize },
-    bundle: { sha256: sha256Hex(bytes), bytes: bytes.length }, assets: assets.sort((a, b) => a.name.localeCompare(b.name)), source: { repository: repositoryFromRemote((await run("git", ["remote", "get-url", "origin"], { cwd: repo, windowsHide: true })).stdout.trim()), commit: source, dirty },
+    bundle: { sha256: sha256Hex(bytes), bytes: bytes.length }, assets: assets.sort((a, b) => a.name.localeCompare(b.name)), source: { repository: repositoryFromRemote((await run("git", ["remote", "get-url", "origin"], { cwd: repo, windowsHide: true })).stdout.trim()), commit: source, tree: sourceTree, dirty },
   };
   const manifest = { ...body, releaseId: sha256Hex(JSON.stringify(body)) };
   await writeFile(path.join(output, "manifest.json"), JSON.stringify(manifest, null, 2));
