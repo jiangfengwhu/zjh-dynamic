@@ -34,6 +34,7 @@ export async function openApplicationWorkshop(appId: string, title: string, fork
     if (!response.ok) throw new Error("暂时无法准备工坊，请稍后重试");
     const published = await response.json() as ApplicationManifest;
     if (runningApplication(bootstrap.defaultApplication)?.releaseId !== published.releaseId) {
+      if (await readShellValue(`application.failed.${bootstrap.defaultApplication}`) === published.releaseId) throw new Error("工坊新版曾加载失败，请等待修复后的版本；反馈草稿已保留");
       await preparePublicApplication(published); companion = published;
     }
     if (await currentAccountId() !== owner) throw new Error("账号已改变，请重新打开反馈页");
