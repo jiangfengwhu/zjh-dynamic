@@ -5,6 +5,8 @@ import { readShellValue, removeShellValue, writeShellValue } from "./shellStorag
 import { runningApplicationReleases, offerApplication, type ApplicationManifest } from "../runtime/applications";
 import { restoreWorks } from "./workRecovery";
 import { confirmCreation } from "./creationConsent";
+import { AppState } from "react-native";
+import type { WorkshopDetail } from "../../../../packages/app-sdk/src/creation";
 
 const SOURCE = "sources/github/jiangfengwhu/zjh-plugin";
 type CloudOutcome = "finished" | "cancelled" | "waiting";
@@ -60,6 +62,51 @@ function createService(appId: string, originalAppId?: string) {
 const SESSION_STORAGE = `shell.jules.apps.${appId}.session`;
 const RUN_STORAGE = `shell.jules.apps.${appId}.run`;
 const APPROVAL_STORAGE = `shell.jules.apps.${appId}.token`;
+type RawDetail = { session: JulesSession; status: WorkshopStatus; activities?: JulesActivity[]; nextPageToken?: string; stale: boolean; sharing?: { shared?: { manifest: { releaseId: string } } | null } };
+let detailFlight: { key: string; promise: Promise<RawDetail> } | undefined;
+let latestDetail: { key: string; at: number; value: RawDetail } | undefined;
+async function detailKey(session: string) {
+  const owner = await currentAccountId();
+  if (!owner || await readShellValue(`shell.jules.apps.${appId}.owner`) !== owner) throw new Error("请重新接回当前账号的作品");
+  return `${owner}:${session}:${await readShellValue(APPROVAL_STORAGE)}:${await readShellValue(RUN_STORAGE)}`;
+}
+async function fetchDetail(session: string): Promise<RawDetail> {
+  const key = await detailKey(session);
+  if (latestDetail?.key === key && Date.now() - latestDetail.at < 4000) return latestDetail.value;
+  if (detailFlight?.key === key) return detailFlight.promise;
+  const promise = (async () => {
+    const value = await workshop({ action: "detail", session, applicationReleases: runningApplicationReleases() }) as unknown as RawDetail;
+    if (await detailKey(session) !== key) throw new Error("账号或制作轮次已改变，请重试");
+    latestDetail = { key, at: Date.now(), value };
+    const owner = await currentAccountId();
+    writeShellValue(`shell.workshop.detail.${owner}.${appId}`, JSON.stringify(latestDetail));
+    return value;
+  })();
+  detailFlight = { key, promise };
+  try { return await promise; } finally { if (detailFlight?.promise === promise) detailFlight = undefined; }
+}
+function detailView(value: RawDetail): WorkshopDetail {
+  const startedAt = Date.parse(value.session.createTime || "");
+  const status = { ...value.status };
+  if (status.application) status.delivery = runningApplicationReleases()[appId] === status.application.releaseId ? "loaded" : "update";
+  return { session: { state: value.session.state || "", url: value.session.url || "", title: value.session.title || "", startedAt: Number.isNaN(startedAt) ? 1 : startedAt }, status,
+    traces: (value.activities || []).slice().sort((a, b) => (a.createTime || "").localeCompare(b.createTime || "")).flatMap(activityTrace), historyCursor: value.nextPageToken, stale: value.stale, publicReleaseId: value.sharing?.shared?.manifest.releaseId };
+}
+async function readWorkshopDetail(session: string, cachedOnly = false): Promise<WorkshopDetail | undefined> {
+  if (!cachedOnly) return detailView(await fetchDetail(session));
+  const key = await detailKey(session); const owner = await currentAccountId();
+  try {
+    const cached = JSON.parse(await readShellValue(`shell.workshop.detail.${owner}.${appId}`) || "null");
+    if (cached?.key === key && await detailKey(session) === key) return { ...detailView(cached.value), stale: true };
+  } catch {}
+  return undefined;
+}
+async function readWorkshopHistory(session: string, cursor: string) {
+  const key = await detailKey(session);
+  const page = await workshop({ action: "activities", session, pageToken: cursor }) as { activities?: JulesActivity[]; nextPageToken?: string };
+  if (await detailKey(session) !== key) throw new Error("账号或制作轮次已改变，请重试");
+  return { traces: (page.activities || []).sort((a, b) => (a.createTime || "").localeCompare(b.createTime || "")).flatMap(activityTrace), nextCursor: page.nextPageToken };
+}
 async function loadJulesRun(): Promise<JulesRun | undefined> {
   const owner = await currentAccountId();
   if (!owner || await readShellValue(`shell.jules.apps.${appId}.owner`) !== owner) return undefined;
@@ -97,6 +144,7 @@ async function runCloudEvolve(options: {
   onTrace: (traces: CloudTrace[]) => void;
   onRunId: (session: string) => void;
   shouldStop: () => boolean;
+  shouldPause?: () => boolean;
 }): Promise<CloudOutcome> {
   if (!await requireAccount()) throw new Error("请先登录后再创作");
   options.onStatus("正在提交到 Jules");
@@ -147,27 +195,7 @@ async function runCloudEvolve(options: {
 }
 
 async function inspectJulesSession(session: string): Promise<{ state: string; url: string; title: string; startedAt: number } | undefined> {
-  const owner = await currentAccountId(); if (!owner) return undefined;
-  const fingerprint = await readShellValue(RUN_STORAGE) || "";
-  const key = `shell.jules.inspection.${owner}.${appId}`;
-  let cached: { at: number; session: string; fingerprint: string; info: { state: string; url: string; title: string; startedAt: number } } | undefined;
-  try { cached = JSON.parse(await readShellValue(key) || "null") ?? undefined; } catch {}
-  if (cached?.session === session && cached.fingerprint === fingerprint && Date.now() - cached.at < 30000) return cached.info;
-  const current = await jules("GET", `/v1alpha/${session}`);
-  if (await currentAccountId() !== owner) return undefined;
-  if (current.status === 404) { removeShellValue(key); return undefined; }
-  if (current.status < 200 || current.status >= 300) throw new Error(julesError(current));
-  const body = JSON.parse(current.body) as JulesSession;
-  const startedAt = Date.parse(body.createTime ?? "");
-  console.log("jules inspect", session, body.state ?? "");
-  const info = {
-    state: body.state ?? "",
-    url: body.url ?? "",
-    title: body.title ?? "",
-    startedAt: Number.isNaN(startedAt) ? 1 : startedAt,
-  };
-  writeShellValue(key, JSON.stringify({ at: Date.now(), session, fingerprint, info }));
-  return info;
+  return (await readWorkshopDetail(session))?.session;
 }
 
 function watchJulesSession(
@@ -177,6 +205,7 @@ function watchJulesSession(
     onStatus: (status: string) => void;
     onTrace: (traces: CloudTrace[]) => void;
     shouldStop: () => boolean;
+    shouldPause?: () => boolean;
   },
   sinceMs: number,
 ): Promise<CloudOutcome> {
@@ -214,9 +243,9 @@ async function sessionAcceptsMessage(name: string): Promise<boolean> {
 
 
 async function workshopStatus(session: string): Promise<WorkshopStatus> {
-  const { buildId } = require("./build-identity.json") as { buildId: string };
   const ownerId = await currentAccountId();
-  const result = await workshop({ action: "status", session, buildId, applicationReleases: runningApplicationReleases() });
+  const result = detailView(await fetchDetail(session)).status;
+  if (await currentAccountId() !== ownerId) throw new Error("账号已改变，请重试");
   if (result.application) {
     const manifest = result.application as ApplicationManifest;
     writeShellValue(`shell.workshop.application.${appId}`, JSON.stringify(manifest));
@@ -230,13 +259,14 @@ async function workshopStatus(session: string): Promise<WorkshopStatus> {
   return result as WorkshopStatus;
 }
 
-async function workshop(input: { action: string; session: string; buildId?: string; applicationReleases?: Record<string, string> }): Promise<Record<string, unknown>> {
+async function workshop(input: { action: string; session: string; buildId?: string; applicationReleases?: Record<string, string>; pageToken?: string }): Promise<Record<string, unknown>> {
   const token = await readShellValue(APPROVAL_STORAGE);
   const response = await accountFetch(`${edgeUrl}/v1/workshop`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...input, appId, token }),
-  }, input.action !== "status");
+    signal: AbortSignal.timeout(45000),
+  }, !["status", "detail", "activities"].includes(input.action));
   const result = await response.json() as Record<string, unknown>;
   if (!response.ok) throw new Error(typeof result.message === "string" ? result.message : "工坊暂时没有接好，请稍后再试");
   return result;
@@ -249,25 +279,32 @@ async function waitSession(
     onStatus: (status: string) => void;
     onTrace: (traces: CloudTrace[]) => void;
     shouldStop: () => boolean;
+    shouldPause?: () => boolean;
   },
   expectRestart: boolean,
   sinceMs: number,
 ): Promise<CloudOutcome> {
-  const deadline = Date.now() + 85 * 60 * 1000;
-  const restartDeadline = Date.now() + 3 * 60 * 1000;
+  let deadline = Date.now() + 85 * 60 * 1000;
+  let restartDeadline = Date.now() + 3 * 60 * 1000;
   let approved = false;
   let sawWork = !expectRestart;
+  const owner = await currentAccountId();
   while (Date.now() < deadline) {
     if (options.shouldStop()) return "cancelled";
+    const pollAt = Date.now();
     await delay(5000);
-    const current = await jules("GET", `/v1alpha/${name}`);
-    if (current.status < 200 || current.status >= 300) throw new Error(julesError(current));
-    const session = JSON.parse(current.body) as JulesSession;
+    if (options.shouldStop() || await currentAccountId() !== owner) return "cancelled";
+    if (AppState.currentState !== "active" || options.shouldPause?.()) {
+      const pausedFor = Date.now() - pollAt; deadline += pausedFor; restartDeadline += pausedFor; continue;
+    }
+    const detail = await fetchDetail(name);
+    if (options.shouldStop() || await currentAccountId() !== owner) return "cancelled";
+    const session = detail.session;
     const state = session.state ?? "";
     if (state === "QUEUED" || state === "PLANNING" || state === "IN_PROGRESS" || state === "AWAITING_PLAN_APPROVAL" || state === "AWAITING_USER_FEEDBACK") {
       sawWork = true;
     }
-    const view = await sessionTraces(name, state, session.url || url, sinceMs, sawWork);
+    const view = await sessionTraces(name, state, session.url || url, sinceMs, sawWork, detail);
     options.onTrace(view.traces);
     const latest = [...view.traces].reverse().find((item) => item.kind !== "text");
     console.log("jules state", state, "activities", view.traces.length, latest?.title ?? "", view.settled ? "settled" : "open");
@@ -298,9 +335,10 @@ async function sessionTraces(
   url: string,
   sinceMs: number,
   sawWork: boolean,
+  detail: RawDetail,
 ): Promise<{ traces: CloudTrace[]; settled: boolean }> {
-  const activities = (await listActivities(name)).filter((item) => inTurn(item, sinceMs));
-  const settled = sawWork && turnSettled(state, activities);
+  const activities = (detail.activities || []).filter((item) => inTurn(item, sinceMs));
+  const settled = sawWork && state === "COMPLETED";
   const waitingRestart = !sawWork && (state === "COMPLETED" || state === "PAUSED");
   const traces = activities.flatMap((item) => activityTrace(item));
   const note = [...traces].reverse().find((item) => item.kind === "text");
@@ -331,49 +369,6 @@ function inTurn(activity: JulesActivity, sinceMs: number): boolean {
   const ms = Date.parse(raw);
   if (Number.isNaN(ms)) return true;
   return ms >= sinceMs - 15_000;
-}
-
-function turnSettled(state: string, turn: JulesActivity[]): boolean {
-  if (state !== "COMPLETED" || turn.length === 0) return false;
-  let lastProgress = -1;
-  let lastDone = -1;
-  turn.forEach((item, index) => {
-    if (item.progressUpdated || item.planGenerated) lastProgress = index;
-    if (item.sessionCompleted) lastDone = index;
-  });
-  if (lastDone >= 0 && lastDone >= lastProgress) return true;
-  const last = turn[turn.length - 1];
-  if (last?.progressUpdated || last?.planGenerated) {
-    const raw = last.createTime?.trim();
-    const ms = raw ? Date.parse(raw) : Number.NaN;
-    if (Number.isNaN(ms)) return false;
-    return Date.now() - ms > 20_000;
-  }
-  return true;
-}
-
-async function listActivities(name: string): Promise<JulesActivity[]> {
-  const items: JulesActivity[] = [];
-  let pageToken = "";
-  for (let page = 0; page < 4; page += 1) {
-    const query = pageToken ? `?pageSize=100&pageToken=${encodeURIComponent(pageToken)}` : "?pageSize=100";
-    const result = await jules("GET", `/v1alpha/${name}/activities${query}`);
-    if (result.status < 200 || result.status >= 300) {
-      console.log("jules activities failed", result.status);
-      return items;
-    }
-    let body: { activities?: JulesActivity[]; nextPageToken?: string } = {};
-    try {
-      body = result.body ? JSON.parse(result.body) as typeof body : {};
-    } catch (error) {
-      console.log("jules activities unreadable", error instanceof Error ? error.message : error);
-      return items;
-    }
-    items.push(...(body.activities ?? []));
-    pageToken = body.nextPageToken ?? "";
-    if (!pageToken) break;
-  }
-  return items.sort((a, b) => (a.createTime ?? "").localeCompare(b.createTime ?? ""));
 }
 
 function activityTrace(activity: JulesActivity): CloudTrace[] {
@@ -475,5 +470,5 @@ function delay(ms: number) {
   });
 }
 
-return { runCloudEvolve, cancelCloudRun, loadJulesRun, saveJulesRun, clearJulesRun, clearJulesSession, loadJulesSession, inspectJulesSession, julesSessionLive, watchJulesSession, workshopStatus };
+return { runCloudEvolve, cancelCloudRun, loadJulesRun, saveJulesRun, clearJulesRun, clearJulesSession, loadJulesSession, inspectJulesSession, julesSessionLive, watchJulesSession, workshopStatus, readWorkshopDetail, readWorkshopHistory };
 }

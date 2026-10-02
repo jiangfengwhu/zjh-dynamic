@@ -15,6 +15,8 @@ React、React Native 及平台共享原生依赖由宿主提供，版本记录�
 
 Jolly 使用 `getCreationService(appId, originalAppId?)` 获取按应用隔离的制作服务。修改应用继续已有 session；新 appId 创建新 session。初始化前平台为 appId 原子分配模块范围，CLI 从 `/v1/application-allocation/<id>` 读取；不同应用不依靠本地目录扫描分配范围。
 
+制作服务提供 `readWorkshopDetail(session, cachedOnly?)`，聚合会话、进度记录、交付和公开版本；`readWorkshopHistory(session, cursor)` 按需加载更多记录。轮询可用 `shouldPause` 暂停隐藏页面的同步，暂停不会停止云端制作。缓存仅用于展示，不代替写操作的实时鉴权。
+
 早期不要求兼容旧业务数据或迁移；应用 ID、模块范围与发布源码基线仍保持稳定。作者可以直接上架已发布的候选版本，后续发包不会自动更新分享版本。
 
 SDK 精确声明全部公开共享库、React 类型与 TypeScript。插件根 package.json 只声明 SDK，不重复安装或 overrides 改写这些依赖；应用 package.json 保留 name/private 与自身纯 JS 依赖，应用版本以 application.json 为准。标准公开库入口仍可直接导入，手机运行时由宿主提供，不随应用打包。

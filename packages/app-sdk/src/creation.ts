@@ -2,9 +2,10 @@ import type { ApplicationManifest } from "./index";
 export type CloudTrace = { id: string; kind: "text" | "tool" | "status"; title: string; detail?: string; state: "running" | "done" | "error" };
 export type JulesRun = { session: string; prompt: string; startedAt: number };
 export type CloudOutcome = "finished" | "cancelled" | "waiting";
-export type WatchOptions = { onStatus: (status: string) => void; onTrace: (traces: CloudTrace[]) => void; shouldStop: () => boolean };
+export type WatchOptions = { onStatus: (status: string) => void; onTrace: (traces: CloudTrace[]) => void; shouldStop: () => boolean; shouldPause?: () => boolean };
 export type PendingPackage = { id: string; kind: "layer" | "application"; bytes: number; sha256: string };
 export type WorkshopStatus = { completed: boolean; branch?: string; state: string; delivery?: "unpublished" | "blocked" | "update" | "loaded"; message?: string; application?: ApplicationManifest };
+export type WorkshopDetail = { session: { state: string; url: string; title: string; startedAt: number }; status: WorkshopStatus; traces: CloudTrace[]; historyCursor?: string; stale: boolean; publicReleaseId?: string };
 export type CreationService = {
   runCloudEvolve: (options: WatchOptions & { requirement: string; onRunId: (session: string) => void }) => Promise<CloudOutcome>;
   cancelCloudRun: (session: string) => Promise<void>;
@@ -17,6 +18,8 @@ export type CreationService = {
   julesSessionLive: (state: string) => boolean;
   watchJulesSession: (session: string, url: string, options: WatchOptions, sinceMs: number) => Promise<CloudOutcome>;
   workshopStatus: (session: string) => Promise<WorkshopStatus>;
+  readWorkshopDetail: (session: string, cachedOnly?: boolean) => Promise<WorkshopDetail | undefined>;
+  readWorkshopHistory: (session: string, cursor: string) => Promise<{ traces: CloudTrace[]; nextCursor?: string }>;
   checkPackageUpdates: () => Promise<PendingPackage[]>;
   applyPackageUpdates: () => Promise<number>;
   openPublication: () => Promise<void>;
