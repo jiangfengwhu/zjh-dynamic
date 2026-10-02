@@ -7,7 +7,6 @@ import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedScrollHandler,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   runOnJS,
@@ -77,7 +76,6 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const systemBars = useCallback((immersive: boolean) => {
     void NativePluginHost.call("shell", "systemBars", JSON.stringify({ statusBar: colors.canvas, navigationBar: colors.canvas, window: colors.canvas, immersive: immersive && focusedRef.current })).catch(() => {});
   }, [colors.canvas]);
-  useAnimatedReaction(() => chromeHidden.value >= 0.999, (immersive, previous) => { if (immersive !== previous) runOnJS(systemBars)(immersive); }, [systemBars]);
   const userTimeline = useUserPosts();
   const unreadNotifications = useNotificationCount();
   const [loadingMore, setLoadingMore] = useState(false);
@@ -94,22 +92,44 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const list = useRef<ScrollView>(null);
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
+  const userScrolling = useSharedValue(false);
+  const immersive = useSharedValue(false);
   const [headerSize, setHeaderSize] = useState(144);
   const [viewportSize, setViewportSize] = useState(0);
-  const onScroll = useAnimatedScrollHandler((event) => {
-    const next = Math.max(0, event.contentOffset.y);
-    hiddenHeader.value = next === 0 ? 0 : Math.max(0, Math.min(headerHeight.value, hiddenHeader.value + next - scrollY.value));
-    chromeHidden.value = headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
-    scrollY.value = next;
+  function settleSystemBars() {
+    "worklet";
+    // Separate thresholds avoid toggling around the fully hidden header.
+    const next = immersive.value ? chromeHidden.value > 0.65 : chromeHidden.value >= 0.999;
+    if (next !== immersive.value) {
+      immersive.value = next;
+      runOnJS(systemBars)(next);
+    }
+  }
+  const onScroll = useAnimatedScrollHandler({
+    onBeginDrag: event => { userScrolling.value = true; scrollY.value = Math.max(0, event.contentOffset.y); },
+    onMomentumBegin: event => { userScrolling.value = true; scrollY.value = Math.max(0, event.contentOffset.y); },
+    onScroll: event => {
+      const next = Math.max(0, event.contentOffset.y);
+      // Insets/layout updates and programmatic scrolling are not user intent.
+      if (userScrolling.value) {
+        hiddenHeader.value = next === 0 ? 0 : Math.max(0, Math.min(headerHeight.value, hiddenHeader.value + next - scrollY.value));
+        chromeHidden.value = headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
+      }
+      scrollY.value = next;
+    },
+    onEndDrag: () => { userScrolling.value = false; settleSystemBars(); },
+    onMomentumEnd: () => { userScrolling.value = false; settleSystemBars(); },
   });
   const headerMotion = useAnimatedStyle(() => ({ transform: [{ translateY: -hiddenHeader.value }] }));
   const bottomSpace = useAnimatedStyle(() => ({ paddingBottom: tabHeight.value + 28 }));
   useEffect(() => {
     chromeHidden.value = 0;
     hiddenHeader.value = 0;
+    immersive.value = false;
+    userScrolling.value = false;
     systemBars(false);
     return () => { systemBars(false); };
-  }, [focused, systemBars, chromeHidden, hiddenHeader]);
+  }, [focused, systemBars, chromeHidden, hiddenHeader, immersive, userScrolling]);
   const edge = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
   }));
@@ -179,7 +199,9 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     scrollY.value = 0;
     hiddenHeader.value = 0;
     chromeHidden.value = 0;
-  }, [kind, scrollY, hiddenHeader, chromeHidden]);
+    immersive.value = false;
+    systemBars(false);
+  }, [kind, scrollY, hiddenHeader, chromeHidden, immersive, systemBars]);
 
   const open = useCallback(
     (appId: string) => {
