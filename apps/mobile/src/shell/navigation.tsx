@@ -243,6 +243,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
   return (
     <NavigationContainer ref={shellNavigationRef} theme={theme} onStateChange={onStateChange} onReady={() => {
       void (async () => {
+        const rollback = await readShellValue("application.rollback.notice");
+        removeShellValue("application.rollback.notice");
+        if (rollback) Toast.show({ type: "error", text1: "应用更新已回退", text2: rollback });
         const raw = await readShellValue("application.openAfterReload");
         removeShellValue("application.openAfterReload");
         if (!raw) return;

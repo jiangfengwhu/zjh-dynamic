@@ -1,14 +1,16 @@
 import { useAccount } from "./account";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused, usePreventRemove } from "@react-navigation/native";
+import Toast from "react-native-toast-message";
 import { BackChip, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { subscribeCatalog } from "./catalog";
-import { installedMarket, type MarketApplication } from "./market";
+import { installedMarket, fetchPublicMarketApplication, installMarketApplication, type MarketApplication } from "./market";
+import { publicApplicationUpdates, validateApplication, type PublicApplicationUpdate } from "../runtime/applications";
 import { openApplicationWorkshop } from "./workshopNavigation";
 import { restoreWorks } from "./workRecovery";
 import { readMyWorks, sharingLabel, workActions, workLabels, type MyWork } from "./works";
@@ -20,6 +22,9 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
   const [works, setWorks] = useState<MyWork[]>([]); const [installed, setInstalled] = useState<MarketApplication[]>([]);
   const [worksOwner, setWorksOwner] = useState<string>();
   const [pulling, setPulling] = useState(false);
+  const [updates, setUpdates] = useState<Record<string, PublicApplicationUpdate>>({});
+  const [updating, setUpdating] = useState(""); const updatingRef = useRef(false);
+  usePreventRemove(Boolean(updating), () => Toast.show({ type: "info", text1: "正在下载应用更新，请稍候" }));
   const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [query, setQuery] = useState("");
   const generation = useRef(0); const refreshing = useRef(false);
   async function refresh(manual = false) {
@@ -30,11 +35,13 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
       const [local, apps] = await Promise.all([readMyWorks(), installedMarket()]);
       if (generation.current !== current) return;
       setWorks(local); setInstalled(apps); setWorksOwner(user?.id);
+      const updateCheck = publicApplicationUpdates(manual).then(result => { if (generation.current === current) setUpdates(result); }).catch(() => { if (generation.current === current) setError("更新检查未完成，保留本机应用。下拉可重试。"); });
       await restoreWorks(manual, true);
       const updated = await readMyWorks();
       if (generation.current !== current) return;
       setWorks(updated);
       if (updated.some(work => work.stale)) setError("部分制作状态暂未接回，显示的是本机记录。下拉可重试。");
+      await updateCheck;
     } catch { if (generation.current === current) setError("暂时无法读取作品，下拉可重试"); }
     finally { if (generation.current === current) { refreshing.current = false; setBusy(false); setPulling(false); } }
   }
@@ -47,6 +54,26 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
     return () => { offCatalog(); offSharing(); offWorkspaces(); };
   }, [focused]);
   function detail(work: MyWork) { if (work.manifest) onDetail({ manifest: work.manifest, title: work.title, authorId: user?.id ?? null, authorName: user?.name ?? "社区创作者", authorAvatarUrl: user?.avatarUrl, originalAppId: null, owned: true }); }
+  async function updateApplication(item: MarketApplication) {
+    if (updatingRef.current) return;
+    updatingRef.current = true; setUpdating(item.manifest.appId); setError("");
+    try {
+      // Re-read the public pointer when the user acts; cached badges are only hints.
+      const published = await fetchPublicMarketApplication(item.manifest.appId);
+      validateApplication(published.manifest);
+      await installMarketApplication(published);
+      Toast.show({ type: "success", text1: "应用已更新，本机数据保留" });
+      void refresh(true);
+    } catch (e) { const message = e instanceof Error ? e.message : "应用更新失败，请重试"; setError(message); Toast.show({ type: "error", text1: message }); }
+    finally { updatingRef.current = false; setUpdating(""); }
+  }
+  async function installedDetail(item: MarketApplication) {
+    if (updatingRef.current) return;
+    if (item.owned || updates[item.manifest.appId]?.status === "private") { onDetail(item); return; }
+    const request = generation.current;
+    try { const published = await fetchPublicMarketApplication(item.manifest.appId); if (generation.current === request) onDetail(published); }
+    catch { if (generation.current === request) onDetail(item); }
+  }
   const term = query.trim().toLowerCase(); const visibleWorks = worksOwner === user?.id ? works.filter(work => `${work.title} ${work.wish}`.toLowerCase().includes(term)) : [];
   const visibleApps = worksOwner === user?.id ? installed.filter(item => !works.some(work => work.appId === item.manifest.appId) && `${item.manifest.title} ${item.manifest.summary}`.toLowerCase().includes(term)) : [];
   return <Screen style={styles.screen}><ScreenBar style={styles.header}><BackChip onPress={onBack} /><View style={{ flex: 1 }}><Text style={styles.title}>我的作品与应用</Text><Text style={styles.caption}>创作进度、分享和已安装应用</Text></View></ScreenBar>
@@ -63,7 +90,14 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
         <View style={styles.actions}><Pressy onPress={() => work.stage === "ready" && work.manifest ? detail(work) : openApplicationWorkshop(work.appId, work.title, false, false)}><Text style={styles.link}>{workActions[work.stage]}</Text></Pressy>
           {work.manifest && work.stage !== "ready" ? <Pressy onPress={() => detail(work)}><Text style={styles.secondary}>作品详情与分享</Text></Pressy> : null}
           {installed.some(item => item.manifest.appId === work.appId) ? <Pressy onPress={() => onOpen(work.appId)}><Text style={styles.secondary}>打开作品</Text></Pressy> : null}</View>
-      </Surface>) : visibleApps.map(item => <Pressy key={`installed:${item.manifest.appId}`} onPress={() => onDetail(item)}><Surface radius={20} style={styles.card}><Text style={styles.name}>{item.manifest.title}</Text><Text style={styles.copy}>{item.manifest.summary}</Text><Text style={styles.link}>打开详情 · 更新与卸载</Text></Surface></Pressy>)}
+      </Surface>) : visibleApps.map(item => <Surface key={`installed:${item.manifest.appId}`} radius={20} style={styles.card}>
+        <View style={styles.line}><Text style={[styles.name, { flex: 1 }]}>{item.manifest.title}</Text>{updates[item.manifest.appId]?.status === "update" ? <Text style={styles.badge}>有新版</Text> : null}</View>
+        <Text style={styles.copy}>{item.manifest.summary}</Text>
+        <Text style={styles.caption}>{updates[item.manifest.appId]?.message || (updates[item.manifest.appId]?.status === "current" ? "已是当前公开版本" : "更新只使用作者公开发布的版本")}</Text>
+        <View style={styles.actions}><Pressy disabled={Boolean(updating)} onPress={() => onOpen(item.manifest.appId)}><Text style={styles.link}>打开应用</Text></Pressy>
+          {updates[item.manifest.appId]?.status === "update" ? <Pressy disabled={Boolean(updating)} onPress={() => void updateApplication(item)}><Text style={styles.link}>{updating === item.manifest.appId ? "正在下载更新…" : "更新应用"}</Text></Pressy> : null}
+          <Pressy disabled={Boolean(updating)} onPress={() => void installedDetail(item)}><Text style={styles.secondary}>详情与卸载</Text></Pressy></View>
+      </Surface>)}
       {!busy && !(tab === "works" ? visibleWorks.length : visibleApps.length) ? <Text style={styles.caption}>{term ? "没有找到匹配的作品" : tab === "works" ? "还没有创作作品，从一个小心愿开始吧。" : "还没有安装市场应用，去应用市场看看吧。"}</Text> : null}
     </ScrollView></Screen>;
 }

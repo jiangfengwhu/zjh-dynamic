@@ -92,7 +92,9 @@ export async function installMarketApplication(item: MarketApplication) {
   await saveCatalog(catalog);
   const current = runningApplication(manifest.appId);
   if (applicationNeedsReload(manifest)) {
-    await NativePluginHost.call("shell", "reloadApplications", "{}");
+    writeShellValue("application.openAfterReload", JSON.stringify({ appId: manifest.appId, ownerId: await currentAccountId() }));
+    try { await NativePluginHost.call("shell", "reloadApplications", "{}"); }
+    catch (error) { writeShellValue("application.openAfterReload", ""); throw error; }
     return;
   }
   if (current?.releaseId === manifest.releaseId) writeShellValue(`application.pending.${manifest.appId}`, "");

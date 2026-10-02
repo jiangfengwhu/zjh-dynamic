@@ -49,12 +49,16 @@ async function verifyAccess(manifest: ApplicationManifest, ownerId: string | nul
   }
 }
 export async function preparePublicApplication(manifest: ApplicationManifest) {
-  const published = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/public`);
-  if (!published.ok || (await published.json()).releaseId !== manifest.releaseId) throw new Error("公开版本已改变，请刷新应用市场");
+  await verifyPublicPointer(manifest);
   assertCompatible(manifest, manifest.appId); await verifyAccess(manifest, null);
   await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
+  await verifyPublicPointer(manifest);
   await verifyAccess(manifest, null);
   writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
+}
+async function verifyPublicPointer(manifest: ApplicationManifest) {
+  const published = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/public`);
+  if (!published.ok || (await published.json()).releaseId !== manifest.releaseId) throw new Error("公开版本已改变，请刷新应用市场");
 }
 // Generated from the dependency lock at host build time.
 const contract = require("./application-contract.json") as { engineAbi: string; sdk: string; shared: Record<string, string> };
@@ -71,6 +75,54 @@ export function applicationNeedsReload(manifest: ApplicationManifest) {
 export function runningApplicationReleases() { return Object.fromEntries([...active].filter(([id]) => healthy.has(id)).map(([id, manifest]) => [id, manifest.releaseId])); }
 export function offerApplication(manifest: ApplicationManifest, ownerId: string | null = null) { assertCompatible(manifest, manifest.appId); offered.set(manifest.appId, { manifest, ownerId }); }
 
+export type PublicApplicationUpdate = { status: "current" | "update" | "blocked" | "unavailable" | "private"; manifest?: ApplicationManifest; message?: string };
+type PublicSnapshot = { key: string; at: number; applications: Array<{ appId: string; manifest: ApplicationManifest | null }> };
+let publicSnapshot: PublicSnapshot | undefined;
+const publicFlights = new Map<string, Promise<PublicSnapshot>>();
+export async function publicApplicationUpdates(force = false): Promise<Record<string, PublicApplicationUpdate>> {
+  const catalog = (await loadCatalog()).filter(entry => !entry.trashedAt && !entry.purged);
+  const ids = catalog.map(entry => entry.id).sort(); const key = ids.join(",");
+  if (!ids.length) return {};
+  if (!publicSnapshot) { try { publicSnapshot = JSON.parse(await readShellValue("application.public-updates") || "null") || undefined; } catch {} }
+  let snapshot = publicSnapshot;
+  if (force || !snapshot || snapshot.key !== key || Date.now() - snapshot.at >= 5 * 60 * 1000) {
+    let flight = publicFlights.get(key);
+    if (!flight) {
+      flight = (async () => {
+        const batches = [];
+        for (let i = 0; i < ids.length; i += 100) batches.push(ids.slice(i, i + 100));
+        const pages = await Promise.all(batches.map(async batch => {
+          const response = await fetchApplicationCatalog(`${edgeUrl}/v1/application-updates?ids=${encodeURIComponent(batch.join(","))}`);
+          if (!response.ok) throw new Error("暂时无法检查应用更新，请重试");
+          const data = await response.json() as Pick<PublicSnapshot, "applications">;
+          if (!Array.isArray(data.applications) || batch.some(id => !data.applications.some(item => item.appId === id))) throw new Error("应用更新信息不完整，请重试");
+          return data.applications;
+        }));
+        const value = { key, at: Date.now(), applications: pages.flat() };
+        publicSnapshot = value; writeShellValue("application.public-updates", JSON.stringify(value)); return value;
+      })();
+      publicFlights.set(key, flight);
+    }
+    try { snapshot = await flight; } finally { if (publicFlights.get(key) === flight) publicFlights.delete(key); }
+  }
+  const result: Record<string, PublicApplicationUpdate> = {};
+  for (const id of ids) {
+    const pending = await readShellValue(`application.pending.${id}`);
+    const raw = pending || await readShellValue(`application.install.${id}`);
+    const access = await readShellValue(`application.${pending ? "pending.access" : "access"}.${id}`);
+    try {
+      if (JSON.parse(access || "{}").ownerId) { result[id] = { status: "private", message: "体验版本在工坊中更新" }; continue; }
+      const manifest = snapshot!.applications.find(item => item.appId === id)?.manifest;
+      if (!manifest) { result[id] = { status: "unavailable", message: "已撤回，保留本机版本" }; continue; }
+      if (raw && JSON.parse(raw).releaseId === manifest.releaseId) { result[id] = { status: "current", manifest }; continue; }
+      if (manifest.releaseId === await readShellValue(`application.failed.${id}`)) { result[id] = { status: "blocked", message: "新版加载失败，保留本机版本" }; continue; }
+      try { assertCompatible(manifest, id); result[id] = { status: "update", manifest }; }
+      catch (error) { result[id] = { status: "blocked", message: error instanceof Error ? error.message : "请先更新平台" }; }
+    } catch { result[id] = { status: "blocked", message: "本机版本信息异常，请重新打开详情" }; }
+  }
+  return result;
+}
+
 export async function checkApplicationUpdates(targetAppId?: string): Promise<PendingPackage[]> {
   if (targetAppId) {
     const ownerId = await currentAccountId();
@@ -82,38 +134,23 @@ export async function checkApplicationUpdates(targetAppId?: string): Promise<Pen
     offerApplication(manifest, ownerId);
     return active.get(targetAppId)?.releaseId === manifest.releaseId ? [] : [{ id: targetAppId, kind: "application", bytes: manifest.bundle.bytes, sha256: manifest.releaseId }];
   }
-  const marketResponse = await fetchApplicationCatalog(`${edgeUrl}/v1/market`);
-  if (!marketResponse.ok) throw new Error("无法检查市场应用更新");
-  const market = await marketResponse.json() as { applications: Array<{ manifest: ApplicationManifest }> };
-  const accountId = await currentAccountId();
-  // Workshop offers include first installs, which are absent from active and market.
-  // Refresh public updates without discarding the current author's private candidates.
-  for (const [appId, item] of offered) {
-    if (!item.ownerId || item.ownerId !== accountId || item.manifest.releaseId === await readShellValue(`application.failed.${appId}`)) offered.delete(appId);
-  }
-  for (const [appId, current] of active) {
-    let manifest = market.applications.find(item => item.manifest.appId === appId)?.manifest;
-    let ownerId: string | null = null;
-    if (accountId && await readShellValue(`shell.jules.apps.${appId}.owner`) === accountId) {
-      const response = await accountFetch(`${edgeUrl}/v1/applications/${appId}/candidate`, { headers: { "X-Workshop-Token": await readShellValue(`shell.jules.apps.${appId}.token`) || "" } }, false);
-      if (!response.ok) throw new Error(`无法检查应用更新：${appId}`);
-      manifest = await response.json() as ApplicationManifest;
-      if (await currentAccountId() !== accountId) continue;
-      ownerId = accountId;
-    }
-    if (manifest && manifest.releaseId !== current.releaseId && manifest.releaseId !== await readShellValue(`application.failed.${appId}`)) offerApplication(manifest, ownerId);
-  }
-  return [...offered.values()].map(item => item.manifest).filter(manifest => active.get(manifest.appId)?.releaseId !== manifest.releaseId).map(manifest => ({ id: manifest.appId, kind: "application", bytes: manifest.bundle.bytes, sha256: manifest.releaseId }));
+  const updates = await publicApplicationUpdates(true);
+  // Generic platform updates never consume workshop candidates.
+  for (const [appId, item] of offered) if (!item.ownerId) offered.delete(appId);
+  for (const item of Object.values(updates)) if (item.status === "update" && item.manifest) offerApplication(item.manifest);
+  return Object.entries(updates).filter(([, item]) => item.status === "update").map(([id, item]) => ({ id, kind: "application" as const, bytes: item.manifest!.bundle.bytes, sha256: item.manifest!.releaseId }));
 }
 
 export async function stageApplicationUpdates(appId?: string): Promise<number> {
-  const pending = [...offered.values()].filter(item => (!appId || item.manifest.appId === appId) && active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId);
+  const pending = [...offered.values()].filter(item => (appId ? item.manifest.appId === appId : !item.ownerId) && active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId);
   for (const { manifest, ownerId } of pending) {
+    if (!ownerId) await verifyPublicPointer(manifest);
     await verifyAccess(manifest, ownerId);
     await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
   }
   const catalog = await loadCatalog();
   for (const { manifest, ownerId } of pending) {
+    if (!ownerId) await verifyPublicPointer(manifest);
     await verifyAccess(manifest, ownerId);
     writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId, public: !ownerId }));
     writeShellValue(`application.pending.${manifest.appId}`, JSON.stringify(manifest));
@@ -141,7 +178,11 @@ export async function loadApplication(appId: string): Promise<void> {
     if (access?.ownerId && await currentAccountId() !== access.ownerId) throw new AccessDenied("请登录作品所属账号后再体验候选版本");
     return existing;
   }
-  const pending = load(appId).then(() => { loaded.add(appId); }).catch(error => { if (!evaluating.has(appId)) loading.delete(appId); throw error; });
+  const pending = load(appId).then(() => { loaded.add(appId); }).catch(async error => {
+    if (evaluating.has(appId) && await readShellValue(`application.pending.${appId}`) && await readShellValue(`application.previous.${appId}`)) await reportApplicationFailure(appId);
+    if (!evaluating.has(appId)) loading.delete(appId);
+    throw error;
+  });
   loading.set(appId, pending);
   // A failed evaluation may have registered modules. Retry requires a fresh JS environment.
   return pending;
@@ -199,6 +240,12 @@ async function load(appId: string) {
   if (manifest.releaseId === await readShellValue(`application.failed.${appId}`)) throw new Error("这个版本加载失败，请等待新版本或重新选择安装版本");
   // Keep first installs pending too, so evaluation and lazy-page failures can roll back.
   if (!saved) { writeShellValue(`application.pending.${appId}`, JSON.stringify(manifest)); writeShellValue(`application.pending.access.${appId}`, JSON.stringify(access)); }
+  // Record the last accepted version before executing any new package code.
+  if (saved && staged && JSON.parse(saved).releaseId !== manifest.releaseId) {
+    writeShellValue(`application.previous.${appId}`, saved);
+    writeShellValue(`application.previous.access.${appId}`, await readShellValue(`application.access.${appId}`) || "");
+  }
+  active.set(appId, manifest);
   writeShellValue(`application.evaluation.${appId}`, manifest.releaseId);
   evaluating.add(appId);
   const raw = await NativePluginHost.call("shell", "loadApplication", JSON.stringify(manifest));
@@ -210,10 +257,6 @@ async function load(appId: string) {
   active.set(appId, manifest);
   activateApplication(appId);
   if (!saved && definition.onInstall) await definition.onInstall(applicationContext(appId));
-  if (saved && staged) {
-    writeShellValue(`application.previous.${appId}`, saved);
-    writeShellValue(`application.previous.access.${appId}`, await readShellValue(`application.access.${appId}`) || "");
-  }
   writeShellValue(`application.evaluation.${appId}`, "");
   if (saved && JSON.parse(saved).releaseId === manifest.releaseId) { healthy.add(appId); }
   if (appId === bootstrap.defaultApplication) void restoreWorks().catch(() => {});
@@ -252,6 +295,7 @@ export async function reportApplicationFailure(appId: string) {
   writeShellValue(`application.attempt.${appId}`, "");
   writeShellValue(`application.evaluation.${appId}`, "");
   if (previous && JSON.parse(previous).releaseId !== current.releaseId) {
+    writeShellValue("application.rollback.notice", "新版应用加载失败，已恢复上一个可用版本，本机数据保留。");
     writeShellValue(`application.install.${appId}`, previous);
     writeShellValue(`application.access.${appId}`, await readShellValue(`application.previous.access.${appId}`) || "");
     writeShellValue(`application.previous.${appId}`, "");
