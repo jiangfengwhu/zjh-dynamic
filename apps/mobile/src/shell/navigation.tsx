@@ -18,6 +18,8 @@ import { createMaterialTopTabNavigator } from "@react-navigation/material-top-ta
 import type { MaterialTopTabBarProps } from "@react-navigation/material-top-tabs";
 import { TabBar, type ShellTabId } from "./TabBar";
 import { FeedScreen } from "./feed/FeedScreen";
+import { FeedChromeProvider, useFeedChrome } from "./feed/FeedChrome";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { type AppEntry } from "./catalog";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
 import { MarketScreen } from "./MarketScreen";
@@ -195,8 +197,13 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const keyboard = useKeyboardOpen();
+  const { hidden, tabHeight } = useFeedChrome();
+  const bottom = useRef(insets.bottom);
+  bottom.current = Math.max(bottom.current, insets.bottom);
+  const motion = useAnimatedStyle(() => ({ transform: [{ translateY: active === "feed" ? hidden.value * tabHeight.value : 0 }] }), [active]);
   return (
-    <View style={{ backgroundColor: colors.canvas, paddingBottom: keyboard ? 0 : insets.bottom }}>
+    <Animated.View style={[{ backgroundColor: colors.canvas, paddingBottom: keyboard ? 0 : bottom.current }, active === "feed" && { position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 20 }, motion]}>
+      <View onLayout={event => { tabHeight.value = event.nativeEvent.layout.height + (keyboard ? 0 : bottom.current); }}>
       <TabBar
         activeId={active}
         onChange={(id) => {
@@ -204,7 +211,8 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
           if (route) jumpTo(route.key);
         }}
       />
-    </View>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -260,7 +268,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
   }
 
   return (
-    <NavigationContainer ref={shellNavigationRef} theme={theme} onStateChange={onStateChange} onReady={() => {
+    <FeedChromeProvider><NavigationContainer ref={shellNavigationRef} theme={theme} onStateChange={onStateChange} onReady={() => {
       void (async () => {
         const rollback = await readShellValue("application.rollback.notice");
         removeShellValue("application.rollback.notice");
@@ -387,7 +395,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           )}
         </Stack.Screen>
       </Stack.Navigator>
-    </NavigationContainer>
+    </NavigationContainer></FeedChromeProvider>
   );
 }
 

@@ -1,12 +1,16 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import { useIsFocused } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedScrollHandler,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
+  runOnJS,
 } from "react-native-reanimated";
 import { bundles } from "../../../../../packages/features/src/registry";
 import {
@@ -27,7 +31,8 @@ function DefaultAvatar({ size }: { size: number }) {
   return Avatar ? <Avatar size={size} /> : <Icon name="workshop" size={size} />;
 }
 import { themedStyleSheet, useTheme } from "../../../../../packages/ui/theme";
-import { Screen } from "../../../../../packages/ui/edge";
+import NativePluginHost from "../../NativePluginHost";
+import { useFeedChrome } from "./FeedChrome";
 import { subscribeFeedSummaryBusy } from "./summary";
 import { FriendRail } from "./FriendRail";
 import { useAccount } from "../account";
@@ -64,6 +69,15 @@ type FeedProps = {
 export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, onPost, onProfile, onApplication, onAuthor, onNotifications, installedIds }: FeedProps) {
   const { user } = useAccount();
   const { colors } = useTheme();
+  const focused = useIsFocused();
+  const focusedRef = useRef(focused); focusedRef.current = focused;
+  const insets = useSafeAreaInsets();
+  const safeTop = useRef(insets.top); safeTop.current = Math.max(safeTop.current, insets.top);
+  const { hidden: chromeHidden, tabHeight } = useFeedChrome();
+  const systemBars = useCallback((immersive: boolean) => {
+    void NativePluginHost.call("shell", "systemBars", JSON.stringify({ statusBar: colors.canvas, navigationBar: colors.canvas, window: colors.canvas, immersive: immersive && focusedRef.current })).catch(() => {});
+  }, [colors.canvas]);
+  useAnimatedReaction(() => chromeHidden.value >= 0.999, (immersive, previous) => { if (immersive !== previous) runOnJS(systemBars)(immersive); }, [systemBars]);
   const userTimeline = useUserPosts();
   const unreadNotifications = useNotificationCount();
   const [loadingMore, setLoadingMore] = useState(false);
@@ -85,9 +99,17 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const onScroll = useAnimatedScrollHandler((event) => {
     const next = Math.max(0, event.contentOffset.y);
     hiddenHeader.value = next === 0 ? 0 : Math.max(0, Math.min(headerHeight.value, hiddenHeader.value + next - scrollY.value));
+    chromeHidden.value = headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
     scrollY.value = next;
   });
   const headerMotion = useAnimatedStyle(() => ({ transform: [{ translateY: -hiddenHeader.value }] }));
+  const bottomSpace = useAnimatedStyle(() => ({ paddingBottom: tabHeight.value + 28 }));
+  useEffect(() => {
+    chromeHidden.value = 0;
+    hiddenHeader.value = 0;
+    systemBars(false);
+    return () => { systemBars(false); };
+  }, [focused, systemBars, chromeHidden, hiddenHeader]);
   const edge = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
   }));
@@ -156,7 +178,8 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     list.current?.scrollTo({ y: 0, animated: false });
     scrollY.value = 0;
     hiddenHeader.value = 0;
-  }, [kind, scrollY, hiddenHeader]);
+    chromeHidden.value = 0;
+  }, [kind, scrollY, hiddenHeader, chromeHidden]);
 
   const open = useCallback(
     (appId: string) => {
@@ -168,9 +191,9 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <Screen style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.viewport} onLayout={event => setViewportSize(event.nativeEvent.layout.height)}>
-        <Animated.View onLayout={event => { const height = event.nativeEvent.layout.height; headerHeight.value = height; setHeaderSize(height); }} style={[styles.floatingHeader, headerMotion]}>
+        <Animated.View onLayout={event => { const height = event.nativeEvent.layout.height; headerHeight.value = height; setHeaderSize(height); }} style={[styles.floatingHeader, { paddingTop: safeTop.current }, headerMotion]}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <View style={styles.headerCopy}>
@@ -201,7 +224,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
               <GestureDetector gesture={scrollGesture}>
                 <Animated.ScrollView ref={list} removeClippedSubviews={false}
                   style={styles.scroll}
-                  contentContainerStyle={[styles.content, { minHeight: viewportSize + headerSize }]}
+                  contentContainerStyle={[styles.content, bottomSpace, { minHeight: viewportSize + headerSize }]}
                   showsVerticalScrollIndicator={false}
                   onScroll={onScroll}
                   scrollEventThrottle={16}
@@ -267,7 +290,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
           </View>
         </GestureDetector>
         </View>
-      </Screen>
+      </View>
     </GestureHandlerRootView>
   );
 });
