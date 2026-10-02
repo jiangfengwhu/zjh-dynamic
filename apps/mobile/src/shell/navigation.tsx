@@ -1,5 +1,5 @@
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Screen, ScreenEdge, useKeyboardOpen } from "../../../../packages/ui/edge";
@@ -7,11 +7,10 @@ import {
   NavigationContainer,
   DefaultTheme,
   createNavigationContainerRef,
-  useIsFocused,
   type NavigationState,
   type NavigatorScreenParams,
 } from "@react-navigation/native";
-import { createNativeStackNavigator, type NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import type { MaterialTopTabBarProps } from "@react-navigation/material-top-tabs";
 import { TabBar, type ShellTabId } from "./TabBar";
@@ -97,50 +96,16 @@ function handleShellRequest(raw: string | undefined) {
   }
 }
 
-/** 已经在后台挂好的页面直接显示。还没挂好时，等转场结束再挂，避免动画中途白屏或卡顿。 */
-function BundlePage({
-  id,
-  navigation,
-  render,
-}: {
+/** Mount content during the transition; cached pages are ready on the first render. */
+function BundlePage({ id, render }: {
   id: string;
-  navigation: NativeStackNavigationProp<RootParamList, "bundle">;
   render: (id: string, onBack: () => void) => ReactNode;
 }) {
   const colors = palettes[useTheme().mode];
-  const focused = useIsFocused();
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    if (shown) return;
-    if (!focused) {
-      console.log("bundle shown", id, "cache");
-      setShown(true);
-      return;
-    }
-    let settled = false;
-    const reveal = (reason: string) => {
-      if (settled) return;
-      settled = true;
-      console.log("bundle shown", id, reason);
-      setShown(true);
-    };
-    const unsubscribe = navigation.addListener("transitionEnd", (event) => {
-      if (event.data.closing) return;
-      reveal("transition");
-    });
-    const timer = setTimeout(() => reveal("animation"), 200);
-    return () => {
-      settled = true;
-      unsubscribe();
-      clearTimeout(timer);
-    };
-  }, [focused, id, navigation, shown]);
   const Page = id === bootstrap.defaultApplication ? View : Screen;
   return (
     <Page style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <View style={styles.feature}>
-        {shown ? render(id, goBack) : null}
-      </View>
+      <View style={styles.feature}>{render(id, goBack)}</View>
     </Page>
   );
 }
@@ -302,8 +267,8 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           )}
         </Stack.Screen>
         <Stack.Screen name="bundle" getId={({ params }) => params.id}>
-          {({ route, navigation }) => (
-            <BundlePage id={route.params.id} navigation={navigation} render={props.renderBundle} />
+          {({ route }) => (
+            <BundlePage id={route.params.id} render={props.renderBundle} />
           )}
         </Stack.Screen>
       </Stack.Navigator>
