@@ -31,6 +31,8 @@ import { AppearanceScreen } from "./AppearanceScreen";
 import { SummaryScreen } from "./SummaryScreen";
 import { palettes, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
+import { openFeature } from "../../../../packages/features/src/registry";
+import Toast from "react-native-toast-message";
 
 export type TabParamList = {
   feed: undefined;
@@ -54,6 +56,21 @@ export const shellNavigationRef = createNavigationContainerRef<RootParamList>();
 
 const Stack = createNativeStackNavigator<RootParamList>();
 const Tabs = createMaterialTopTabNavigator<TabParamList>();
+const mountedBundles = new Set<string>();
+const mountWaiters = new Map<string, Set<() => void>>();
+let openingRequest = 0;
+
+function waitForBundleMount(id: string): Promise<void> {
+  if (mountedBundles.has(id)) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const waiters = mountWaiters.get(id) ?? new Set<() => void>();
+    const finish = () => { clearTimeout(timer); waiters.delete(finish); if (!waiters.size) mountWaiters.delete(id); resolve(); };
+    const timer = setTimeout(() => { waiters.delete(finish); if (!waiters.size) mountWaiters.delete(id); reject(new Error("页面准备超时，请重试")); }, 5000);
+    waiters.add(finish); mountWaiters.set(id, waiters);
+  });
+}
+
+const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
 export function openShellTab(id: ShellTabId) {
   if (!shellNavigationRef.isReady()) return;
@@ -62,8 +79,26 @@ export function openShellTab(id: ShellTabId) {
 
 export function openShellBundle(id: string) {
   if (!shellNavigationRef.isReady()) return;
-  console.log("route push", "bundle", id);
-  shellNavigationRef.navigate("bundle", { id });
+  const request = ++openingRequest;
+  const origin = shellNavigationRef.getCurrentRoute()?.key;
+  const isCurrent = () => request === openingRequest && shellNavigationRef.isReady() && shellNavigationRef.getCurrentRoute()?.key === origin;
+  void (async () => {
+    await openFeature(id);
+    if (!isCurrent()) return;
+    if (!mountedBundles.has(id)) {
+      const mounted = waitForBundleMount(id);
+      shellNavigationRef.preload("bundle", { id });
+      await mounted;
+      // Let Fabric commit the preloaded view before starting the native transition.
+      await nextFrame();
+      await nextFrame();
+    }
+    if (!isCurrent()) return;
+    console.log("route push", "bundle", id);
+    shellNavigationRef.navigate("bundle", { id });
+  })().catch(error => {
+    if (isCurrent()) Toast.show({ type: "error", text1: "应用未能打开", text2: error instanceof Error ? error.message : String(error) });
+  });
 }
 
 function goBack() {
@@ -96,12 +131,17 @@ function handleShellRequest(raw: string | undefined) {
   }
 }
 
-/** Mount content during the transition; cached pages are ready on the first render. */
+/** Native-stack preloads this route before its entrance transition. */
 function BundlePage({ id, render }: {
   id: string;
   render: (id: string, onBack: () => void) => ReactNode;
 }) {
   const colors = palettes[useTheme().mode];
+  useEffect(() => {
+    mountedBundles.add(id);
+    for (const finish of [...(mountWaiters.get(id) ?? [])]) finish();
+    return () => { mountedBundles.delete(id); };
+  }, [id]);
   const Page = id === bootstrap.defaultApplication ? View : Screen;
   return (
     <Page style={{ flex: 1, backgroundColor: colors.canvas }}>
