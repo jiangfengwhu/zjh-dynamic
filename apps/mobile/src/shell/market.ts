@@ -8,7 +8,32 @@ import NativePluginHost from "../NativePluginHost";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { confirmCreation } from "./creationConsent";
-export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: string | null; authorName: string; authorAvatarUrl?: string | null; authorOfficial?: boolean; originalAppId: string | null; title?: string; summary?: string; owned?: boolean; latest?: boolean };
+export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: string | null; authorName: string; authorAvatarUrl?: string | null; authorOfficial?: boolean; originalAppId: string | null; title?: string; summary?: string; category?: string; screenshots?: string[]; publishedAt?: number; owned?: boolean; latest?: boolean };
+export const marketCategories = [{ id: "", label: "全部" }, { id: "tools", label: "工具" }, { id: "productivity", label: "效率" }, { id: "life", label: "生活" }, { id: "creative", label: "创意" }, { id: "other", label: "其他" }];
+export type MarketPage = { applications: MarketApplication[]; nextCursor?: string };
+export type MarketView = MarketPage & { at: number; offset: number };
+const views = new Map<string, MarketView>();
+let marketRevision = 0;
+export const marketViewKey = (category: string, query: string) => `${category}:${query.trim().toLowerCase()}`;
+export function rememberMarketView(key: string, view: MarketView, persist = true) {
+  if (views.size >= 12 && !views.has(key)) views.delete(views.keys().next().value!);
+  views.set(key, view); if (persist) writeShellValue(`market.view.${encodeURIComponent(key)}`, JSON.stringify(view));
+}
+export async function readMarketView(key: string): Promise<MarketView | undefined> {
+  if (views.has(key)) return views.get(key);
+  try { const value = JSON.parse(await readShellValue(`market.view.${encodeURIComponent(key)}`) || "null"); if (Array.isArray(value?.applications)) { const view = { ...value, at: 0, applications: value.applications.map((item: MarketApplication) => ({ ...item, latest: false })) }; views.set(key, view); return view; } } catch {}
+  return undefined;
+}
+export function invalidateMarketViews() { marketRevision++; views.clear(); }
+export function marketViewRevision() { return marketRevision; }
+export async function fetchMarketPage(category = "", query = "", cursor?: string): Promise<MarketPage> {
+  const params = new URLSearchParams({ limit: "24" }); if (category) params.set("category", category); if (query.trim()) params.set("q", query.trim()); if (cursor) params.set("cursor", cursor);
+  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/market?${params}`);
+  if (!response.ok) throw new Error("市场加载失败，请重试");
+  const data = await response.json() as MarketPage;
+  if (!Array.isArray(data.applications)) throw new Error("市场数据暂时不可用");
+  return { applications: data.applications.map(item => ({ ...item, latest: true })), nextCursor: data.nextCursor };
+}
 const CACHE = "market.catalog.v1";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export async function fetchPublicMarketApplication(appId: string): Promise<MarketApplication> {
@@ -22,13 +47,13 @@ export async function fetchPublicMarketApplication(appId: string): Promise<Marke
 export async function cachedMarket(): Promise<MarketApplication[]> {
   try { const raw = await readShellValue(CACHE); return raw ? (JSON.parse(raw) as MarketApplication[]).map(item => ({ ...item, latest: false })) : []; } catch { return []; }
 }
-export async function fetchMarket(): Promise<MarketApplication[]> {
-  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/market`);
+export async function fetchMarket(authorId?: string): Promise<MarketApplication[]> {
+  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/market${authorId ? `?authorId=${encodeURIComponent(authorId)}` : ""}`);
   if (!response.ok) throw new Error("暂时无法获取应用市场，请稍后重试");
   const data = await response.json() as { applications: MarketApplication[] };
   if (!Array.isArray(data.applications)) throw new Error("应用市场数据暂时不可用");
   const items = data.applications.filter(item => /^[a-z][a-z0-9-]{0,63}$/.test(item.manifest?.appId)).map(item => ({ ...item, latest: true }));
-  writeShellValue(CACHE, JSON.stringify(items));
+  if (!authorId) writeShellValue(CACHE, JSON.stringify(items));
   return items;
 }
 export async function installedMarket(): Promise<MarketApplication[]> {
@@ -93,7 +118,7 @@ export async function cachedSharing(appId: string): Promise<SharingState | undef
   const raw = await readShellValue(`shell.market.state.${appId}`);
   try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; }
 }
-async function marketAction(appId: string, input: { action: string; releaseId?: string; title?: string; summary?: string }): Promise<SharingState> {
+async function marketAction(appId: string, input: { action: string; releaseId?: string; title?: string; summary?: string; category?: string; screenshots?: string[] }): Promise<SharingState> {
   if (input.action === "withdraw") await confirmCreation(input.action === "withdraw" ? "撤回分享" : input.action === "edit" ? "修改市场介绍" : "上架到应用市场", appId, input.action === "withdraw" ? "作品会从市场移除；已安装版本和你的作品仍保留。" : [input.title, input.summary].filter(Boolean).join("\n"));
   const token = await readShellValue(`shell.jules.apps.${appId}.token`);
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000);
@@ -105,6 +130,7 @@ async function marketAction(appId: string, input: { action: string; releaseId?: 
     writeShellValue(`shell.market.state.${appId}`, JSON.stringify(state));
     applicationContext(bootstrap.defaultApplication).storage.set(`sharing.${appId}`, JSON.stringify({ releaseId: state.shared?.manifest.releaseId ?? "", hasUpdate: Boolean(state.shared && state.application && state.shared.manifest.releaseId !== state.application.releaseId) }));
     if (input.action !== "status") {
+      invalidateMarketViews();
       const items = (await cachedMarket()).filter(item => item.manifest.appId !== appId);
       if (state.shared) items.unshift(state.shared);
       writeShellValue(CACHE, JSON.stringify(items));
@@ -114,6 +140,6 @@ async function marketAction(appId: string, input: { action: string; releaseId?: 
   } finally { clearTimeout(timer); }
 }
 export const loadSharing = (appId: string) => marketAction(appId, { action: "status" });
-export const shareMarketApplication = (appId: string, releaseId: string, title: string, summary: string) => marketAction(appId, { action: "share", releaseId, title, summary });
-export const editMarketApplication = (appId: string, title: string, summary: string) => marketAction(appId, { action: "edit", title, summary });
+export const shareMarketApplication = (appId: string, releaseId: string, title: string, summary: string, category?: string, screenshots?: string[]) => marketAction(appId, { action: "share", releaseId, title, summary, category, screenshots });
+export const editMarketApplication = (appId: string, title: string, summary: string, category?: string, screenshots?: string[]) => marketAction(appId, { action: "edit", title, summary, category, screenshots });
 export const withdrawMarketApplication = (appId: string) => marketAction(appId, { action: "withdraw" });

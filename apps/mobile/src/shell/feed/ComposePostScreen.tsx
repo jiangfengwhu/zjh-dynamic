@@ -35,7 +35,7 @@ export function ComposePostScreen({ onBack, initialApplication }: { onBack: () =
   async function pickApplication() {
     if (working.current || loadingApps) return;
     Keyboard.dismiss(); setPicking(true); setLoadingApps(true); setAppsError("");
-    try { const items = await fetchMarket(); if (await currentAccountId() !== owner) throw new Error("账号已改变，请重试"); if (alive.current) setApplications(items.filter(item => item.authorId === owner)); }
+    try { const items = await fetchMarket(owner); if (await currentAccountId() !== owner) throw new Error("账号已改变，请重试"); if (alive.current) setApplications(items.filter(item => item.authorId === owner)); }
     catch (error) { if (alive.current) setAppsError(error instanceof Error ? error.message : "应用列表暂时不可用"); }
     finally { if (alive.current) setLoadingApps(false); }
   }

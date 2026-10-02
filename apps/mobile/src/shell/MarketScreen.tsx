@@ -1,52 +1,92 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
+import FastImage from "@d11/react-native-fast-image";
 import { BackChip, Icon, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { loadCatalog, subscribeCatalog } from "./catalog";
-import { cachedMarket, fetchMarket, marketDefinition, type MarketApplication } from "./market";
+import { readShellValue, writeShellValue } from "./shellStorage";
+import { fetchMarketPage, fetchPublicMarketApplication, readMarketView, rememberMarketView, marketViewKey, marketCategories, marketDefinition, type MarketView, type MarketApplication } from "./market";
+const empty: MarketView = { applications: [], at: 0, offset: 0 };
 export function MarketScreen({ onDetail, onCreate, onBack, onAuthor }: { onAuthor: (author: { id: string; name: string; avatarUrl: string | null; official?: boolean }) => void; onDetail: (item: MarketApplication) => void; onCreate: () => void; onBack?: () => void }) {
-  const { colors } = useTheme();
-  const focused = useIsFocused();
-  const [items, setItems] = useState<MarketApplication[]>([]);
-  const [installed, setInstalled] = useState<string[]>([]);
-  const [query, setQuery] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [pulling, setPulling] = useState(false);
-  const generation = useRef(0); const loading = useRef(false);
-  const [error, setError] = useState("");
-  async function refresh(manual = false) {
-    if (loading.current) return;
-    loading.current = true; const current = ++generation.current;
-    setPulling(manual); setBusy(true); setError("");
+  const { colors } = useTheme(); const focused = useIsFocused();
+  const [view, setView] = useState<MarketView>(empty); const [installed, setInstalled] = useState<string[]>([]);
+  const [query, setQuery] = useState(""); const [search, setSearch] = useState(""); const [category, setCategory] = useState("");
+  const [busy, setBusy] = useState(false); const [pulling, setPulling] = useState(false); const [error, setError] = useState("");
+  const [ready, setReady] = useState(false); const edited = useRef(false);
+  const opening = useRef(false); const [openingId, setOpeningId] = useState<string>();
+  const list = useRef<FlatList<MarketApplication>>(null); const generation = useRef(0); const loading = useRef(false);
+  const current = useRef({ key: "", view: empty }); const restoreOffset = useRef<number | undefined>();
+  const key = marketViewKey(category, search);
+  useEffect(() => {
+    let live = true;
+    void readShellValue("market.filters").then(raw => { if (live && !edited.current && raw) { try { const saved = JSON.parse(raw); if (marketCategories.some(item => item.id === saved.category)) setCategory(saved.category); if (typeof saved.query === "string") { setQuery(saved.query); setSearch(saved.query); } } catch {} } if (live) setReady(true); });
+    return () => { live = false; };
+  }, []);
+  useEffect(() => { const timer = setTimeout(() => setSearch(query.trim()), 300); return () => clearTimeout(timer); }, [query]);
+  function apply(next: MarketView, target = key) { current.current = { key: target, view: next }; setView(next); rememberMarketView(target, next); }
+  async function load(reset = false, manual = false) {
+    if (loading.current || !reset && !current.current.view.nextCursor) return;
+    const token = generation.current; loading.current = true; setBusy(true); setPulling(manual); setError("");
+    const before = current.current.view;
     try {
-      const cached = await cachedMarket();
-      if (generation.current !== current) return;
-      setItems(items => items.length ? items : cached);
-      const remote = await fetchMarket();
-      if (generation.current === current) setItems(remote);
-    } catch (e) { if (generation.current === current) setError(e instanceof Error ? e.message : "暂时无法获取应用市场"); }
-    finally { if (generation.current === current) { loading.current = false; setBusy(false); setPulling(false); } }
+      const page = await fetchMarketPage(category, search, reset ? undefined : before.nextCursor);
+      if (token !== generation.current) return;
+      const known = new Set(before.applications.map(item => item.manifest.appId));
+      const retainPages = reset && !manual && before.applications.length > 24;
+      const freshIds = new Set(page.applications.map(item => item.manifest.appId));
+      apply({ applications: retainPages ? [...page.applications, ...before.applications.filter(item => !freshIds.has(item.manifest.appId))] : reset ? page.applications : [...before.applications, ...page.applications.filter(item => !known.has(item.manifest.appId))], nextCursor: retainPages ? before.nextCursor : page.nextCursor, at: Date.now(), offset: manual ? 0 : before.offset });
+      if (manual) list.current?.scrollToOffset({ offset: 0, animated: false });
+    } catch (e) { if (token === generation.current) setError(e instanceof Error ? e.message : "市场加载失败，请重试"); }
+    finally { if (token === generation.current) { loading.current = false; setBusy(false); setPulling(false); } }
   }
+  useEffect(() => {
+    if (!focused || !ready) return;
+    const token = ++generation.current; loading.current = false; setBusy(false); setPulling(false); setError("");
+    writeShellValue("market.filters", JSON.stringify({ category, query: search }));
+    if (current.current.key !== key) { current.current = { key, view: empty }; setView(empty); restoreOffset.current = undefined; list.current?.scrollToOffset({ offset: 0, animated: false }); }
+    void readMarketView(key).then(cached => {
+      if (token !== generation.current) return;
+      if (cached) { if (!current.current.view.applications.length) restoreOffset.current = cached.offset; else restoreOffset.current = undefined; apply(cached); }
+      if (!cached || Date.now() - cached.at > 60000) void load(true);
+    });
+    return () => { if (current.current.key === key) rememberMarketView(key, current.current.view); generation.current++; loading.current = false; };
+  }, [key, focused, ready]);
+  useEffect(() => subscribePackageValue("shell.market.changed", () => { if (focused) { generation.current++; loading.current = false; void load(true); } }), [focused, key]);
   useEffect(() => {
     const update = (entries: Awaited<ReturnType<typeof loadCatalog>>) => setInstalled(entries.filter(entry => !entry.trashedAt && !entry.purged).map(entry => entry.id));
     void loadCatalog().then(update); return subscribeCatalog(update);
   }, []);
-  useEffect(() => { if (focused) void refresh(); return () => { generation.current++; loading.current = false; }; }, [focused]);
-  useEffect(() => subscribePackageValue("shell.market.changed", () => { if (focused) void refresh(); }), [focused]);
-  const visible = items.filter(item => `${item.title || item.manifest.title} ${item.summary || item.manifest.summary}`.toLowerCase().includes(query.trim().toLowerCase()));
+  async function open(item: MarketApplication) {
+    if (opening.current) return; opening.current = true; setOpeningId(item.manifest.appId);
+    const token = generation.current;
+    try { const fresh = await fetchPublicMarketApplication(item.manifest.appId); if (token === generation.current) onDetail(fresh); }
+    catch (e) { if (token === generation.current) setError(e instanceof Error ? e.message : "详情加载失败"); }
+    finally { opening.current = false; setOpeningId(undefined); }
+  }
   return <Screen style={styles.screen}>
-    <ScreenBar style={styles.header}>{onBack ? <BackChip onPress={onBack} /> : null}<View style={{ flex: 1 }}><Text style={styles.title}>应用市场</Text><Text style={styles.caption}>找一个喜欢的应用，从这里开始</Text></View></ScreenBar>
-    <ScrollView removeClippedSubviews={false} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void refresh(true)} tintColor={colors.accent} />} keyboardShouldPersistTaps="handled">
-      <TextInput accessibilityLabel="搜索应用" placeholder="搜索应用或用途" placeholderTextColor={colors.ink3} value={query} onChangeText={setQuery} style={styles.search} />
-      {<Pressy onPress={onCreate} accessibilityRole="button"><Surface tone="raised" radius={20} style={styles.invite}><Icon name="workshop" size={23} color={colors.accent} /><View style={{ flex: 1, gap: 4 }}><Text style={styles.name}>让 Jolly 帮我做一个</Text><Text style={styles.caption}>有想法了？去 Jolly 的工坊聊聊</Text></View><Icon name="chevron" size={16} color={colors.ink3} /></Surface></Pressy>}
-      {error ? <Pressy onPress={() => void refresh()}><Text style={styles.error}>{error} · 点此重试</Text></Pressy> : null}
-      {busy && !items.length ? <ActivityIndicator color={colors.accent} /> : null}
-      {visible.map(item => { const app = item.manifest; const Avatar = marketDefinition(item)?.avatar; return <Pressy key={app.appId} accessibilityRole="button" accessibilityLabel={`查看${app.title}`} onPress={() => onDetail(item)}><View style={styles.row}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={52} /> : <Text style={{ fontSize: 25, color: app.accent }}>{app.mark}</Text>}</View><View style={{ flex: 1, gap: 5 }}><Text style={styles.name}>{item.title || app.title}</Text><Text style={styles.summary} numberOfLines={2}>{item.summary || app.summary}</Text><Pressy disabled={!item.authorId} accessibilityLabel={`查看${item.authorName}的主页`} onPress={event => { event.stopPropagation(); if (item.authorId) onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial }); }} style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}>{item.authorAvatarUrl ? <Image source={{ uri: item.authorAvatarUrl }} style={{ width: 18, height: 18, borderRadius: 9 }} /> : null}<Text style={styles.caption}>{item.authorName || "社区创作者"}</Text>{item.authorOfficial ? <Text accessibilityLabel="官方发布" style={styles.official}>官方</Text> : null}</Pressy></View><Text style={styles.badge}>{installed.includes(app.appId) ? "已安装" : "查看"}</Text></View></Pressy>; })}
-      {!busy && !visible.length ? <Text style={styles.empty}>{query ? "没有找到匹配的应用，换个关键词试试" : "应用正在准备中，稍后再来看看"}</Text> : null}
-    </ScrollView>
+    <ScreenBar style={styles.header}>{onBack ? <BackChip onPress={onBack} /> : null}<View style={{ flex: 1 }}><Text style={styles.title}>应用市场</Text><Text style={styles.caption}>找一个喜欢的应用，也可以基于它创作</Text></View></ScreenBar>
+    <FlatList ref={list} data={view.applications} keyExtractor={item => item.manifest.appId} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" removeClippedSubviews={false}
+      onContentSizeChange={(_, height) => { if (restoreOffset.current !== undefined && height > restoreOffset.current) { list.current?.scrollToOffset({ offset: restoreOffset.current, animated: false }); restoreOffset.current = undefined; } }}
+      onScroll={event => { if (restoreOffset.current === undefined && current.current.key === key) { const next = { ...current.current.view, offset: Math.max(0, event.nativeEvent.contentOffset.y) }; current.current.view = next; rememberMarketView(key, next, false); } }} scrollEventThrottle={200}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void load(true, true)} tintColor={colors.accent} />}
+      onEndReached={() => { if (!error) void load(); }} onEndReachedThreshold={0.4}
+      ListHeaderComponent={<View style={{ gap: 16 }}>
+        <TextInput accessibilityLabel="搜索应用或用途" placeholder="搜索应用或用途" placeholderTextColor={colors.ink3} value={query} maxLength={80} onChangeText={value => { edited.current = true; setQuery(value); }} style={styles.search} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{marketCategories.map(item => <Pressy key={item.id} accessibilityRole="button" accessibilityState={{ selected: category === item.id }} onPress={() => { edited.current = true; setCategory(item.id); }} style={[styles.chip, category === item.id && { backgroundColor: colors.accentTint }]}><Text style={{ color: category === item.id ? colors.accentText : colors.ink3 }}>{item.label}</Text></Pressy>)}</ScrollView>
+        <Pressy onPress={onCreate} accessibilityRole="button"><Surface tone="raised" radius={20} style={styles.invite}><Icon name="workshop" size={23} color={colors.accent} /><View style={{ flex: 1, gap: 4 }}><Text style={styles.name}>让 Jolly 帮我做一个</Text><Text style={styles.caption}>说说想法，一起做成应用</Text></View><Icon name="chevron" size={16} color={colors.ink3} /></Surface></Pressy>
+        <Text style={styles.caption}>最新发布</Text>
+        {error ? <Pressy onPress={() => void load(true)}><Text style={styles.error}>{error} · 点此重试</Text></Pressy> : null}
+      </View>}
+      renderItem={({ item }) => { const app = item.manifest; const Avatar = marketDefinition(item)?.avatar; return <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.title || app.title}`} onPress={() => void open(item)}><View style={styles.row}><View style={styles.rowHead}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={52} /> : <Text style={{ fontSize: 25, color: app.accent }}>{app.mark}</Text>}</View><View style={{ flex: 1, gap: 5 }}><Text style={styles.name}>{item.title || app.title}</Text><Text style={styles.summary} numberOfLines={2}>{item.summary || app.summary}</Text></View><Text style={styles.badge}>{openingId === app.appId ? "加载中…" : installed.includes(app.appId) ? "已安装" : "查看"}</Text></View>
+        {item.screenshots?.length ? <FastImage source={{ uri: item.screenshots[0] }} style={styles.preview} resizeMode={FastImage.resizeMode.contain} /> : null}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Pressy disabled={!item.authorId} accessibilityLabel={`查看${item.authorName}的主页`} onPress={event => { event.stopPropagation(); if (item.authorId) onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial }); }} style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6 }}>{item.authorAvatarUrl ? <Image source={{ uri: item.authorAvatarUrl }} style={{ width: 18, height: 18, borderRadius: 9 }} /> : null}<Text style={styles.caption}>{item.authorName || "社区创作者"}</Text>{item.authorOfficial ? <Text style={styles.official}>官方</Text> : null}</Pressy><Text style={styles.caption}>{marketCategories.find(category => category.id === (item.category || "other"))?.label}</Text></View>
+      </View></Pressy>; }}
+      ListEmptyComponent={busy ? <ActivityIndicator style={{ margin: 30 }} color={colors.accent} /> : <Text style={styles.empty}>{search || category ? "没有找到匹配的应用，换个分类或关键词试试" : "还没有公开的应用，来发布第一份作品吧"}</Text>}
+      ListFooterComponent={busy && view.applications.length ? <ActivityIndicator style={{ margin: 24 }} color={colors.accent} /> : view.nextCursor ? <Pressy onPress={() => void load()}><Text style={styles.empty}>加载更多</Text></Pressy> : view.applications.length ? <Text style={styles.empty}>已浏览全部应用</Text> : null}
+    />
   </Screen>;
 }
-const styles = themedStyleSheet(t => ({ screen: { flex: 1, backgroundColor: t.canvas }, header: { padding: 20, gap: 12, alignItems: "center", flexDirection: "row" }, title: { fontSize: 26, fontFamily: t.serif, fontWeight: "700", color: t.ink1 }, caption: { fontSize: 12, lineHeight: 18, color: t.ink3 }, content: { paddingHorizontal: 20, paddingBottom: 36, gap: 18 }, search: { color: t.ink1, backgroundColor: t.field, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15 }, invite: { padding: 16, gap: 12, flexDirection: "row", alignItems: "center" }, row: { flexDirection: "row", gap: 14, alignItems: "center", paddingVertical: 16, borderBottomWidth: 0.5, borderBottomColor: t.line }, mark: { width: 52, height: 52, borderRadius: 17, alignItems: "center", justifyContent: "center", overflow: "hidden" }, name: { color: t.ink1, fontSize: 17, fontWeight: "600" }, summary: { color: t.ink2, fontSize: 13, lineHeight: 20 }, official: { color: t.accentText, backgroundColor: t.accentTint, fontSize: 10, fontWeight: "600", borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2, overflow: "hidden" }, badge: { color: t.accentText, fontSize: 12 }, error: { color: t.orangeText, fontSize: 13, lineHeight: 20 }, empty: { color: t.ink3, textAlign: "center", paddingVertical: 40 } }));
+const styles = themedStyleSheet(t => ({ screen: { flex: 1, backgroundColor: t.canvas }, header: { padding: 20, gap: 12, alignItems: "center", flexDirection: "row" }, title: { fontSize: 26, fontFamily: t.serif, fontWeight: "700", color: t.ink1 }, caption: { fontSize: 12, lineHeight: 18, color: t.ink3 }, content: { paddingHorizontal: 20, paddingBottom: 36 }, search: { color: t.ink1, backgroundColor: t.field, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15 }, chip: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: t.inset }, invite: { padding: 16, gap: 12, flexDirection: "row", alignItems: "center" }, row: { gap: 12, paddingVertical: 20, borderBottomWidth: 0.5, borderBottomColor: t.line }, rowHead: { flexDirection: "row", gap: 14, alignItems: "center" }, mark: { width: 52, height: 52, borderRadius: 17, alignItems: "center", justifyContent: "center", overflow: "hidden" }, preview: { height: 180, width: "100%", backgroundColor: t.inset, borderRadius: 16 }, name: { color: t.ink1, fontSize: 17, fontWeight: "600" }, summary: { color: t.ink2, fontSize: 13, lineHeight: 20 }, official: { color: t.accentText, backgroundColor: t.accentTint, fontSize: 10, fontWeight: "600", borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2, overflow: "hidden" }, badge: { color: t.accentText, fontSize: 12 }, error: { color: t.orangeText, fontSize: 13, lineHeight: 20 }, empty: { color: t.ink3, textAlign: "center", paddingVertical: 32 } }));
