@@ -47,12 +47,12 @@ export async function openApplicationWorkshop(appId: string, title: string, fork
   context.storage.set("workshopTarget", target);
   if (feedback) context.storage.set(`pendingFeedback.${target}`, JSON.stringify(feedback));
   if (prefill) context.storage.set(`pendingPrompt.${target}`,  fork ? `基于「${title}」制作一个新的应用，我想` : `修改「${title}」，我想`);
-  context.storage.set("openWorkshop", String(Date.now()));
   if (companion) writeShellValue(`application.pending.${bootstrap.defaultApplication}`, JSON.stringify(companion));
   if (companion && applicationNeedsReload(companion)) {
     writeShellValue("application.openAfterReload", JSON.stringify({ appId: bootstrap.defaultApplication, ownerId: owner }));
+    writeShellValue("application.workshopAfterReload", JSON.stringify({ target, ownerId: owner }));
     try { await NativePluginHost.call("shell", "reloadApplications", "{}"); }
-    catch (error) { writeShellValue("application.openAfterReload", ""); throw error; }
-  } else context.navigation.open();
+    catch (error) { writeShellValue("application.openAfterReload", ""); writeShellValue("application.workshopAfterReload", ""); throw error; }
+  } else { context.storage.set("openWorkshop", String(Date.now())); context.navigation.open(); }
   return target;
 }

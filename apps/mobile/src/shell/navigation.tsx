@@ -265,6 +265,17 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         const rollback = await readShellValue("application.rollback.notice");
         removeShellValue("application.rollback.notice");
         if (rollback) Toast.show({ type: "error", text1: "应用更新已回退", text2: rollback });
+        const workshop = await readShellValue("application.workshopAfterReload");
+        removeShellValue("application.workshopAfterReload");
+        if (workshop) {
+          try {
+            const request = JSON.parse(workshop);
+            if (request.ownerId === await currentAccountId() && /^[a-z][a-z0-9-]{0,63}$/.test(request.target)) {
+              const context = applicationContext(bootstrap.defaultApplication);
+              context.storage.set("workshopTarget", request.target); context.storage.set("openWorkshop", String(Date.now()));
+            }
+          } catch { /* Ignore an incomplete handoff. */ }
+        }
         const raw = await readShellValue("application.openAfterReload");
         removeShellValue("application.openAfterReload");
         if (!raw) return;
