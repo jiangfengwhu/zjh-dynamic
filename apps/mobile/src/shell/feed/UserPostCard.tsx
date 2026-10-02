@@ -11,22 +11,22 @@ import { PostMenu } from "./PostMenu";
 import { edgeUrl } from "../evolveHost";
 import { ApplicationPostCard } from "./ApplicationPostCard";
 
-export function UserPostCard({ post, time, own, onOpen, onDeleted, onApplication, detail = false }: { post: UserPost; time: string; own: boolean; onOpen?: () => void; onDeleted?: () => void; onApplication: (appId: string) => Promise<void>; detail?: boolean }) {
+export function UserPostCard({ post, time, own, onOpen, onDeleted, onApplication, onAuthor, onUpdated, detail = false }: { post: UserPost; time: string; own: boolean; onOpen?: () => void; onDeleted?: () => void; onApplication: (appId: string) => Promise<void>; onAuthor?: (author: UserPost["author"]) => void; onUpdated?: (post: UserPost) => void; detail?: boolean }) {
   const { colors } = useTheme(); const [preview, setPreview] = useState<string | null>(null); const [busy, setBusy] = useState(false); const [liking, setLiking] = useState(false); const acting = useRef(false);
   const url = `${edgeUrl}/posts/${post.id}`;
   function remove() { Alert.alert("删除动态", "这条动态和它的评论将被删除。", [{ text: "取消", style: "cancel" }, { text: "删除", style: "destructive", onPress: () => { setBusy(true); void deleteUserPost(post.id).then(() => onDeleted?.()).catch(error => Toast.show({ type: "error", text1: "删除失败", text2: error.message })).finally(() => setBusy(false)); } }]); }
   async function like() {
     if (acting.current) return; acting.current = true; setLiking(true);
-    try { if (await requireAccount()) await setPostLike(post.id, !post.liked); }
+    try { if (await requireAccount()) { const updated = await setPostLike(post.id, !post.liked); onUpdated?.(updated); } }
     catch (error) { Toast.show({ type: "error", text1: "点赞未完成", text2: error instanceof Error ? error.message : "请稍后重试" }); }
     finally { acting.current = false; setLiking(false); }
   }
   function share() { void Share.share({ message: `${post.author.name}：${post.body || (post.application ? `分享了应用《${post.application.title}》` : "分享了图片")}\n${url}`, title: "分享动态" }).catch(() => Toast.show({ type: "error", text1: "分享未完成，请重试" })); }
   function copy() { Clipboard.setString(post.body || url); Toast.show({ type: "success", text1: "已复制" }); }
   return <View style={styles.row}>
-    {post.author.avatarUrl ? <FastImage source={{ uri: post.author.avatarUrl }} style={styles.avatar} /> : <View style={[styles.avatar, styles.placeholder]}><Text style={styles.initial}>{Array.from(post.author.name)[0]}</Text></View>}
+    <Pressable accessibilityRole="button" accessibilityLabel={`查看${post.author.name}的主页`} disabled={!onAuthor} onPress={() => onAuthor?.(post.author)}>{post.author.avatarUrl ? <FastImage source={{ uri: post.author.avatarUrl }} style={styles.avatar} /> : <View style={[styles.avatar, styles.placeholder]}><Text style={styles.initial}>{Array.from(post.author.name)[0]}</Text></View>}</Pressable>
     <View style={styles.content}>
-      <View style={styles.heading}><View style={styles.identity}><Text style={styles.name} numberOfLines={1}>{post.author.name}</Text><Text style={styles.time}>· {time}</Text></View><PostMenu busy={busy} onDelete={own ? remove : undefined} onCopy={copy} onShare={share} /></View>
+      <View style={styles.heading}><View style={styles.identity}><Text onPress={onAuthor ? () => onAuthor(post.author) : undefined} style={styles.name} numberOfLines={1}>{post.author.name}</Text><Text style={styles.time}>· {time}</Text></View><PostMenu busy={busy} onDelete={own ? remove : undefined} onCopy={copy} onShare={share} /></View>
       {post.body ? <Text onPress={onOpen} selectable={detail} style={[styles.body, detail && styles.detailBody]}>{post.body}</Text> : null}
       {post.images.length ? <View style={styles.images}>{post.images.map(image => <Pressable key={image.id} accessibilityLabel="查看大图" onPress={() => setPreview(image.url)} style={[styles.imageCell, post.images.length === 1 && styles.singleImage]}><FastImage source={{ uri: image.url }} resizeMode={FastImage.resizeMode.cover} style={styles.image} /></Pressable>)}</View> : null}
       {post.application ? <ApplicationPostCard application={post.application} onOpen={onApplication} /> : null}

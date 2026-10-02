@@ -37,6 +37,8 @@ import Toast from "react-native-toast-message";
 import { ComposePostScreen } from "./feed/ComposePostScreen";
 import { PostDetailScreen } from "./feed/PostDetailScreen";
 import type { UserPost } from "./feed/userPosts";
+import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
+import type { PublicAuthor } from "./feed/userPosts";
 
 export type TabParamList = {
   feed: undefined;
@@ -56,9 +58,13 @@ export type RootParamList = {
   account: undefined;
   composePost: { application?: MarketApplication } | undefined;
   postDetail: { post: UserPost };
+  authorProfile: { author: PublicAuthor };
 };
 
 export const shellNavigationRef = createNavigationContainerRef<RootParamList>();
+function openAuthor(author: PublicAuthor) {
+  if (shellNavigationRef.isReady()) shellNavigationRef.navigate("authorProfile", { author });
+}
 
 const Stack = createNativeStackNavigator<RootParamList>();
 const Tabs = createMaterialTopTabNavigator<TabParamList>();
@@ -267,6 +273,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="feed">
                 {() => (
                   <FeedScreen
+                    onAuthor={openAuthor}
                     onApplication={openPublicMarketApplication}
                     onProfile={() => openShellTab("mine")}
                     onPost={post => shellNavigationRef.navigate("postDetail", { post })}
@@ -279,7 +286,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 )}
               </Tabs.Screen>
               <Tabs.Screen name="market">
-                {() => <MarketScreen onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
+                {() => <MarketScreen onAuthor={openAuthor} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
               </Tabs.Screen>
               <Tabs.Screen name="mine">
                 {() => (
@@ -300,7 +307,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           )}
         </Stack.Screen>
         <Stack.Screen name="marketDetail">
-          {({ route }) => <MarketDetailScreen publish={route.params.publish} item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} onSharePost={application => shellNavigationRef.navigate("composePost", { application })} />}
+          {({ route }) => <MarketDetailScreen publish={route.params.publish} item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} onSharePost={application => shellNavigationRef.navigate("composePost", { application })} onAuthor={openAuthor} />}
         </Stack.Screen>
         <Stack.Screen name="myApps">
           {() => <MyApplicationsScreen onOpen={props.onOpenBundle} onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
@@ -312,7 +319,10 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           {({ route }) => <ComposePostScreen onBack={goBack} initialApplication={route.params?.application} />}
         </Stack.Screen>
         <Stack.Screen name="postDetail">
-          {({ route }) => <PostDetailScreen initialPost={route.params.post} onBack={goBack} onApplication={openPublicMarketApplication} />}
+          {({ route }) => <PostDetailScreen initialPost={route.params.post} onBack={goBack} onApplication={openPublicMarketApplication} onAuthor={openAuthor} />}
+        </Stack.Screen>
+        <Stack.Screen name="authorProfile">
+          {({ route }) => <AuthorProfileScreen key={route.params.author.id} initialAuthor={route.params.author} onBack={goBack} onPost={post => shellNavigationRef.navigate("postDetail", { post })} onApplication={openPublicMarketApplication} />}
         </Stack.Screen>
         <Stack.Screen name="providers">
           {() => <ProvidersScreen onBack={goBack} />}

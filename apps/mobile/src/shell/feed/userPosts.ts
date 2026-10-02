@@ -2,11 +2,16 @@ import { useEffect, useState } from "react";
 import { edgeUrl } from "../evolveHost";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../account";
 import { readShellValue, writeShellValue } from "../shellStorage";
+import type { MarketApplication } from "../market";
 
 export type ApplicationLink = { appId: string; releaseId: string; title: string; summary: string; mark: string; accent: string };
 export type UserPost = { id: string; author: { id: string; name: string; avatarUrl: string | null }; body: string; images: Array<{ id: string; url: string }>; createdAt: number; likeCount?: number; commentCount?: number; liked?: boolean; application?: ApplicationLink };
 export type UserComment = { id: string; postId: string; author: UserPost["author"]; body: string; createdAt: number; replyTo?: { id: string; name: string } };
 export type PostDetail = { post: UserPost; comments: UserComment[]; nextCursor: string | null };
+export type PublicAuthor = UserPost["author"] & { official?: boolean };
+export type AuthorProfile = { author: PublicAuthor; posts: UserPost[]; applications: MarketApplication[]; nextCursor: string | null };
+export function fetchAuthorProfile(id: string) { return readSocial<AuthorProfile>(`/v1/profiles/${id}`); }
+export function fetchAuthorPosts(id: string, cursor: string) { return readSocial<{ posts: UserPost[]; nextCursor: string | null }>(`/v1/posts?authorId=${id}&cursor=${encodeURIComponent(cursor)}`); }
 type Page = { posts: UserPost[]; nextCursor: string | null; reactionOwnerId?: string };
 let value: Page = { posts: [], nextCursor: null };
 let initialization: Promise<void> | undefined;
@@ -62,7 +67,7 @@ async function readSocial<T>(path: string, options?: RequestInit): Promise<T> {
 export function updateUserPost(post: UserPost) { revision++; save({ ...value, posts: value.posts.map(item => item.id === post.id ? post : item) }); }
 export async function fetchPostDetail(id: string, cursor?: string): Promise<PostDetail> { return readSocial<PostDetail>(`/v1/posts/${id}${cursor ? `/comments?cursor=${encodeURIComponent(cursor)}` : ""}`); }
 export async function setPostLike(id: string, liked: boolean) {
-  const result = await readSocial<{ post: UserPost }>(`/v1/posts/${id}/like`, { method: liked ? "POST" : "DELETE" }); updateUserPost(result.post);
+  const result = await readSocial<{ post: UserPost }>(`/v1/posts/${id}/like`, { method: liked ? "POST" : "DELETE" }); updateUserPost(result.post); return result.post;
 }
 export async function publishPostComment(id: string, body: string, requestId: string, replyTo?: string) {
   const result = await readSocial<{ comment: UserComment; post: UserPost }>(`/v1/posts/${id}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, requestId, replyTo }) }); updateUserPost(result.post); return result;

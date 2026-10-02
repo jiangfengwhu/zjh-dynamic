@@ -13,7 +13,7 @@ import { UserPostCard } from "./UserPostCard";
 import { PostMenu } from "./PostMenu";
 
 const when = (at: number) => new Date(at).toLocaleString();
-export function PostDetailScreen({ initialPost, onBack, onApplication }: { initialPost: UserPost; onBack: () => void; onApplication: (appId: string) => Promise<void> }) {
+export function PostDetailScreen({ initialPost, onBack, onApplication, onAuthor }: { initialPost: UserPost; onBack: () => void; onApplication: (appId: string) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {
   const { colors } = useTheme(); const { user } = useAccount(); const timeline = useUserPosts();
   const [fallback, setFallback] = useState(initialPost); const post = timeline.posts.find(item => item.id === initialPost.id) ?? fallback;
   const [comments, setComments] = useState<UserComment[]>([]); const [cursor, setCursor] = useState<string | null>(null);
@@ -62,11 +62,11 @@ export function PostDetailScreen({ initialPost, onBack, onApplication }: { initi
     <PageHeader title="动态" onBack={onBack} />
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <FlatList data={comments} keyExtractor={item => item.id} keyboardShouldPersistTaps="handled" refreshing={loading && comments.length > 0} onRefresh={() => void load()}
-        ListHeaderComponent={<><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} /><Text style={{ padding: 16, fontSize: 17, fontWeight: "700", color: colors.ink1 }}>评论 · {post.commentCount ?? 0}</Text></>}
+        ListHeaderComponent={<><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} onAuthor={onAuthor} onUpdated={setFallback} /><Text style={{ padding: 16, fontSize: 17, fontWeight: "700", color: colors.ink1 }}>评论 · {post.commentCount ?? 0}</Text></>}
         ListEmptyComponent={<View style={{ padding: 24 }}>{loading ? <ActivityIndicator color={colors.accent} /> : !error ? <Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text> : null}</View>}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: colors.line }}>
-          {item.author.avatarUrl ? <FastImage source={{ uri: item.author.avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18 }} /> : <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.field, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accent }}>{item.author.name.slice(0, 1)}</Text></View>}
-          <View style={{ flex: 1 }}><View style={{ flexDirection: "row", alignItems: "center" }}><View style={{ flex: 1 }}><Text style={{ color: colors.ink1, fontWeight: "700", fontSize: 15 }}>{item.author.name}</Text><Text style={{ color: colors.ink3, fontSize: 11 }}>{when(item.createdAt)}</Text></View>
+          <Pressable accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)}>{item.author.avatarUrl ? <FastImage source={{ uri: item.author.avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18 }} /> : <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.field, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accent }}>{item.author.name.slice(0, 1)}</Text></View>}</Pressable>
+          <View style={{ flex: 1 }}><View style={{ flexDirection: "row", alignItems: "center" }}><View style={{ flex: 1 }}><Text onPress={() => onAuthor(item.author)} style={{ color: colors.ink1, fontWeight: "700", fontSize: 15 }}>{item.author.name}</Text><Text style={{ color: colors.ink3, fontSize: 11 }}>{when(item.createdAt)}</Text></View>
             <PostMenu busy={deleting === item.id} onCopy={() => { Clipboard.setString(item.body); Toast.show({ type: "success", text1: "已复制" }); }} onDelete={user?.id === item.author.id ? () => remove(item) : undefined} /></View>
             {item.replyTo ? <Text style={{ color: colors.accent, marginBottom: 4 }}>回复 {item.replyTo.name}</Text> : null}
             <Text selectable style={{ color: colors.ink1, fontSize: 15, lineHeight: 22 }}>{item.body}</Text>
