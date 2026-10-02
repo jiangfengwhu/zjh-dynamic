@@ -8,14 +8,13 @@ const packageName = (entry: string) => entry.startsWith("@") ? entry.split("/").
 const readPackage = async (file: string): Promise<Package> => JSON.parse(await readFile(file, "utf8"));
 
 async function installedPackage(resolver: ReturnType<typeof createRequire>, name: string): Promise<Package> {
-  let directory = path.dirname(resolver.resolve(name));
-  while (true) {
-    try { const pkg = await readPackage(path.join(directory, "package.json")); if (pkg.name === name) return pkg; }
+  // RN packages may expose a TypeScript main that Node cannot resolve. Inspect
+  // installation search paths without executing or resolving the RN entry.
+  for (const directory of resolver.resolve.paths(name) ?? []) {
+    try { const pkg = await readPackage(path.join(directory, name, "package.json")); if (pkg.name === name) return pkg; }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-    const parent = path.dirname(directory);
-    if (parent === directory) throw new Error(`无法解析 SDK 依赖：${name}`);
-    directory = parent;
   }
+  throw new Error(`无法解析 SDK 依赖：${name}`);
 }
 
 /** SDK owns platform dependencies; applications own only their extra JS dependencies. */
@@ -27,7 +26,7 @@ export async function assertApplicationDependencies(repo: string, sdkDirectory: 
   for (const section of sections) for (const name of Object.keys(root[section] ?? {})) {
     if (name !== "@zijinhua/app-sdk") throw new Error(`根 package.json 只声明 SDK；应用的纯 JS 依赖写入对应应用：${name}`);
   }
-  const managed = new Set([...Object.keys(shared).map(packageName), "@zijinhua/app-sdk", "@types/react", "typescript"]);
+  const managed = new Set([...Object.keys(sdk.dependencies ?? {}), ...Object.keys(shared).map(packageName), "@zijinhua/app-sdk"]);
   const apps = path.join(repo, "apps");
   const directories = (await readdir(apps, { withFileTypes: true })).filter(entry => entry.isDirectory());
   for (const entry of directories) {
