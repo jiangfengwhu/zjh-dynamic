@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
-import { useIsFocused } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   Extrapolation,
@@ -71,14 +71,13 @@ type FeedProps = {
 export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, onPost, onProfile, onApplication, onAuthor, onNotifications, installedIds }: FeedProps) {
   const { user } = useAccount();
   const { colors, mode } = useTheme();
-  const focused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { hidden: chromeHidden, tabHeight } = useFeedChrome();
   // Android already draws both system bar backgrounds transparently. Keep their
   // visibility fixed; only the app's header and tabs respond to scrolling.
-  useEffect(() => {
-    if (focused) void NativePluginHost.call("shell", "systemBars", JSON.stringify({ statusBar: colors.canvas, navigationBar: colors.canvas, window: colors.canvas, light: mode === "light", immersive: false })).catch(() => {});
-  }, [focused, colors.canvas, mode]);
+  useFocusEffect(useCallback(() => {
+    void NativePluginHost.call("shell", "systemBars", JSON.stringify({ statusBar: colors.canvas, navigationBar: colors.canvas, window: colors.canvas, light: mode === "light", immersive: false })).catch(() => {});
+  }, [colors.canvas, mode]));
   const userTimeline = useUserPosts();
   const unreadNotifications = useNotificationCount();
   const [loadingMore, setLoadingMore] = useState(false);
@@ -142,14 +141,13 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   });
   const headerMotion = useAnimatedStyle(() => ({ transform: [{ translateY: -hiddenHeader.value }] }));
   const bottomSpace = useAnimatedStyle(() => ({ paddingBottom: tabHeight.value + 28 }));
-  useEffect(() => {
-    if (!focused) return;
+  useFocusEffect(useCallback(() => {
     cancelAnimation(hiddenHeader);
     chromeHidden.value = 0;
     hiddenHeader.value = 0;
     dragging.value = false;
     momentum.value = false;
-  }, [focused, chromeHidden, hiddenHeader, dragging, momentum]);
+  }, [chromeHidden, hiddenHeader, dragging, momentum]));
   const edge = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
   }));

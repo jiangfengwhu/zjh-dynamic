@@ -164,15 +164,16 @@ function BundlePage({ id, render }: {
   render: (id: string, onBack: () => void) => ReactNode;
 }) {
   const colors = palettes[useTheme().mode];
-  useEffect(() => {
+  function ready() {
+    if (mountedBundles.has(id)) return;
     mountedBundles.add(id);
     for (const finish of [...(mountWaiters.get(id) ?? [])]) finish();
-    return () => { mountedBundles.delete(id); };
-  }, [id]);
+  }
+  useEffect(() => () => { mountedBundles.delete(id); }, [id]);
   const Page = id === bootstrap.defaultApplication ? View : Screen;
   return (
     <Page style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <View style={styles.feature}>{render(id, goBack)}</View>
+      <View style={styles.feature} onLayout={ready}>{render(id, goBack)}</View>
     </Page>
   );
 }
