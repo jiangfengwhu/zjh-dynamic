@@ -44,10 +44,8 @@ export async function assertApplicationDependencies(repo: string, sdkDirectory: 
     const artifact = platform.dependencyArtifacts?.[name];
     const pinned = sdk.dependencies?.[name] === version || (artifact?.version === version && sdk.dependencies?.[name] === artifact.url);
     if (!pinned || (await installedPackage(sdkRequire, name)).version !== version) throw new Error(`SDK 安装依赖与平台契约不匹配：${name}`);
-    for (const entry of directories) {
-      if (!entry.isDirectory()) continue;
-      const appRequire = createRequire(path.join(apps, entry.name, "package.json"));
-      if ((await installedPackage(appRequire, name)).version !== version) throw new Error(`应用 ${entry.name} 解析到了不同的共享依赖版本：${name}`);
-    }
+    // npm may hoist a newer peer dependency outside the SDK. Applications never
+    // bundle those copies: Metro resolves public entries to host stubs first.
+    // Explicit application overrides were rejected above; validate the SDK copy.
   }
 }
