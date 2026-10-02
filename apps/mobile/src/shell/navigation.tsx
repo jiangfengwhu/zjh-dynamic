@@ -20,6 +20,7 @@ import { MyApplicationsScreen } from "./MyApplicationsScreen";
 import { MarketScreen } from "./MarketScreen";
 import { MarketDetailScreen } from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
+import { fetchPublicMarketApplication } from "./market";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { MineScreen } from "./MineScreen";
 import { requireAccount, currentAccountId } from "./account";
@@ -53,7 +54,7 @@ export type RootParamList = {
   marketDetail: { item: MarketApplication; publish?: boolean };
   myApps: undefined;
   account: undefined;
-  composePost: undefined;
+  composePost: { application?: MarketApplication } | undefined;
   postDetail: { post: UserPost };
 };
 
@@ -80,6 +81,12 @@ const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() =>
 export function openShellTab(id: ShellTabId) {
   if (!shellNavigationRef.isReady()) return;
   shellNavigationRef.navigate("tabs", { screen: id });
+}
+export async function openPublicMarketApplication(appId: string) {
+  if (!shellNavigationRef.isReady()) return;
+  const origin = shellNavigationRef.getCurrentRoute()?.key;
+  const item = await fetchPublicMarketApplication(appId);
+  if (shellNavigationRef.isReady() && shellNavigationRef.getCurrentRoute()?.key === origin) shellNavigationRef.navigate("marketDetail", { item });
 }
 
 export function openShellBundle(id: string) {
@@ -260,6 +267,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="feed">
                 {() => (
                   <FeedScreen
+                    onApplication={openPublicMarketApplication}
                     onProfile={() => openShellTab("mine")}
                     onPost={post => shellNavigationRef.navigate("postDetail", { post })}
                     onCompose={() => { void requireAccount().then(allowed => { if (allowed && shellNavigationRef.isReady()) shellNavigationRef.navigate("composePost"); }); }}
@@ -292,7 +300,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           )}
         </Stack.Screen>
         <Stack.Screen name="marketDetail">
-          {({ route }) => <MarketDetailScreen publish={route.params.publish} item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} />}
+          {({ route }) => <MarketDetailScreen publish={route.params.publish} item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} onSharePost={application => shellNavigationRef.navigate("composePost", { application })} />}
         </Stack.Screen>
         <Stack.Screen name="myApps">
           {() => <MyApplicationsScreen onOpen={props.onOpenBundle} onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
@@ -301,10 +309,10 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           {() => <AccountScreen onBack={goBack} />}
         </Stack.Screen>
         <Stack.Screen name="composePost">
-          {() => <ComposePostScreen onBack={goBack} />}
+          {({ route }) => <ComposePostScreen onBack={goBack} initialApplication={route.params?.application} />}
         </Stack.Screen>
         <Stack.Screen name="postDetail">
-          {({ route }) => <PostDetailScreen initialPost={route.params.post} onBack={goBack} />}
+          {({ route }) => <PostDetailScreen initialPost={route.params.post} onBack={goBack} onApplication={openPublicMarketApplication} />}
         </Stack.Screen>
         <Stack.Screen name="providers">
           {() => <ProvidersScreen onBack={goBack} />}

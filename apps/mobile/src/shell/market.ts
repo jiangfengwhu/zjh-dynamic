@@ -11,6 +11,14 @@ import { confirmCreation } from "./creationConsent";
 export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: string | null; authorName: string; authorAvatarUrl?: string | null; authorOfficial?: boolean; originalAppId: string | null; title?: string; summary?: string; owned?: boolean; latest?: boolean };
 const CACHE = "market.catalog.v1";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
+export async function fetchPublicMarketApplication(appId: string): Promise<MarketApplication> {
+  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/market?appId=${encodeURIComponent(appId)}`);
+  if (!response.ok) throw new Error("应用详情暂时不可用，请重试");
+  const data = await response.json() as { applications?: MarketApplication[] };
+  const item = data.applications?.find(item => item.manifest?.appId === appId);
+  if (!item) throw new Error("这个应用已撤回或暂未上架");
+  return { ...item, latest: true };
+}
 export async function cachedMarket(): Promise<MarketApplication[]> {
   try { const raw = await readShellValue(CACHE); return raw ? (JSON.parse(raw) as MarketApplication[]).map(item => ({ ...item, latest: false })) : []; } catch { return []; }
 }

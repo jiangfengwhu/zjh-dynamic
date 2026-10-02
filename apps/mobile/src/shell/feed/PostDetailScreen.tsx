@@ -13,7 +13,7 @@ import { UserPostCard } from "./UserPostCard";
 import { PostMenu } from "./PostMenu";
 
 const when = (at: number) => new Date(at).toLocaleString();
-export function PostDetailScreen({ initialPost, onBack }: { initialPost: UserPost; onBack: () => void }) {
+export function PostDetailScreen({ initialPost, onBack, onApplication }: { initialPost: UserPost; onBack: () => void; onApplication: (appId: string) => Promise<void> }) {
   const { colors } = useTheme(); const { user } = useAccount(); const timeline = useUserPosts();
   const [fallback, setFallback] = useState(initialPost); const post = timeline.posts.find(item => item.id === initialPost.id) ?? fallback;
   const [comments, setComments] = useState<UserComment[]>([]); const [cursor, setCursor] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export function PostDetailScreen({ initialPost, onBack }: { initialPost: UserPos
     <PageHeader title="动态" onBack={onBack} />
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <FlatList data={comments} keyExtractor={item => item.id} keyboardShouldPersistTaps="handled" refreshing={loading && comments.length > 0} onRefresh={() => void load()}
-        ListHeaderComponent={<><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} /><Text style={{ padding: 16, fontSize: 17, fontWeight: "700", color: colors.ink1 }}>评论 · {post.commentCount ?? 0}</Text></>}
+        ListHeaderComponent={<><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} /><Text style={{ padding: 16, fontSize: 17, fontWeight: "700", color: colors.ink1 }}>评论 · {post.commentCount ?? 0}</Text></>}
         ListEmptyComponent={<View style={{ padding: 24 }}>{loading ? <ActivityIndicator color={colors.accent} /> : !error ? <Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text> : null}</View>}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: colors.line }}>
           {item.author.avatarUrl ? <FastImage source={{ uri: item.author.avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18 }} /> : <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.field, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accent }}>{item.author.name.slice(0, 1)}</Text></View>}

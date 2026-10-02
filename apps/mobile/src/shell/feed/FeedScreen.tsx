@@ -54,9 +54,10 @@ type FeedProps = {
   onCompose: () => void;
   onPost: (post: UserPost) => void;
   onProfile: () => void;
+  onApplication: (appId: string) => Promise<void>;
 };
 
-export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, onPost, onProfile, installedIds }: FeedProps) {
+export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, onPost, onProfile, onApplication, installedIds }: FeedProps) {
   const { user } = useAccount();
   const { colors } = useTheme();
   const userTimeline = useUserPosts();
@@ -213,7 +214,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
                     const show = !kind || (item.type === "user" ? kind === "user" : item.post.kind === kind);
                     if (item.type === "user") {
                       const post = user && item.post.author.id === user.id ? { ...item.post, author: { id: user.id, name: user.name, avatarUrl: user.avatarUrl } } : item.post;
-                      return <RetainedPost key={`user-${post.id}`} show={show}><View style={styles.post}><UserPostCard post={post} time={formatWhen(post.createdAt)} own={user?.id === post.author.id} onOpen={() => onPost(post)} /></View></RetainedPost>;
+                      return <RetainedPost key={`user-${post.id}`} show={show}><View style={styles.post}><UserPostCard post={post} time={formatWhen(post.createdAt)} own={user?.id === post.author.id} onOpen={() => onPost(post)} onApplication={onApplication} /></View></RetainedPost>;
                     }
                     const post = item.post;
                     const friend = friends.get(post.appId) ?? { id: post.appId, name: post.appId, mark: "友", accent: colors.accent };

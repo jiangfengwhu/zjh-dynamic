@@ -3,7 +3,8 @@ import { edgeUrl } from "../evolveHost";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../account";
 import { readShellValue, writeShellValue } from "../shellStorage";
 
-export type UserPost = { id: string; author: { id: string; name: string; avatarUrl: string | null }; body: string; images: Array<{ id: string; url: string }>; createdAt: number; likeCount?: number; commentCount?: number; liked?: boolean };
+export type ApplicationLink = { appId: string; releaseId: string; title: string; summary: string; mark: string; accent: string };
+export type UserPost = { id: string; author: { id: string; name: string; avatarUrl: string | null }; body: string; images: Array<{ id: string; url: string }>; createdAt: number; likeCount?: number; commentCount?: number; liked?: boolean; application?: ApplicationLink };
 export type UserComment = { id: string; postId: string; author: UserPost["author"]; body: string; createdAt: number; replyTo?: { id: string; name: string } };
 export type PostDetail = { post: UserPost; comments: UserComment[]; nextCursor: string | null };
 type Page = { posts: UserPost[]; nextCursor: string | null; reactionOwnerId?: string };
@@ -37,8 +38,8 @@ export function loadMoreUserPosts(): Promise<void> {
   paging = (async () => { const cursor = value.nextCursor; const before = revision; if (!cursor) return; const page = await requestPage(cursor); if (before !== revision || value.nextCursor !== cursor) return; const known = new Set(value.posts.map(post => post.id)); revision++; save({ posts: [...value.posts, ...page.posts.filter(post => !known.has(post.id))], nextCursor: page.nextCursor }); })().finally(() => { paging = undefined; });
   return paging;
 }
-export async function publishUserPost(body: string, imageIds: string[], requestId: string): Promise<void> {
-  const response = await accountFetch(`${edgeUrl}/v1/posts`, { method: "POST", signal: AbortSignal.timeout(20000), headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, imageIds, requestId }) }, false);
+export async function publishUserPost(body: string, imageIds: string[], requestId: string, application?: { appId: string; releaseId: string }): Promise<void> {
+  const response = await accountFetch(`${edgeUrl}/v1/posts`, { method: "POST", signal: AbortSignal.timeout(20000), headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, imageIds, requestId, application }) }, false);
   const result = await response.json() as { post?: UserPost; message?: string };
   if (!response.ok || !result.post) throw new Error(result.message || "发布未完成，请重试");
   revision++; save({ ...value, posts: [result.post, ...value.posts.filter(post => post.id !== result.post!.id)] });

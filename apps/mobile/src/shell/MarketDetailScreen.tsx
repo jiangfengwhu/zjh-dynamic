@@ -12,7 +12,7 @@ import { offerApplication, applyApplicationUpdate, runningApplicationReleases } 
 
 import { cachedSharing, loadSharing, editMarketApplication, withdrawMarketApplication, shareMarketApplication, installMarketApplication, uninstallMarketApplication, marketDefinition, type MarketApplication, type SharingState } from "./market";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
-export function MarketDetailScreen({ item, publish, onBack, onOpen }: { publish?: boolean; item: MarketApplication; onBack: () => void; onOpen: (id: string) => void }) {
+export function MarketDetailScreen({ item, publish, onBack, onOpen, onSharePost }: { publish?: boolean; item: MarketApplication; onBack: () => void; onOpen: (id: string) => void; onSharePost: (item: MarketApplication) => void }) {
   const { user } = useAccount();
   const { colors } = useTheme(); const app = item.manifest; const focused = useIsFocused();
   const [installed, setInstalled] = useState(false); const [release, setRelease] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
@@ -65,6 +65,7 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen }: { publish?
     try {
       const state = editMode === "edit" ? await editMarketApplication(app.appId, shareTitle, shareSummary) : await shareMarketApplication(app.appId, selectedRelease, shareTitle, shareSummary);
       setSharing(state); setEditMode(null); setShareNotice(editMode === "edit" ? "分享信息已保存，公开版本保持不变。" : "已将选定版本分享到应用市场。");
+      if (editMode === "share" && state.shared) { const published = state.shared; Alert.alert("应用已上架", "发一条动态，介绍你的作品？", [{ text: "稍后" }, { text: "发动态", onPress: () => onSharePost(published) }]); }
     } catch (e) { setError(e instanceof Error ? e.message : "分享未完成，请重试"); }
     finally { mutation.current = false; setBusy(false); }
   }
@@ -106,7 +107,7 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen }: { publish?
     {owner ? <Surface radius={20} style={styles.description}><Text style={styles.subtitle}>管理分享</Text>
       <Text style={styles.copy}>{shared ? hasNewVersion ? "已分享 · 有新版本待分享" : "已分享到应用市场" : "尚未分享"}</Text>
       {shared ? <><Text style={styles.copy}>分享名称：{shared.title || shared.manifest.title}</Text><Text style={styles.caption}>{shared.summary ?? shared.manifest.summary}</Text></> : null}
-      {shared ? <Text style={styles.caption}>当前公开版本 {versionName(shared.manifest)}</Text> : null}
+      {shared ? <><Text style={styles.caption}>当前公开版本 {versionName(shared.manifest)}</Text><Pressy disabled={busy || !sharingReady} onPress={() => onSharePost(shared)}><Text style={styles.secondary}>发动态介绍这个应用</Text></Pressy></> : null}
       {sharing?.application ? <Text style={styles.caption}>最新制作版本 {versionName(sharing.application)}</Text> : <Text style={styles.caption}>完成发包后，就可以上架。</Text>}
       {shareNotice ? <Text style={styles.caption}>{shareNotice}</Text> : null}
       {sharing?.application && (!shared || hasNewVersion) ? <Pressy disabled={busy || !sharingReady} onPress={() => begin("share")}><Text style={styles.secondary}>{shared ? hasNewVersion ? "将新版本分享到市场" : "重新分享最新制作版本" : "分享最新制作版本"}</Text></Pressy> : null}
