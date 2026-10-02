@@ -67,7 +67,7 @@ function App() {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <KeyboardProvider>
+        <KeyboardProvider statusBarTranslucent navigationBarTranslucent preserveEdgeToEdge>
           <BottomSheetModalProvider><ShellApp /></BottomSheetModalProvider>
         </KeyboardProvider>
         <Toast position="bottom" bottomOffset={40} />
