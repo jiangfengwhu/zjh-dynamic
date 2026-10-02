@@ -1,7 +1,7 @@
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
-import { accountFetch, currentAccountId, subscribeAccountIdentity } from "../shell/account";
+import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../shell/account";
 import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt } from "../../../../packages/app-sdk/src/runtime";
 import { restoreWorks } from "../shell/workRecovery";
 import { loadCatalog, saveCatalog } from "../shell/catalog";
@@ -18,6 +18,7 @@ export type ApplicationManifest = {
 
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 const loading = new Map<string, Promise<void>>();
+const loaded = new Set<string>();
 const evaluating = new Set<string>();
 const quarantined = new Set<string>();
 const active = new Map<string, ApplicationManifest>();
@@ -60,6 +61,10 @@ const contract = require("./application-contract.json") as { engineAbi: string; 
 const allocations = require("../../../../tools/applications/allocations.json") as { applications: Record<string, number>; moduleRangeSize: number };
 
 export function runningApplication(appId: string) { return active.get(appId); }
+export function applicationLoaded(appId: string) {
+  const access = activeAccess.get(appId);
+  return loaded.has(appId) && !quarantined.has(appId) && !!access && (!access.ownerId || access.ownerId === cachedAccountId());
+}
 export function applicationNeedsReload(manifest: ApplicationManifest) {
   return loading.has(manifest.appId) && active.get(manifest.appId)?.releaseId !== manifest.releaseId;
 }
@@ -131,8 +136,12 @@ export async function applyApplicationUpdate(appId: string): Promise<number> {
 export async function loadApplication(appId: string): Promise<void> {
   if (quarantined.has(appId)) throw new Error("这个版本加载失败，请等待新版本或重载后安装其他版本");
   const existing = loading.get(appId);
-  if (existing) return existing;
-  const pending = load(appId).catch(error => { if (!evaluating.has(appId)) loading.delete(appId); throw error; });
+  if (existing) {
+    const access = activeAccess.get(appId);
+    if (access?.ownerId && await currentAccountId() !== access.ownerId) throw new AccessDenied("请登录作品所属账号后再体验候选版本");
+    return existing;
+  }
+  const pending = load(appId).then(() => { loaded.add(appId); }).catch(error => { if (!evaluating.has(appId)) loading.delete(appId); throw error; });
   loading.set(appId, pending);
   // A failed evaluation may have registered modules. Retry requires a fresh JS environment.
   return pending;
@@ -165,7 +174,10 @@ async function load(appId: string) {
   const accessRaw = await readShellValue(staged ? `application.pending.access.${appId}` : `application.access.${appId}`);
   try { access = accessRaw ? JSON.parse(accessRaw) : undefined; } catch {}
   if (access?.releaseId !== manifest.releaseId) access = undefined;
-  if (!access || access.ownerId || !access.public || !staged) {
+  // A persisted public install was verified before being accepted. Reuse it
+  // offline; update checks select newer public releases separately. Private
+  // candidates still require the current owner's authorization each JS session.
+  if (!access || access.ownerId || !access.public) {
     try {
       const ownerId = access?.ownerId ?? null;
       await verifyAccess(manifest, ownerId);
@@ -204,7 +216,7 @@ async function load(appId: string) {
   }
   writeShellValue(`application.evaluation.${appId}`, "");
   if (saved && JSON.parse(saved).releaseId === manifest.releaseId) { healthy.add(appId); }
-  if (appId === bootstrap.defaultApplication) await restoreWorks().catch(() => {});
+  if (appId === bootstrap.defaultApplication) void restoreWorks().catch(() => {});
   console.log("application ready", appId, manifest.releaseId);
 }
 

@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import type { AppAvatarProps } from "../avatars/types";
 import { peekApplication } from "../../app-sdk/src/runtime";
-import { loadApplication, fetchApplicationCatalog } from "../../../apps/mobile/src/runtime/applications";
+import { loadApplication, fetchApplicationCatalog, applicationLoaded } from "../../../apps/mobile/src/runtime/applications";
 import { peekFeature, type FeatureComponent } from "./featureHost";
 // Metadata only. Application pages, avatars and cards arrive in independent bundles.
 export type BundleDefinition = {
@@ -57,6 +57,10 @@ export async function refreshApplications() {
 }
 
 /** 取一位朋友的页面组件。第一次打开时执行 load；页面模块出错会抛出，由调用方显示。 */
+export function cachedFeature(id: string): FeatureComponent | undefined {
+  return applicationLoaded(id) ? peekFeature(id) : undefined;
+}
+
 export async function openFeature(id: string): Promise<FeatureComponent> {
 
   const definition = bundles.find((item) => item.id === id);

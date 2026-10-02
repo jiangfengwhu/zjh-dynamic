@@ -125,7 +125,8 @@ export async function logoutAccount() {
   await clearAccount();
 }
 function openLogin() { writePackageValue("shell.nav.request", JSON.stringify({ action: "account", at: Date.now() })); }
-export async function currentAccountId(): Promise<string | undefined> { await initialize(); return credential && credential.expiresAt > Date.now() ? state.user?.id : undefined; }
+export function cachedAccountId(): string | undefined { return state.ready && credential && credential.expiresAt > Date.now() ? state.user?.id : undefined; }
+export async function currentAccountId(): Promise<string | undefined> { await initialize(); return cachedAccountId(); }
 export async function requireAccount(prompt = true): Promise<boolean> {
   await initialize();
   if (credential && credential.expiresAt <= Date.now()) await clearAccount();

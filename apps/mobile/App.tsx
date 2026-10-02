@@ -7,7 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
-import { bundles, openFeature, refreshApplications, restoreApplications } from "../../packages/features/src/registry";
+import { bundles, openFeature, cachedFeature, refreshApplications, restoreApplications } from "../../packages/features/src/registry";
 import type { FeatureComponent } from "../../packages/features/src/featureHost";
 import NativePluginHost from "./src/NativePluginHost";
 import { loadCatalog, saveCatalog, subscribeCatalog, type CatalogEntry } from "./src/shell/catalog";
@@ -332,18 +332,26 @@ function FeatureHost({
   onBack?: () => void;
   onError?: (message: string) => void;
 }) {
-  const [opened, setOpened] = useState<{ component?: FeatureComponent; failed: string }>({ failed: "" });
+  const [opened, setOpened] = useState<{ id: string; component?: FeatureComponent; failed: string }>(() => ({ id, component: cachedFeature(id), failed: "" }));
+  const [loadingVisible, setLoadingVisible] = useState(false);
   useEffect(() => {
     let disposed = false;
-    setOpened({ failed: "" });
+    const cached = cachedFeature(id);
+    setLoadingVisible(false);
+    if (cached) { setOpened({ id, component: cached, failed: "" }); return; }
+    setOpened({ id, failed: "" });
+    const timer = setTimeout(() => { if (!disposed) setLoadingVisible(true); }, 300);
     void openFeature(id).then(component => {
-      if (!disposed) setOpened({ component, failed: "" });
+      clearTimeout(timer);
+      if (!disposed) setOpened({ id, component, failed: "" });
     }, error => {
-      if (!disposed) setOpened({ failed: error instanceof Error ? error.message : String(error) });
+      clearTimeout(timer);
+      if (!disposed) setOpened({ id, failed: error instanceof Error ? error.message : String(error) });
     });
-    return () => { disposed = true; };
+    return () => { disposed = true; clearTimeout(timer); };
   }, [id]);
-  const { component, failed } = opened;
+  const component = cachedFeature(id) ?? (opened.id === id ? opened.component : undefined);
+  const failed = opened.id === id ? opened.failed : "";
   useEffect(() => { if (failed) onError?.(failed); }, [failed]);
 
   if (component) {
@@ -357,7 +365,7 @@ function FeatureHost({
           <BackButton onPress={onBack} />
         </View>
       ) : null}
-      <Text style={styles.error}>{failed || "正在加载应用…"}</Text>
+      {failed || (opened.id === id && loadingVisible) ? <Text style={styles.error}>{failed || "正在加载应用…"}</Text> : null}
     </View>
   );
 }
