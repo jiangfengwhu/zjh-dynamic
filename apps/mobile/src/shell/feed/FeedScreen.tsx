@@ -7,9 +7,13 @@ import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedScrollHandler,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   runOnJS,
+  cancelAnimation,
+  withDelay,
+  withTiming,
 } from "react-native-reanimated";
 import { bundles } from "../../../../../packages/features/src/registry";
 import {
@@ -94,35 +98,52 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const hiddenHeader = useSharedValue(0);
   const userScrolling = useSharedValue(false);
   const immersive = useSharedValue(false);
+  const direction = useSharedValue(0);
+  const layoutSize = useSharedValue({ viewport: 0, content: 0 });
   const [headerSize, setHeaderSize] = useState(144);
   const [viewportSize, setViewportSize] = useState(0);
-  function settleSystemBars() {
-    "worklet";
-    // Separate thresholds avoid toggling around the fully hidden header.
-    const next = immersive.value ? chromeHidden.value > 0.65 : chromeHidden.value >= 0.999;
+  useAnimatedReaction(() => headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0, progress => {
+    chromeHidden.value = progress;
+    const next = immersive.value ? progress > 0.65 : progress >= 0.999;
     if (next !== immersive.value) {
       immersive.value = next;
       runOnJS(systemBars)(next);
     }
+  }, [systemBars]);
+  function settleHeader(delay = 0) {
+    "worklet";
+    const hide = scrollY.value > 1 && (direction.value > 0 || direction.value === 0 && hiddenHeader.value > headerHeight.value / 2);
+    const animation = withTiming(hide ? headerHeight.value : 0, { duration: 180 });
+    hiddenHeader.value = delay ? withDelay(delay, animation) : animation;
   }
   const onScroll = useAnimatedScrollHandler({
-    onBeginDrag: event => { userScrolling.value = true; scrollY.value = Math.max(0, event.contentOffset.y); },
-    onMomentumBegin: event => { userScrolling.value = true; scrollY.value = Math.max(0, event.contentOffset.y); },
+    onBeginDrag: event => {
+      cancelAnimation(hiddenHeader); userScrolling.value = true; direction.value = 0;
+      scrollY.value = Math.max(0, event.contentOffset.y);
+      layoutSize.value = { viewport: event.layoutMeasurement.height, content: event.contentSize.height };
+    },
+    onMomentumBegin: () => { cancelAnimation(hiddenHeader); userScrolling.value = true; },
     onScroll: event => {
       const next = Math.max(0, event.contentOffset.y);
-      // Insets/layout updates and programmatic scrolling are not user intent.
-      if (userScrolling.value) {
-        hiddenHeader.value = next === 0 ? 0 : Math.max(0, Math.min(headerHeight.value, hiddenHeader.value + next - scrollY.value));
-        chromeHidden.value = headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
+      const size = { viewport: event.layoutMeasurement.height, content: event.contentSize.height };
+      const resized = Math.abs(size.viewport - layoutSize.value.viewport) > 0.5 || Math.abs(size.content - layoutSize.value.content) > 0.5;
+      layoutSize.value = size;
+      // System bar layout changes rebase the offset without reversing the header.
+      if (userScrolling.value && !resized) {
+        const delta = next - scrollY.value;
+        if (Math.abs(delta) > 0.5) direction.value = delta > 0 ? 1 : -1;
+        hiddenHeader.value = next === 0 ? 0 : Math.max(0, Math.min(headerHeight.value, hiddenHeader.value + delta));
       }
       scrollY.value = next;
     },
-    onEndDrag: () => { userScrolling.value = false; settleSystemBars(); },
-    onMomentumEnd: () => { userScrolling.value = false; settleSystemBars(); },
+    // A fling cancels this delayed snap; a drag without momentum still finishes.
+    onEndDrag: () => { userScrolling.value = false; settleHeader(120); },
+    onMomentumEnd: () => { userScrolling.value = false; settleHeader(); },
   });
   const headerMotion = useAnimatedStyle(() => ({ transform: [{ translateY: -hiddenHeader.value }] }));
   const bottomSpace = useAnimatedStyle(() => ({ paddingBottom: tabHeight.value + 28 }));
   useEffect(() => {
+    cancelAnimation(hiddenHeader);
     chromeHidden.value = 0;
     hiddenHeader.value = 0;
     immersive.value = false;
@@ -196,6 +217,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
 
   useEffect(() => {
     list.current?.scrollTo({ y: 0, animated: false });
+    cancelAnimation(hiddenHeader);
     scrollY.value = 0;
     hiddenHeader.value = 0;
     chromeHidden.value = 0;
