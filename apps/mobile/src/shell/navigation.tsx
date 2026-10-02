@@ -260,6 +260,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="feed">
                 {() => (
                   <FeedScreen
+                    onProfile={() => openShellTab("mine")}
                     onPost={post => shellNavigationRef.navigate("postDetail", { post })}
                     onCompose={() => { void requireAccount().then(allowed => { if (allowed && shellNavigationRef.isReady()) shellNavigationRef.navigate("composePost"); }); }}
                     onOpen={props.onOpenBundle}
