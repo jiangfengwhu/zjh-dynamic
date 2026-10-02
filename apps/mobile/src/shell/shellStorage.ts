@@ -20,3 +20,4 @@ export function writeShellValue(key: string, value: string) {
 export function removeShellValue(key: string) {
   store().remove(key);
 }
+export function shellKeys() { return store().getAllKeys(); }

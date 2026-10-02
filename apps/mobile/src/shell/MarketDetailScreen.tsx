@@ -1,7 +1,8 @@
 import { currentAccountId, requireAccount, useAccount, uploadMarketScreenshot } from "./account";
 import { openApplicationWorkshop } from "./workshopNavigation";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Modal, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView as ScrollView, type KeyboardAwareScrollViewRef } from "react-native-keyboard-controller";
 import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 import ImagePicker from "react-native-image-crop-picker";
 import FastImage from "@d11/react-native-fast-image";
@@ -10,7 +11,7 @@ import { BackChip, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { loadCatalog, subscribeCatalog } from "./catalog";
-import { readShellValue } from "./shellStorage";
+import { readShellValue, writeShellValue, removeShellValue } from "./shellStorage";
 import { offerApplication, applyApplicationUpdate, runningApplication, runningApplicationReleases, type ApplicationManifest } from "../runtime/applications";
 
 import { cachedSharing, loadSharing, editMarketApplication, withdrawMarketApplication, shareMarketApplication, installMarketApplication, uninstallMarketApplication, marketCategories, marketDefinition, type MarketApplication, type SharingState } from "./market";
@@ -21,6 +22,9 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, on
   const [installed, setInstalled] = useState(false); const [release, setRelease] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   const [owner, setOwner] = useState(false); const [sharing, setSharing] = useState<SharingState>();
   const [sharingReady, setSharingReady] = useState(false); const [shareNotice, setShareNotice] = useState("");
+  const [sharingAttempt, setSharingAttempt] = useState(0);
+  const [draftOwner, setDraftOwner] = useState<string>();
+  const draftKey = `market.edit-draft.${draftOwner}.${app.appId}`;
   const [editMode, setEditMode] = useState<"edit" | "share" | null>(null);
   const [selectedRelease, setSelectedRelease] = useState("");
   const [shareTitle, setShareTitle] = useState(item.title || app.title); const [shareSummary, setShareSummary] = useState(item.summary || app.summary);
@@ -29,7 +33,7 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, on
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
   usePreventRemove(busy, () => Toast.show({ type: "info", text1: "正在处理，请稍候" }));
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<KeyboardAwareScrollViewRef>(null);
   const mutation = useRef(false);
   const publicationOpened = useRef(false);
   async function modify() {
@@ -72,14 +76,29 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, on
       catch { if (live) setShareNotice("分享状态暂未接回，请稍后重新打开详情。"); }
     }
     void refresh(); return () => { live = false; };
-  }, [app.appId, focused, user?.id]);
-  function begin(mode: "edit" | "share") {
+  }, [app.appId, focused, user?.id, sharingAttempt]);
+  useEffect(() => { if (editMode && draftOwner === user?.id) writeShellValue(draftKey, JSON.stringify({ mode: editMode, releaseId: selectedRelease, title: shareTitle, summary: shareSummary, category: shareCategory, screenshots })); }, [editMode, draftOwner, user?.id, selectedRelease, shareTitle, shareSummary, shareCategory, screenshots]);
+  async function begin(mode: "edit" | "share") {
+    const ownerId = user?.id;
+    if (!ownerId) return;
+    setDraftOwner(ownerId);
     setShareTitle(sharing?.shared?.title || sharing?.application?.title || item.title || app.title);
     setShareSummary(sharing?.shared?.summary ?? sharing?.application?.summary ?? item.summary ?? app.summary);
     setSelectedRelease(sharing?.application?.releaseId || "");
     setShareCategory(sharing?.shared?.category || item.category || "other");
     setScreenshots(sharing?.shared?.screenshots || item.screenshots || []);
-    setEditMode(mode); setShareNotice("");
+    setShareNotice("");
+    try {
+      const cached = JSON.parse(await readShellValue(`market.edit-draft.${ownerId}.${app.appId}`) || "null");
+      if (!alive.current || await currentAccountId() !== ownerId) return;
+      if (cached?.mode === mode && (mode === "edit" || cached.releaseId === sharing?.application?.releaseId)) {
+        if (typeof cached.title === "string") setShareTitle(cached.title);
+        if (typeof cached.summary === "string") setShareSummary(cached.summary);
+        if (marketCategories.some(item => item.id === cached.category)) setShareCategory(cached.category);
+        if (Array.isArray(cached.screenshots)) setScreenshots(cached.screenshots.filter((url: unknown) => typeof url === "string" && url.startsWith("https://")).slice(0, 6));
+      }
+    } catch { /* Use the current published fields when a draft is invalid. */ }
+    if (alive.current && await currentAccountId() === ownerId) setEditMode(mode);
   }
   async function chooseScreenshots() {
     if (mutation.current || screenshots.length >= 6) return;
@@ -109,7 +128,7 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, on
     mutation.current = true; setBusy(true); setError("");
     try {
       const state = editMode === "edit" ? await editMarketApplication(app.appId, shareTitle, shareSummary, shareCategory, screenshots) : await shareMarketApplication(app.appId, selectedRelease, shareTitle, shareSummary, shareCategory, screenshots);
-      setSharing(state); setEditMode(null); setShareNotice(editMode === "edit" ? "分享信息已保存，公开版本保持不变。" : "已将选定版本分享到应用市场。");
+      removeShellValue(draftKey); setSharing(state); setEditMode(null); setShareNotice(editMode === "edit" ? "分享信息已保存，公开版本保持不变。" : "已将选定版本分享到应用市场。");
       if (editMode === "share" && state.shared) { const published = state.shared; Alert.alert("应用已上架", "发一条动态，介绍你的作品？", [{ text: "稍后" }, { text: "发动态", onPress: () => onSharePost(published) }]); }
     } catch (e) { const message = e instanceof Error ? e.message : "分享未完成，请重试"; setError(message); Toast.show({ type: "error", text1: message }); }
     finally { mutation.current = false; setBusy(false); }
@@ -144,8 +163,8 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, on
   const versionName = (manifest: MarketApplication["manifest"]) => `${manifest.version || "1.0.0"}`;
   if (item.owned && item.authorId !== user?.id) return <Screen style={styles.screen}><ScreenBar style={styles.bar}><BackChip onPress={onBack} /><Text style={styles.copy}>请登录作品所属账号后查看。</Text></ScreenBar></Screen>;
   return <Screen style={styles.screen}><ScreenBar style={styles.bar}><BackChip onPress={onBack} /><Text style={styles.barTitle}>{owner ? "作品详情" : "应用详情"}</Text></ScreenBar><ScrollView ref={scroll} contentContainerStyle={styles.content}>
-    <View style={styles.hero}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={84} animated /> : <Text style={{ fontSize: 36, color: app.accent }}>{app.mark}</Text>}</View><Text style={styles.title}>{item.title || app.title}</Text><View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Text accessibilityLabel="查看作者主页" onPress={authorId ? visitAuthor : undefined} style={[styles.caption, { color: colors.accent }]}>{authorName || "社区创作者"}</Text>{(sharing?.shared?.authorOfficial ?? item.authorOfficial) ? <Text accessibilityLabel="官方发布" style={styles.official}>官方</Text> : null}</View>{authorAvatar ? <Pressy disabled={!authorId} accessibilityLabel="查看作者主页" onPress={visitAuthor}><Image accessibilityLabel="作者头像" source={{ uri: authorAvatar }} style={{ width: 32, height: 32, borderRadius: 16 }} /></Pressy> : null}</View>
-    <Surface style={styles.description} radius={20}><Text style={styles.subtitle}>它能帮你做什么</Text><Text style={styles.copy}>{item.summary || app.summary || "打开应用，看看它能带来什么。"}</Text></Surface>
+    <View style={styles.hero}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={84} animated /> : <Text style={{ fontSize: 36, color: app.accent }}>{app.mark}</Text>}</View><Text style={styles.title}>{shared?.title || item.title || app.title}</Text><View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Text accessibilityLabel="查看作者主页" onPress={authorId ? visitAuthor : undefined} style={[styles.caption, { color: colors.accent }]}>{authorName || "社区创作者"}</Text>{(sharing?.shared?.authorOfficial ?? item.authorOfficial) ? <Text accessibilityLabel="官方发布" style={styles.official}>官方</Text> : null}</View>{authorAvatar ? <Pressy disabled={!authorId} accessibilityLabel="查看作者主页" onPress={visitAuthor}><Image accessibilityLabel="作者头像" source={{ uri: authorAvatar }} style={{ width: 32, height: 32, borderRadius: 16 }} /></Pressy> : null}</View>
+    <Surface style={styles.description} radius={20}><Text style={styles.subtitle}>它能帮你做什么</Text><Text style={styles.copy}>{shared?.summary ?? item.summary ?? app.summary ?? "打开应用，看看它能带来什么。"}</Text></Surface>
     <Text style={styles.caption}>{marketCategories.find(category => category.id === (shared?.category || item.category || "other"))?.label}</Text>
     {gallery.length ? <View style={{ gap: 12 }}><Text style={styles.subtitle}>应用截图</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>{gallery.map((url, index) => <Pressy key={url} accessibilityLabel={`查看截图 ${index + 1}`} onPress={() => setPreview(url)}><FastImage source={{ uri: url }} style={{ width: 180, height: 300, borderRadius: 14, backgroundColor: colors.inset }} resizeMode={FastImage.resizeMode.contain} /></Pressy>)}</ScrollView></View> : null}
     <View style={styles.facts}><Text style={styles.caption}>版本 {app.version || "1.0.0"}</Text><Text style={styles.caption}>安装包 {bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`}</Text><Text style={styles.caption}>数据保存在本机</Text></View>
@@ -160,7 +179,7 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, on
       {shared ? <><Text style={styles.copy}>分享名称：{shared.title || shared.manifest.title}</Text><Text style={styles.caption}>{shared.summary ?? shared.manifest.summary}</Text></> : null}
       {shared ? <><Text style={styles.caption}>当前公开版本 {versionName(shared.manifest)}</Text><Pressy disabled={busy || !sharingReady} onPress={() => onSharePost(shared)}><Text style={styles.secondary}>发动态介绍这个应用</Text></Pressy></> : null}
       {sharing?.application ? <Text style={styles.caption}>最新制作版本 {versionName(sharing.application)}</Text> : <Text style={styles.caption}>完成发包后，就可以上架。</Text>}
-      {shareNotice ? <Text style={styles.caption}>{shareNotice}</Text> : null}
+      {shareNotice ? <View style={{ gap: 8 }}><Text style={styles.caption}>{shareNotice}</Text>{!sharingReady ? <Pressy accessibilityRole="button" disabled={busy} onPress={() => setSharingAttempt(value => value + 1)}><Text style={styles.secondary}>重试读取分享状态</Text></Pressy> : null}</View> : null}
       {sharing?.application && (!shared || hasNewVersion) ? <Pressy disabled={busy || !sharingReady} onPress={() => begin("share")}><Text style={styles.secondary}>{shared ? hasNewVersion ? "将新版本分享到市场" : "重新分享最新制作版本" : "分享最新制作版本"}</Text></Pressy> : null}
       {shared ? <><Pressy disabled={busy || !sharingReady} onPress={() => begin("edit")}><Text style={styles.secondary}>编辑市场信息与截图</Text></Pressy><Pressy disabled={busy || !sharingReady} onPress={withdraw}><Text style={styles.secondary}>撤回分享</Text></Pressy></> : null}
       {editMode ? <View style={{ gap: 16 }} onLayout={() => { if (publish) scroll.current?.scrollToEnd({ animated: true }); }}><Text style={styles.subtitle}>{editMode === "edit" ? "编辑分享信息" : "分享作品"}</Text><TextInput accessibilityLabel="分享名称" editable={!busy} value={shareTitle} onChangeText={setShareTitle} maxLength={60} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><TextInput accessibilityLabel="分享介绍" editable={!busy} value={shareSummary} onChangeText={setShareSummary} multiline maxLength={300} style={{ color: colors.ink1, backgroundColor: colors.field, padding: 12, borderRadius: 12 }} /><Text style={styles.subtitle}>应用分类</Text><View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{marketCategories.filter(category => category.id).map(category => <Pressy key={category.id} disabled={busy} accessibilityRole="button" accessibilityState={{ selected: shareCategory === category.id }} onPress={() => setShareCategory(category.id)} style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, backgroundColor: shareCategory === category.id ? colors.accentTint : colors.inset }}><Text style={{ color: shareCategory === category.id ? colors.accentText : colors.ink3 }}>{category.label}</Text></Pressy>)}</View>
@@ -168,7 +187,7 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, on
 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>{screenshots.map((url, index) => <View key={url} style={{ gap: 6 }}><Pressy onPress={() => setPreview(url)} accessibilityLabel={`预览截图 ${index + 1}`}><FastImage source={{ uri: url }} style={{ width: 88, height: 140, borderRadius: 10, backgroundColor: colors.inset }} resizeMode={FastImage.resizeMode.contain} /></Pressy><Pressy disabled={busy} onPress={() => setScreenshots(previous => previous.filter(value => value !== url))} accessibilityLabel={`移除截图 ${index + 1}`}><Text style={styles.secondary}>移除</Text></Pressy></View>)}</View>
 {screenshots.length < 6 ? <Pressy disabled={busy} onPress={() => void chooseScreenshots()}><Text style={styles.secondary}>添加截图</Text></Pressy> : null}
 {uploadStatus ? <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}><ActivityIndicator color={colors.accent} /><Text accessibilityLiveRegion="polite" style={styles.caption}>{uploadStatus}</Text></View> : null}
-<Text style={styles.caption}>{editMode === "edit" ? "只修改展示信息，保留当前公开版本。" : `发布版本 ${selectedRelease.slice(0, 8)} · ${runningApplicationReleases()[app.appId] === selectedRelease ? "正在体验此版本" : "此版本尚未体验"}。之后制作的版本不会自动公开。`}</Text><Pressy disabled={busy || !sharingReady || !shareTitle.trim()} onPress={() => void save()}><Text style={styles.secondary}>{editMode === "edit" ? "保存分享信息" : "发布到市场"}</Text></Pressy><Pressy disabled={busy} onPress={() => setEditMode(null)}><Text style={styles.secondary}>取消</Text></Pressy></View> : null}
+<Text style={styles.caption}>{editMode === "edit" ? "只修改展示信息，保留当前公开版本。" : `发布版本 ${selectedRelease.slice(0, 8)} · ${runningApplicationReleases()[app.appId] === selectedRelease ? "正在体验此版本" : "此版本尚未体验"}。之后制作的版本不会自动公开。`}</Text><Pressy disabled={busy || !sharingReady || !shareTitle.trim()} onPress={() => void save()}><Text style={styles.secondary}>{editMode === "edit" ? "保存分享信息" : "发布到市场"}</Text></Pressy><Pressy disabled={busy} onPress={() => { removeShellValue(draftKey); setEditMode(null); }}><Text style={styles.secondary}>取消</Text></Pressy></View> : null}
     </Surface> : null}
     {installed && app.appId !== bootstrap.defaultApplication ? <Pressy disabled={busy} onPress={uninstall}><Text style={styles.secondary}>卸载应用</Text></Pressy> : null}
     {app.appId === bootstrap.defaultApplication ? <Text style={styles.caption}>Jolly 是默认伙伴，工坊就在它的主页里。</Text> : null}

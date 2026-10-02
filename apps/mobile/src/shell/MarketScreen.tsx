@@ -17,6 +17,7 @@ export function MarketScreen({ onDetail, onCreate, onBack, onAuthor }: { onAutho
   const [busy, setBusy] = useState(false); const [pulling, setPulling] = useState(false); const [error, setError] = useState("");
   const [ready, setReady] = useState(false); const edited = useRef(false);
   const opening = useRef(false); const [openingId, setOpeningId] = useState<string>();
+  const retryDetail = useRef<MarketApplication | undefined>(undefined);
   const list = useRef<FlatList<MarketApplication>>(null); const generation = useRef(0); const loading = useRef(false);
   const current = useRef({ key: "", view: empty }); const restoreOffset = useRef<number | undefined>();
   const key = marketViewKey(category, search);
@@ -29,16 +30,14 @@ export function MarketScreen({ onDetail, onCreate, onBack, onAuthor }: { onAutho
   function apply(next: MarketView, target = key) { current.current = { key: target, view: next }; setView(next); rememberMarketView(target, next); }
   async function load(reset = false, manual = false) {
     if (loading.current || !reset && !current.current.view.nextCursor) return;
-    const token = generation.current; loading.current = true; setBusy(true); setPulling(manual); setError("");
+    const token = generation.current; loading.current = true; setBusy(true); setPulling(manual); setError(""); retryDetail.current = undefined;
     const before = current.current.view;
     try {
       const page = await fetchMarketPage(category, search, reset ? undefined : before.nextCursor);
       if (token !== generation.current) return;
       const known = new Set(before.applications.map(item => item.manifest.appId));
-      const retainPages = reset && !manual && before.applications.length > 24;
-      const freshIds = new Set(page.applications.map(item => item.manifest.appId));
-      apply({ applications: retainPages ? [...page.applications, ...before.applications.filter(item => !freshIds.has(item.manifest.appId))] : reset ? page.applications : [...before.applications, ...page.applications.filter(item => !known.has(item.manifest.appId))], nextCursor: retainPages ? before.nextCursor : page.nextCursor, at: Date.now(), offset: manual ? 0 : before.offset });
-      if (manual) list.current?.scrollToOffset({ offset: 0, animated: false });
+      apply({ applications: reset ? page.applications : [...before.applications, ...page.applications.filter(item => !known.has(item.manifest.appId))], nextCursor: page.nextCursor, at: Date.now(), offset: reset ? 0 : before.offset });
+      if (reset) list.current?.scrollToOffset({ offset: 0, animated: false });
     } catch (e) { if (token === generation.current) setError(e instanceof Error ? e.message : "市场加载失败，请重试"); }
     finally { if (token === generation.current) { loading.current = false; setBusy(false); setPulling(false); } }
   }
@@ -63,7 +62,7 @@ export function MarketScreen({ onDetail, onCreate, onBack, onAuthor }: { onAutho
     if (opening.current) return; opening.current = true; setOpeningId(item.manifest.appId);
     const token = generation.current;
     try { const fresh = await fetchPublicMarketApplication(item.manifest.appId); if (token === generation.current) onDetail(fresh); }
-    catch (e) { if (token === generation.current) setError(e instanceof Error ? e.message : "详情加载失败"); }
+    catch (e) { if (token === generation.current) { retryDetail.current = item; setError(e instanceof Error ? e.message : "详情加载失败"); } }
     finally { opening.current = false; setOpeningId(undefined); }
   }
   return <Screen style={styles.screen}>
@@ -78,13 +77,13 @@ export function MarketScreen({ onDetail, onCreate, onBack, onAuthor }: { onAutho
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{marketCategories.map(item => <Pressy key={item.id} accessibilityRole="button" accessibilityState={{ selected: category === item.id }} onPress={() => { edited.current = true; setCategory(item.id); }} style={[styles.chip, category === item.id && { backgroundColor: colors.accentTint }]}><Text style={{ color: category === item.id ? colors.accentText : colors.ink3 }}>{item.label}</Text></Pressy>)}</ScrollView>
         <Pressy onPress={onCreate} accessibilityRole="button"><Surface tone="raised" radius={20} style={styles.invite}><Icon name="workshop" size={23} color={colors.accent} /><View style={{ flex: 1, gap: 4 }}><Text style={styles.name}>让 Jolly 帮我做一个</Text><Text style={styles.caption}>说说想法，一起做成应用</Text></View><Icon name="chevron" size={16} color={colors.ink3} /></Surface></Pressy>
         <Text style={styles.caption}>最新发布</Text>
-        {error ? <Pressy onPress={() => void load(true)}><Text style={styles.error}>{error} · 点此重试</Text></Pressy> : null}
+        {error ? <Pressy onPress={() => { const failed = retryDetail.current; if (failed) void open(failed); else void load(true); }}><Text style={styles.error}>{error} · 点此重试</Text></Pressy> : null}
       </View>}
       renderItem={({ item }) => { const app = item.manifest; const Avatar = marketDefinition(item)?.avatar; return <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.title || app.title}`} onPress={() => void open(item)}><View style={styles.row}><View style={styles.rowHead}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={52} /> : <Text style={{ fontSize: 25, color: app.accent }}>{app.mark}</Text>}</View><View style={{ flex: 1, gap: 5 }}><Text style={styles.name}>{item.title || app.title}</Text><Text style={styles.summary} numberOfLines={2}>{item.summary || app.summary}</Text></View><Text style={styles.badge}>{openingId === app.appId ? "加载中…" : installed.includes(app.appId) ? "已安装" : "查看"}</Text></View>
         {item.screenshots?.length ? <FastImage source={{ uri: item.screenshots[0] }} style={styles.preview} resizeMode={FastImage.resizeMode.contain} /> : null}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Pressy disabled={!item.authorId} accessibilityLabel={`查看${item.authorName}的主页`} onPress={event => { event.stopPropagation(); if (item.authorId) onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial }); }} style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6 }}>{item.authorAvatarUrl ? <Image source={{ uri: item.authorAvatarUrl }} style={{ width: 18, height: 18, borderRadius: 9 }} /> : null}<Text style={styles.caption}>{item.authorName || "社区创作者"}</Text>{item.authorOfficial ? <Text style={styles.official}>官方</Text> : null}</Pressy><Text style={styles.caption}>{marketCategories.find(category => category.id === (item.category || "other"))?.label}</Text></View>
       </View></Pressy>; }}
-      ListEmptyComponent={busy ? <ActivityIndicator style={{ margin: 30 }} color={colors.accent} /> : <Text style={styles.empty}>{search || category ? "没有找到匹配的应用，换个分类或关键词试试" : "还没有公开的应用，来发布第一份作品吧"}</Text>}
+      ListEmptyComponent={error ? null : busy ? <ActivityIndicator style={{ margin: 30 }} color={colors.accent} /> : <Text style={styles.empty}>{search || category ? "没有找到匹配的应用，换个分类或关键词试试" : "还没有公开的应用，来发布第一份作品吧"}</Text>}
       ListFooterComponent={busy && view.applications.length ? <ActivityIndicator style={{ margin: 24 }} color={colors.accent} /> : view.nextCursor ? <Pressy onPress={() => void load()}><Text style={styles.empty}>加载更多</Text></Pressy> : view.applications.length ? <Text style={styles.empty}>已浏览全部应用</Text> : null}
     />
   </Screen>;

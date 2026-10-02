@@ -14,7 +14,7 @@ import { markNotificationsRead, readNotifications, useNotificationCount, type No
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
 
-export function NotificationsScreen({ onBack, onOpen }: { onBack: () => void; onOpen: (notice: Notice) => Promise<void> }) {
+export function NotificationsScreen({ onBack, onOpen }: { onBack: () => void; onOpen: (notice: Notice) => Promise<boolean> }) {
   const { colors } = useTheme(); const { user } = useAccount(); const count = useNotificationCount(); const focused = useIsFocused();
   const [page, setPage] = useState<NoticePage>({ notices: [], nextCursor: null, unreadCount: 0 }); const [loading, setLoading] = useState(false); const [acting, setActing] = useState(false); const [error, setError] = useState("");
   const alive = useRef(true); const revision = useRef(0); const reading = useRef(false); const writing = useRef(false); const firstCursor = useRef<string | null>(null); const loadedOwner = useRef<string | undefined>(undefined);
@@ -43,10 +43,11 @@ export function NotificationsScreen({ onBack, onOpen }: { onBack: () => void; on
   async function act(notice?: Notice) {
     if (writing.current || !user) return; writing.current = true; setActing(true); revision.current++; const owner = user.id;
     try {
+      if (notice && !await onOpen(notice)) return;
+      if (!alive.current || await currentAccountId() !== owner) return;
       const result = await markNotificationsRead(notice ? [notice.id] : undefined);
       if (!alive.current || await currentAccountId() !== owner) return;
       remember({ ...page, unreadCount: result.unreadCount, notices: page.notices.map(item => (!notice || item.id === notice.id) && item.createdAt <= result.before ? { ...item, read: true } : item) });
-      if (notice) await onOpen(notice);
     } catch (cause) { if (alive.current) Toast.show({ type: "error", text1: "通知操作未完成", text2: cause instanceof Error ? cause.message : "请稍后重试" }); }
     finally { writing.current = false; if (alive.current) { setActing(false); if (reading.current) again.current = true; else if (!page.notices.length) void reload.current(); } }
   }

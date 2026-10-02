@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
+import { useDiscardChanges, confirmDiscard } from "./useDiscardChanges";
 import Animated from "react-native-reanimated";
 import Toast from "react-native-toast-message";
 import { Icon, PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
@@ -11,6 +13,7 @@ import {
   shellDeleteProvider,
   shellProviders,
   shellSaveProvider,
+  shellComplete,
   type AiProvider,
 } from "../../../../packages/platform/src/shellCapabilities";
 
@@ -31,6 +34,10 @@ export function ProvidersScreen({ onBack }: Props) {
   const { colors } = useTheme();
   const [items, setItems] = useState<AiProvider[]>([]);
   const [draft, setDraft] = useState(empty);
+  const [baseline, setBaseline] = useState(empty);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(baseline);
+  useDiscardChanges(dirty);
+  function selectDraft(next: typeof empty) { const apply = () => { setDraft(next); setBaseline(next); }; if (dirty) confirmDiscard(apply); else apply(); }
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const working = useRef(false); const alive = useRef(true);
@@ -69,9 +76,20 @@ export function ProvidersScreen({ onBack }: Props) {
     if (!result.ok) {
       throw new Error(result.error ?? "保存失败");
     }
-    if (alive.current) setDraft(empty);
+    if (alive.current) { setDraft(empty); setBaseline(empty); }
     await reload();
     if (alive.current) Toast.show({ type: "success", text1: "AI 引擎已保存" });
+    } catch (reason) { fail(reason); }
+    finally { working.current = false; if (alive.current) setBusy(false); }
+  }
+
+  async function verify(item: AiProvider) {
+    if (working.current) return;
+    working.current = true; setBusy(true); setError("");
+    try {
+      const result = await shellComplete({ providerId: item.id, messages: [{ role: "user", content: "请只回复 OK，用于连接验证。" }] });
+      if (!result.ok || !result.text?.trim()) throw new Error(result.error || "引擎没有返回内容");
+      if (alive.current) Toast.show({ type: "success", text1: "引擎连接正常" });
     } catch (reason) { fail(reason); }
     finally { working.current = false; if (alive.current) setBusy(false); }
   }
@@ -80,7 +98,7 @@ export function ProvidersScreen({ onBack }: Props) {
     Alert.alert("删除 AI 引擎？", `删除「${item.name}」及其保存的配置。`, [{ text: "取消", style: "cancel" }, { text: "删除", style: "destructive", onPress: () => { void (async () => {
       if (working.current || !alive.current) return;
       working.current = true; setBusy(true); setError("");
-      try { const result = await shellDeleteProvider(item.id) as { ok?: boolean; error?: string }; if (result.ok === false) throw new Error(result.error || "删除失败"); if (alive.current && draft.id === item.id) setDraft(empty); await reload(); }
+      try { const result = await shellDeleteProvider(item.id) as { ok?: boolean; error?: string }; if (result.ok === false) throw new Error(result.error || "删除失败"); if (alive.current && draft.id === item.id) { setDraft(empty); setBaseline(empty); } await reload(); }
       catch (reason) { fail(reason); }
       finally { working.current = false; if (alive.current) setBusy(false); }
     })(); } }]);
@@ -116,7 +134,7 @@ export function ProvidersScreen({ onBack }: Props) {
                       accessibilityLabel={`编辑${item.name}`}
                       scale={0.985}
                       style={styles.main}
-                      onPress={() => setDraft({ ...item, apiKey: "" })}
+                      onPress={() => selectDraft({ ...item, apiKey: "" })}
                     >
                       <View style={styles.titleRow}>
                         <Text style={styles.name} numberOfLines={1}>
@@ -149,6 +167,7 @@ export function ProvidersScreen({ onBack }: Props) {
                       <Icon name="close" size={16} color={colors.redText} strokeWidth={2} />
                     </Pressy>
                   </Surface>
+                  <Pressy disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("验证引擎连接", "将发送一条简短请求，可能消耗少量模型额度。", [{ text: "取消", style: "cancel" }, { text: "验证", onPress: () => void verify(item) }])} style={{ padding: 12 }}><Text style={{ color: colors.accentText }}>验证连接</Text></Pressy>
                 </Animated.View>
               );
             })}
@@ -158,7 +177,7 @@ export function ProvidersScreen({ onBack }: Props) {
         <SectionTitle>{draft.id ? "编辑引擎" : "添加引擎"}</SectionTitle>
         <Surface tone="raised" radius={colors.radius.xl} style={styles.form}>
           {draft.id ? (
-            <Pressy disabled={busy} accessibilityRole="button" onPress={() => setDraft(empty)} scale={0.95} style={styles.reset}>
+            <Pressy disabled={busy} accessibilityRole="button" onPress={() => selectDraft(empty)} scale={0.95} style={styles.reset}>
               <Icon name="plus" size={14} color={colors.accentText} strokeWidth={2} />
               <Text style={styles.resetText}>改为新增</Text>
             </Pressy>
@@ -213,7 +232,7 @@ export function ProvidersScreen({ onBack }: Props) {
           ) : null}
 
           <Pressy disabled={busy} accessibilityRole="button" onPress={() => void save()} style={styles.save}>
-            {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.saveLabel}>{draft.id ? "更新引擎" : "保存并接入"}</Text>}
+            {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.saveLabel}>{draft.id ? "保存修改" : "保存配置"}</Text>}
           </Pressy>
         </Surface>
       </ScrollView>

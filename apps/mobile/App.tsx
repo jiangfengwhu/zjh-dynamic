@@ -1,6 +1,6 @@
 import { openApplicationWorkshop } from "./src/shell/workshopNavigation";
 import { reportApplicationFailure } from "./src/runtime/applications";
-import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -12,6 +12,7 @@ import type { FeatureComponent } from "../../packages/features/src/featureHost";
 import NativePluginHost from "./src/NativePluginHost";
 import { loadCatalog, saveCatalog, subscribeCatalog, type CatalogEntry } from "./src/shell/catalog";
 import { openShellBundle, openShellTab, ShellNavigator } from "./src/shell/navigation";
+import { Pressy } from "../../packages/ui/chrome";
 import { BackButton } from "./src/shell/BackButton";
 import { readPackageValue, subscribePackageValue } from "../../packages/ui/packageLink";
 import { theme, palettes, themedStyleSheet, type ThemeMode } from "../../packages/ui/theme";
@@ -32,7 +33,7 @@ type ShellItem = (typeof bundles)[number] & {
   lastOpenedAt?: number;
 };
 
-type BoundaryProps = { children: ReactNode; resetKey: number; onError?: (message: string) => void };
+type BoundaryProps = { children: ReactNode; resetKey: number; onError?: (message: string) => void; onRetry: () => void; onBack: () => void };
 type BoundaryState = { error?: string };
 
 class FeatureBoundary extends Component<BoundaryProps, BoundaryState> {
@@ -57,7 +58,7 @@ class FeatureBoundary extends Component<BoundaryProps, BoundaryState> {
 
   render() {
     if (this.state.error) {
-      return <Text style={styles.error}>这个应用打不开：{this.state.error}</Text>;
+      return <View style={styles.boot}><Text style={styles.error}>应用暂时无法显示，请重试。</Text><Pressy accessibilityRole="button" onPress={this.props.onRetry}><Text style={styles.error}>重新加载页面</Text></Pressy><Pressy accessibilityRole="button" onPress={this.props.onBack}><Text style={styles.error}>返回</Text></Pressy></View>;
     }
     return this.props.children;
   }
@@ -83,6 +84,9 @@ function ShellApp() {
   const [mode, setMode] = useState<ThemeMode>(storedThemeMode);
   const [updates, setUpdates] = useState<PendingPackage[]>([]);
   const [updateBusy, setUpdateBusy] = useState(false);
+  const updateWorking = useRef(false);
+  const [updateError, setUpdateError] = useState("");
+  const appearanceWorking = useRef(false);
   useEffect(() => {
     const utils = (globalThis as {
       ErrorUtils?: {
@@ -217,26 +221,29 @@ function ShellApp() {
     await patchCatalog(id, { lastOpenedAt: Date.now() });
   }
 
-  function openBundle(id: string) {
-    openShellBundle(id);
-    setTimeout(() => {
-      void rememberOpen(id);
-    }, 600);
+  async function openBundle(id: string) {
+    const opened = await openShellBundle(id);
+    if (opened) void rememberOpen(id);
+    return opened;
   }
 
   /** 在动态里对某位朋友说一句：去工坊，用 TA 的名字起个头，接着写想要的变化。 */
   function replyToFriend(id: string) {
     const title = bundles.find((item) => item.id === id)?.title ?? id;
-    openApplicationWorkshop(id, title);
+    void openApplicationWorkshop(id, title).catch(error => Toast.show({ type: "error", text1: "工坊未能打开", text2: error instanceof Error ? error.message : "请重试" }));
   }
 
   async function changeMode(next: ThemeMode) {
-    setMode(next);
+    if (appearanceWorking.current) return;
+    appearanceWorking.current = true;
+    const previous = mode; setMode(next);
     try {
-      await shellAppearance(next);
+      const result = await shellAppearance(next);
+      if (!result.ok) throw new Error("配色保存失败");
     } catch (error) {
-      console.log("appearance failed", error instanceof Error ? error.message : error);
-    }
+      setMode(previous);
+      Toast.show({ type: "error", text1: "配色未保存，已恢复", text2: error instanceof Error ? error.message : "请重试" });
+    } finally { appearanceWorking.current = false; }
   }
 
   async function refreshUpdates(force = false, strict = false): Promise<PendingPackage[]> {
@@ -256,14 +263,16 @@ function ShellApp() {
   }
 
   async function applyUpdatesNow() {
-    setUpdateBusy(true);
+    if (updateWorking.current) return;
+    updateWorking.current = true; setUpdateError(""); setUpdateBusy(true);
     try {
       removeShellValue("shell.updates.dismissed");
       await applyPackageUpdates();
     } catch (error) {
-      console.log("package updates apply failed", error instanceof Error ? error.message : error);
+      const message = error instanceof Error ? error.message : "更新未完成，请重试";
+      setUpdateError(message); Toast.show({ type: "error", text1: "更新未完成", text2: message });
     } finally {
-      setUpdateBusy(false);
+      updateWorking.current = false; setUpdateBusy(false);
     }
   }
 
@@ -298,7 +307,7 @@ function ShellApp() {
             }}
             onMode={(next) => void changeMode(next)}
             renderBundle={(id, onBack) => (
-              <FeatureBoundary resetKey={featureKey} onError={(message) => { noteError(`feature:${id}`, message); void reportApplicationFailure(id); }}>
+              <FeatureBoundary resetKey={featureKey} onRetry={() => setFeatureKey(value => value + 1)} onBack={onBack} onError={(message) => { noteError(`feature:${id}`, message); void reportApplicationFailure(id); }}>
                 <FeatureHost
                   id={id}
                   onBack={onBack}
@@ -313,6 +322,7 @@ function ShellApp() {
             items={updates}
             busy={updateBusy}
             completed={false}
+            error={updateError}
             onNow={() => {
               void applyUpdatesNow();
             }}

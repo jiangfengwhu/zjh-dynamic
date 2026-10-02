@@ -13,6 +13,7 @@ import { readShellValue, writeShellValue } from "../shellStorage";
 import { publishUserPost } from "./userPosts";
 import { fetchMarket, type MarketApplication } from "../market";
 import { ApplicationPostCard } from "./ApplicationPostCard";
+import { retainDraftImage, removeDraftImage, existingDraftImages } from "../mediaDraft";
 
 type Photo = { path: string; id?: string; url?: string };
 export function ComposePostScreen({ onBack, initialApplication }: { onBack: () => void; initialApplication?: MarketApplication }) {
@@ -21,37 +22,56 @@ export function ComposePostScreen({ onBack, initialApplication }: { onBack: () =
   const [application, setApplication] = useState<MarketApplication | undefined>(initialApplication);
   const [picking, setPicking] = useState(false); const [loadingApps, setLoadingApps] = useState(false); const [appsError, setAppsError] = useState(""); const [applications, setApplications] = useState<MarketApplication[]>([]);
   const [published, setPublished] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const draftKey = `social.application-draft.${owner}${initialApplication ? `.${initialApplication.manifest.appId}` : ""}`;
   const working = useRef(false); const alive = useRef(true); const files = useRef(new Set<string>()); const revision = useRef(0); const request = useRef<{ signature: string; id: string } | undefined>(undefined);
-  const count = Array.from(text).length; const canPublish = (text.trim().length > 0 || photos.length > 0 || !!application) && count <= 2000 && !busy && !choosing && !picking;
+  const count = Array.from(text).length; const canPublish = draftReady && (text.trim().length > 0 || photos.length > 0 || !!application) && count <= 2000 && !busy && !choosing && !picking;
   usePreventRemove(busy, () => Toast.show({ type: "info", text1: "正在发布，请稍候" }));
   useEffect(() => { if (published && !busy) onBack(); }, [published, busy, onBack]);
   useEffect(() => {
-    if (owner && !initialApplication) void readShellValue(`social.application-draft.${owner}`).then(value => { if (alive.current && !revision.current && value) { try { const draft = JSON.parse(value); setText(typeof draft.body === "string" ? draft.body : ""); setApplication(draft.application?.authorId === owner ? draft.application : undefined); } catch {} } });
+    void (async () => {
+      try {
+        const value = owner ? await readShellValue(draftKey) : undefined;
+        if (value) {
+          const draft = JSON.parse(value);
+          const restored = await existingDraftImages<Photo>(Array.isArray(draft.photos) ? draft.photos : []);
+          if (alive.current && !revision.current && await currentAccountId() === owner) { setText(typeof draft.body === "string" ? draft.body : ""); setApplication(draft.application?.authorId === owner ? draft.application : initialApplication); setPhotos(restored); }
+        }
+      } catch { if (alive.current) Toast.show({ type: "error", text1: "草稿读取失败，请重试" }); }
+      finally { if (alive.current && await currentAccountId() === owner) setDraftReady(true); }
+    })();
     return () => { alive.current = false; for (const path of files.current) void ImagePicker.cleanSingle(path).catch(() => {}); };
-  }, [owner]);
-  function saveDraft(body: string, selected?: MarketApplication) { revision.current++; if (owner) writeShellValue(`social.application-draft.${owner}`, JSON.stringify({ body, application: selected })); }
+  }, [owner, draftKey]);
+  useEffect(() => { if (draftReady && owner && !published) writeShellValue(draftKey, JSON.stringify({ body: text, application, photos })); }, [draftReady, text, application, photos, published, draftKey]);
+  function saveDraft(body: string, selected?: MarketApplication) { revision.current++; if (owner && draftReady) writeShellValue(draftKey, JSON.stringify({ body, application: selected, photos })); }
   function change(value: string) { setText(value); saveDraft(value, application); }
   function selectApplication(item?: MarketApplication) { setApplication(item); setPicking(false); saveDraft(text, item); }
   async function pickApplication() {
-    if (working.current || loadingApps) return;
+    if (working.current || loadingApps || !draftReady) return;
     Keyboard.dismiss(); setPicking(true); setLoadingApps(true); setAppsError("");
     try { const items = await fetchMarket(owner); if (await currentAccountId() !== owner) throw new Error("账号已改变，请重试"); if (alive.current) setApplications(items.filter(item => item.authorId === owner)); }
     catch (error) { if (alive.current) setAppsError(error instanceof Error ? error.message : "应用列表暂时不可用"); }
     finally { if (alive.current) setLoadingApps(false); }
   }
   async function choose() {
-    if (working.current || photos.length >= 4) return;
+    if (working.current || !draftReady || photos.length >= 4) return;
     working.current = true; setChoosing(true);
     try {
       const images = await ImagePicker.openPicker({ mediaType: "photo", multiple: true, maxFiles: 4 - photos.length, forceJpg: true, compressImageMaxWidth: 1600, compressImageMaxHeight: 1600, compressImageQuality: 0.8 });
       if (!alive.current) { for (const image of images) void ImagePicker.cleanSingle(image.path).catch(() => {}); return; }
       const valid: Photo[] = [];
-      for (const image of images) { files.current.add(image.path); if (!image.size || image.size > 3 * 1024 * 1024) throw new Error("图片压缩后仍过大，请选择较小的照片"); valid.push({ path: image.path }); }
-      if (alive.current) setPhotos(previous => [...previous, ...valid].slice(0, 4));
+      for (const image of images) files.current.add(image.path);
+      if (images.length > 4 - photos.length || images.some(image => !image.size || image.size > 3 * 1024 * 1024)) throw new Error("最多四张图片，每张压缩后需小于 3 MB");
+      try {
+        for (const image of images) valid.push({ path: await retainDraftImage(image.path) });
+        if (!alive.current || await currentAccountId() !== owner) { for (const photo of valid) void removeDraftImage(photo.path); return; }
+        setPhotos(previous => [...previous, ...valid]);
+      } catch (error) { for (const photo of valid) void removeDraftImage(photo.path); throw error; }
+      finally { for (const image of images) { files.current.delete(image.path); void ImagePicker.cleanSingle(image.path).catch(() => {}); } }
     } catch (error) { if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") Toast.show({ type: "error", text1: "选择图片失败", text2: error instanceof Error ? error.message : "请检查相册权限后重试" }); }
     finally { working.current = false; if (alive.current) setChoosing(false); }
   }
-  function remove(index: number) { const photo = photos[index]; setPhotos(previous => previous.filter((_, i) => i !== index)); files.current.delete(photo.path); void ImagePicker.cleanSingle(photo.path).catch(() => {}); }
+  function remove(index: number) { const photo = photos[index]; setPhotos(previous => previous.filter((_, i) => i !== index)); void removeDraftImage(photo.path); }
   async function publish() {
     if (working.current || !canPublish) return;
     working.current = true; setBusy(true);
@@ -69,7 +89,8 @@ export function ComposePostScreen({ onBack, initialApplication }: { onBack: () =
         uploaded[index] = { ...uploaded[index], ...image }; if (alive.current) setPhotos([...uploaded]);
       }
       setStatus("正在发布…"); await publishUserPost(text.trim(), uploaded.map(photo => photo.id!), request.current!.id, attached);
-      writeShellValue(`social.application-draft.${owner}`, "");
+      writeShellValue(draftKey, "");
+      for (const photo of uploaded) void removeDraftImage(photo.path);
       if (alive.current) { setBusy(false); setStatus(""); setPublished(true); Toast.show({ type: "success", text1: "动态已发布" }); }
     } catch (error) { if (alive.current) Toast.show({ type: "error", text1: "发布未完成", text2: error instanceof Error ? error.message : "内容已保留，可以重试" }); }
     finally { working.current = false; if (alive.current) { setBusy(false); setStatus(""); } }
@@ -79,7 +100,7 @@ export function ComposePostScreen({ onBack, initialApplication }: { onBack: () =
     <KeyboardAvoidingView style={styles.fill} behavior="padding">
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <View style={styles.author}>{user?.avatarUrl ? <FastImage source={{ uri: user.avatarUrl }} style={styles.avatar} /> : <View style={[styles.avatar, styles.placeholder]}><Text style={styles.initial}>{Array.from(user?.name || "我")[0]}</Text></View>}<Text style={styles.name}>{user?.name || "我"}</Text></View>
-        <TextInput accessibilityLabel="动态内容" multiline editable={!busy} value={text} onChangeText={change} maxLength={4000} placeholder="分享此刻的想法…" placeholderTextColor={colors.ink3} style={styles.input} textAlignVertical="top" />
+        <TextInput accessibilityLabel="动态内容" multiline editable={draftReady && !busy} value={text} onChangeText={change} maxLength={4000} placeholder="分享此刻的想法…" placeholderTextColor={colors.ink3} style={styles.input} textAlignVertical="top" />
         <View style={styles.photos}>{photos.map((photo, index) => <View key={photo.path} style={styles.photo}><FastImage source={{ uri: photo.path.startsWith("file:") ? photo.path : `file://${photo.path}` }} style={styles.image} />{!busy ? <Pressable accessibilityLabel={`移除第 ${index + 1} 张图片`} onPress={() => remove(index)} style={styles.remove}><Text style={styles.removeText}>×</Text></Pressable> : null}</View>)}</View>
         <View style={styles.tools}><Pressable accessibilityLabel="添加图片，最多四张" disabled={busy || choosing || photos.length >= 4} onPress={() => void choose()} style={styles.add}><Text style={styles.addText}>{choosing ? "正在处理图片…" : `添加图片 ${photos.length}/4`}</Text></Pressable><Text style={[styles.counter, count > 2000 && { color: colors.danger }]}>{count}/2000</Text></View>
         <Pressable accessibilityLabel="选择自己已上架的应用" disabled={busy || choosing} onPress={() => void pickApplication()} style={styles.add}><Text style={styles.addText}>{application ? "更换附带应用" : "附带我的应用"}</Text></Pressable>

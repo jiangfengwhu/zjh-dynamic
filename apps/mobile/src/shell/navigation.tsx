@@ -103,14 +103,14 @@ export async function openPublicMarketApplication(appId: string) {
   if (shellNavigationRef.isReady() && shellNavigationRef.getCurrentRoute()?.key === origin) shellNavigationRef.navigate("marketDetail", { item });
 }
 
-export function openShellBundle(id: string) {
-  if (!shellNavigationRef.isReady()) return;
+export async function openShellBundle(id: string) {
+  if (!shellNavigationRef.isReady()) return false;
   const request = ++openingRequest;
   const origin = shellNavigationRef.getCurrentRoute()?.key;
   const isCurrent = () => request === openingRequest && shellNavigationRef.isReady() && shellNavigationRef.getCurrentRoute()?.key === origin;
-  void (async () => {
+  try {
     await openFeature(id);
-    if (!isCurrent()) return;
+    if (!isCurrent()) return false;
     if (!mountedBundles.has(id)) {
       const mounted = waitForBundleMount(id);
       shellNavigationRef.preload("bundle", { id });
@@ -119,12 +119,14 @@ export function openShellBundle(id: string) {
       await nextFrame();
       await nextFrame();
     }
-    if (!isCurrent()) return;
+    if (!isCurrent()) return false;
     console.log("route push", "bundle", id);
     shellNavigationRef.navigate("bundle", { id });
-  })().catch(error => {
+    return true;
+  } catch (error) {
     if (isCurrent()) Toast.show({ type: "error", text1: "应用未能打开", text2: error instanceof Error ? error.message : String(error) });
-  });
+    return false;
+  }
 }
 
 function goBack() {
@@ -201,7 +203,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
 export type ShellNavigatorProps = {
   mode: ThemeMode;
   listed: AppEntry[];
-  onOpenBundle: (id: string) => void;
+  onOpenBundle: (id: string) => Promise<boolean>;
   /** 在动态里对某位朋友说一句：去工坊，带着 TA 的名字起个头。 */
   onReplyToFriend: (id: string) => void;
   onCheckUpdates: () => Promise<boolean>;
@@ -352,7 +354,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           {({ route }) => <PostDetailScreen key={`${route.params.post.id}:${route.params.commentId ?? ""}`} initialPost={route.params.post} initialCommentId={route.params.commentId} initialDetail={route.params.initialDetail} onBack={goBack} onApplication={openPublicMarketApplication} onAuthor={openAuthor} />}
         </Stack.Screen>
         <Stack.Screen name="notifications">
-          {() => <NotificationsScreen onBack={goBack} onOpen={async notice => { const origin = shellNavigationRef.getCurrentRoute()?.key; const detail = await fetchPostDetail(notice.postId, undefined, notice.commentId); if (shellNavigationRef.isReady() && shellNavigationRef.getCurrentRoute()?.key === origin) shellNavigationRef.navigate("postDetail", { post: detail.post, commentId: notice.commentId, initialDetail: detail }); }} />}
+          {() => <NotificationsScreen onBack={goBack} onOpen={async notice => { const origin = shellNavigationRef.getCurrentRoute()?.key; const detail = await fetchPostDetail(notice.postId, undefined, notice.commentId); if (!shellNavigationRef.isReady() || shellNavigationRef.getCurrentRoute()?.key !== origin) return false; shellNavigationRef.navigate("postDetail", { post: detail.post, commentId: notice.commentId, initialDetail: detail }); return true; }} />}
         </Stack.Screen>
         <Stack.Screen name="authorProfile">
           {({ route }) => <AuthorProfileScreen key={route.params.author.id} initialAuthor={route.params.author} onBack={goBack} onPost={post => shellNavigationRef.navigate("postDetail", { post })} onApplication={openPublicMarketApplication} />}

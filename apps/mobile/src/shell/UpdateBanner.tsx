@@ -9,6 +9,7 @@ type Props = {
   items: PendingPackage[];
   busy: boolean;
   completed: boolean;
+  error?: string;
   onNow: () => void;
   onLater: () => void;
 };
@@ -19,7 +20,7 @@ const layerTitle: Record<string, string> = {
   release: "一整套",
 };
 
-export function UpdateBanner({ items, busy, completed, onNow, onLater }: Props) {
+export function UpdateBanner({ items, busy, completed, error, onNow, onLater }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const names = items.map(titleOf);
@@ -43,12 +44,13 @@ export function UpdateBanner({ items, busy, completed, onNow, onLater }: Props) 
             </Text>
           </View>
         </View>
+        {error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text> : null}
         <View style={styles.actions}>
           <Pressy accessibilityRole="button" disabled={busy} onPress={onLater} style={styles.later}>
             <Text style={styles.laterText}>稍后体验</Text>
           </Pressy>
           <Pressy accessibilityRole="button" disabled={busy} onPress={onNow} style={[styles.now, busy && styles.nowBusy]}>
-            <Text style={styles.nowText}>{busy ? "正在迎接新作品" : "加载新作品"}</Text>
+            <Text style={styles.nowText}>{busy ? "正在加载更新…" : error ? "重试更新" : "加载更新"}</Text>
           </Pressy>
         </View>
       </Surface>

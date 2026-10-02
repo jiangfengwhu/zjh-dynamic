@@ -3,7 +3,8 @@ import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } 
 import FastImage from "@d11/react-native-fast-image";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { useNavigation, type ParamListBase } from "@react-navigation/native";
+import { useNavigation, usePreventRemove, type ParamListBase } from "@react-navigation/native";
+import { readShellValue, writeShellValue, removeShellValue } from "../shellStorage";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Toast from "react-native-toast-message";
 import { PageHeader } from "../../../../../packages/ui/chrome";
@@ -27,6 +28,26 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
   const skipInitial = useRef(!!initialDetail); const identity = useRef(user?.id); const list = useRef<FlatList<UserComment>>(null); const headerHeight = useRef(0); const jumped = useRef(false);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const count = Array.from(text).length;
+  const draftKey = `social.comment-draft.${user?.id || "guest"}.${initialPost.id}`;
+  const [draftReady, setDraftReady] = useState(false);
+  const loadedDraftKey = useRef<string | undefined>(undefined);
+  usePreventRemove(sending || !!deleting, () => Toast.show({ type: "info", text1: "正在处理评论，请稍候" }));
+  useEffect(() => {
+    let live = true;
+    const previousKey = loadedDraftKey.current;
+    const guestText = previousKey?.includes(".guest.") ? text : "";
+    loadedDraftKey.current = undefined; setDraftReady(false); setText("");
+    void readShellValue(draftKey).then(raw => {
+      if (!live) return;
+      const restored = raw || guestText;
+      if (!raw && guestText && previousKey && previousKey !== draftKey) {
+        writeShellValue(draftKey, guestText); removeShellValue(previousKey);
+      }
+      loadedDraftKey.current = draftKey; setText(restored); setDraftReady(true);
+    }).catch(() => { if (live) Toast.show({ type: "error", text1: "评论草稿读取失败，请重新打开动态" }); });
+    return () => { live = false; };
+  }, [draftKey]);
+  useEffect(() => { if (draftReady && loadedDraftKey.current === draftKey) { if (text) writeShellValue(draftKey, text); else removeShellValue(draftKey); } }, [text, draftReady, draftKey]);
   function fail(title: string, cause: unknown) { Toast.show({ type: "error", text1: title, text2: cause instanceof Error ? cause.message : "请稍后重试" }); }
   async function load(more = false, manual = false) {
     if (reading.current || writing.current || (more && !cursor)) return;
@@ -47,7 +68,7 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
   useEffect(() => { if (!entered) return; version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } if (skipInitial.current) { skipInitial.current = false; updateUserPost(initialDetail!.post); } else void load(); }, [entered, user?.id]);
   function updated(post: UserPost) { version.current++; setFallback(post); }
   async function send() {
-    if (writing.current || !text.trim() || count > 1000) return;
+    if (!draftReady || writing.current || !text.trim() || count > 1000) return;
     writing.current = true; setSending(true); version.current++;
     try {
       if (!await requireAccount() || !alive.current) return;
@@ -85,8 +106,8 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
         ListFooterComponent={<View style={{ padding: 16 }}>{error ? <Pressable onPress={() => void load()}><Text style={{ color: colors.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressable> : null}{cursor ? <Pressable disabled={loading} onPress={() => void load(true)} style={{ padding: 12 }}>{loading ? <ActivityIndicator color={colors.accent} /> : <Text style={{ color: colors.accent, textAlign: "center" }}>查看更多评论</Text>}</Pressable> : null}</View>} />
       <View style={{ padding: 12, borderTopWidth: 0.5, borderTopColor: colors.line, gap: 8 }}>
         {reply ? <Pressable disabled={sending} onPress={() => setReply(null)}><Text style={{ color: colors.accent }}>回复 {reply.author.name} · 取消</Text></Pressable> : null}
-        <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}><TextInput ref={input} value={text} onChangeText={setText} editable={!sending} multiline maxLength={2000} placeholder="写下你的评论…" placeholderTextColor={colors.ink3} style={{ flex: 1, color: colors.ink1, fontSize: 15, maxHeight: 120, minHeight: 42, padding: 10, backgroundColor: colors.field, borderRadius: 18 }} />
-          <Pressable accessibilityLabel="发送评论" disabled={sending || !!deleting || !text.trim() || count > 1000} onPress={() => void send()} style={{ backgroundColor: colors.accent, borderRadius: 22, paddingHorizontal: 18, paddingVertical: 12, opacity: !text.trim() || count > 1000 || !!deleting ? 0.4 : 1 }}>{sending ? <ActivityIndicator size="small" color={colors.accentText} /> : <Text style={{ color: colors.accentText, fontWeight: "700" }}>发送</Text>}</Pressable></View>
+        <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}><TextInput ref={input} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="写下你的评论…" placeholderTextColor={colors.ink3} style={{ flex: 1, color: colors.ink1, fontSize: 15, maxHeight: 120, minHeight: 42, padding: 10, backgroundColor: colors.field, borderRadius: 18 }} />
+          <Pressable accessibilityLabel="发送评论" disabled={!draftReady || sending || !!deleting || !text.trim() || count > 1000} onPress={() => void send()} style={{ backgroundColor: colors.accent, borderRadius: 22, paddingHorizontal: 18, paddingVertical: 12, opacity: !text.trim() || count > 1000 || !!deleting ? 0.4 : 1 }}>{sending ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontWeight: "700" }}>发送</Text>}</Pressable></View>
         {count > 800 ? <Text style={{ color: count > 1000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 12 }}>{count}/1000</Text> : null}
       </View>
     </KeyboardAvoidingView>

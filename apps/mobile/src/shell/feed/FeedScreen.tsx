@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -55,7 +55,7 @@ const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 type FeedProps = {
   installedIds: string[];
-  onOpen: (id: string) => void;
+  onOpen: (id: string) => Promise<boolean>;
   /** 对某位朋友说一句：带着 TA 的名字去工坊。 */
   onReply: (id: string) => void;
   /** 找新朋友：去应用市场发现应用。 */
@@ -89,9 +89,11 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const [kind, setKind] = useState<FeedSlot | "user" | null>(null);
   const [cardsReady, setCardsReady] = useState(0);
   const [summarizing, setSummarizing] = useState(false);
+  const [, tickTime] = useState(0);
+  useFocusEffect(useCallback(() => { const timer = setInterval(() => tickTime(value => value + 1), 60000); return () => clearInterval(timer); }, []));
 
   const scrollY = useSharedValue(0);
-  const list = useRef<ScrollView>(null);
+  const list = useRef<FlatList<(typeof timeline)[number]>>(null);
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
   const dragging = useSharedValue(false);
@@ -201,7 +203,6 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     return (Object.keys(KIND_LABEL) as FeedSlot[]).filter((item) => present.has(item));
   }, [posts]);
 
-  // Keep card instances alive across filters: plugin avatars and progress retain their state.
   const timeline = useMemo(() => [
     ...posts.map(post => ({ type: "app" as const, post })),
     ...userTimeline.posts.map(post => ({ type: "user" as const, post })),
@@ -213,7 +214,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   }, [kind, kinds]);
 
   useEffect(() => {
-    list.current?.scrollTo({ y: 0, animated: false });
+    list.current?.scrollToOffset({ offset: 0, animated: false });
     cancelAnimation(hiddenHeader);
     scrollY.value = 0;
     hiddenHeader.value = 0;
@@ -223,9 +224,9 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   }, [kind, scrollY, hiddenHeader, chromeHidden, dragging, momentum]);
 
   const open = useCallback(
-    (appId: string) => {
-      markSeen(appId, latest[appId] ?? Date.now());
-      onOpen(appId);
+    async (appId: string) => {
+      const at = latest[appId] ?? Date.now();
+      if (await onOpen(appId)) markSeen(appId, at);
     },
     [latest, onOpen],
   );
@@ -252,18 +253,18 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
           <Animated.View pointerEvents="none" style={[styles.headerEdge, edge]} />
         </View>
         <FriendRail friends={rail} unread={unread} onOpen={open} onNew={onNew} />
-        <View style={styles.tabs}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
           <Tab label="全部" active={kind === null} onPress={() => setKind(null)} />
           <Tab label="用户" active={kind === "user"} onPress={() => setKind("user")} />
           {kinds.map(item => <Tab key={item} label={KIND_LABEL[item]} active={kind === item} onPress={() => setKind(item)} />)}
-        </View>
+        </ScrollView>
         </Animated.View>
 
         <GestureDetector gesture={gesture}>
           <View style={styles.pullHost}>
             <View style={styles.scroll}>
               <GestureDetector gesture={scrollGesture}>
-                <Animated.ScrollView ref={list} removeClippedSubviews={false}
+                <Animated.FlatList ref={list} data={visible} keyExtractor={item => `${item.type}-${item.post.id}`} initialNumToRender={8} maxToRenderPerBatch={6} windowSize={7} removeClippedSubviews={false}
                   style={styles.scroll}
                   contentContainerStyle={[styles.content, bottomSpace, { minHeight: viewportSize + headerSize }]}
                   showsVerticalScrollIndicator={false}
@@ -272,32 +273,23 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
                   overScrollMode="never"
                   bounces={false}
                   scrollEnabled={phase !== "refreshing" && phase !== "done"}
-                >
+                  ListHeaderComponent={<View>
                   <View style={{ height: headerSize }} />
                   <Animated.View style={refreshSpace}><PullIndicator pull={pull} phase={phase} /></Animated.View>
                   {timelineError ? <Text style={{ color: colors.ink3, padding: 16, fontSize: 12 }}>{timelineError}</Text> : null}
 
-                  {visible.length === 0 ? (
-                    <View style={styles.empty}>
-                      <DefaultAvatar size={64} />
-                      <Text style={styles.emptyTitle}>{kind === "user" ? "还没有用户动态" : kind ? `还没有${KIND_LABEL[kind]}` : "这里还很安静"}</Text>
-                      <Text style={styles.emptyBody}>
-                        {kind === "user" ? "分享一个想法，或记录此刻。" : kind ? "换一个分类，或者回到全部看看。" : "朋友们有了新动态，会在这里跟你说。"}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {timeline.map((item) => {
-                    const show = !kind || (item.type === "user" ? kind === "user" : item.post.kind === kind);
+                  </View>}
+                  ListEmptyComponent={<View style={styles.empty}><DefaultAvatar size={64} /><Text style={styles.emptyTitle}>{kind === "user" ? "还没有用户动态" : "这里还很安静"}</Text><Text style={styles.emptyBody}>分享一个想法，或换个分类看看。</Text></View>}
+                  renderItem={({ item }) => {
                     if (item.type === "user") {
                       const post = user && item.post.author.id === user.id ? { ...item.post, author: { id: user.id, name: user.name, avatarUrl: user.avatarUrl } } : item.post;
-                      return <RetainedPost key={`user-${post.id}`} show={show}><View style={styles.post}><UserPostCard post={post} time={formatWhen(post.createdAt)} own={user?.id === post.author.id} onOpen={() => onPost(post)} onApplication={onApplication} onAuthor={onAuthor} /></View></RetainedPost>;
+                      return <View style={styles.post}><UserPostCard post={post} time={formatWhen(post.createdAt)} own={user?.id === post.author.id} onOpen={() => onPost(post)} onApplication={onApplication} onAuthor={onAuthor} /></View>;
                     }
                     const post = item.post;
                     const friend = friends.get(post.appId) ?? { id: post.appId, name: post.appId, mark: "友", accent: colors.accent };
                     const Template = cardsReady >= 0 && post.kind !== "summary" ? peekFeedTemplate(post.appId, post.kind as FeedKind) : undefined;
                     return (
-                      <RetainedPost key={`app-${post.id}`} show={show}>
+                      <View>
                         <View style={styles.post}>
                           <CardSlot
                             Template={Template}
@@ -314,18 +306,19 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
                             }}
                           />
                         </View>
-                      </RetainedPost>
+                      </View>
                     );
-                  })}
-
+                  }}
+                  ListFooterComponent={<View>
                   {(!kind || kind === "user") && userTimeline.nextCursor ? <Pressable disabled={loadingMore} onPress={() => { setLoadingMore(true); void loadMoreUserPosts().catch(error => Toast.show({ type: "error", text1: "加载失败", text2: error.message })).finally(() => setLoadingMore(false)); }} style={{ alignItems: "center", padding: 20 }}><Text style={{ color: colors.accentText }}>{loadingMore ? "正在加载…" : "加载更多用户动态"}</Text></Pressable> : null}
                   {visible.length > 0 && (!userTimeline.nextCursor || (kind && kind !== "user")) ? (
                     <View style={styles.end}>
                       <Icon name="workshop" size={16} color={colors.accentText} />
-                      <Text style={styles.endText}>已经看到最新</Text>
+                      <Text style={styles.endText}>已浏览全部动态</Text>
                     </View>
                   ) : null}
-                </Animated.ScrollView>
+                  </View>}
+                />
               </GestureDetector>
             </View>
           </View>
@@ -335,13 +328,6 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     </GestureHandlerRootView>
   );
 });
-
-/** Keep hidden cards measured at full width so progress and native images stay ready. */
-function RetainedPost({ show, children }: { show: boolean; children: ReactNode }) {
-  return <View style={!show ? { height: 0, overflow: "hidden" } : undefined} pointerEvents={show ? "auto" : "none"} accessibilityElementsHidden={!show} importantForAccessibility={show ? "auto" : "no-hide-descendants"}>
-    <View style={!show ? { position: "absolute", top: 0, left: 0, right: 0 } : undefined}>{children}</View>
-  </View>;
-}
 
 /** 时间线顶上的分类标签，像 X 的「为你推荐 / 正在关注」：选中的那一项字加粗，底下一道金色的线。 */
 function Tab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
@@ -441,7 +427,7 @@ const styles = themedStyleSheet((t) => ({
     borderColor: t.line,
   },
   tab: {
-    flex: 1,
+    paddingHorizontal: 16,
     alignItems: "center",
   },
   tabInner: {

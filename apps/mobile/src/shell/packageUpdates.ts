@@ -52,8 +52,12 @@ export function updateSignature(items: PendingPackage[]): string {
 export async function applyPackageUpdates(): Promise<number> {
   const applicationCount = await stageApplicationUpdates();
   const raw = await NativePluginHost.call("shell", "applyUpdates", "{}");
-  const parsed = JSON.parse(raw) as { applied?: number };
+  const parsed = JSON.parse(raw) as { ok?: boolean; applied?: number; error?: string; message?: string };
+  if (parsed.ok === false || !Number.isSafeInteger(parsed.applied) || parsed.applied! < 0) throw new Error(parsed.message || parsed.error || "更新未能应用，请重试");
   console.log("package updates apply", parsed.applied ?? 0);
-  if (applicationCount && !parsed.applied) await NativePluginHost.call("shell", "reloadApplications", "{}");
+  if (applicationCount && !parsed.applied) {
+    const result = JSON.parse(await NativePluginHost.call("shell", "reloadApplications", "{}")) as { ok?: boolean };
+    if (!result.ok) throw new Error("应用已下载，但刷新未完成，请重新打开 App");
+  }
   return (parsed.applied ?? 0) + applicationCount;
 }

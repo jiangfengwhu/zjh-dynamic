@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { PageHeader, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
@@ -11,14 +12,14 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
   const { colors } = useTheme();
   const { user, ready, storageError } = useAccount();
   const [email, setEmail] = useState(""); const [code, setCode] = useState(""); const [name, setName] = useState("");
-  const [sentTo, setSentTo] = useState(""); const [retryAt, setRetryAt] = useState(0); const [now, setNow] = useState(Date.now());
+  const [retryAt, setRetryAt] = useState(0); const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false); const busyRef = useRef(false); const [message, setMessage] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const alive = useRef(true); const loginSucceeded = useRef(false);
   const normalizedEmail = email.trim().toLowerCase(); const remaining = Math.max(0, Math.ceil((retryAt - now) / 1000));
   const validEmail = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(normalizedEmail) && normalizedEmail.length <= 254;
   useEffect(() => { setName(user?.name || ""); setMessage(""); }, [user?.id, user?.name]);
-  useEffect(() => { if (!retryAt) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [retryAt]);
+  useEffect(() => { if (!remaining || user) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [remaining > 0, !!user]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; if (!loginSucceeded.current) finishLoginRequest(false); }; }, []);
   async function perform(action: () => Promise<void | boolean>, success = "") {
     if (busyRef.current) return; busyRef.current = true; setBusy(true); setMessage("");
@@ -52,10 +53,10 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
       </> : <Surface style={styles.panel}>
         <Text style={styles.label}>邮箱地址</Text>
         <TextInput accessibilityLabel="邮箱地址" value={email} onChangeText={value => { setEmail(value); setCode(""); }} editable={!busy} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" autoComplete="email" maxLength={254} placeholder="你的常用邮箱" placeholderTextColor={colors.muted} style={styles.input} />
-        {button(remaining ? `${remaining} 秒后重新发送` : "发送验证码", () => void perform(async () => { const result = await sendLoginCode(normalizedEmail); setSentTo(normalizedEmail); setCode(""); setNow(Date.now()); setRetryAt(Date.now() + result.retryAfter * 1000); }, "验证码已发送，请查看邮箱"), !validEmail || remaining > 0, true)}
+        {button(remaining ? `${remaining} 秒后重新发送` : "发送验证码", () => void perform(async () => { const result = await sendLoginCode(normalizedEmail); setCode(""); setNow(Date.now()); setRetryAt(Date.now() + result.retryAfter * 1000); }, "验证码已发送，请查看邮箱"), !validEmail || remaining > 0, true)}
         <Text style={styles.label}>六位验证码</Text>
         <TextInput accessibilityLabel="六位验证码" value={code} onChangeText={value => setCode(value.replace(/\D/g, ""))} editable={!busy} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="one-time-code" maxLength={6} placeholder="输入邮件中的验证码" placeholderTextColor={colors.muted} style={styles.input} />
-        {button(busy ? "请稍候…" : "登录", () => void perform(async () => { await loginWithCode(normalizedEmail, code); if (alive.current) { loginSucceeded.current = true; onBack(); setTimeout(() => finishLoginRequest(true), 220); } }), !validEmail || code.length !== 6 || normalizedEmail !== sentTo)}
+        {button(busy ? "请稍候…" : "登录", () => void perform(async () => { await loginWithCode(normalizedEmail, code); if (alive.current) { loginSucceeded.current = true; onBack(); setTimeout(() => finishLoginRequest(true), 220); } }), !validEmail || code.length !== 6)}
         <Text style={styles.hint}>首次登录会自动创建账号，并送你一个好听的名字。验证码 10 分钟内有效。</Text>
       </Surface>}
       {storageError ? <Text accessibilityRole="alert" style={styles.hint}>无法读取手机安全存储，请重新登录。</Text> : null}

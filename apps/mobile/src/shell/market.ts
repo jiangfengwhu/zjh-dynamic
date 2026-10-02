@@ -2,7 +2,7 @@ import { accountFetch, currentAccountId } from "./account";
 import { fetchApplicationCatalog, runningApplication, loadApplication, preparePublicApplication, validateApplication, applicationNeedsReload, type ApplicationManifest } from "../runtime/applications";
 import { edgeUrl } from "./evolveHost";
 import { loadCatalog, saveCatalog } from "./catalog";
-import { readShellValue, writeShellValue } from "./shellStorage";
+import { readShellValue, writeShellValue, removeShellValue, shellKeys } from "./shellStorage";
 import { registerApplicationMetadata, bundles } from "../../../../packages/features/src/registry";
 import NativePluginHost from "../NativePluginHost";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
@@ -16,8 +16,12 @@ const views = new Map<string, MarketView>();
 let marketRevision = 0;
 export const marketViewKey = (category: string, query: string) => `${category}:${query.trim().toLowerCase()}`;
 export function rememberMarketView(key: string, view: MarketView, persist = true) {
-  if (views.size >= 12 && !views.has(key)) views.delete(views.keys().next().value!);
+  if (views.size >= 12 && !views.has(key)) { const oldest = views.keys().next().value!; views.delete(oldest); removeShellValue(`market.view.${encodeURIComponent(oldest)}`); }
   views.set(key, view); if (persist) writeShellValue(`market.view.${encodeURIComponent(key)}`, JSON.stringify(view));
+  if (persist) {
+    const stored = shellKeys().filter(item => item.startsWith("market.view.") && item !== `market.view.${encodeURIComponent(key)}`);
+    while (stored.length >= 12) removeShellValue(stored.shift()!);
+  }
 }
 export async function readMarketView(key: string): Promise<MarketView | undefined> {
   if (views.has(key)) return views.get(key);

@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
+import { useIsFocused } from "@react-navigation/native";
+import { shellProviders } from "../../../../packages/platform/src/shellCapabilities";
+import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
+import { retryFeedSummary, subscribeSummaryStatus, type SummaryStatus } from "./feed/summary";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
@@ -14,6 +19,14 @@ export function SummaryScreen({ onBack }: Props) {
   const { colors } = useTheme();
   const [summaryEvery, setSummaryEvery] = useState(() => readSummaryEvery());
   const [customMinutes, setCustomMinutes] = useState("");
+  const focused = useIsFocused();
+  const [engine, setEngine] = useState("正在读取 AI 引擎…");
+  const [status, setStatus] = useState<SummaryStatus>({ running: false });
+  useEffect(() => subscribeSummaryStatus(setStatus), []);
+  useEffect(() => { if (!focused) return; let live = true;
+    void shellProviders().then(result => { if (live) setEngine(result.ok ? result.items?.find(item => item.isDefault)?.name || result.items?.[0]?.name || "尚未配置 AI 引擎" : "AI 引擎读取失败，请重新配置或重试"); }, () => { if (live) setEngine("AI 引擎读取失败，请重试"); });
+    return () => { live = false; };
+  }, [focused]);
   useEffect(() => subscribeSummaryEvery(setSummaryEvery), []);
   const custom = summaryEvery > 0 && !SUMMARY_CHOICES.some((choice) => choice.ms === summaryEvery);
 
@@ -23,6 +36,10 @@ export function SummaryScreen({ onBack }: Props) {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Surface style={styles.panel}>
           <Text style={styles.hint}>到点后，用默认的 AI 引擎，按每个应用这段时间的变化写一条动态。</Text>
+          <Text style={styles.hint}>默认引擎：{engine}</Text>
+          <Pressy accessibilityRole="button" onPress={() => applicationContext("jolly").ai.openSettings()}><Text style={{ color: colors.accentText }}>配置 AI 引擎</Text></Pressy>
+          <Text accessibilityLiveRegion="polite" style={styles.hint}>{status.running ? "正在生成小结…" : status.error ? `小结未完成：${status.error}。变更已保留，重试前请检查引擎。` : status.completedAt ? `最近成功：${new Date(status.completedAt).toLocaleString()}` : "尚未生成小结"}</Text>
+          <Pressy accessibilityRole="button" disabled={status.running || summaryEvery <= 0} onPress={() => void retryFeedSummary()}><Text style={{ color: colors.accentText }}>{status.error ? "重试小结" : "立即整理变更"}</Text></Pressy>
           <View style={styles.choices}>
             {SUMMARY_CHOICES.map((choice) => {
               const active = summaryEvery === choice.ms;
@@ -42,6 +59,7 @@ export function SummaryScreen({ onBack }: Props) {
           </View>
           <View style={styles.customRow}>
             <TextInput
+              accessibilityLabel="自定义小结间隔（分钟）"
               value={customMinutes}
               onChangeText={setCustomMinutes}
               keyboardType="number-pad"

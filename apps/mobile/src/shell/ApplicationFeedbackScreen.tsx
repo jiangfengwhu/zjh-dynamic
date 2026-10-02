@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
+import { retainDraftImage, removeDraftImage, existingDraftImages } from "./mediaDraft";
 import { usePreventRemove } from "@react-navigation/native";
 import ImagePicker from "react-native-image-crop-picker";
 import FastImage from "@d11/react-native-fast-image";
@@ -20,12 +22,21 @@ export function ApplicationFeedbackScreen({ manifest, ownerId, onBack }: { manif
   const [status, setStatus] = useState(""); const [error, setError] = useState(""); const [ready, setReady] = useState(false);
   const [handoff, setHandoff] = useState(false);
   const alive = useRef(true); const working = useRef(false); const files = useRef(new Set<string>());
+  const delivered = useRef(false);
   usePreventRemove(busy && !handoff, () => Toast.show({ type: "info", text1: "正在处理反馈，请稍候" }));
   useEffect(() => {
-    void readShellValue(key).then(raw => { if (!alive.current) return; try { const cached = JSON.parse(raw || "null"); if (typeof cached?.body === "string") setBody(cached.body); if (Array.isArray(cached?.images)) setPhotos(cached.images.filter((url: unknown) => typeof url === "string" && url.startsWith("https://")).slice(0, 3).map((url: string) => ({ url }))); } catch {} setReady(true); });
+    void readShellValue(key).then(async raw => {
+      try {
+        const cached = JSON.parse(raw || "null");
+        const local = await existingDraftImages<Photo>(Array.isArray(cached?.photos) ? cached.photos : []);
+        const remote = Array.isArray(cached?.images) ? cached.images.filter((url: unknown) => typeof url === "string" && url.startsWith("https://")).map((url: string) => ({ url })) : [];
+        if (alive.current && await currentAccountId() === ownerId) { if (typeof cached?.body === "string") setBody(cached.body); setPhotos([...local, ...remote.filter((photo: Photo) => !local.some(item => item.url === photo.url))].slice(0, 3)); }
+      } catch { if (alive.current) setError("草稿读取失败，请重新打开反馈页"); }
+      if (alive.current && await currentAccountId() === ownerId) setReady(true);
+    }).catch(() => { if (alive.current) setError("草稿读取失败，请重新打开反馈页"); });
     return () => { alive.current = false; for (const path of files.current) void ImagePicker.cleanSingle(path).catch(() => {}); };
   }, []);
-  useEffect(() => { if (ready) writeShellValue(key, JSON.stringify({ body, images: photos.flatMap(photo => photo.url ? [photo.url] : []) })); }, [body, photos, ready]);
+  useEffect(() => { if (ready && !handoff && !delivered.current) writeShellValue(key, JSON.stringify({ body, photos, images: photos.filter(photo => !photo.path && photo.url).map(photo => photo.url) })); }, [body, photos, ready, handoff]);
   async function choose() {
     if (working.current || photos.length >= 3) return;
     working.current = true; setBusy(true); setError(""); setStatus("正在选择截图…");
@@ -36,7 +47,13 @@ export function ApplicationFeedbackScreen({ manifest, ownerId, onBack }: { manif
       if (!alive.current) { for (const image of images) void ImagePicker.cleanSingle(image.path).catch(() => {}); return; }
       if (await currentAccountId() !== ownerId) throw new Error("账号已改变，请重新打开反馈页");
       if (images.length > 3 - photos.length || images.some(image => image.size > 2 * 1024 * 1024)) throw new Error("最多三张截图，每张压缩后需小于 2 MB");
-      setPhotos(previous => [...previous, ...images.map(image => ({ path: image.path }))]);
+      const retained: Photo[] = [];
+      try {
+        for (const image of images) retained.push({ path: await retainDraftImage(image.path) });
+        if (!alive.current || await currentAccountId() !== ownerId) { for (const photo of retained) void removeDraftImage(photo.path); return; }
+        setPhotos(previous => [...previous, ...retained]);
+      } catch (cause) { for (const photo of retained) void removeDraftImage(photo.path); throw cause; }
+      finally { for (const image of images) { files.current.delete(image.path); void ImagePicker.cleanSingle(image.path).catch(() => {}); } }
     } catch (e) { if (alive.current && (e as { code?: string }).code !== "E_PICKER_CANCELLED") { const message = e instanceof Error ? e.message : "截图选择失败"; setError(message); Toast.show({ type: "error", text1: message }); } }
     finally { working.current = false; if (alive.current) { setBusy(false); setStatus(""); } }
   }
@@ -59,7 +76,8 @@ export function ApplicationFeedbackScreen({ manifest, ownerId, onBack }: { manif
       await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const target = await openApplicationWorkshop(manifest.appId, manifest.title, !owned, false, originalRelease, { appId: manifest.appId, releaseId: manifest.releaseId, title: manifest.title, body: body.trim(), images: urls }, ownerId);
       if (!target) throw new Error("请登录后再将反馈带回工坊");
-      removeShellValue(key);
+      delivered.current = true; removeShellValue(key);
+      for (const photo of photos) void removeDraftImage(photo.path);
     } catch (e) { if (alive.current) { const message = e instanceof Error ? e.message : "反馈未能带回工坊，请重试"; setError(message); Toast.show({ type: "error", text1: message }); } }
     finally { working.current = false; if (alive.current) { setBusy(false); setStatus(""); setHandoff(false); } }
   }
@@ -67,7 +85,7 @@ export function ApplicationFeedbackScreen({ manifest, ownerId, onBack }: { manif
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"><Text style={styles.name}>{manifest.title}</Text><Text style={styles.caption}>体验版本 {manifest.releaseId.slice(0, 12)} · {manifest.appId}</Text>
       <TextInput accessibilityLabel="应用修改反馈" editable={ready && !busy} multiline maxLength={2000} value={body} onChangeText={setBody} placeholder="哪里不合适？你希望改成什么样？也可以补充复现步骤。" placeholderTextColor={colors.ink3} style={styles.input} />
       <Text style={styles.caption}>{body.length}/2000 · 截图最多三张</Text>
-      <View style={styles.images}>{photos.map((photo, index) => <View key={photo.path || photo.url} style={styles.photo}><FastImage source={{ uri: photo.url || (photo.path?.startsWith("/") ? `file://${photo.path}` : photo.path) }} resizeMode={FastImage.resizeMode.contain} style={styles.image} /><Pressy disabled={busy} accessibilityLabel={`移除截图 ${index + 1}`} onPress={() => setPhotos(previous => previous.filter((_, i) => i !== index))}><Text style={styles.link}>移除</Text></Pressy></View>)}</View>
+      <View style={styles.images}>{photos.map((photo, index) => <View key={photo.path || photo.url} style={styles.photo}><FastImage source={{ uri: photo.url || (photo.path?.startsWith("/") ? `file://${photo.path}` : photo.path) }} resizeMode={FastImage.resizeMode.contain} style={styles.image} /><Pressy disabled={busy} accessibilityLabel={`移除截图 ${index + 1}`} onPress={() => { setPhotos(previous => previous.filter((_, i) => i !== index)); void removeDraftImage(photo.path); }}><Text style={styles.link}>移除</Text></Pressy></View>)}</View>
       <Pressy disabled={busy || !ready || photos.length >= 3} onPress={() => void choose()}><Text style={styles.link}>＋ 添加截图</Text></Pressy>
       <Text style={styles.caption}>截图会上传并交给制作服务，请先移除敏感信息。自己的作品继续原会话；别人的应用基于当前公开版本创作一份新作品。</Text>
       <Text style={styles.caption}>带回工坊后可以预览、修改，再确认开始制作。这一步不会启动制作任务。</Text>
