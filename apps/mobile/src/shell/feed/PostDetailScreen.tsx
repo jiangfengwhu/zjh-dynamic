@@ -3,6 +3,8 @@ import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } 
 import FastImage from "@d11/react-native-fast-image";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useNavigation, type ParamListBase } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Toast from "react-native-toast-message";
 import { PageHeader } from "../../../../../packages/ui/chrome";
 import { Screen } from "../../../../../packages/ui/edge";
@@ -15,9 +17,11 @@ import { PostMenu } from "./PostMenu";
 const when = (at: number) => new Date(at).toLocaleString();
 export function PostDetailScreen({ initialPost, initialCommentId, initialDetail, onBack, onApplication, onAuthor }: { initialPost: UserPost; initialCommentId?: string; initialDetail?: PostDetail; onBack: () => void; onApplication: (appId: string) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {
   const { colors } = useTheme(); const { user } = useAccount(); const timeline = useUserPosts();
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
+  const [entered, setEntered] = useState(false);
   const [fallback, setFallback] = useState(initialPost); const post = timeline.posts.find(item => item.id === initialPost.id) ?? fallback;
   const [comments, setComments] = useState<UserComment[]>(initialDetail?.comments ?? []); const [cursor, setCursor] = useState<string | null>(initialDetail?.nextCursor ?? null);
-  const [loading, setLoading] = useState(false); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState(""); const [text, setText] = useState("");
+  const [loading, setLoading] = useState(!initialDetail); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState(""); const [text, setText] = useState("");
   const [reply, setReply] = useState<UserComment | null>(null); const [sending, setSending] = useState(false); const [deleting, setDeleting] = useState<string | null>(null);
   const alive = useRef(true); const version = useRef(0); const loaded = useRef(!!initialDetail); const reading = useRef(false); const writing = useRef(false); const input = useRef<TextInput>(null);
   const skipInitial = useRef(!!initialDetail); const identity = useRef(user?.id); const list = useRef<FlatList<UserComment>>(null); const headerHeight = useRef(0); const jumped = useRef(false);
@@ -36,7 +40,11 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
     finally { reading.current = false; if (alive.current) { setLoading(false); setRefreshing(false); if (before !== version.current && !writing.current) void load(); } }
   }
   useEffect(() => () => { alive.current = false; }, []);
-  useEffect(() => { version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } if (skipInitial.current) { skipInitial.current = false; updateUserPost(initialDetail!.post); } else void load(); }, [user?.id]);
+  useEffect(() => navigation.addListener("transitionEnd", event => {
+    if (!event.data.closing) setEntered(true);
+  }), [navigation]);
+  // Comment mounts and timeline broadcasts must not compete with the entrance animation.
+  useEffect(() => { if (!entered) return; version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } if (skipInitial.current) { skipInitial.current = false; updateUserPost(initialDetail!.post); } else void load(); }, [entered, user?.id]);
   function updated(post: UserPost) { version.current++; setFallback(post); }
   async function send() {
     if (writing.current || !text.trim() || count > 1000) return;

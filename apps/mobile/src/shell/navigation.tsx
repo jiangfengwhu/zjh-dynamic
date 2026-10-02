@@ -282,7 +282,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           contentStyle: { backgroundColor: colors.canvas },
         }}
       >
-        <Stack.Screen name="tabs">
+        <Stack.Screen name="tabs" options={{ freezeOnBlur: true }}>
           {() => (
             <ScreenEdge bottom={false}>
             <Tabs.Navigator

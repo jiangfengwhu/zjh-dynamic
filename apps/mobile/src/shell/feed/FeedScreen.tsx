@@ -143,6 +143,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const headerMotion = useAnimatedStyle(() => ({ transform: [{ translateY: -hiddenHeader.value }] }));
   const bottomSpace = useAnimatedStyle(() => ({ paddingBottom: tabHeight.value + 28 }));
   useEffect(() => {
+    if (!focused) return;
     cancelAnimation(hiddenHeader);
     chromeHidden.value = 0;
     hiddenHeader.value = 0;
