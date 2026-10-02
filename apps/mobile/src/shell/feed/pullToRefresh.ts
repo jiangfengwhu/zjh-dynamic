@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Vibration } from "react-native";
 import { Gesture } from "react-native-gesture-handler";
-import { cancelAnimation, withSpring, withTiming, type SharedValue, useSharedValue } from "react-native-reanimated";
+import { cancelAnimation, runOnJS, withSpring, withTiming, type SharedValue, useSharedValue } from "react-native-reanimated";
 
 /** 拖到这个位置松手就刷新。紧凑灵敏。 */
 export const PULL_THRESHOLD = 68;
@@ -18,6 +18,7 @@ export type PullPhase = "idle" | "pulling" | "ready" | "refreshing" | "done";
 
 /** 手指拖动的距离越大越拉不动：开头跟手，越往后越紧。 */
 function resist(distance: number): number {
+  "worklet";
   return PULL_MAX * (1 - Math.exp(-distance / PULL_MAX));
 }
 
@@ -35,15 +36,17 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
   const pull = useSharedValue(0);
   const [phase, setPhaseState] = useState<PullPhase>("idle");
   const phaseRef = useRef<PullPhase>("idle");
+  const phaseUI = useSharedValue<PullPhase>("idle");
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const refresh = useRef(onRefresh);
   refresh.current = onRefresh;
 
-  const setPhase = useCallback((next: PullPhase) => {
+  const notifyPhase = useCallback((next: PullPhase) => {
     if (phaseRef.current === next) return;
     phaseRef.current = next;
     setPhaseState(next);
   }, []);
+  const setPhase = useCallback((next: PullPhase) => { phaseUI.value = next; notifyPhase(next); }, [phaseUI, notifyPhase]);
 
   useEffect(
     () => () => {
@@ -52,8 +55,6 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
     },
     [pull],
   );
-
-  const busy = () => phaseRef.current === "refreshing" || phaseRef.current === "done";
 
   const finish = useCallback(async () => {
     const started = Date.now();
@@ -76,79 +77,88 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
     );
   }, [pull, setPhase]);
 
-  const release = useCallback(() => {
-    if (busy()) return;
-    if (phaseRef.current === "ready") {
-      console.log("feed pull refresh");
-      setPhase("refreshing");
-      pull.value = withSpring(PULL_HOLD, { damping: 18, stiffness: 220 });
-      void finish();
-      return;
-    }
-    pull.value = withSpring(0, { damping: 20, stiffness: 240 });
-    setPhase("idle");
-  }, [finish, pull, setPhase]);
-
-  const start = useRef({ x: 0, y: 0 });
-  const dragging = useRef(false);
+  const beginRefresh = useCallback(() => { notifyPhase("refreshing"); void finish(); }, [finish, notifyPhase]);
+  const readyFeedback = useCallback(() => Vibration.vibrate(12), []);
+  const start = useSharedValue({ x: 0, y: 0 });
+  const dragging = useSharedValue(false);
   const gesture = useMemo(
     () =>
       Gesture.Pan()
         .manualActivation(true)
-        .runOnJS(true)
+        .cancelsTouchesInView(true)
         .onTouchesDown((event, manager) => {
-          dragging.current = false;
+          "worklet";
+          dragging.value = false;
           const touch = event.allTouches[0];
-          if (busy() || scrollY.value > 1 || event.numberOfTouches !== 1 || !touch) {
+          if (phaseUI.value === "refreshing" || phaseUI.value === "done" || scrollY.value > 1 || event.numberOfTouches !== 1 || !touch) {
             manager.fail();
             return;
           }
-          start.current = { x: touch.absoluteX, y: touch.absoluteY };
+          start.value = { x: touch.absoluteX, y: touch.absoluteY };
         })
         .onTouchesMove((event, manager) => {
-          if (dragging.current) return;
+          "worklet";
+          if (dragging.value) return;
           const touch = event.allTouches[0];
-          if (busy() || scrollY.value > 1 || event.numberOfTouches !== 1 || !touch) {
+          if (phaseUI.value === "refreshing" || phaseUI.value === "done" || scrollY.value > 1 || event.numberOfTouches !== 1 || !touch) {
             manager.fail();
             return;
           }
-          const dx = touch.absoluteX - start.current.x;
-          const dy = touch.absoluteY - start.current.y;
+          const dx = touch.absoluteX - start.value.x;
+          const dy = touch.absoluteY - start.value.y;
           if (dy < -6 || (Math.abs(dx) > 6 && Math.abs(dx) * 1.2 >= dy)) {
             manager.fail();
           } else if (dy > 6 && dy > Math.abs(dx) * 1.2) {
             manager.activate();
           }
         })
+        .onTouchesUp((_event, manager) => {
+          "worklet";
+          if (!dragging.value) manager.fail();
+        })
         .onStart(() => {
-          dragging.current = true;
+          "worklet";
+          dragging.value = true;
           cancelAnimation(pull);
         })
         .onUpdate((event) => {
-          if (busy()) return;
+          "worklet";
+          if (phaseUI.value === "refreshing" || phaseUI.value === "done") return;
           const next = resist(Math.max(0, event.translationY));
           pull.value = next;
-          if (next >= PULL_THRESHOLD) {
-            if (phaseRef.current !== "ready") Vibration.vibrate(12);
-            setPhase("ready");
-          } else {
-            setPhase(next > 0 ? "pulling" : "idle");
+          const nextPhase: PullPhase = next >= PULL_THRESHOLD ? "ready" : next > 0 ? "pulling" : "idle";
+          if (nextPhase !== phaseUI.value) {
+            phaseUI.value = nextPhase;
+            if (nextPhase === "ready") runOnJS(readyFeedback)();
+            runOnJS(notifyPhase)(nextPhase);
           }
         })
         .onEnd((_event, success) => {
-          if (success) release();
+          "worklet";
+          if (!success || phaseUI.value === "refreshing" || phaseUI.value === "done") return;
+          if (phaseUI.value === "ready") {
+            phaseUI.value = "refreshing";
+            pull.value = withSpring(PULL_HOLD, { damping: 18, stiffness: 220 });
+            runOnJS(beginRefresh)();
+          } else {
+            phaseUI.value = "idle";
+            pull.value = withSpring(0, { damping: 20, stiffness: 240 });
+            runOnJS(notifyPhase)("idle");
+          }
         })
         .onFinalize((_event, success) => {
+          "worklet";
           // 系统取消或切 Tab 时只回弹，不执行刷新。
-          if (dragging.current && !success && !busy()) {
+          if (dragging.value && !success && phaseUI.value !== "refreshing" && phaseUI.value !== "done") {
             pull.value = withSpring(0, { damping: 20, stiffness: 240 });
-            setPhase("idle");
+            phaseUI.value = "idle";
+            runOnJS(notifyPhase)("idle");
           }
-          dragging.current = false;
+          dragging.value = false;
         }),
-    [pull, release, scrollY, setPhase],
+    [pull, scrollY, phaseUI, start, dragging, notifyPhase, readyFeedback, beginRefresh],
   );
-  const scrollGesture = useMemo(() => Gesture.Native().requireExternalGestureToFail(gesture), [gesture]);
+  const scrollGesture = useMemo(() => Gesture.Native().requireExternalGestureToFail(gesture).disallowInterruption(true), [gesture]);
 
   return {
     pull,
