@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -32,6 +32,8 @@ import { subscribeFeedSummaryBusy } from "./summary";
 import { FriendRail } from "./FriendRail";
 import { useAccount } from "../account";
 import { CardSlot } from "./CardSlot";
+import { PullIndicator } from "./PullIndicator";
+import { usePullToRefresh } from "./pullToRefresh";
 import { subscribeLikes, toggleLike } from "./likes";
 import { markSeen, subscribeSeen, type SeenMap } from "./seen";
 import { useUserPosts, refreshUserPosts, loadMoreUserPosts, type UserPost } from "./userPosts";
@@ -67,9 +69,6 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const [kind, setKind] = useState<FeedSlot | "user" | null>(null);
   const [cardsReady, setCardsReady] = useState(0);
   const [summarizing, setSummarizing] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  // Once the native list starts scrolling, child card gestures cannot steal it.
-  const scrollGesture = useMemo(() => Gesture.Native().disallowInterruption(true), []);
 
   const scrollY = useSharedValue(0);
   const headerHeight = useSharedValue(144);
@@ -93,12 +92,11 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   useEffect(() => subscribeFeedSummaryBusy(setSummarizing), []);
   useEffect(() => { void refreshUserPosts().then(() => setTimelineError(""), () => setTimelineError("用户动态暂时未能同步，下拉可重试")); }, []);
 
-  const refresh = useCallback(async () => {
-    setRefreshing(true); setPosts(readFeedPosts());
-    try { await refreshUserPosts(); setTimelineError(""); }
-    catch (error) { setTimelineError("用户动态暂时未能同步，下拉可重试"); Toast.show({ type: "error", text1: "刷新未完成", text2: error instanceof Error ? error.message : "请稍后重试" }); }
-    finally { setRefreshing(false); }
-  }, []);
+  const { pull, phase, gesture, scrollGesture } = usePullToRefresh({
+    scrollY,
+    onRefresh: async () => { setPosts(readFeedPosts()); try { await refreshUserPosts(); setTimelineError(""); } catch (error) { setTimelineError("用户动态暂时未能同步，下拉可重试"); Toast.show({ type: "error", text1: "刷新未完成", text2: error instanceof Error ? error.message : "请稍后重试" }); } },
+  });
+  const refreshSpace = useAnimatedStyle(() => ({ height: pull.value }));
 
   const friends = useMemo(() => {
     const map = new Map<string, FeedFriend>();
@@ -183,6 +181,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
         </View>
         </Animated.View>
 
+        <GestureDetector gesture={gesture}>
           <View style={styles.pullHost}>
             <View style={styles.scroll}>
               <GestureDetector gesture={scrollGesture}>
@@ -194,9 +193,10 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
                   scrollEventThrottle={16}
                   overScrollMode="never"
                   bounces={false}
-                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} progressViewOffset={headerSize} colors={[colors.accent]} tintColor={colors.accent} progressBackgroundColor={colors.canvas} />}
+                  scrollEnabled={phase !== "refreshing" && phase !== "done"}
                 >
                   <View style={{ height: headerSize }} />
+                  <Animated.View style={refreshSpace}><PullIndicator pull={pull} phase={phase} /></Animated.View>
                   {timelineError ? <Text style={{ color: colors.ink3, padding: 16, fontSize: 12 }}>{timelineError}</Text> : null}
 
                   {visible.length === 0 ? (
@@ -251,6 +251,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
               </GestureDetector>
             </View>
           </View>
+        </GestureDetector>
         </View>
       </Screen>
     </GestureHandlerRootView>
