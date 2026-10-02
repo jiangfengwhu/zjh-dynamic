@@ -24,6 +24,7 @@ const LABEL: Record<PullPhase, string> = {
   ready: "松开刷新",
   refreshing: "正在刷新",
   done: "已是最新",
+  failed: "刷新未完成",
 };
 
 /**
@@ -64,7 +65,7 @@ export function PullIndicator({ pull, phase }: { pull: SharedValue<number>; phas
         ))}
         <Animated.View style={[styles.core, { backgroundColor: colors.orchid }, core]} />
       </Animated.View>
-      <Text style={[styles.label, { color: phase === "ready" || phase === "refreshing" ? colors.accentText : colors.ink3 }]}>
+      <Text style={[styles.label, { color: phase === "failed" ? colors.danger : phase === "ready" || phase === "refreshing" ? colors.accentText : colors.ink3 }]}>
         {LABEL[phase]}
       </Text>
     </Animated.View>

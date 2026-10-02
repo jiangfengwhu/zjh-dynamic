@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
@@ -77,6 +77,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const [summarizing, setSummarizing] = useState(false);
 
   const scrollY = useSharedValue(0);
+  const list = useRef<ScrollView>(null);
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
   const [headerSize, setHeaderSize] = useState(144);
@@ -100,7 +101,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
 
   const { pull, phase, gesture, scrollGesture } = usePullToRefresh({
     scrollY,
-    onRefresh: async () => { setPosts(readFeedPosts()); try { await refreshUserPosts(); setTimelineError(""); } catch (error) { setTimelineError("用户动态暂时未能同步，下拉可重试"); Toast.show({ type: "error", text1: "刷新未完成", text2: error instanceof Error ? error.message : "请稍后重试" }); } },
+    onRefresh: async () => { setPosts(readFeedPosts()); try { await refreshUserPosts(); setTimelineError(""); } catch (error) { setTimelineError("用户动态暂时未能同步，下拉可重试"); Toast.show({ type: "error", text1: "刷新未完成", text2: error instanceof Error ? error.message : "请稍后重试" }); return false; } },
   });
   const refreshSpace = useAnimatedStyle(() => ({ height: pull.value }));
 
@@ -151,6 +152,12 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     if (kind && kind !== "user" && !kinds.includes(kind)) setKind(null);
   }, [kind, kinds]);
 
+  useEffect(() => {
+    list.current?.scrollTo({ y: 0, animated: false });
+    scrollY.value = 0;
+    hiddenHeader.value = 0;
+  }, [kind, scrollY, hiddenHeader]);
+
   const open = useCallback(
     (appId: string) => {
       markSeen(appId, latest[appId] ?? Date.now());
@@ -192,7 +199,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
           <View style={styles.pullHost}>
             <View style={styles.scroll}>
               <GestureDetector gesture={scrollGesture}>
-                <Animated.ScrollView removeClippedSubviews={false}
+                <Animated.ScrollView ref={list} removeClippedSubviews={false}
                   style={styles.scroll}
                   contentContainerStyle={[styles.content, { minHeight: viewportSize + headerSize }]}
                   showsVerticalScrollIndicator={false}

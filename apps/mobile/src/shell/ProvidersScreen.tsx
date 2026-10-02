@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import Toast from "react-native-toast-message";
 import { Icon, PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { Input } from "../../../../packages/ui/shadcn/Input";
@@ -31,18 +32,32 @@ export function ProvidersScreen({ onBack }: Props) {
   const [items, setItems] = useState<AiProvider[]>([]);
   const [draft, setDraft] = useState(empty);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const working = useRef(false); const alive = useRef(true);
+  function fail(reason: unknown) {
+    if (!alive.current) return;
+    const message = reason instanceof Error ? reason.message : "操作未完成，请重试";
+    setError(message); Toast.show({ type: "error", text1: "AI 引擎操作未完成", text2: message });
+  }
 
   async function reload() {
     const result = await shellProviders();
-    setItems(result.items ?? []);
+    if (!result.ok) throw new Error("无法读取 AI 引擎，请重试");
+    if (alive.current) setItems(result.items ?? []);
   }
 
   useEffect(() => {
-    void reload().catch((reason) => console.log("providers unreadable", reason));
+    alive.current = true;
+    working.current = true; setBusy(true);
+    void reload().catch(fail).finally(() => { working.current = false; if (alive.current) setBusy(false); });
+    return () => { alive.current = false; };
   }, []);
 
   async function save() {
+    if (working.current) return;
+    working.current = true; setBusy(true);
     setError("");
+    try {
     const result = await shellSaveProvider({
       id: draft.id || undefined,
       name: draft.name.trim() || draft.model.trim() || "未命名",
@@ -52,11 +67,23 @@ export function ProvidersScreen({ onBack }: Props) {
       isDefault: draft.isDefault || items.length === 0,
     });
     if (!result.ok) {
-      setError(result.error ?? "保存失败");
-      return;
+      throw new Error(result.error ?? "保存失败");
     }
-    setDraft(empty);
+    if (alive.current) setDraft(empty);
     await reload();
+    if (alive.current) Toast.show({ type: "success", text1: "AI 引擎已保存" });
+    } catch (reason) { fail(reason); }
+    finally { working.current = false; if (alive.current) setBusy(false); }
+  }
+
+  function remove(item: AiProvider) {
+    Alert.alert("删除 AI 引擎？", `删除「${item.name}」及其保存的配置。`, [{ text: "取消", style: "cancel" }, { text: "删除", style: "destructive", onPress: () => { void (async () => {
+      if (working.current || !alive.current) return;
+      working.current = true; setBusy(true); setError("");
+      try { const result = await shellDeleteProvider(item.id) as { ok?: boolean; error?: string }; if (result.ok === false) throw new Error(result.error || "删除失败"); if (alive.current && draft.id === item.id) setDraft(empty); await reload(); }
+      catch (reason) { fail(reason); }
+      finally { working.current = false; if (alive.current) setBusy(false); }
+    })(); } }]);
   }
 
   return (
@@ -84,6 +111,7 @@ export function ProvidersScreen({ onBack }: Props) {
                     ]}
                   >
                     <Pressy
+                      disabled={busy}
                       accessibilityRole="button"
                       accessibilityLabel={`编辑${item.name}`}
                       scale={0.985}
@@ -110,13 +138,12 @@ export function ProvidersScreen({ onBack }: Props) {
                       </Text>
                     </Pressy>
                     <Pressy
+                      disabled={busy}
                       accessibilityRole="button"
                       accessibilityLabel={`删除${item.name}`}
                       hitSlop={8}
                       scale={0.9}
-                      onPress={() => {
-                        void shellDeleteProvider(item.id).then(reload);
-                      }}
+                      onPress={() => remove(item)}
                       style={styles.remove}
                     >
                       <Icon name="close" size={16} color={colors.redText} strokeWidth={2} />
@@ -131,19 +158,21 @@ export function ProvidersScreen({ onBack }: Props) {
         <SectionTitle>{draft.id ? "编辑引擎" : "添加引擎"}</SectionTitle>
         <Surface tone="raised" radius={colors.radius.xl} style={styles.form}>
           {draft.id ? (
-            <Pressy accessibilityRole="button" onPress={() => setDraft(empty)} scale={0.95} style={styles.reset}>
+            <Pressy disabled={busy} accessibilityRole="button" onPress={() => setDraft(empty)} scale={0.95} style={styles.reset}>
               <Icon name="plus" size={14} color={colors.accentText} strokeWidth={2} />
               <Text style={styles.resetText}>改为新增</Text>
             </Pressy>
           ) : null}
 
           <Input
+            editable={!busy}
             label="名称"
             value={draft.name}
             placeholder="例如：OpenAI / DeepSeek / Grok"
             onChangeText={(name) => setDraft((current) => ({ ...current, name }))}
           />
           <Input
+            editable={!busy}
             label="接口地址"
             value={draft.baseUrl}
             placeholder="https://api.openai.com/v1"
@@ -151,6 +180,7 @@ export function ProvidersScreen({ onBack }: Props) {
             autoCapitalize="none"
           />
           <Input
+            editable={!busy}
             label="模型"
             value={draft.model}
             placeholder="例如：gpt-4o / grok-4.7-high"
@@ -158,6 +188,7 @@ export function ProvidersScreen({ onBack }: Props) {
             autoCapitalize="none"
           />
           <Input
+            editable={!busy}
             label={draft.id ? "API Key（留空则不修改）" : "API Key"}
             value={draft.apiKey}
             placeholder="sk-..."
@@ -171,7 +202,7 @@ export function ProvidersScreen({ onBack }: Props) {
               <Text style={styles.defaultLabel}>设为默认引擎</Text>
               <Text style={styles.defaultHint}>创作和动态小结默认使用它</Text>
             </View>
-            <Switch checked={draft.isDefault} onCheckedChange={(isDefault) => setDraft((current) => ({ ...current, isDefault }))} />
+            <Switch disabled={busy} checked={draft.isDefault} onCheckedChange={(isDefault) => setDraft((current) => ({ ...current, isDefault }))} />
           </View>
 
           {error ? (
@@ -181,8 +212,8 @@ export function ProvidersScreen({ onBack }: Props) {
             </Animated.View>
           ) : null}
 
-          <Pressy accessibilityRole="button" onPress={() => void save()} style={styles.save}>
-            <Text style={styles.saveLabel}>{draft.id ? "更新引擎" : "保存并接入"}</Text>
+          <Pressy disabled={busy} accessibilityRole="button" onPress={() => void save()} style={styles.save}>
+            {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.saveLabel}>{draft.id ? "更新引擎" : "保存并接入"}</Text>}
           </Pressy>
         </Surface>
       </ScrollView>

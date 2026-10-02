@@ -17,26 +17,27 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
   const { colors } = useTheme(); const { user } = useAccount(); const timeline = useUserPosts();
   const [fallback, setFallback] = useState(initialPost); const post = timeline.posts.find(item => item.id === initialPost.id) ?? fallback;
   const [comments, setComments] = useState<UserComment[]>(initialDetail?.comments ?? []); const [cursor, setCursor] = useState<string | null>(initialDetail?.nextCursor ?? null);
-  const [loading, setLoading] = useState(false); const [error, setError] = useState(""); const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState(""); const [text, setText] = useState("");
   const [reply, setReply] = useState<UserComment | null>(null); const [sending, setSending] = useState(false); const [deleting, setDeleting] = useState<string | null>(null);
   const alive = useRef(true); const version = useRef(0); const loaded = useRef(!!initialDetail); const reading = useRef(false); const writing = useRef(false); const input = useRef<TextInput>(null);
-  const skipInitial = useRef(!!initialDetail); const list = useRef<FlatList<UserComment>>(null); const headerHeight = useRef(0); const jumped = useRef(false);
+  const skipInitial = useRef(!!initialDetail); const identity = useRef(user?.id); const list = useRef<FlatList<UserComment>>(null); const headerHeight = useRef(0); const jumped = useRef(false);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const count = Array.from(text).length;
   function fail(title: string, cause: unknown) { Toast.show({ type: "error", text1: title, text2: cause instanceof Error ? cause.message : "请稍后重试" }); }
-  async function load(more = false) {
+  async function load(more = false, manual = false) {
     if (reading.current || writing.current || (more && !cursor)) return;
-    reading.current = true; setLoading(true); const before = version.current;
+    reading.current = true; setLoading(true); setRefreshing(manual); const before = version.current;
     try {
       const result = await fetchPostDetail(initialPost.id, more ? cursor! : undefined, more ? undefined : initialCommentId);
       if (!alive.current || before !== version.current) return;
       loaded.current = true; setFallback(result.post); updateUserPost(result.post); setCursor(result.nextCursor); setError("");
       setComments(previous => (more ? [...previous, ...result.comments.filter(item => !previous.some(old => old.id === item.id))] : result.comments).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)));
     } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "评论加载失败"); }
-    finally { reading.current = false; if (alive.current) { setLoading(false); if (before !== version.current && !writing.current) void load(); } }
+    finally { reading.current = false; if (alive.current) { setLoading(false); setRefreshing(false); if (before !== version.current && !writing.current) void load(); } }
   }
   useEffect(() => () => { alive.current = false; }, []);
-  useEffect(() => { version.current++; if (skipInitial.current) { skipInitial.current = false; updateUserPost(initialDetail!.post); } else void load(); }, [user?.id]);
+  useEffect(() => { version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } if (skipInitial.current) { skipInitial.current = false; updateUserPost(initialDetail!.post); } else void load(); }, [user?.id]);
+  function updated(post: UserPost) { version.current++; setFallback(post); }
   async function send() {
     if (writing.current || !text.trim() || count > 1000) return;
     writing.current = true; setSending(true); version.current++;
@@ -62,8 +63,8 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
   return <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
     <PageHeader title="动态" onBack={onBack} />
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-      <FlatList ref={list} data={comments} keyExtractor={item => item.id} keyboardShouldPersistTaps="handled" refreshing={loading && comments.length > 0} onRefresh={() => void load()} onContentSizeChange={() => { if (initialCommentId && loaded.current && headerHeight.current && !jumped.current) { jumped.current = true; requestAnimationFrame(() => list.current?.scrollToOffset({ offset: headerHeight.current, animated: false })); } }}
-        ListHeaderComponent={<View onLayout={event => { headerHeight.current = event.nativeEvent.layout.height; }}><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} onAuthor={onAuthor} onUpdated={setFallback} /><Text style={{ padding: 16, fontSize: 17, fontWeight: "700", color: colors.ink1 }}>评论 · {post.commentCount ?? 0}</Text>{initialCommentId ? <Text style={{ paddingHorizontal: 16, paddingBottom: 12, color: colors.ink3, fontSize: 12 }}>从提醒中的评论开始显示</Text> : null}</View>}
+      <FlatList ref={list} data={comments} keyExtractor={item => item.id} keyboardShouldPersistTaps="handled" refreshing={refreshing} onRefresh={() => void load(false, true)} onContentSizeChange={() => { if (initialCommentId && loaded.current && headerHeight.current && !jumped.current) { jumped.current = true; requestAnimationFrame(() => list.current?.scrollToOffset({ offset: headerHeight.current, animated: false })); } }}
+        ListHeaderComponent={<View onLayout={event => { headerHeight.current = event.nativeEvent.layout.height; }}><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} onAuthor={onAuthor} onUpdated={updated} /><Text style={{ padding: 16, fontSize: 17, fontWeight: "700", color: colors.ink1 }}>评论 · {post.commentCount ?? 0}</Text>{initialCommentId ? <Text style={{ paddingHorizontal: 16, paddingBottom: 12, color: colors.ink3, fontSize: 12 }}>从提醒中的评论开始显示</Text> : null}</View>}
         ListEmptyComponent={<View style={{ padding: 24 }}>{loading ? <ActivityIndicator color={colors.accent} /> : !error ? <Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text> : null}</View>}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: colors.line, backgroundColor: item.id === initialCommentId ? colors.accentTint : colors.canvas }}>
           <Pressable accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)}>{item.author.avatarUrl ? <FastImage source={{ uri: item.author.avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18 }} /> : <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.field, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accent }}>{item.author.name.slice(0, 1)}</Text></View>}</Pressable>

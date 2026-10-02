@@ -46,13 +46,17 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
     finally { if (generation.current === current) { refreshing.current = false; setBusy(false); setPulling(false); } }
   }
   useEffect(() => { if (focused) void refresh(); return () => { generation.current++; refreshing.current = false; }; }, [focused, user?.id]);
-  useEffect(() => { if (!focused) return; const timer = setInterval(() => { if (!refreshing.current) void refresh(); }, 30000); return () => clearInterval(timer); }, [focused]);
+  useEffect(() => { if (!focused) return; const timer = setInterval(() => { if (!refreshing.current) void refresh(); }, 30000); return () => clearInterval(timer); }, [focused, user?.id]);
   useEffect(() => {
     const reload = () => { if (focused) void refresh(); };
     const offCatalog = subscribeCatalog(reload); const offSharing = subscribePackageValue("shell.market.changed", reload);
     const offWorkspaces = applicationContext("jolly").storage.subscribe("workspaces", reload);
     return () => { offCatalog(); offSharing(); offWorkspaces(); };
-  }, [focused]);
+  }, [focused, user?.id]);
+  async function workshop(work: MyWork) {
+    try { await openApplicationWorkshop(work.appId, work.title, false, false); }
+    catch (cause) { const message = cause instanceof Error ? cause.message : "工坊暂时无法打开，请重试"; setError(message); Toast.show({ type: "error", text1: "工坊未能打开", text2: message }); }
+  }
   function detail(work: MyWork) { if (work.manifest) onDetail({ manifest: work.manifest, title: work.title, authorId: user?.id ?? null, authorName: user?.name ?? "社区创作者", authorAvatarUrl: user?.avatarUrl, originalAppId: null, owned: true }); }
   async function updateApplication(item: MarketApplication) {
     if (updatingRef.current) return;
@@ -87,7 +91,7 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
         <View style={styles.line}><Text style={[styles.name, { flex: 1 }]}>{work.title}</Text><Text style={styles.badge}>{workLabels[work.stage]}</Text></View>
         {work.wish ? <Text style={styles.copy} numberOfLines={2}>{work.wish}</Text> : null}
         <Text style={styles.caption}>{sharingLabel(work)}{work.stale ? " · 状态待刷新" : ""}</Text>
-        <View style={styles.actions}><Pressy onPress={() => work.stage === "ready" && work.manifest ? detail(work) : openApplicationWorkshop(work.appId, work.title, false, false)}><Text style={styles.link}>{workActions[work.stage]}</Text></Pressy>
+        <View style={styles.actions}><Pressy onPress={() => work.stage === "ready" && work.manifest ? detail(work) : void workshop(work)}><Text style={styles.link}>{workActions[work.stage]}</Text></Pressy>
           {work.manifest && work.stage !== "ready" ? <Pressy onPress={() => detail(work)}><Text style={styles.secondary}>作品详情与分享</Text></Pressy> : null}
           {installed.some(item => item.manifest.appId === work.appId) ? <Pressy onPress={() => onOpen(work.appId)}><Text style={styles.secondary}>打开作品</Text></Pressy> : null}</View>
       </Surface>) : visibleApps.map(item => <Surface key={`installed:${item.manifest.appId}`} radius={20} style={styles.card}>

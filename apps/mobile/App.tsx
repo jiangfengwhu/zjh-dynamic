@@ -262,6 +262,7 @@ function ShellApp() {
       await applyPackageUpdates();
     } catch (error) {
       console.log("package updates apply failed", error instanceof Error ? error.message : error);
+    } finally {
       setUpdateBusy(false);
     }
   }

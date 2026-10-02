@@ -45,14 +45,20 @@ export function loadMoreUserPosts(): Promise<void> {
   return paging;
 }
 export async function publishUserPost(body: string, imageIds: string[], requestId: string, application?: { appId: string; releaseId: string }): Promise<void> {
+  const owner = await currentAccountId();
+  if (!owner) throw new Error("请先登录后发布");
   const response = await accountFetch(`${edgeUrl}/v1/posts`, { method: "POST", signal: AbortSignal.timeout(20000), headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body, imageIds, requestId, application }) }, false);
   const result = await response.json() as { post?: UserPost; message?: string };
   if (!response.ok || !result.post) throw new Error(result.message || "发布未完成，请重试");
+  if (await currentAccountId() !== owner) throw new Error("账号已改变，请切回原账号查看发布结果");
   revision++; save({ ...value, posts: [result.post, ...value.posts.filter(post => post.id !== result.post!.id)] });
 }
 export async function deleteUserPost(id: string): Promise<void> {
+  const owner = await currentAccountId();
+  if (!owner) throw new Error("请先登录后删除");
   const response = await accountFetch(`${edgeUrl}/v1/posts/${id}`, { method: "DELETE", signal: AbortSignal.timeout(20000) }, false);
   if (!response.ok) { const result = await response.json() as { message?: string }; throw new Error(result.message || "删除未完成，请重试"); }
+  if (await currentAccountId() !== owner) throw new Error("账号已改变，请重新查看动态");
   revision++; save({ ...value, posts: value.posts.filter(post => post.id !== id) });
 }
 

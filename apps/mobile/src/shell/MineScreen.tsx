@@ -158,7 +158,7 @@ function checkLabel(state: CheckState): string | undefined {
   if (state === "busy") return "检查中";
   if (state === "ready") return "有更新";
   if (state === "current") return "已是最新";
-  if (state === "failed") return "没查到";
+  if (state === "failed") return "检查失败";
   return undefined;
 }
 

@@ -25,15 +25,16 @@ export function AuthorProfileScreen({ initialAuthor, onBack, onPost, onApplicati
   const { pull, phase, gesture, scrollGesture } = usePullToRefresh({ scrollY, onRefresh: () => load() });
   const lift = useAnimatedStyle(() => ({ transform: [{ translateY: pull.value }] }));
   async function load(more = false) {
-    if (reading.current) { if (!more) rerun.current = true; return; }
-    if (more && !profile.nextCursor) return;
+    if (reading.current) { if (!more) rerun.current = true; return false; }
+    if (more && !profile.nextCursor) return false;
     reading.current = true; setBusy(true); const before = revision.current;
     try {
       const result = more ? await fetchAuthorPosts(initialAuthor.id, profile.nextCursor!) : await fetchAuthorProfile(initialAuthor.id);
-      if (!alive.current || before !== revision.current) return;
+      if (!alive.current || before !== revision.current) return false;
       setProfile(previous => more ? { ...previous, posts: [...previous.posts, ...result.posts.filter(item => !previous.posts.some(old => old.id === item.id))], nextCursor: result.nextCursor } : result as AuthorProfile);
       setLoaded(true); setError("");
-    } catch (cause) { if (alive.current && before === revision.current) setError(cause instanceof Error ? cause.message : "主页暂时无法加载"); }
+      return true;
+    } catch (cause) { if (alive.current && before === revision.current) setError(cause instanceof Error ? cause.message : "主页暂时无法加载"); return false; }
     finally { reading.current = false; if (alive.current) { setBusy(false); if (rerun.current) { rerun.current = false; void load(); } } }
   }
   useEffect(() => () => { alive.current = false; }, []);

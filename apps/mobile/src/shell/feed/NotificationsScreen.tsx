@@ -18,22 +18,23 @@ export function NotificationsScreen({ onBack, onOpen }: { onBack: () => void; on
   const { colors } = useTheme(); const { user } = useAccount(); const count = useNotificationCount(); const focused = useIsFocused();
   const [page, setPage] = useState<NoticePage>({ notices: [], nextCursor: null, unreadCount: 0 }); const [loading, setLoading] = useState(false); const [acting, setActing] = useState(false); const [error, setError] = useState("");
   const alive = useRef(true); const revision = useRef(0); const reading = useRef(false); const writing = useRef(false); const firstCursor = useRef<string | null>(null); const loadedOwner = useRef<string | undefined>(undefined);
-  const reload = useRef<() => Promise<void>>(async () => {}); const again = useRef(false);
+  const reload = useRef<() => Promise<void | boolean>>(async () => {}); const again = useRef(false);
   reload.current = () => load();
   const scrollY = useSharedValue(0); const onScroll = useAnimatedScrollHandler(event => { scrollY.value = event.contentOffset.y; });
   const { pull, phase, gesture, scrollGesture } = usePullToRefresh({ scrollY, onRefresh: () => load() }); const lift = useAnimatedStyle(() => ({ transform: [{ translateY: pull.value }] }));
   function remember(next: NoticePage) { setPage(next); if (user) writeShellValue(`social.notifications.${user.id}`, JSON.stringify({ ...next, notices: next.notices.slice(0, 50), nextCursor: firstCursor.current })); }
   async function load(more = false) {
-    if (!user || writing.current || (more && !page.nextCursor)) return;
-    if (reading.current) { if (!more) again.current = true; return; }
+    if (!user || writing.current || (more && !page.nextCursor)) return false;
+    if (reading.current) { if (!more) again.current = true; return false; }
     reading.current = true; setLoading(true); const before = revision.current; const owner = user.id;
     try {
       if (!more && loadedOwner.current !== owner) { loadedOwner.current = owner; const raw = await readShellValue(`social.notifications.${owner}`); if (raw && alive.current && before === revision.current) { try { const cached = JSON.parse(raw); if (Array.isArray(cached.notices)) { firstCursor.current = cached.nextCursor; setPage(cached); } } catch {} } }
       const result = await readNotifications(more ? page.nextCursor! : undefined);
-      if (!alive.current || before !== revision.current || await currentAccountId() !== owner) return;
+      if (!alive.current || before !== revision.current || await currentAccountId() !== owner) return false;
       if (!more) firstCursor.current = result.nextCursor;
       setPage(previous => { const next = more ? { ...result, notices: [...previous.notices, ...result.notices.filter(item => !previous.notices.some(old => old.id === item.id))] } : result; writeShellValue(`social.notifications.${owner}`, JSON.stringify({ ...next, notices: next.notices.slice(0, 50), nextCursor: firstCursor.current })); return next; }); setError("");
-    } catch (cause) { if (alive.current && before === revision.current) setError(cause instanceof Error ? cause.message : "通知暂时无法加载"); }
+      return true;
+    } catch (cause) { if (alive.current && before === revision.current) setError(cause instanceof Error ? cause.message : "通知暂时无法加载"); return false; }
     finally { reading.current = false; if (alive.current) { setLoading(false); if (again.current) { again.current = false; void reload.current(); } } }
   }
   useEffect(() => () => { alive.current = false; }, []);

@@ -24,7 +24,7 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
     if (busyRef.current) return; busyRef.current = true; setBusy(true); setMessage("");
     try { const changed = await action(); if (alive.current && changed !== false) { setMessage(success); if (success) toast.success(success); } }
     catch (error) { const detail = error instanceof Error ? error.message : "操作未完成，请稍后重试"; if (alive.current) { setMessage(detail); toast.error(detail); } }
-    finally { busyRef.current = false; setBusy(false); setUploadStatus(""); }
+    finally { busyRef.current = false; if (alive.current) { setBusy(false); setUploadStatus(""); } }
   }
   const button = (label: string, action: () => void, disabled = false, secondary = false) => (
     <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || disabled }} disabled={busy || disabled} onPress={action} style={[styles.button, secondary && styles.secondary, (busy || disabled) && styles.disabled]}>

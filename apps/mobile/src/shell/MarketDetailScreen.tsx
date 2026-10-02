@@ -120,7 +120,7 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onSharePost,
     finally { mutation.current = false; setBusy(false); }
   }
   function uninstall() {
-    Alert.alert("卸载应用？", "会从这台手机的应用列表移除，保留本机数据与缓存。重新安装可继续使用。", [{ text: "取消", style: "cancel" }, { text: "卸载", style: "destructive", onPress: () => { if (mutation.current) return; mutation.current = true; setBusy(true); void uninstallMarketApplication(app.appId).catch(e => { setError(String(e)); mutation.current = false; setBusy(false); }); } }]);
+    Alert.alert("卸载应用？", "会从这台手机的应用列表移除，保留本机数据与缓存。重新安装可继续使用。", [{ text: "取消", style: "cancel" }, { text: "卸载", style: "destructive", onPress: () => { if (mutation.current) return; mutation.current = true; setBusy(true); void uninstallMarketApplication(app.appId).then(() => { if (alive.current) { setInstalled(false); setRelease(""); } }).catch(e => { if (alive.current) setError(e instanceof Error ? e.message : "卸载未完成，请重试"); }).finally(() => { mutation.current = false; if (alive.current) setBusy(false); }); } }]);
   }
   const Avatar = marketDefinition(item)?.avatar; const bytes = app.bundle.bytes + app.assets.reduce((total, asset) => total + asset.bytes, 0);
   const shared = sharing?.shared; const hasNewVersion = Boolean(shared && sharing?.application && shared.manifest.releaseId !== sharing.application.releaseId);

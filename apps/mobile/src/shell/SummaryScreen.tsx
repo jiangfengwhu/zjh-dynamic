@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import Toast from "react-native-toast-message";
 import { PageHeader, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES, writeSummaryEvery } from "../../../../packages/ui/feed";
@@ -52,8 +53,8 @@ export function SummaryScreen({ onBack }: Props) {
               accessibilityRole="button"
               onPress={() => {
                 const minutes = Number(customMinutes.trim());
-                if (!Number.isFinite(minutes) || minutes < 1) return;
-                writeSummaryEvery(Math.round(minutes) * 60 * 1000);
+                if (!Number.isSafeInteger(minutes) || minutes < 1 || !Number.isSafeInteger(minutes * 60 * 1000)) { Toast.show({ type: "error", text1: "请输入有效的正整数分钟数" }); return; }
+                writeSummaryEvery(minutes * 60 * 1000);
                 setCustomMinutes("");
               }}
               style={styles.apply}

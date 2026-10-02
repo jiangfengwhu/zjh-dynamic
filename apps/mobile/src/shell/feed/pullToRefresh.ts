@@ -14,7 +14,7 @@ const MIN_REFRESH_MS = 800;
 /** 「已是最新」停留的时间。 */
 const DONE_HOLD_MS = 480;
 
-export type PullPhase = "idle" | "pulling" | "ready" | "refreshing" | "done";
+export type PullPhase = "idle" | "pulling" | "ready" | "refreshing" | "done" | "failed";
 
 /** 手指拖动的距离越大越拉不动：开头跟手，越往后越紧。 */
 function resist(distance: number): number {
@@ -25,7 +25,8 @@ function resist(distance: number): number {
 type Options = {
   /** 列表当前的滚动位置。不在顶部时下拉只是普通滚动，不触发刷新。 */
   scrollY: SharedValue<number>;
-  onRefresh: () => void | Promise<void>;
+  /** Return false when the caller has already handled a failed or skipped refresh. */
+  onRefresh: () => void | boolean | Promise<void | boolean>;
 };
 
 /**
@@ -38,10 +39,12 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
   const phaseRef = useRef<PullPhase>("idle");
   const phaseUI = useSharedValue<PullPhase>("idle");
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const mounted = useRef(true);
   const refresh = useRef(onRefresh);
   refresh.current = onRefresh;
 
   const notifyPhase = useCallback((next: PullPhase) => {
+    if (!mounted.current) return;
     if (phaseRef.current === next) return;
     phaseRef.current = next;
     setPhaseState(next);
@@ -49,28 +52,31 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
   const setPhase = useCallback((next: PullPhase) => { phaseUI.value = next; notifyPhase(next); }, [phaseUI, notifyPhase]);
 
   useEffect(
-    () => () => {
+    () => { mounted.current = true; return () => {
+      mounted.current = false;
       cancelAnimation(pull);
       for (const timer of timers.current) clearTimeout(timer);
-    },
+      timers.current = [];
+    }; },
     [pull],
   );
 
   const finish = useCallback(async () => {
     const started = Date.now();
+    let succeeded = false;
     try {
-      await refresh.current();
-    } catch (error) {
-      console.log("feed refresh failed", error instanceof Error ? error.message : String(error));
-    }
+      succeeded = await refresh.current() !== false;
+    } catch {}
+    if (!mounted.current) return;
     const wait = Math.max(0, MIN_REFRESH_MS - (Date.now() - started));
     timers.current.push(
       setTimeout(() => {
-        setPhase("done");
+        setPhase(succeeded ? "done" : "failed");
         timers.current.push(
           setTimeout(() => {
             pull.value = withTiming(0, { duration: 280 });
             setPhase("idle");
+            timers.current = [];
           }, DONE_HOLD_MS),
         );
       }, wait),
@@ -90,7 +96,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
           "worklet";
           dragging.value = false;
           const touch = event.allTouches[0];
-          if (phaseUI.value === "refreshing" || phaseUI.value === "done" || scrollY.value > 1 || event.numberOfTouches !== 1 || !touch) {
+          if (phaseUI.value === "refreshing" || phaseUI.value === "done" || phaseUI.value === "failed" || scrollY.value > 1 || event.numberOfTouches !== 1 || !touch) {
             manager.fail();
             return;
           }
@@ -100,7 +106,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
           "worklet";
           if (dragging.value) return;
           const touch = event.allTouches[0];
-          if (phaseUI.value === "refreshing" || phaseUI.value === "done" || scrollY.value > 1 || event.numberOfTouches !== 1 || !touch) {
+          if (phaseUI.value === "refreshing" || phaseUI.value === "done" || phaseUI.value === "failed" || scrollY.value > 1 || event.numberOfTouches !== 1 || !touch) {
             manager.fail();
             return;
           }
@@ -123,7 +129,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
         })
         .onUpdate((event) => {
           "worklet";
-          if (phaseUI.value === "refreshing" || phaseUI.value === "done") return;
+          if (phaseUI.value === "refreshing" || phaseUI.value === "done" || phaseUI.value === "failed") return;
           const next = resist(Math.max(0, event.translationY));
           pull.value = next;
           const nextPhase: PullPhase = next >= PULL_THRESHOLD ? "ready" : next > 0 ? "pulling" : "idle";
@@ -135,7 +141,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
         })
         .onEnd((_event, success) => {
           "worklet";
-          if (!success || phaseUI.value === "refreshing" || phaseUI.value === "done") return;
+          if (!success || phaseUI.value === "refreshing" || phaseUI.value === "done" || phaseUI.value === "failed") return;
           if (phaseUI.value === "ready") {
             phaseUI.value = "refreshing";
             pull.value = withSpring(PULL_HOLD, { damping: 18, stiffness: 220 });
@@ -149,7 +155,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
         .onFinalize((_event, success) => {
           "worklet";
           // 系统取消或切 Tab 时只回弹，不执行刷新。
-          if (dragging.value && !success && phaseUI.value !== "refreshing" && phaseUI.value !== "done") {
+          if (dragging.value && !success && phaseUI.value !== "refreshing" && phaseUI.value !== "done" && phaseUI.value !== "failed") {
             pull.value = withSpring(0, { damping: 20, stiffness: 240 });
             phaseUI.value = "idle";
             runOnJS(notifyPhase)("idle");
