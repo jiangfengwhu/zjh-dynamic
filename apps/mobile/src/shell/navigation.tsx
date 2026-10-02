@@ -1,6 +1,9 @@
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
-import { useEffect, useRef, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { Pressy } from "../../../../packages/ui/chrome";
+import { runningApplication, type ApplicationManifest } from "../runtime/applications";
+import { ApplicationFeedbackScreen } from "./ApplicationFeedbackScreen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Screen, ScreenEdge, useKeyboardOpen } from "../../../../packages/ui/edge";
 import {
@@ -55,6 +58,7 @@ export type RootParamList = {
   summary: undefined;
   appearance: undefined;
   bundle: { id: string };
+  applicationFeedback: { manifest: ApplicationManifest; ownerId: string };
   marketDetail: { item: MarketApplication; publish?: boolean };
   myApps: undefined;
   account: undefined;
@@ -159,6 +163,19 @@ function BundlePage({ id, render }: {
   render: (id: string, onBack: () => void) => ReactNode;
 }) {
   const colors = palettes[useTheme().mode];
+  const insets = useSafeAreaInsets(); const [openingFeedback, setOpeningFeedback] = useState(false);
+  const feedbackFlight = useRef(false);
+  async function feedback() {
+    if (feedbackFlight.current) return;
+    feedbackFlight.current = true; setOpeningFeedback(true);
+    try {
+      if (!await requireAccount()) return;
+      const ownerId = await currentAccountId(); const manifest = runningApplication(id);
+      if (!ownerId || !manifest) throw new Error("应用版本尚未就绪，请重新打开应用");
+      shellNavigationRef.navigate("applicationFeedback", { manifest, ownerId });
+    } catch (error) { Toast.show({ type: "error", text1: error instanceof Error ? error.message : "无法打开反馈页" }); }
+    finally { feedbackFlight.current = false; setOpeningFeedback(false); }
+  }
   useEffect(() => {
     mountedBundles.add(id);
     for (const finish of [...(mountWaiters.get(id) ?? [])]) finish();
@@ -168,6 +185,7 @@ function BundlePage({ id, render }: {
   return (
     <Page style={{ flex: 1, backgroundColor: colors.canvas }}>
       <View style={styles.feature}>{render(id, goBack)}</View>
+      {id !== bootstrap.defaultApplication ? <Pressy accessibilityLabel="改一改这个应用" disabled={openingFeedback} onPress={() => void feedback()} style={{ position: "absolute", top: insets.top + 6, right: 12, backgroundColor: colors.field, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 }}><Text style={{ color: colors.accentText, fontSize: 13 }}>{openingFeedback ? "请稍候…" : "改一改"}</Text></Pressy> : null}
     </Page>
   );
 }
@@ -319,6 +337,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         </Stack.Screen>
         <Stack.Screen name="myApps">
           {() => <MyApplicationsScreen onOpen={props.onOpenBundle} onBack={goBack} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
+        </Stack.Screen>
+        <Stack.Screen name="applicationFeedback">
+          {({ route }) => <ApplicationFeedbackScreen key={`${route.params.ownerId}.${route.params.manifest.appId}.${route.params.manifest.releaseId}`} manifest={route.params.manifest} ownerId={route.params.ownerId} onBack={goBack} />}
         </Stack.Screen>
         <Stack.Screen name="account" options={{ animation: "none" }}>
           {() => <AccountScreen onBack={goBack} />}

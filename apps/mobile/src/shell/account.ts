@@ -149,6 +149,17 @@ export async function uploadMarketScreenshot(appId: string, path: string): Promi
   if (status < 200 || status >= 300 || !result.url) throw new Error(result.message || "截图上传失败，请重试");
   return result.url;
 }
+export async function uploadFeedbackScreenshot(appId: string, releaseId: string, path: string): Promise<string> {
+  if (!await requireAccount(false) || !credential) throw new Error("请先登录");
+  const token = credential.token;
+  const response = await BlobUtil.config({ timeout: 60000 }).fetch("PUT", `${edgeUrl}/v1/feedback-media/${appId}/${releaseId}`, { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" }, BlobUtil.wrap(path.replace(/^file:\/\//, "")));
+  if (credential?.token !== token) throw new Error("账号已改变，请重试");
+  const status = response.info().status;
+  if (status === 401) { await clearAccount(); throw new Error("登录已失效，请重新登录"); }
+  let result: { url?: string; message?: string }; try { result = response.json(); } catch { throw new Error("截图上传失败，请重试"); }
+  if (status < 200 || status >= 300 || !result.url) throw new Error(result.message || "截图上传失败，请重试");
+  return result.url;
+}
 function openLogin() { writePackageValue("shell.nav.request", JSON.stringify({ action: "account", at: Date.now() })); }
 export function cachedAccountId(): string | undefined { return state.ready && credential && credential.expiresAt > Date.now() ? state.user?.id : undefined; }
 export async function currentAccountId(): Promise<string | undefined> { await initialize(); return cachedAccountId(); }
