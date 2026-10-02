@@ -43,7 +43,7 @@ import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
 import { subscribeLikes, toggleLike } from "./likes";
 import { markSeen, subscribeSeen, type SeenMap } from "./seen";
-import { useUserPosts, refreshUserPosts, loadMoreUserPosts } from "./userPosts";
+import { useUserPosts, refreshUserPosts, loadMoreUserPosts, type UserPost } from "./userPosts";
 import { UserPostCard } from "./UserPostCard";
 import Toast from "react-native-toast-message";
 
@@ -60,9 +60,10 @@ type FeedProps = {
   /** 找新朋友：去应用市场发现应用。 */
   onNew: () => void;
   onCompose: () => void;
+  onPost: (post: UserPost) => void;
 };
 
-export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, installedIds }: FeedProps) {
+export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, onPost, installedIds }: FeedProps) {
   const { user } = useAccount();
   const { colors } = useTheme();
   const userTimeline = useUserPosts();
@@ -230,7 +231,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
                   {visible.map((item, index) => {
                     if (item.type === "user") {
                       const post = user && item.post.author.id === user.id ? { ...item.post, author: { id: user.id, name: user.name, avatarUrl: user.avatarUrl } } : item.post;
-                      return <View key={`user-${post.id}`} style={styles.post}><UserPostCard post={post} time={formatWhen(post.createdAt)} own={user?.id === post.author.id} /></View>;
+                      return <View key={`user-${post.id}`} style={styles.post}><UserPostCard post={post} time={formatWhen(post.createdAt)} own={user?.id === post.author.id} onOpen={() => onPost(post)} /></View>;
                     }
                     const post = item.post;
                     const friend = friends.get(post.appId) ?? { id: post.appId, name: post.appId, mark: "友", accent: colors.accent };

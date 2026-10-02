@@ -34,6 +34,8 @@ import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { openFeature } from "../../../../packages/features/src/registry";
 import Toast from "react-native-toast-message";
 import { ComposePostScreen } from "./feed/ComposePostScreen";
+import { PostDetailScreen } from "./feed/PostDetailScreen";
+import type { UserPost } from "./feed/userPosts";
 
 export type TabParamList = {
   feed: undefined;
@@ -52,6 +54,7 @@ export type RootParamList = {
   myApps: undefined;
   account: undefined;
   composePost: undefined;
+  postDetail: { post: UserPost };
 };
 
 export const shellNavigationRef = createNavigationContainerRef<RootParamList>();
@@ -257,6 +260,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="feed">
                 {() => (
                   <FeedScreen
+                    onPost={post => shellNavigationRef.navigate("postDetail", { post })}
                     onCompose={() => { void requireAccount().then(allowed => { if (allowed && shellNavigationRef.isReady()) shellNavigationRef.navigate("composePost"); }); }}
                     onOpen={props.onOpenBundle}
                     onReply={props.onReplyToFriend}
@@ -297,6 +301,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         </Stack.Screen>
         <Stack.Screen name="composePost">
           {() => <ComposePostScreen onBack={goBack} />}
+        </Stack.Screen>
+        <Stack.Screen name="postDetail">
+          {({ route }) => <PostDetailScreen initialPost={route.params.post} onBack={goBack} />}
         </Stack.Screen>
         <Stack.Screen name="providers">
           {() => <ProvidersScreen onBack={goBack} />}
