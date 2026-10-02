@@ -33,6 +33,7 @@ import { palettes, useTheme, type ThemeMode } from "../../../../packages/ui/them
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { openFeature } from "../../../../packages/features/src/registry";
 import Toast from "react-native-toast-message";
+import { ComposePostScreen } from "./feed/ComposePostScreen";
 
 export type TabParamList = {
   feed: undefined;
@@ -50,6 +51,7 @@ export type RootParamList = {
   marketDetail: { item: MarketApplication; publish?: boolean };
   myApps: undefined;
   account: undefined;
+  composePost: undefined;
 };
 
 export const shellNavigationRef = createNavigationContainerRef<RootParamList>();
@@ -255,6 +257,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="feed">
                 {() => (
                   <FeedScreen
+                    onCompose={() => { void requireAccount().then(allowed => { if (allowed && shellNavigationRef.isReady()) shellNavigationRef.navigate("composePost"); }); }}
                     onOpen={props.onOpenBundle}
                     onReply={props.onReplyToFriend}
                     installedIds={props.listed.map(item => item.id)}
@@ -291,6 +294,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         </Stack.Screen>
         <Stack.Screen name="account" options={{ animation: "none" }}>
           {() => <AccountScreen onBack={goBack} />}
+        </Stack.Screen>
+        <Stack.Screen name="composePost">
+          {() => <ComposePostScreen onBack={goBack} />}
         </Stack.Screen>
         <Stack.Screen name="providers">
           {() => <ProvidersScreen onBack={goBack} />}

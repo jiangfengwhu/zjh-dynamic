@@ -43,6 +43,9 @@ import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
 import { subscribeLikes, toggleLike } from "./likes";
 import { markSeen, subscribeSeen, type SeenMap } from "./seen";
+import { useUserPosts, refreshUserPosts, loadMoreUserPosts } from "./userPosts";
+import { UserPostCard } from "./UserPostCard";
+import Toast from "react-native-toast-message";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -56,16 +59,20 @@ type FeedProps = {
   onReply: (id: string) => void;
   /** 找新朋友：去应用市场发现应用。 */
   onNew: () => void;
+  onCompose: () => void;
 };
 
-export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, installedIds }: FeedProps) {
+export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, installedIds }: FeedProps) {
   const { user } = useAccount();
   const { colors } = useTheme();
+  const userTimeline = useUserPosts();
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [timelineError, setTimelineError] = useState("");
   const [allPosts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
   const posts = useMemo(() => allPosts.filter(post => installedIds.includes(post.appId) && (post.appId !== bootstrap.defaultApplication || !post.payload.workshopPost || Boolean(user && post.payload.ownerId === user.id))), [allPosts, installedIds, user?.id]);
   const [seen, setSeen] = useState<SeenMap>({});
   const [likes, setLikes] = useState<string[]>([]);
-  const [kind, setKind] = useState<FeedSlot | null>(null);
+  const [kind, setKind] = useState<FeedSlot | "user" | null>(null);
   const [cardsReady, setCardsReady] = useState(0);
   const [summarizing, setSummarizing] = useState(false);
   const firstIds = useRef<Set<string>>(new Set(posts.slice(0, REVEAL_COUNT).map((post) => post.id)));
@@ -91,10 +98,11 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, ins
   useEffect(() => subscribeLikes(setLikes), []);
   useEffect(() => subscribeFeedTemplates(() => setCardsReady((value) => value + 1)), []);
   useEffect(() => subscribeFeedSummaryBusy(setSummarizing), []);
+  useEffect(() => { void refreshUserPosts().then(() => setTimelineError(""), () => setTimelineError("用户动态暂时未能同步，下拉可重试")); }, []);
 
   const { pull, phase, gesture, scrollGesture } = usePullToRefresh({
     scrollY,
-    onRefresh: () => setPosts(readFeedPosts()),
+    onRefresh: async () => { setPosts(readFeedPosts()); try { await refreshUserPosts(); setTimelineError(""); } catch (error) { setTimelineError("用户动态暂时未能同步，下拉可重试"); Toast.show({ type: "error", text1: "刷新未完成", text2: error instanceof Error ? error.message : "请稍后重试" }); } },
   });
   const lift = useAnimatedStyle(() => ({ transform: [{ translateY: pull.value }] }));
 
@@ -134,15 +142,18 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, ins
     return (Object.keys(KIND_LABEL) as FeedSlot[]).filter((item) => present.has(item));
   }, [posts]);
 
-  const visible = useMemo(() => (kind ? posts.filter((post) => post.kind === kind) : posts), [posts, kind]);
+  const visible = useMemo(() => [
+    ...posts.filter(post => !kind || post.kind === kind).map(post => ({ type: "app" as const, post })),
+    ...(!kind || kind === "user" ? userTimeline.posts.map(post => ({ type: "user" as const, post })) : []),
+  ].sort((a, b) => b.post.createdAt - a.post.createdAt || a.post.id.localeCompare(b.post.id)), [posts, userTimeline.posts, kind]);
 
   useEffect(() => {
-    if (kind && !kinds.includes(kind)) setKind(null);
+    if (kind && kind !== "user" && !kinds.includes(kind)) setKind(null);
   }, [kind, kinds]);
 
   // 记下已经出现过的帖子，之后新来的才走落位动效
   const freshIds = new Set<string>();
-  for (const post of visible) if (!knownIds.current.has(post.id)) freshIds.add(post.id);
+  for (const { post } of visible) if (!knownIds.current.has(post.id)) freshIds.add(post.id);
   useEffect(() => {
     for (const post of posts) knownIds.current.add(post.id);
   }, [posts]);
@@ -166,6 +177,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, ins
                 {summarizing ? "正在整理这段时间的动态" : todayLabel()}
               </Text>
             </View>
+            <Pressy accessibilityRole="button" accessibilityLabel="发布文字和图片动态" onPress={onCompose} hitSlop={8} style={{ paddingHorizontal: 10, paddingVertical: 10 }}><Text style={{ color: colors.accentText, fontWeight: "600", fontSize: 14 }}>发动态</Text></Pressy>
             <Pressy accessibilityRole="button" accessibilityLabel="打开 Jolly" onPress={() => open(bootstrap.defaultApplication)} scale={0.92} hitSlop={8}>
               <Halo active={summarizing} size={30}>
                 <DefaultAvatar size={30} />
@@ -189,33 +201,38 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, ins
                   overScrollMode="never"
                   bounces={false}
                   scrollEnabled={phase !== "refreshing" && phase !== "done"}
-                  stickyHeaderIndices={kinds.length > 1 ? [1] : undefined}
+                  stickyHeaderIndices={[1]}
                 >
                   <FriendRail friends={rail} unread={unread} onOpen={open} onNew={onNew} />
 
-                  {kinds.length > 1 ? (
-                    // 吸顶的那一层会把子节点的样式换成 flex: 1，所以外面多包一层，真正的样式放在里面
+                  {/* Keep the filter row mounted so its sticky index stays stable. */}
                     <View>
                       <View style={styles.tabs}>
                         <Tab label="全部" active={kind === null} onPress={() => setKind(null)} />
+                        <Tab label="用户" active={kind === "user"} onPress={() => setKind(kind === "user" ? null : "user")} />
                         {kinds.map((item) => (
                           <Tab key={item} label={KIND_LABEL[item]} active={kind === item} onPress={() => setKind(kind === item ? null : item)} />
                         ))}
                       </View>
                     </View>
-                  ) : null}
+                  {timelineError ? <Text style={{ color: colors.ink3, padding: 16, fontSize: 12 }}>{timelineError}</Text> : null}
 
                   {visible.length === 0 ? (
                     <View style={styles.empty}>
                       <DefaultAvatar size={64} />
-                      <Text style={styles.emptyTitle}>{kind ? `还没有${KIND_LABEL[kind]}` : "这里还很安静"}</Text>
+                      <Text style={styles.emptyTitle}>{kind === "user" ? "还没有用户动态" : kind ? `还没有${KIND_LABEL[kind]}` : "这里还很安静"}</Text>
                       <Text style={styles.emptyBody}>
-                        {kind ? "换一个分类，或者回到全部看看。" : "朋友们有了新动态，会在这里跟你说。"}
+                        {kind === "user" ? "分享一个想法，或记录此刻。" : kind ? "换一个分类，或者回到全部看看。" : "朋友们有了新动态，会在这里跟你说。"}
                       </Text>
                     </View>
                   ) : null}
 
-                  {visible.map((post, index) => {
+                  {visible.map((item, index) => {
+                    if (item.type === "user") {
+                      const post = user && item.post.author.id === user.id ? { ...item.post, author: { id: user.id, name: user.name, avatarUrl: user.avatarUrl } } : item.post;
+                      return <View key={`user-${post.id}`} style={styles.post}><UserPostCard post={post} time={formatWhen(post.createdAt)} own={user?.id === post.author.id} /></View>;
+                    }
+                    const post = item.post;
                     const friend = friends.get(post.appId) ?? { id: post.appId, name: post.appId, mark: "友", accent: colors.accent };
                     const Template = cardsReady >= 0 && post.kind !== "summary" ? peekFeedTemplate(post.appId, post.kind as FeedKind) : undefined;
                     const enter = firstIds.current.has(post.id)
@@ -245,7 +262,8 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, ins
                     );
                   })}
 
-                  {visible.length > 0 ? (
+                  {(!kind || kind === "user") && userTimeline.nextCursor ? <Pressable disabled={loadingMore} onPress={() => { setLoadingMore(true); void loadMoreUserPosts().catch(error => Toast.show({ type: "error", text1: "加载失败", text2: error.message })).finally(() => setLoadingMore(false)); }} style={{ alignItems: "center", padding: 20 }}><Text style={{ color: colors.accentText }}>{loadingMore ? "正在加载…" : "加载更多用户动态"}</Text></Pressable> : null}
+                  {visible.length > 0 && (!userTimeline.nextCursor || (kind && kind !== "user")) ? (
                     <View style={styles.end}>
                       <Icon name="workshop" size={16} color={colors.accentText} />
                       <Text style={styles.endText}>已经看到最新</Text>

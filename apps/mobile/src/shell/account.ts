@@ -124,6 +124,19 @@ export async function logoutAccount() {
   await call("/v1/auth/logout", "POST");
   await clearAccount();
 }
+/** Native file transport stays in the host; plugin contexts never receive tokens. */
+export async function uploadPostImage(path: string): Promise<{ id: string; url: string }> {
+  if (!await requireAccount(false) || !credential) throw new Error("请先登录");
+  const token = credential.token;
+  const response = await BlobUtil.config({ timeout: 60000 }).fetch("PUT", `${edgeUrl}/v1/post-media`, { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" }, BlobUtil.wrap(path.replace(/^file:\/\//, "")));
+  if (credential?.token !== token) throw new Error("账号已改变，请重试");
+  const status = response.info().status;
+  if (status === 401) { await clearAccount(); throw new Error("登录已失效，请重新登录"); }
+  let result: { image?: { id: string; url: string }; message?: string };
+  try { result = response.json(); } catch { throw new Error("图片上传失败，请重试"); }
+  if (status < 200 || status >= 300 || !result.image) throw new Error(result.message || "图片上传失败，请重试");
+  return result.image;
+}
 function openLogin() { writePackageValue("shell.nav.request", JSON.stringify({ action: "account", at: Date.now() })); }
 export function cachedAccountId(): string | undefined { return state.ready && credential && credential.expiresAt > Date.now() ? state.user?.id : undefined; }
 export async function currentAccountId(): Promise<string | undefined> { await initialize(); return cachedAccountId(); }
