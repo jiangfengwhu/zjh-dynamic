@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { GiltLine, Icon, Pressy } from "../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
+import { useNotificationCount, useNotificationSync } from "./feed/notifications";
 
 export const SHELL_TABS = [
   { id: "feed", title: "动态", icon: "feed" },
@@ -29,6 +30,7 @@ export function TabBar({
   onChange: (id: ShellTabId) => void;
 }) {
   const { colors } = useTheme();
+  const notificationCount = useNotificationCount(); useNotificationSync();
   const [width, setWidth] = useState(0);
   const index = Math.max(0, SHELL_TABS.findIndex((item) => item.id === activeId));
   const slot = width / SHELL_TABS.length;
@@ -58,7 +60,7 @@ export function TabBar({
         />
       ) : null}
       {SHELL_TABS.map((item) => (
-        <TabButton key={item.id} item={item} active={item.id === activeId} onPress={() => onChange(item.id)} />
+        <TabButton key={item.id} item={item} active={item.id === activeId} unread={item.id === "feed" ? notificationCount : 0} onPress={() => onChange(item.id)} />
       ))}
     </View>
   );
@@ -68,10 +70,12 @@ function TabButton({
   item,
   active,
   onPress,
+  unread,
 }: {
   item: (typeof SHELL_TABS)[number];
   active: boolean;
   onPress: () => void;
+  unread: number;
 }) {
   const { colors } = useTheme();
   const level = useSharedValue(active ? 1 : 0);
@@ -89,13 +93,14 @@ function TabButton({
   return (
     <Pressy
       accessibilityRole="tab"
-      accessibilityLabel={item.title}
+      accessibilityLabel={`${item.title}${unread ? `，${unread}条未读通知` : ""}`}
       accessibilityState={{ selected: active }}
       onPress={onPress}
       scale={0.92}
       style={styles.tab}
     >
       <View style={styles.iconBox}>
+        {unread > 0 ? <View style={{ position: "absolute", top: -2, right: -3, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent, zIndex: 2 }} /> : null}
         <Animated.View style={[styles.layer, rest]}>
           <Icon name={item.icon} size={23} color={colors.ink3} />
         </Animated.View>

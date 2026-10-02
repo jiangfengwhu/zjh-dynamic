@@ -40,6 +40,8 @@ import { useUserPosts, refreshUserPosts, loadMoreUserPosts, type UserPost } from
 import { UserPostCard } from "./UserPostCard";
 import Toast from "react-native-toast-message";
 import FastImage from "@d11/react-native-fast-image";
+import { Bell } from "lucide-react-native";
+import { useNotificationCount } from "./notifications";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -56,12 +58,14 @@ type FeedProps = {
   onProfile: () => void;
   onApplication: (appId: string) => Promise<void>;
   onAuthor: (author: UserPost["author"]) => void;
+  onNotifications: () => void;
 };
 
-export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, onPost, onProfile, onApplication, onAuthor, installedIds }: FeedProps) {
+export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, onPost, onProfile, onApplication, onAuthor, onNotifications, installedIds }: FeedProps) {
   const { user } = useAccount();
   const { colors } = useTheme();
   const userTimeline = useUserPosts();
+  const unreadNotifications = useNotificationCount();
   const [loadingMore, setLoadingMore] = useState(false);
   const [timelineError, setTimelineError] = useState("");
   const [allPosts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
@@ -168,6 +172,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
                 {summarizing ? "正在整理这段时间的动态" : todayLabel()}
               </Text>
             </View>
+            <Pressy accessibilityRole="button" accessibilityLabel={`查看通知${unreadNotifications ? `，${unreadNotifications}条未读` : ""}`} onPress={onNotifications} hitSlop={4} style={{ padding: 6 }}><Bell size={21} color={colors.ink2} />{unreadNotifications > 0 ? <View style={{ position: "absolute", top: -2, right: -3, minWidth: 15, paddingHorizontal: 3, height: 15, borderRadius: 8, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ fontSize: 9, color: colors.accentText }}>{unreadNotifications > 99 ? "99+" : unreadNotifications}</Text></View> : null}</Pressy>
             <Pressy accessibilityRole="button" accessibilityLabel="发布文字和图片动态" onPress={onCompose} hitSlop={8} style={{ paddingHorizontal: 10, paddingVertical: 10 }}><Text style={{ color: colors.accentText, fontWeight: "600", fontSize: 14 }}>发动态</Text></Pressy>
             <Pressy accessibilityRole="button" accessibilityLabel="打开我的页面" onPress={onProfile} scale={0.92} hitSlop={8}>
               {user?.avatarUrl ? <FastImage source={{ uri: user.avatarUrl }} style={styles.profileAvatar} /> : <View style={[styles.profileAvatar, styles.profilePlaceholder]}><Text style={{ color: colors.accent, fontWeight: "700" }}>{user ? Array.from(user.name)[0] : "我"}</Text></View>}

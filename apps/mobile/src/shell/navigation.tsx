@@ -39,6 +39,8 @@ import { PostDetailScreen } from "./feed/PostDetailScreen";
 import type { UserPost } from "./feed/userPosts";
 import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
 import type { PublicAuthor } from "./feed/userPosts";
+import { fetchPostDetail, type PostDetail } from "./feed/userPosts";
+import { NotificationsScreen } from "./feed/NotificationsScreen";
 
 export type TabParamList = {
   feed: undefined;
@@ -57,7 +59,8 @@ export type RootParamList = {
   myApps: undefined;
   account: undefined;
   composePost: { application?: MarketApplication } | undefined;
-  postDetail: { post: UserPost };
+  postDetail: { post: UserPost; commentId?: string; initialDetail?: PostDetail };
+  notifications: undefined;
   authorProfile: { author: PublicAuthor };
 };
 
@@ -273,6 +276,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="feed">
                 {() => (
                   <FeedScreen
+                    onNotifications={() => { void requireAccount().then(allowed => { if (allowed && shellNavigationRef.isReady()) shellNavigationRef.navigate("notifications"); }); }}
                     onAuthor={openAuthor}
                     onApplication={openPublicMarketApplication}
                     onProfile={() => openShellTab("mine")}
@@ -319,7 +323,10 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           {({ route }) => <ComposePostScreen onBack={goBack} initialApplication={route.params?.application} />}
         </Stack.Screen>
         <Stack.Screen name="postDetail">
-          {({ route }) => <PostDetailScreen initialPost={route.params.post} onBack={goBack} onApplication={openPublicMarketApplication} onAuthor={openAuthor} />}
+          {({ route }) => <PostDetailScreen key={`${route.params.post.id}:${route.params.commentId ?? ""}`} initialPost={route.params.post} initialCommentId={route.params.commentId} initialDetail={route.params.initialDetail} onBack={goBack} onApplication={openPublicMarketApplication} onAuthor={openAuthor} />}
+        </Stack.Screen>
+        <Stack.Screen name="notifications">
+          {() => <NotificationsScreen onBack={goBack} onOpen={async notice => { const origin = shellNavigationRef.getCurrentRoute()?.key; const detail = await fetchPostDetail(notice.postId, undefined, notice.commentId); if (shellNavigationRef.isReady() && shellNavigationRef.getCurrentRoute()?.key === origin) shellNavigationRef.navigate("postDetail", { post: detail.post, commentId: notice.commentId, initialDetail: detail }); }} />}
         </Stack.Screen>
         <Stack.Screen name="authorProfile">
           {({ route }) => <AuthorProfileScreen key={route.params.author.id} initialAuthor={route.params.author} onBack={goBack} onPost={post => shellNavigationRef.navigate("postDetail", { post })} onApplication={openPublicMarketApplication} />}
