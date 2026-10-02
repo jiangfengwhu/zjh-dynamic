@@ -198,12 +198,9 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
   const { colors } = useTheme();
   const keyboard = useKeyboardOpen();
   const { hidden, tabHeight } = useFeedChrome();
-  const bottom = useRef(insets.bottom);
-  bottom.current = Math.max(bottom.current, insets.bottom);
   const motion = useAnimatedStyle(() => ({ transform: [{ translateY: active === "feed" ? hidden.value * tabHeight.value : 0 }] }), [active]);
   return (
-    <Animated.View style={[{ backgroundColor: colors.canvas, paddingBottom: keyboard ? 0 : bottom.current }, active === "feed" && { position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 20 }, motion]}>
-      <View onLayout={event => { tabHeight.value = event.nativeEvent.layout.height + (keyboard ? 0 : bottom.current); }}>
+    <Animated.View onLayout={event => { tabHeight.value = event.nativeEvent.layout.height; }} style={[{ backgroundColor: colors.canvas, paddingBottom: keyboard ? 0 : insets.bottom }, active === "feed" && { position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 20 }, motion]}>
       <TabBar
         activeId={active}
         onChange={(id) => {
@@ -211,7 +208,6 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
           if (route) jumpTo(route.key);
         }}
       />
-      </View>
     </Animated.View>
   );
 }

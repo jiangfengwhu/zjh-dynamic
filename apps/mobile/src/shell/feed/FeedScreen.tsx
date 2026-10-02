@@ -10,7 +10,6 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
-  runOnJS,
   cancelAnimation,
   withDelay,
   withTiming,
@@ -71,15 +70,15 @@ type FeedProps = {
 
 export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onCompose, onPost, onProfile, onApplication, onAuthor, onNotifications, installedIds }: FeedProps) {
   const { user } = useAccount();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const focused = useIsFocused();
-  const focusedRef = useRef(focused); focusedRef.current = focused;
   const insets = useSafeAreaInsets();
-  const safeTop = useRef(insets.top); safeTop.current = Math.max(safeTop.current, insets.top);
   const { hidden: chromeHidden, tabHeight } = useFeedChrome();
-  const systemBars = useCallback((immersive: boolean) => {
-    void NativePluginHost.call("shell", "systemBars", JSON.stringify({ statusBar: colors.canvas, navigationBar: colors.canvas, window: colors.canvas, immersive: immersive && focusedRef.current })).catch(() => {});
-  }, [colors.canvas]);
+  // Android already draws both system bar backgrounds transparently. Keep their
+  // visibility fixed; only the app's header and tabs respond to scrolling.
+  useEffect(() => {
+    if (focused) void NativePluginHost.call("shell", "systemBars", JSON.stringify({ statusBar: colors.canvas, navigationBar: colors.canvas, window: colors.canvas, light: mode === "light", immersive: false })).catch(() => {});
+  }, [focused, colors.canvas, mode]);
   const userTimeline = useUserPosts();
   const unreadNotifications = useNotificationCount();
   const [loadingMore, setLoadingMore] = useState(false);
@@ -97,19 +96,13 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
   const userScrolling = useSharedValue(false);
-  const immersive = useSharedValue(false);
   const direction = useSharedValue(0);
   const layoutSize = useSharedValue({ viewport: 0, content: 0 });
   const [headerSize, setHeaderSize] = useState(144);
   const [viewportSize, setViewportSize] = useState(0);
   useAnimatedReaction(() => headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0, progress => {
     chromeHidden.value = progress;
-    const next = immersive.value ? progress > 0.65 : progress >= 0.999;
-    if (next !== immersive.value) {
-      immersive.value = next;
-      runOnJS(systemBars)(next);
-    }
-  }, [systemBars]);
+  });
   function settleHeader(delay = 0) {
     "worklet";
     const hide = scrollY.value > 1 && (direction.value > 0 || direction.value === 0 && hiddenHeader.value > headerHeight.value / 2);
@@ -128,7 +121,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
       const size = { viewport: event.layoutMeasurement.height, content: event.contentSize.height };
       const resized = Math.abs(size.viewport - layoutSize.value.viewport) > 0.5 || Math.abs(size.content - layoutSize.value.content) > 0.5;
       layoutSize.value = size;
-      // System bar layout changes rebase the offset without reversing the header.
+      // Content and viewport changes rebase the offset without reversing the header.
       if (userScrolling.value && !resized) {
         const delta = next - scrollY.value;
         if (Math.abs(delta) > 0.5) direction.value = delta > 0 ? 1 : -1;
@@ -146,11 +139,8 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     cancelAnimation(hiddenHeader);
     chromeHidden.value = 0;
     hiddenHeader.value = 0;
-    immersive.value = false;
     userScrolling.value = false;
-    systemBars(false);
-    return () => { systemBars(false); };
-  }, [focused, systemBars, chromeHidden, hiddenHeader, immersive, userScrolling]);
+  }, [focused, chromeHidden, hiddenHeader, userScrolling]);
   const edge = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
   }));
@@ -221,9 +211,8 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     scrollY.value = 0;
     hiddenHeader.value = 0;
     chromeHidden.value = 0;
-    immersive.value = false;
-    systemBars(false);
-  }, [kind, scrollY, hiddenHeader, chromeHidden, immersive, systemBars]);
+    userScrolling.value = false;
+  }, [kind, scrollY, hiddenHeader, chromeHidden, userScrolling]);
 
   const open = useCallback(
     (appId: string) => {
@@ -237,7 +226,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     <GestureHandlerRootView style={styles.container}>
       <View style={styles.container}>
         <View style={styles.viewport} onLayout={event => setViewportSize(event.nativeEvent.layout.height)}>
-        <Animated.View onLayout={event => { const height = event.nativeEvent.layout.height; headerHeight.value = height; setHeaderSize(height); }} style={[styles.floatingHeader, { paddingTop: safeTop.current }, headerMotion]}>
+        <Animated.View onLayout={event => { const height = event.nativeEvent.layout.height; headerHeight.value = height; setHeaderSize(height); }} style={[styles.floatingHeader, { paddingTop: insets.top }, headerMotion]}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <View style={styles.headerCopy}>
