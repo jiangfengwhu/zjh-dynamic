@@ -95,7 +95,8 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   const list = useRef<ScrollView>(null);
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
-  const userScrolling = useSharedValue(false);
+  const dragging = useSharedValue(false);
+  const momentum = useSharedValue(false);
   const direction = useSharedValue(0);
   const layoutSize = useSharedValue({ viewport: 0, content: 0 });
   const [headerSize, setHeaderSize] = useState(144);
@@ -111,18 +112,19 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   }
   const onScroll = useAnimatedScrollHandler({
     onBeginDrag: event => {
-      cancelAnimation(hiddenHeader); userScrolling.value = true; direction.value = 0;
+      cancelAnimation(hiddenHeader); dragging.value = true; momentum.value = false; direction.value = 0;
       scrollY.value = Math.max(0, event.contentOffset.y);
       layoutSize.value = { viewport: event.layoutMeasurement.height, content: event.contentSize.height };
     },
-    onMomentumBegin: () => { cancelAnimation(hiddenHeader); userScrolling.value = true; },
+    onMomentumBegin: () => { cancelAnimation(hiddenHeader); momentum.value = true; },
     onScroll: event => {
       const next = Math.max(0, event.contentOffset.y);
       const size = { viewport: event.layoutMeasurement.height, content: event.contentSize.height };
       const resized = Math.abs(size.viewport - layoutSize.value.viewport) > 0.5 || Math.abs(size.content - layoutSize.value.content) > 0.5;
       layoutSize.value = size;
-      // Content and viewport changes rebase the offset without reversing the header.
-      if (userScrolling.value && !resized) {
+      // A finger drag remains authoritative even when a card changes its size.
+      // Ignore layout-only offset changes outside an active drag.
+      if (dragging.value || momentum.value && !resized) {
         const delta = next - scrollY.value;
         if (Math.abs(delta) > 0.5) direction.value = delta > 0 ? 1 : -1;
         hiddenHeader.value = next === 0 ? 0 : Math.max(0, Math.min(headerHeight.value, hiddenHeader.value + delta));
@@ -130,8 +132,13 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
       scrollY.value = next;
     },
     // A fling cancels this delayed snap; a drag without momentum still finishes.
-    onEndDrag: () => { userScrolling.value = false; settleHeader(120); },
-    onMomentumEnd: () => { userScrolling.value = false; settleHeader(); },
+    onEndDrag: () => { dragging.value = false; settleHeader(120); },
+    onMomentumEnd: () => {
+      momentum.value = false;
+      // Android can deliver the interrupted fling's end after a new drag begins.
+      // It must not stop or snap the header underneath the finger.
+      if (!dragging.value) settleHeader();
+    },
   });
   const headerMotion = useAnimatedStyle(() => ({ transform: [{ translateY: -hiddenHeader.value }] }));
   const bottomSpace = useAnimatedStyle(() => ({ paddingBottom: tabHeight.value + 28 }));
@@ -139,8 +146,9 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     cancelAnimation(hiddenHeader);
     chromeHidden.value = 0;
     hiddenHeader.value = 0;
-    userScrolling.value = false;
-  }, [focused, chromeHidden, hiddenHeader, userScrolling]);
+    dragging.value = false;
+    momentum.value = false;
+  }, [focused, chromeHidden, hiddenHeader, dragging, momentum]);
   const edge = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
   }));
@@ -211,8 +219,9 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     scrollY.value = 0;
     hiddenHeader.value = 0;
     chromeHidden.value = 0;
-    userScrolling.value = false;
-  }, [kind, scrollY, hiddenHeader, chromeHidden, userScrolling]);
+    dragging.value = false;
+    momentum.value = false;
+  }, [kind, scrollY, hiddenHeader, chromeHidden, dragging, momentum]);
 
   const open = useCallback(
     (appId: string) => {
