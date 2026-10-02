@@ -11,6 +11,7 @@ const allocation = { moduleRangeSize: 100000 };
 const base = Number(process.env.ZIJINHUA_APPLICATION_BASE);
 if (!Number.isSafeInteger(base)) throw new Error(`应用没有登记模块编号范围：${appId}`);
 const shared = JSON.parse(fs.readFileSync(path.join(output, 'public-modules.json'), 'utf8'));
+const sdkDependencies = new Set(Object.keys(JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8')).dependencies));
 const seen = new Map();
 const idsFile = path.join(output, 'module-ids.json');
 let ids = {};
@@ -35,6 +36,8 @@ module.exports = mergeConfig(getDefaultConfig(mobile), {
         return { type: 'sourceFile', filePath: path.join(output, 'external', `${Buffer.from(name).toString('hex')}.js`) };
       }
       if (name.startsWith('@zijinhua/') || Object.keys(shared).some(entry => name.startsWith(entry + '/'))) throw new Error(`未公开的共享模块入口：${name}`);
+      const packageName = name.startsWith('@') ? name.split('/').slice(0, 2).join('/') : name.split('/')[0];
+      if (sdkDependencies.has(packageName)) throw new Error(`SDK 管理的依赖只能通过公开入口使用：${name}`);
       const result = context.resolveRequest(context, name, platform);
       if (result.type !== 'sourceFile') throw new Error(`首版应用暂不支持这个资源类型：${name}`);
       const normalized = result.filePath.replaceAll('\\', '/');
@@ -44,7 +47,7 @@ module.exports = mergeConfig(getDefaultConfig(mobile), {
         if (packageRoot && !checkedPackages.has(packageRoot)) {
           checkedPackages.add(packageRoot);
           const json = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
-          if (shared[json.name]) throw new Error(`不能将平台共享库的内部文件或别名打入应用：${json.name}`);
+          if (sdkDependencies.has(json.name)) throw new Error(`不能将 SDK 管理库的内部文件或别名打入应用：${json.name}`);
           if (json.codegenConfig || fs.existsSync(path.join(packageRoot, 'android')) || fs.existsSync(path.join(packageRoot, 'ios')) || fs.existsSync(path.join(packageRoot, 'react-native.config.js'))) throw new Error(`原生依赖必须由平台提供：${json.name}`);
         }
         return result;
