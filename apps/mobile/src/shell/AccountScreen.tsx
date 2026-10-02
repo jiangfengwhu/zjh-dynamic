@@ -62,7 +62,6 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
       {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
     </ScrollView>
     {busy ? <View pointerEvents="none" style={{ position: "absolute", left: 24, right: 24, bottom: 24, padding: 16, backgroundColor: colors.surfaceRaised, flexDirection: "row", gap: 12, borderRadius: 16 }}><ActivityIndicator color={colors.accent} /><Text style={{ color: colors.ink1 }}>{uploadStatus || "正在处理，请稍候…"}</Text></View> : null}
-    <Toast position="bottom" bottomOffset={40} />
   </Screen>;
 }
 const styles = themedStyleSheet(t => ({

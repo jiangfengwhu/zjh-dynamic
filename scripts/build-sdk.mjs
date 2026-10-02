@@ -24,4 +24,5 @@ await fs.writeFile(path.join(out,'ui.js'),'module.exports = globalThis.__zijinhu
 await build({entryPoints:['tools/applications/cli.ts'],outfile:path.join(out,'cli.mjs'),bundle:true,platform:'node',format:'esm',packages:'external',banner:{js:'#!/usr/bin/env node'}});
 for(const [from,to] of [['tools/applications/metro.config.cjs','metro.config.cjs'],['packages/app-sdk/platform.json','platform.json']])await fs.copyFile(from,path.join(out,to));
 await fs.writeFile(path.join(out,'babel.cjs'),`module.exports={presets:[require.resolve('@react-native/babel-preset')],plugins:[require.resolve('react-native-worklets/plugin')]};\n`);
+await fs.copyFile(path.join(sdk,'libraries.md'),path.join(out,'libraries.md'));
 console.log('SDK built: packages/app-sdk/dist');

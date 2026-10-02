@@ -93,3 +93,5 @@
 - [Nitro Image](https://github.com/mrousavy/react-native-nitro-image)：内存图片操作；网络加载另需 Web Image loader，保留 FastImage 不视为简单重复。
 - [Clipboard](https://github.com/react-native-clipboard/clipboard)：跨平台剪贴板。
 - [Haptic Feedback](https://github.com/mkuczera/react-native-haptic-feedback)：语义触感与丰富模式。
+
+实施结果：SDK 1.2.0 开放完整组件与工具目录，增加 Clipboard/Haptic Feedback，移除 AsyncStorage/ImagePicker。应用专属存储、凭证、文件和全局提示通过 SDK 能力开放。准确入口与示例见 packages/app-sdk/libraries.md。

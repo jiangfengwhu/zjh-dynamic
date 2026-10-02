@@ -64,7 +64,7 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   const dependencyLock = JSON.parse(await readFile(path.join(mobileDir, "package-lock.json"), "utf8"));
   const publicModules = JSON.parse(await readFile(path.join(repoRoot, "tools/applications/public-modules.json"), "utf8"));
   const publicNames: string[] = publicModules.shared;
-  const shared = Object.fromEntries(publicNames.map(name => [name, dependencyLock.packages[`node_modules/${name.split("/")[0]}`].version]));
+  const shared = Object.fromEntries(publicNames.map(name => [name, dependencyLock.packages[`node_modules/${(name.startsWith("@") ? name.split("/").slice(0, 2).join("/") : name.split("/")[0])}`].version]));
   const applicationContract = { engineAbi: `rn-${shared["react-native"]}-hermes-${dependencyLock.packages["node_modules/hermes-compiler"].version}`, sdk: publicModules.sdk, shared };
   if (!contract.applications || contract.applications.engineAbi !== applicationContract.engineAbi || contract.applications.sdk !== applicationContract.sdk || Object.entries(shared).some(([name, version]) => contract.applications?.shared[name] !== version)) throw new Error("宿主公共依赖与目标 APK 契约不匹配，需要维护者协调发布");
   await writeFile(path.join(mobileDir, "src/runtime/application-contract.json"), JSON.stringify(applicationContract));
@@ -292,7 +292,7 @@ async function writeVendorLibs(repoRoot: string, mobileDir: string) {
   const lines = [...specifiers]
     .filter((item) => item.length > 0 && !item.startsWith(".") && !item.startsWith("@zijinhua/") && !earlyPackages.has(item))
     .sort();
-  const body = lines.map((item) => `import ${JSON.stringify(item)};`).join("\n");
+  const body = `globalThis.__zijinhuaVendorLibraries = {\n${lines.map((item) => `${JSON.stringify(item)}: () => require(${JSON.stringify(item)}),`).join("\n")}\n};`;
   await writeFile(path.join(mobileDir, "vendor-libs.js"), `${body}\n`);
   console.log(`vendor libs count=${lines.length}`);
 }

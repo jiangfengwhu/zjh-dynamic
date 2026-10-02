@@ -36,3 +36,5 @@ Markdown 显示库使用平台维护的不可变 tarball：保持 7.0.2 的渲�
 Linux/Windows 旧候选仅调试路径不同时，SDK 下载并校验原包，要求完整 Hermes 反汇编只差单个编译输入路径，其他发布配置、资源、版本、契约完全一致，才允许重建衔接。新包从固定 application.js 路径编译，不含机器绝对路径。
 
 制作服务的 checkPackageUpdates/applyPackageUpdates 只处理绑定的目标应用，不检查或应用宿主更新及其他作品。openPublication 打开宿主发布表单，显示并锁定所选候选版本；尚未体验也可发布。
+
+共享库清单、固定版本与使用示例见 [libraries.md](dist/libraries.md)。安装 SDK 后亦可读取 `@zijinhua/app-sdk/libraries.md` 与 `@zijinhua/app-sdk/platform.json`。

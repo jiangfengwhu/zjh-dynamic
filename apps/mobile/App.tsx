@@ -3,6 +3,10 @@ import { reportApplicationFailure } from "./src/runtime/applications";
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import Toast from "react-native-toast-message";
 import { bundles, openFeature, refreshApplications, restoreApplications } from "../../packages/features/src/registry";
 import type { FeatureComponent } from "../../packages/features/src/featureHost";
 import NativePluginHost from "./src/NativePluginHost";
@@ -62,7 +66,12 @@ class FeatureBoundary extends Component<BoundaryProps, BoundaryState> {
 function App() {
   return (
     <SafeAreaProvider>
-      <ShellApp />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <KeyboardProvider>
+          <BottomSheetModalProvider><ShellApp /></BottomSheetModalProvider>
+        </KeyboardProvider>
+        <Toast position="bottom" bottomOffset={40} />
+      </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 }

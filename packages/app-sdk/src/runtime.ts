@@ -1,7 +1,8 @@
 const bootstrap = require("../../../tools/applications/bootstrap.json");
 import type { AppContext, AppDefinition } from "./index";
 import { createElement, useEffect } from "react";
-import { readPackageValue, subscribePackageValue, writePackageValue } from "../../ui/packageLink";
+import { readPackageValue, subscribePackageValue, writePackageValue, removePackageValue } from "../../ui/packageLink";
+import { applicationCapabilities } from "./capabilities";
 import { publishFeedPost, recordFeedChange, registerFeedTemplates, upsertFeedPost, removeFeedPost } from "../../ui/feed/store";
 import { registerFeature } from "../../features/src/featureHost";
 import { phone } from "../../platform/src/phone";
@@ -31,6 +32,7 @@ export function applicationContext(appId: string): AppContext {
   const navigate = (request: object) => writePackageValue("shell.nav.request", JSON.stringify({ ...request, at: Date.now() }));
   const context: AppContext = {
     appId, instanceId: appId,
+    ...applicationCapabilities(appId),
     assets: { uri: (name) => {
       const uri = assets.get(appId)?.[name];
       if (!uri) throw new Error(`应用资源未安装：${appId}/${name}`);
@@ -43,6 +45,7 @@ export function applicationContext(appId: string): AppContext {
         return readPackageValue(target);
       },
       set: (key, value) => writePackageValue(keyFor(key), value),
+      remove: key => removePackageValue(keyFor(key)),
       subscribe: (key, listener) => {
         let unsubscribe = subscribePackageValue(keyFor(key), listener);
         const changed = () => { unsubscribe(); unsubscribe = subscribePackageValue(keyFor(key), listener); listener(readPackageValue(keyFor(key))); };

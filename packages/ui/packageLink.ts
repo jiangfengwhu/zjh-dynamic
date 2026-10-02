@@ -37,3 +37,9 @@ export function subscribePackageValue(key: string, listener: Listener): () => vo
     group.delete(listener);
   };
 }
+
+export function removePackageValue(key: string) {
+  if (!store().contains(key)) return;
+  store().remove(key);
+  for (const listener of [...(listeners.get(key) ?? [])]) listener(undefined);
+}

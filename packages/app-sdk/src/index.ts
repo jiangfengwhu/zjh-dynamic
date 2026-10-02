@@ -20,9 +20,15 @@ export type AppContext = {
   appId: string;
   instanceId: string;
   assets: { uri: (name: string) => string };
+  clipboard: { get: () => Promise<string>; set: (text: string) => void };
+  haptics: { trigger: (kind: "selection" | "impactLight" | "impactMedium" | "impactHeavy" | "notificationSuccess" | "notificationWarning" | "notificationError") => void };
+  toast: { show: (text: string, kind?: "success" | "error" | "info") => void };
+  secureStorage: { get: (key: string) => Promise<string | undefined>; set: (key: string, value: string) => Promise<void>; remove: (key: string) => Promise<void> };
+  files: { uri: (path: string) => string; readText: (path: string) => Promise<string>; writeText: (path: string, text: string) => Promise<void>; remove: (path: string) => Promise<void>; list: () => Promise<string[]>; download: (url: string, path: string) => Promise<void> };
   storage: {
     get: (key: string) => string | undefined;
     set: (key: string, value: string) => void;
+    remove: (key: string) => void;
     subscribe: (key: string, listener: (value: string | undefined) => void) => () => void;
   };
   feed: {
