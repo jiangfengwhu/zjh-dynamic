@@ -143,6 +143,7 @@ function handleShellRequest(raw: string | undefined) {
     const request = JSON.parse(raw) as { action?: string; tab?: string; id?: string };
     console.log("shell request", request.action, request.tab ?? request.id ?? "");
     if (request.action === "account") shellNavigationRef.navigate("account");
+    else if (request.action === "providers") shellNavigationRef.navigate("providers");
     else if (request.action === "back") goBack();
     else if (request.action === "tab" && request.tab === "agent") applicationContext(bootstrap.defaultApplication).navigation.create();
     else if (request.action === "tab" && request.tab && SHELL_TAB_IDS.includes(request.tab)) openShellTab(request.tab as ShellTabId);

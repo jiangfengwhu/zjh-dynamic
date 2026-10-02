@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "sdk": "1.2.0",
+  "sdk": "1.3.0",
   "engineAbi": "rn-0.87.1-hermes-250829098.0.17",
   "shared": {
     "@d11/react-native-fast-image": "8.13.0",

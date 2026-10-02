@@ -17,6 +17,36 @@ Jolly 使用 `getCreationService(appId, originalAppId?)` 获取按应用隔离�
 
 制作服务提供 `readWorkshopDetail(session, cachedOnly?)`，聚合会话、进度记录、交付和公开版本；`readWorkshopHistory(session, cursor)` 按需加载更多记录。轮询可用 `shouldPause` 暂停隐藏页面的同步，暂停不会停止云端制作。缓存仅用于展示，不代替写操作的实时鉴权。
 
+### 使用用户配置的 AI（宿主 API 1.3.0）
+
+所有应用通过 `getAppContext().ai` 复用「我的 → AI 引擎」配置，不需要自己的 API Key 设置页或 AI HTTP 客户端。密钥由原生宿主保存和使用，SDK 不提供读取或修改凭证的 API。
+
+```ts
+const ai = getAppContext().ai;
+const providers = await ai.listProviders(); // id、name、model、isDefault，不含密钥或地址
+if (!providers.length) {
+  // 在用户点击“配置 AI”时调用；不要在浏览页面时自动跳转。
+  ai.openSettings();
+} else {
+  const result = await ai.complete({
+    messages: [
+      { role: "system", content: "将用户想法整理成简洁的需求，不擅自增加功能。" },
+      { role: "user", content: "做一个个人记账应用" },
+    ],
+    maxTokens: 2048,
+  });
+  if (result.ok) { /* 将 result.text 展示给用户 */ }
+  else if (result.code === "NOT_CONFIGURED") { /* 显示配置入口，保留用户输入 */ }
+  else { /* 展示 result.error，允许用户手动重试 */ }
+}
+```
+
+不传 providerId 时每次调用读取当前默认模型；可从 listProviders 选择 providerId，已删除的选择返回 PROVIDER_NOT_FOUND，不偷偷切换其他模型。messages 支持 system/user/assistant，多轮对话历史由应用提供；每次最多 128 条、合计 128000 字符。temperature 可选 0–2，maxTokens 可选整数 1–8192；未指定时沿用服务商默认参数。不同模型可能不支持这些参数，失败时应提示并允许调整。
+
+complete 返回可辨别联合结果，成功包含 text/providerId/model；失败 code 为 NOT_CONFIGURED、PROVIDER_NOT_FOUND、INVALID_REQUEST、AUTH_FAILED、RATE_LIMITED、TIMEOUT、NETWORK_ERROR、INVALID_RESPONSE、PROVIDER_ERROR 或 BUSY。listProviders 读取失败会抛出错误。每应用最多同时两次请求，宿主 SDK 全局最多四次；不自动重试，避免重复消耗额度。原生连接超时 20 秒，读响应超时 120 秒。首版为 OpenAI 兼容的非流式文本对话，不提供图片、工具调用、取消或流式输出；应用显示 loading，离开页面后忽略过期结果。
+
+请求从本机直接发送到用户配置的 HTTPS 服务商，不经过紫金花服务端。服务商可收取模型费用；应用应在用户明确使用 AI 功能时请求，并保持原输入、失败提示和配置入口。修改全局 AI 设置只通过宿主配置页。SDK 命名空间是工程边界，共享 JS 环境不是恶意代码安全沙箱。
+
 早期不要求兼容旧业务数据或迁移；应用 ID、模块范围与发布源码基线仍保持稳定。作者可以直接上架已发布的候选版本，后续发包不会自动更新分享版本。
 
 SDK 精确声明全部公开共享库、React 类型与 TypeScript。插件根 package.json 只声明 SDK，不重复安装或 overrides 改写这些依赖；应用 package.json 保留 name/private 与自身纯 JS 依赖，应用版本以 application.json 为准。标准公开库入口仍可直接导入，手机运行时由宿主提供，不随应用打包。

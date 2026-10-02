@@ -6,6 +6,8 @@ AI Coding 获得目标应用、插件仓库 AGENTS.md 与 README、已安装 SDK
 
 运行 npm ci 安装；npm run init:application -- <id> 创建应用，编辑 src/index.ts 和页面。入口默认导出 defineApp({ main: () => require('./app').default })。公共入口为 @zijinhua/app-sdk、/ui、/creation，UI 可选，应用可自行绘制动态。getAppContext 提供按应用隔离的存储、动态、导航、资源和手机能力；制作服务只授权 Jolly。
 
+SDK 与宿主 API 1.3.0 增加 `getAppContext().ai`，所有应用共用用户在我的页面配置的默认 AI 引擎。`listProviders()` 只返回非敏感模型信息，`complete({messages, providerId?, temperature?, maxTokens?})` 返回带 code 的成功/失败结果，`openSettings()` 打开宿主配置页。密钥不进入 SDK、应用存储、请求参数或 JS 响应；宿主原生发起 HTTPS OpenAI 兼容请求，拒绝带凭证、查询参数或重定向的地址。配置缺失、失败或并发 BUSY 不自动重试，应用保留输入并提示。首版只支持非流式文本对话，完整类型及示例随 npm README 发布。
+
 React/RN 及 platform.json 中的共享原生库由宿主提供，额外纯 JS 依赖写入目标应用 package.json，随应用打包。不能引用 vendor 内部文件、其他应用或宿主源码。SDK 工具链版本固定，构建时核对开发 React/RN 版本，发布时再核对目标 /v1/runtime。
 
 assets/ 按 SHA-256 发布，通过 ctx.assets.uri(name) 使用，不支持 require 图片。现有应用 ID、数据键和模块范围保持不变；同进程只运行一个应用版本，更新后重载 JS。

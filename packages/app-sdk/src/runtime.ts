@@ -6,6 +6,7 @@ import { applicationCapabilities } from "./capabilities";
 import { publishFeedPost, recordFeedChange, registerFeedTemplates, upsertFeedPost, removeFeedPost } from "../../ui/feed/store";
 import { registerFeature } from "../../features/src/featureHost";
 import { phone } from "../../platform/src/phone";
+import { applicationAi } from "./ai";
 
 const definitions = new Map<string, AppDefinition>();
 const activated = new Set<string>();
@@ -32,6 +33,7 @@ export function applicationContext(appId: string): AppContext {
   const navigate = (request: object) => writePackageValue("shell.nav.request", JSON.stringify({ ...request, at: Date.now() }));
   const context: AppContext = {
     appId, instanceId: appId,
+    ai: applicationAi(() => navigate({ action: "providers" })),
     ...applicationCapabilities(appId),
     assets: { uri: (name) => {
       const uri = assets.get(appId)?.[name];

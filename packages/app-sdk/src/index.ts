@@ -1,4 +1,6 @@
 import type { ComponentType } from "react";
+import type { AiService } from "./ai-types";
+export type { AiProvider, AiMessage, AiCompletionRequest, AiErrorCode, AiCompletionResult, AiService } from "./ai-types";
 
 export type AppAvatarProps = { size: number; animated?: boolean; borderRadius?: number };
 export type FeedKind = "welcome" | "update" | "activity";
@@ -19,6 +21,7 @@ export type AppDefinition = {
 export type AppContext = {
   appId: string;
   instanceId: string;
+  ai: AiService;
   assets: { uri: (name: string) => string };
   clipboard: { get: () => Promise<string>; set: (text: string) => void };
   haptics: { trigger: (kind: "selection" | "impactLight" | "impactMedium" | "impactHeavy" | "notificationSuccess" | "notificationWarning" | "notificationError") => void };
