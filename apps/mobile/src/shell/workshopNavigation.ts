@@ -1,7 +1,10 @@
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { requireAccount, currentAccountId } from "./account";
 import { readShellValue } from "./shellStorage";
-import { runningApplication } from "../runtime/applications";
+import { runningApplication, fetchApplicationCatalog, preparePublicApplication, applicationNeedsReload, type ApplicationManifest } from "../runtime/applications";
+import { edgeUrl } from "./evolveHost";
+import NativePluginHost from "../NativePluginHost";
+import { writeShellValue } from "./shellStorage";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export async function openCreationRequest(appId: string, prompt?: string) {
   if (!await requireAccount()) return;
@@ -25,6 +28,16 @@ export async function openApplicationWorkshop(appId: string, title: string, fork
   if (!await requireAccount()) return;
   const owner = await currentAccountId(); if (!owner) return;
   if (expectedOwnerId && owner !== expectedOwnerId) throw new Error("账号已改变，请重新打开反馈页");
+  let companion: ApplicationManifest | undefined;
+  if (feedback) {
+    const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${bootstrap.defaultApplication}/public`);
+    if (!response.ok) throw new Error("暂时无法准备工坊，请稍后重试");
+    const published = await response.json() as ApplicationManifest;
+    if (runningApplication(bootstrap.defaultApplication)?.releaseId !== published.releaseId) {
+      await preparePublicApplication(published); companion = published;
+    }
+    if (await currentAccountId() !== owner) throw new Error("账号已改变，请重新打开反馈页");
+  }
   if (fork && !/^[a-f0-9]{64}$/.test(originalReleaseId ?? "")) throw new Error("请刷新市场后选择原作版本");
   const context = applicationContext(bootstrap.defaultApplication);
   const target = fork ? `app-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}` : appId;
@@ -35,6 +48,11 @@ export async function openApplicationWorkshop(appId: string, title: string, fork
   if (feedback) context.storage.set(`pendingFeedback.${target}`, JSON.stringify(feedback));
   if (prefill) context.storage.set(`pendingPrompt.${target}`,  fork ? `基于「${title}」制作一个新的应用，我想` : `修改「${title}」，我想`);
   context.storage.set("openWorkshop", String(Date.now()));
-  context.navigation.open();
+  if (companion) writeShellValue(`application.pending.${bootstrap.defaultApplication}`, JSON.stringify(companion));
+  if (companion && applicationNeedsReload(companion)) {
+    writeShellValue("application.openAfterReload", JSON.stringify({ appId: bootstrap.defaultApplication, ownerId: owner }));
+    try { await NativePluginHost.call("shell", "reloadApplications", "{}"); }
+    catch (error) { writeShellValue("application.openAfterReload", ""); throw error; }
+  } else context.navigation.open();
   return target;
 }
