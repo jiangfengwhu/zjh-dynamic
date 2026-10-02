@@ -11,11 +11,11 @@ import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { loadCatalog, subscribeCatalog } from "./catalog";
 import { readShellValue } from "./shellStorage";
-import { offerApplication, applyApplicationUpdate, runningApplicationReleases } from "../runtime/applications";
+import { offerApplication, applyApplicationUpdate, runningApplication, runningApplicationReleases, type ApplicationManifest } from "../runtime/applications";
 
 import { cachedSharing, loadSharing, editMarketApplication, withdrawMarketApplication, shareMarketApplication, installMarketApplication, uninstallMarketApplication, marketCategories, marketDefinition, type MarketApplication, type SharingState } from "./market";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
-export function MarketDetailScreen({ item, publish, onBack, onOpen, onSharePost, onAuthor }: { onAuthor: (author: { id: string; name: string; avatarUrl: string | null; official?: boolean }) => void; publish?: boolean; item: MarketApplication; onBack: () => void; onOpen: (id: string) => void; onSharePost: (item: MarketApplication) => void }) {
+export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, onSharePost, onAuthor }: { onModify: (manifest: ApplicationManifest, ownerId: string) => void; onAuthor: (author: { id: string; name: string; avatarUrl: string | null; official?: boolean }) => void; publish?: boolean; item: MarketApplication; onBack: () => void; onOpen: (id: string) => void; onSharePost: (item: MarketApplication) => void }) {
   const { user } = useAccount();
   const { colors } = useTheme(); const app = item.manifest; const focused = useIsFocused();
   const [installed, setInstalled] = useState(false); const [release, setRelease] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
@@ -32,6 +32,18 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onSharePost,
   const scroll = useRef<ScrollView>(null);
   const mutation = useRef(false);
   const publicationOpened = useRef(false);
+  async function modify() {
+    if (mutation.current) return;
+    mutation.current = true; setBusy(true);
+    try {
+      if (!await requireAccount()) return;
+      const ownerId = await currentAccountId();
+      if (!ownerId) return;
+      const manifest = (installed ? runningApplication(app.appId) : undefined) ?? (owner ? sharing?.application : undefined) ?? app;
+      onModify(manifest, ownerId);
+    } catch (e) { Toast.show({ type: "error", text1: e instanceof Error ? e.message : "无法打开反馈页" }); }
+    finally { mutation.current = false; if (alive.current) setBusy(false); }
+  }
   useEffect(() => {
     if (publish && sharingReady && sharing?.application && !publicationOpened.current) { publicationOpened.current = true; begin("share"); }
   }, [publish, sharingReady, sharing]);
@@ -141,6 +153,7 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onSharePost,
     {error ? <Text style={styles.error}>{error}</Text> : null}
     <Pressy accessibilityRole="button" disabled={busy} onPress={() => installed && !update ? onOpen(app.appId) : void install()} style={styles.primary}>{busy ? <ActivityIndicator color={colors.canvas} /> : <Text style={styles.primaryText}>{installed ? update ? "更新并体验" : "打开应用" : owner ? "加载并体验" : "安装体验"}</Text>}</Pressy>
     {installed && update ? <Pressy disabled={busy} onPress={() => onOpen(app.appId)}><Text style={styles.secondary}>先打开已安装版本</Text></Pressy> : null}
+    {app.appId !== bootstrap.defaultApplication ? <Pressy accessibilityRole="button" accessibilityLabel="改一改这个应用" disabled={busy} onPress={() => void modify()}><Text style={styles.secondary}>改一改</Text></Pressy> : null}
     <Pressy accessibilityRole="button" disabled={busy} onPress={() => { void requireAccount().then(allowed => { if (allowed) void openApplicationWorkshop(app.appId, app.title, !owner, !owner, app.releaseId).catch(e => setError(String(e))); }); }}><Text style={styles.secondary}>{owner ? "继续修改这个作品" : "基于它创作"}</Text></Pressy>
     {owner ? <Surface radius={20} style={styles.description}><Text style={styles.subtitle}>管理分享</Text>
       <Text style={styles.copy}>{shared ? hasNewVersion ? "已分享 · 有新版本待分享" : "已分享到应用市场" : "尚未分享"}</Text>
