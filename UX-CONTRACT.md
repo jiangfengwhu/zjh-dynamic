@@ -62,3 +62,5 @@ Drawer 的“编辑头像与昵称”进入 account 路由时明确使用原生 
 底部阈值策略由 FeedChrome.SHELL_CHROME_THRESHOLD=24 持有。向下滚过阈值隐藏，向上滚过阈值显示，回到列表顶端立即显示；换方向、开始新拖动、分类切换只清空累计距离，不重置当前显隐。发布按钮与底部 tab 使用同一二态目标和同一动画进度，180ms cubic-out 滑入／滑出，不停留在中间态。
 
 底部动画由 FeedChromeProvider 单独持有：滚动只更新二态 target，useAnimatedReaction 仅在目标变化时启动 withTiming，连续滚动不会反复重启动画；反向跨过阈值时从当前进度平滑转向新终点。无弹簧，ReduceMotion.Never 遵循用户固定播放动画的偏好。
+
+动态 item 的整条详情／主页热区不使用 pressed 背景、涟漪或高亮底色。共享 PostFrame 移除按下时 colors.inset 背景，仅保留既有点击入口与子控件独立交互。

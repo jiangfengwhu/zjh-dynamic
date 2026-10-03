@@ -199,7 +199,6 @@ export const PostFrame = memo(function PostFrame({
   hideBody?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { colors } = useTheme();
   const styles = useFeedStyles();
   const lead =
     body !== undefined ? body : hideBody ? null : <PostBody post={card.post} />;
@@ -208,7 +207,6 @@ export const PostFrame = memo(function PostFrame({
       accessibilityRole="button"
       accessibilityLabel={`${card.friend.name}的动态，打开主页`}
       onPress={card.onOpen}
-      style={({ pressed }) => [pressed && { backgroundColor: colors.inset }]}
     >
       <FeedItemFrame
         avatar={<FriendAvatar friend={card.friend} size={AVATAR} />}
