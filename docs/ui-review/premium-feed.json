@@ -1,0 +1,1 @@
+{"profile":"product-admin","sourceRoots":["apps/mobile/src/shell"],"locale":"zh-CN","canonicalMap":"UX-CONTRACT.md","requiredCapabilities":["Toast","CRUD","Scrollbar"]}

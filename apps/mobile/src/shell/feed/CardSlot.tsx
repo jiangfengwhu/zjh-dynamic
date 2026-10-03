@@ -1,5 +1,6 @@
 import { Component, type ComponentType } from "react";
-import { PostFrame, type FeedCardProps } from "../../../../../packages/ui/feed";
+import { type FeedCardProps } from "../../../../../packages/ui/feed";
+import { PixelPostFrame } from "./PixelPostFrame";
 
 type Props = {
   card: FeedCardProps;
@@ -22,16 +23,22 @@ export class CardSlot extends Component<Props, State> {
 
   componentDidCatch(error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.log("feed card failed", this.props.card.friend.id, this.props.card.post.kind, message.slice(0, 200));
+    console.log(
+      "feed card failed",
+      this.props.card.friend.id,
+      this.props.card.post.kind,
+      message.slice(0, 200)
+    );
   }
 
   componentDidUpdate(previous: Props) {
-    if (this.state.failed && previous.Template !== this.props.Template) this.setState({ failed: false });
+    if (this.state.failed && previous.Template !== this.props.Template)
+      this.setState({ failed: false });
   }
 
   render() {
     const { card, Template } = this.props;
     if (Template && !this.state.failed) return <Template {...card} />;
-    return <PostFrame {...card} />;
+    return <PixelPostFrame {...card} />;
   }
 }
