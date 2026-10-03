@@ -190,13 +190,12 @@ export const HtmlPostContent = memo(function HtmlPostContent({
   return (
     <View
       style={{ width: "100%", minWidth: 0, overflow: "hidden" }}
-      onLayout={(event) =>
+      onLayout={(event) => {
+        const nextWidth = event.nativeEvent.layout.width;
         setWidth((previous) =>
-          Math.abs(previous - event.nativeEvent.layout.width) > 0.5
-            ? event.nativeEvent.layout.width
-            : previous
-        )
-      }
+          Math.abs(previous - nextWidth) > 0.5 ? nextWidth : previous
+        );
+      }}
     >
       <ErrorBoundary
         resetKeys={[html]}
