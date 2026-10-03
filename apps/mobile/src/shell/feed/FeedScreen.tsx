@@ -53,7 +53,11 @@ import {
 import { pixelTheme, usePixelTheme } from "./pixelTheme";
 import { PixelAvatar, PixelIcon } from "./PixelKit";
 import NativePluginHost from "../../NativePluginHost";
-import { useFeedChrome, SHELL_BOTTOM_PADDING } from "./FeedChrome";
+import {
+  useFeedChrome,
+  SHELL_BOTTOM_PADDING,
+  SHELL_CHROME_THRESHOLD,
+} from "./FeedChrome";
 import { subscribeFeedSummaryBusy } from "./summary";
 import { useAccount } from "../account";
 import { CardSlot } from "./CardSlot";
@@ -102,7 +106,11 @@ export const FeedScreen = memo(function FeedScreen({
   const themeContext = usePixelTheme();
   const { colors, mode } = themeContext;
   const insets = useSafeAreaInsets();
-  const { hidden: chromeHidden, tabHeight } = useFeedChrome();
+  const {
+    hidden: chromeHidden,
+    travel: bottomTravel,
+    tabHeight,
+  } = useFeedChrome();
   // Native window owns transparent system bars. Pages only request their colors.
   useFocusEffect(
     useCallback(() => {
@@ -168,8 +176,9 @@ export const FeedScreen = memo(function FeedScreen({
     runOnUI((key: string) => {
       "worklet";
       activeCategory.value = key;
+      bottomTravel.value = 0;
     })(selectedKey);
-  }, [selectedKey, activeCategory]);
+  }, [selectedKey, activeCategory, bottomTravel]);
 
   useEffect(() => subscribeFeedPosts(setPosts), []);
   useEffect(() => subscribeSeen(setSeen), []);
@@ -437,6 +446,7 @@ export const FeedScreen = memo(function FeedScreen({
                                   hiddenHeader={hiddenHeader}
                                   headerHeight={headerHeight}
                                   chromeHidden={chromeHidden}
+                                  bottomTravel={bottomTravel}
                                   scrollY={scrollY}
                                   data={visible}
                                   ItemSeparatorComponent={FeedSeparator}
@@ -692,6 +702,7 @@ const FeedScrollSurface = memo(function FeedScrollSurface({
   hiddenHeader,
   headerHeight,
   chromeHidden,
+  bottomTravel,
   scrollY,
   ...props
 }: AnimatedProps<FlatListProps<FeedTimelineItem>> & {
@@ -700,6 +711,7 @@ const FeedScrollSurface = memo(function FeedScrollSurface({
   hiddenHeader: SharedValue<number>;
   headerHeight: SharedValue<number>;
   chromeHidden: SharedValue<number>;
+  bottomTravel: SharedValue<number>;
   scrollY: SharedValue<number>;
 }) {
   const ref = useAnimatedRef<FlatList<FeedTimelineItem>>();
@@ -712,7 +724,10 @@ const FeedScrollSurface = memo(function FeedScrollSurface({
       onBeginDrag: (event) => {
         dragging.value = true;
         offset.value = Math.max(0, event.contentOffset.y);
-        if (activeCategory.value === categoryKey) scrollY.value = offset.value;
+        if (activeCategory.value === categoryKey) {
+          scrollY.value = offset.value;
+          bottomTravel.value = 0;
+        }
       },
       onScroll: (event) => {
         const next = Math.max(0, event.contentOffset.y);
@@ -728,8 +743,22 @@ const FeedScrollSurface = memo(function FeedScrollSurface({
                 0,
                 Math.min(headerHeight.value, hiddenHeader.value + delta)
               );
-        chromeHidden.value =
-          headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
+        // Bottom chrome has only two states. A direction reversal resets
+        // accumulated travel so tiny scroll corrections cannot flicker it.
+        if (next === 0) {
+          chromeHidden.value = 0;
+          bottomTravel.value = 0;
+        } else if (Math.abs(delta) > 0.1) {
+          bottomTravel.value =
+            delta * bottomTravel.value < 0 ? delta : bottomTravel.value + delta;
+          if (bottomTravel.value >= SHELL_CHROME_THRESHOLD) {
+            chromeHidden.value = 1;
+            bottomTravel.value = 0;
+          } else if (bottomTravel.value <= -SHELL_CHROME_THRESHOLD) {
+            chromeHidden.value = 0;
+            bottomTravel.value = 0;
+          }
+        }
       },
       onEndDrag: () => {
         dragging.value = false;
