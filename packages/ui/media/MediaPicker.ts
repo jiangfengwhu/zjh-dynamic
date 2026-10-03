@@ -1,4 +1,4 @@
-import { openPicker } from "@baronha/react-native-multiple-image-picker";
+import ImagePicker from "react-native-image-crop-picker";
 import { loadImage, type Image } from "react-native-nitro-image";
 import BlobUtil from "react-native-blob-util";
 
@@ -71,18 +71,16 @@ async function pick(options: PhotoPickerOptions): Promise<PickedPhoto[]> {
     if (limits.some(value => value !== undefined && (!Number.isFinite(value) || value < 1 || value > 8192))) throw new Error("图片尺寸无效");
     const quality = options.compressImageQuality ?? 0.8;
     if (!Number.isFinite(quality) || quality < 0 || quality > 1) throw new Error("图片压缩质量无效");
-    const selected = await openPicker({
-      mediaType: "image", selectMode: options.multiple ? "multiple" : "single",
-      maxSelect: maxFiles, maxVideo: 0, language: "zh-Hans", theme: "system",
-      primaryColor: "#F2C665", isHiddenOriginalButton: true,
-      text: { finish: options.cropperChooseText ?? "完成", preview: "预览", edit: "裁剪", original: "原图" },
-      crop: options.cropping ? { circle: options.cropperCircleOverlay, freeStyle: false,
-        ratio: [{ title: "头像", width: 1, height: 1 }], defaultRatio: { width: 1, height: 1 } } : undefined,
+    // Keep the verified native picker; do final dimensions/JPEG encoding here.
+    // Baronha 2.2.5 fails Nitro 0.37 C++ compilation and duplicates uCrop classes.
+    const selected = await ImagePicker.openPicker({
+      ...options, mediaType: "photo", multiple: Boolean(options.multiple), maxFiles,
+      forceJpg: true, compressImageQuality: 1,
+      compressImageMaxWidth: undefined, compressImageMaxHeight: undefined,
     });
-    // 2.2.5's native callback returns an array even for selectMode=single.
     const photos = Array.isArray(selected) ? selected : [selected];
     if (!photos.length) throw Object.assign(new Error("已取消选择"), { code: "E_PICKER_CANCELLED" });
-    if (photos.length > maxFiles || photos.some(photo => photo.type !== "image" || !photo.path)) throw new Error("相册返回的图片无效");
+    if (photos.length > maxFiles || photos.some(photo => !photo.mime?.startsWith("image/") || !photo.path)) throw new Error("相册返回的图片无效");
     if (!await BlobUtil.fs.exists(temporaryDirectory)) await BlobUtil.fs.mkdir(temporaryDirectory);
     for (const photo of photos) encoded.push(await encodePhoto(photo.path, options));
     return encoded;

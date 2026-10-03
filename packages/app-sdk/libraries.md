@@ -4,7 +4,6 @@
 
 | 标准 import 入口 | 固定版本 |
 | --- | --- |
-| `@baronha/react-native-multiple-image-picker` | 2.2.5 |
 | `@d11/react-native-fast-image` | 8.13.0 |
 | `@gorhom/bottom-sheet` | 5.2.14 |
 | `@react-native-clipboard/clipboard` | 1.16.3 |
@@ -53,9 +52,9 @@
 
 ## SDK 能力
 
-新业务图片、选图和 Markdown 优先使用 `@zijinhua/app-sdk/ui` 的 `AppImage`、`MediaPicker`、`RichMarkdown`，不要将具体库散落在业务页面。宿主默认图片走 Nitro Image，网络加载由 Nitro Web Image 提供；请求头、GIF/WebP 动画、加载回调等使用原生 Image 保持行为。选图统一输出经过尺寸约束和 JPEG 编码的临时文件。
+新业务图片、选图和 Markdown 优先使用 `@zijinhua/app-sdk/ui` 的 `AppImage`、`MediaPicker`、`RichMarkdown`，不要将具体库散落在业务页面。宿主默认图片走 Nitro Image，网络加载由 Nitro Web Image 提供；请求头、GIF/WebP 动画、加载回调等使用原生 Image 保持行为。选图继续使用经 APK 验证的 crop-picker 0.52，通过统一入口输出经过尺寸约束和 JPEG 编码的临时文件。Baronha 2.2.5 因 Nitro 0.37 生成代码不兼容及裁剪原生类冲突，本轮未采用。
 
-`@d11/react-native-fast-image`、`react-native-linear-gradient`、`react-native-markdown-display`、`react-native-image-crop-picker` 和 `@react-native-community/blur` 保留已有版本与公共键，仅供已发布应用兼容，不再用于新增业务。Blur 暂无覆盖原生视图实时背景的等价替代，不能用 Skia BackdropBlur 假装兼容。RN 0.87 的普通渐变直接使用 View 的 `backgroundImage`。旧 Markdown 保留可校验的解析器补丁作为兼容入口。
+`@d11/react-native-fast-image`、`react-native-linear-gradient`、`react-native-markdown-display` 和 `@react-native-community/blur` 保留已有版本与公共键，仅供已发布应用兼容，不再用于新增业务。Blur 暂无覆盖原生视图实时背景的等价替代，不能用 Skia BackdropBlur 假装兼容。RN 0.87 的普通渐变直接使用 View 的 `backgroundImage`。旧 Markdown 保留可校验的解析器补丁作为兼容入口。
 
 ```tsx
 import { getAppContext } from "@zijinhua/app-sdk";
