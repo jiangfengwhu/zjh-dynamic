@@ -915,7 +915,7 @@ const styles = themedStyleSheet((base) => {
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
     content: { paddingBottom: 16 },
-    post: { paddingVertical: 3, paddingRight: 24 },
+    post: { paddingVertical: 3 },
     separator: { height: 0.5, marginHorizontal: 16, backgroundColor: t.line },
     empty: {
       marginHorizontal: 16,

@@ -116,7 +116,6 @@ export function UserPostCard({
         accessible={false}
         disabled={detail || !onOpen}
         onPress={onOpen}
-        hitSlop={{ right: 24 }}
         style={styles.openArea}
       >
         <FeedItemFrame
