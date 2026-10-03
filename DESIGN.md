@@ -88,3 +88,5 @@ components:
 顶部滚动：头部偏移不得超过列表实际偏移。列表尚未滚过整个头部时不吸附隐藏，消除轻滑后的占位空白。头部不再绘制滚动态底线；分类底部不加额外 padding。
 
 统一动态骨架由 packages/ui/feed/kit/FeedItemFrame.tsx 持有。UserPostCard、PostFrame 和 PixelPostFrame 复用其头像列、姓名时间、内容插槽和操作栏位置。红框对应 PostFrame.content，仅自绘该区；头像、标题、菜单和操作栏由同一骨架定位，菜单不增加头部高度。
+
+APK 1.4.1 全局窗口采用 edge-to-edge 全屏容器，默认隐藏系统导航栏。系统顶部状态栏保留，原生导航栈切换沿用全局隐藏策略；页面滚动只影响应用头部与底部 tab。原生 safe-area 正常读取可见系统栏与屏幕缺口，不通过 JS 伪造底部 inset。

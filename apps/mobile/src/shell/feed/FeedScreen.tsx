@@ -91,8 +91,7 @@ export const FeedScreen = memo(function FeedScreen({
   const { colors, mode } = themeContext;
   const insets = useSafeAreaInsets();
   const { hidden: chromeHidden, tabHeight } = useFeedChrome();
-  // Android already draws both system bar backgrounds transparently. Keep their
-  // visibility fixed; only the app's header and tabs respond to scrolling.
+  // Native window owns global navigation hiding. Pages only request their colors.
   useFocusEffect(
     useCallback(() => {
       void NativePluginHost.call(
@@ -103,7 +102,6 @@ export const FeedScreen = memo(function FeedScreen({
           navigationBar: colors.canvas,
           window: colors.canvas,
           light: mode === "light",
-          immersive: false,
         })
       ).catch(() => {});
     }, [colors.canvas, mode])

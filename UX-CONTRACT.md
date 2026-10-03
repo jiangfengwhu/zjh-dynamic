@@ -34,3 +34,5 @@
 动态页滚动约定：头部偏移上限为 min(头部高度, 列表偏移)，顶部区域不执行隐藏吸附；分类与标题左对齐，滚动无额外顶栏线。列表右内边距增加 12，条目间为 0.5 浅色分隔。配色所有者仍为 pixelTheme.ts，加入莓粉、薄荷绿、蓝紫与亮黄，文字语义和路由不变。
 
 用户与应用动态共享 FeedItemFrame 渲染结构，内容插槽对应 PostFrame.content；菜单为身份行的附加入口，头像和姓名触达作者／应用。用户正文打开详情、图片预览、删除确认、点赞鉴权与防重、系统分享行为保持。应用 content/body/children 原有契约兼容，不改变数据或服务端接口。
+
+系统导航可见性由 Android MainActivity 与 react-native-screens 原生适配统一持有，默认隐藏；页面 systemBars 调用只设置配色，应用 tab 显隐不再参与系统导航栏生命周期。键盘由现有 KeyboardProvider／IME insets 保持原有所有者。
