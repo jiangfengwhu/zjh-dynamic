@@ -65,10 +65,12 @@ Drawer 的“编辑头像与昵称”进入 account 路由时明确使用原生 
 
 动态 item 的整条详情／主页热区不使用 pressed 背景、涟漪或高亮底色。共享 PostFrame 移除按下时 colors.inset 背景，仅保留既有点击入口与子控件独立交互。
 
-动态 item 的 styles.post 仅保留 paddingVertical=3，删除 paddingRight=24。左右间距统一由 FeedItemFrame 的 paddingHorizontal 持有（紧凑动态页为 7），不重复叠加单侧 padding；整条点击热区随完整容器宽度扩展，不再额外补右侧 hitSlop。
+动态 item 的 styles.post 仅保留 paddingVertical=3，删除 paddingRight=24。左右间距统一由动态列表 content 容器的 paddingHorizontal=7 持有，动态页 FeedItemFrame.frameInset=0，不重复叠加单侧 padding；整条点击热区随完整容器宽度扩展，不再额外补右侧 hitSlop。
 
 分类与 Drawer 手势交接以 UI 线程原生事件为准：feedActive 只随大 tab 焦点变化，feedPage 由原生 onPageSelected／idle 更新，feedIdle 在 dragging／settling 及非零分页 offset 时为 false。只有动态页停稳在第 0 页“全部”时，新的右滑才可以打开 Drawer；手势按下与方向识别阶段均检查资格，左滑判定失败后同一触摸不可转为 Drawer。分类状态更新和清理函数不得临时放开资格。到达“全部”并 idle 时立即在 UI 线程开放，无需等待 React 更新；市场、通知右滑入口保持。
 
-分割线左右边距与紧凑动态容器共用 FeedPresentation.COMPACT_FEED_INSET=7；应用分享卡片、图片、正文的右侧内容边界和分割线终点一致。删除分割线独立的 16 点 margin，保持条目两侧对称，不额外缩窄应用卡片。
+分割线左右边距与紧凑动态容器共用 FeedPresentation.COMPACT_FEED_INSET=7；应用分享卡片、图片、正文的右侧内容边界和分割线终点一致。分割线不另加横向 margin，保持条目两侧对称，不额外缩窄应用卡片。
 
-用户动态内的应用分享卡片在紧凑动态页单独补 9 点右 margin，与 FeedItemFrame 容器 7 点横向 padding 合计为 16，对齐 item 分割线右端；不恢复整条 item 的额外右 padding，不影响正文、图片、操作栏或其他页面的应用卡片布局。
+删除用户应用分享卡片单独的 9 点右 margin。正文、图片、用户分享卡片和其他应用自绘内容统一受动态列表容器的对称边界约束。
+
+动态页容器统一边界：FlatList contentContainerStyle.paddingHorizontal=COMPACT_FEED_INSET=7；item 容器 width=100%、minWidth=0、overflow=hidden、collapsable=false，保证自绘应用内容和媒体不会越过分割线边界。FeedPresentation.frameInset=0 只在此宿主列表取消内部重复横向间距，其他调用方仍保持原默认 7／14。分割线直接铺满同一列表内容宽度；头像左位置保持 x=11。

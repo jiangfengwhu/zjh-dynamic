@@ -3,9 +3,9 @@ import { View, type StyleProp, type ViewStyle } from "react-native";
 import { Pressy } from "../../chrome";
 import { useTheme } from "../../theme";
 import {
-  COMPACT_FEED_INSET,
   FeedText,
   useCompactFeed,
+  useFeedFrameInset,
 } from "./FeedPresentation";
 
 /** Shared identity row; the menu never changes the content's vertical origin. */
@@ -116,6 +116,7 @@ export function FeedItemFrame({
   style?: StyleProp<ViewStyle>;
 }) {
   const compact = useCompactFeed();
+  const frameInset = useFeedFrameInset();
   const avatarSlot = (
     <View style={{ width: 44, height: 44, alignItems: "center" }}>
       {avatar}
@@ -125,7 +126,7 @@ export function FeedItemFrame({
     <View
       style={[
         {
-          paddingHorizontal: compact ? COMPACT_FEED_INSET : 14,
+          paddingHorizontal: frameInset,
           paddingTop: compact ? 4 : 8,
           paddingBottom: compact ? 3 : 6,
         },

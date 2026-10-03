@@ -8,6 +8,8 @@ export const COMPACT_FEED_INSET = 7;
 export const FeedPresentationContext = createContext<{
   Text: ComponentType<TextProps>;
   compact: boolean;
+  /** Outer list can own horizontal spacing without changing other consumers. */
+  frameInset?: number;
 }>({ Text, compact: false });
 export function FeedText(props: TextProps) {
   const { Text: Renderer } = useContext(FeedPresentationContext);
@@ -15,4 +17,11 @@ export function FeedText(props: TextProps) {
 }
 export function useCompactFeed() {
   return useContext(FeedPresentationContext).compact;
+}
+
+export function useFeedFrameInset() {
+  const presentation = useContext(FeedPresentationContext);
+  return (
+    presentation.frameInset ?? (presentation.compact ? COMPACT_FEED_INSET : 14)
+  );
 }

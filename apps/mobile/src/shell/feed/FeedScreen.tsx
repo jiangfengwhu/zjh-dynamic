@@ -642,7 +642,7 @@ const UserTimelineItem = memo(function UserTimelineItem({
   );
   const open = useCallback(() => onPost(post), [onPost, post]);
   return (
-    <View style={styles.post}>
+    <View collapsable={false} style={styles.post}>
       <UserPostCard
         post={post}
         time={time}
@@ -693,7 +693,7 @@ const ApplicationTimelineItem = memo(function ApplicationTimelineItem({
     [post, friend, time, unread, liked, open, like, reply]
   );
   return (
-    <View style={styles.post}>
+    <View collapsable={false} style={styles.post}>
       <CardSlot Template={Template} card={card} />
     </View>
   );
@@ -846,7 +846,7 @@ function FeedSeparator() {
   return <View style={styles.separator} />;
 }
 
-const feedPresentation = { Text: PixelText, compact: true };
+const feedPresentation = { Text: PixelText, compact: true, frameInset: 0 };
 
 function formatWhen(ms: number): string {
   const delta = Date.now() - ms;
@@ -917,11 +917,15 @@ const styles = themedStyleSheet((base) => {
     headerCaption: { fontSize: 10, lineHeight: 15, color: t.ink3 },
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
-    content: { paddingBottom: 16 },
-    post: { paddingVertical: 3 },
+    content: { paddingBottom: 16, paddingHorizontal: COMPACT_FEED_INSET },
+    post: {
+      paddingVertical: 3,
+      width: "100%",
+      minWidth: 0,
+      overflow: "hidden",
+    },
     separator: {
       height: 0.5,
-      marginHorizontal: COMPACT_FEED_INSET,
       backgroundColor: t.line,
     },
     empty: {
