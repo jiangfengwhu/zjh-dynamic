@@ -92,13 +92,13 @@ const styles = themedStyleSheet((t) => ({
     backgroundColor: t.canvas,
   },
   content: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 6,
-    paddingBottom: 36,
+    paddingBottom: 12,
   },
   panel: {
     padding: 16,
-    gap: 14,
+    gap: 12,
     borderRadius: t.radius.xl,
   },
   hint: {
@@ -151,7 +151,7 @@ const styles = themedStyleSheet((t) => ({
   },
   apply: {
     height: 44,
-    paddingHorizontal: 22,
+    paddingHorizontal: 16,
     borderRadius: t.radius.md,
     alignItems: "center",
     justifyContent: "center",

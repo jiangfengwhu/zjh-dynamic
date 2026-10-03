@@ -125,9 +125,9 @@ const styles = themedStyleSheet((t) => ({
     backgroundColor: t.canvas,
   },
   content: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 36,
+    paddingBottom: 12,
     gap: 10,
   },
   group: {
@@ -138,7 +138,7 @@ const styles = themedStyleSheet((t) => ({
     alignItems: "center",
     gap: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

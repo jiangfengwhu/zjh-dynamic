@@ -34,10 +34,11 @@ export function ProvidersScreen({ onBack }: Props) {
   const { colors } = useTheme();
   const [items, setItems] = useState<AiProvider[]>([]);
   const [draft, setDraft] = useState(empty);
+  const [editing, setEditing] = useState(false);
   const [baseline, setBaseline] = useState(empty);
   const dirty = JSON.stringify(draft) !== JSON.stringify(baseline);
   useDiscardChanges(dirty);
-  function selectDraft(next: typeof empty) { const apply = () => { setDraft(next); setBaseline(next); }; if (dirty) confirmDiscard(apply); else apply(); }
+  function selectDraft(next: typeof empty) { const apply = () => { setDraft(next); setBaseline(next); setEditing(true); }; if (dirty) confirmDiscard(apply); else apply(); }
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const working = useRef(false); const alive = useRef(true);
@@ -76,7 +77,7 @@ export function ProvidersScreen({ onBack }: Props) {
     if (!result.ok) {
       throw new Error(result.error ?? "保存失败");
     }
-    if (alive.current) { setDraft(empty); setBaseline(empty); }
+    if (alive.current) { setDraft(empty); setBaseline(empty); setEditing(false); }
     await reload();
     if (alive.current) Toast.show({ type: "success", text1: "AI 引擎已保存" });
     } catch (reason) { fail(reason); }
@@ -110,9 +111,11 @@ export function ProvidersScreen({ onBack }: Props) {
         title="AI 引擎"
         caption={items.length > 0 ? `已接入 ${items.length} 个` : "接入一个模型，小结和创作都会用到"}
         onBack={onBack}
+        right={<Pressy accessibilityLabel="添加 AI 引擎" disabled={busy} onPress={() => selectDraft(empty)}><Icon name="plus" size={20} color={colors.accentText} /></Pressy>}
       />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {error && !editing && items.length ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
         {items.length > 0 ? (
           <View style={styles.block}>
             <SectionTitle>已接入</SectionTitle>
@@ -174,6 +177,7 @@ export function ProvidersScreen({ onBack }: Props) {
           </View>
         ) : null}
 
+        {editing || !items.length ? <>
         <SectionTitle>{draft.id ? "编辑引擎" : "添加引擎"}</SectionTitle>
         <Surface tone="raised" radius={colors.radius.xl} style={styles.form}>
           {draft.id ? (
@@ -235,6 +239,7 @@ export function ProvidersScreen({ onBack }: Props) {
             {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.saveLabel}>{draft.id ? "保存修改" : "保存配置"}</Text>}
           </Pressy>
         </Surface>
+        </> : <Text style={styles.meta}>平台和应用共用这些配置；点击引擎编辑，右上角添加。</Text>}
       </ScrollView>
     </Screen>
   );
@@ -246,9 +251,9 @@ const styles = themedStyleSheet((t) => ({
     backgroundColor: t.canvas,
   },
   content: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 36,
+    paddingBottom: 12,
     gap: 12,
   },
   block: {
@@ -258,7 +263,7 @@ const styles = themedStyleSheet((t) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingLeft: 16,
+    paddingLeft: 12,
     paddingRight: 10,
     paddingVertical: 8,
     borderRadius: t.radius.xl,
@@ -304,8 +309,8 @@ const styles = themedStyleSheet((t) => ({
     backgroundColor: t.redTint,
   },
   form: {
-    padding: 18,
-    gap: 14,
+    padding: 16,
+    gap: 12,
   },
   reset: {
     alignSelf: "flex-start",

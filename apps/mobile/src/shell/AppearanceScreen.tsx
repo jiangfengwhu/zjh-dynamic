@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { PageHeader, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { palettes, themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
@@ -12,8 +12,8 @@ type Props = {
 };
 
 const MODE_OPTIONS: { id: ThemeMode; label: string; hint: string }[] = [
-  { id: "dark", label: "夜紫", hint: "墨色底，金色点缀" },
-  { id: "light", label: "淡纸", hint: "淡紫纸色，墨色文字" },
+  { id: "dark", label: "深色", hint: "中性紫灰，柔和对比" },
+  { id: "light", label: "浅色", hint: "清爽白色，克制紫色" },
 ];
 
 export function AppearanceScreen({ mode, onMode, onBack }: Props) {
@@ -36,7 +36,7 @@ function Segmented({ value, onChange }: { value: ThemeMode; onChange: (mode: The
   const x = useSharedValue(0);
   const index = MODE_OPTIONS.findIndex((item) => item.id === value);
   useEffect(() => {
-    if (slot) x.value = withSpring(index * slot, { damping: 20, stiffness: 240 });
+    if (slot) x.value = withTiming(index * slot, { duration: 180, reduceMotion: ReduceMotion.System });
   }, [index, slot, x]);
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (
@@ -80,9 +80,9 @@ const styles = themedStyleSheet((t) => ({
     backgroundColor: t.canvas,
   },
   content: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 6,
-    paddingBottom: 36,
+    paddingBottom: 12,
   },
   segment: {
     padding: 4,

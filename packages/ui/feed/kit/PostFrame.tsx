@@ -212,8 +212,8 @@ const styles = themedStyleSheet((t) => ({
     marginTop: 1,
   },
   text: {
-    fontSize: 13.5,
-    lineHeight: 19.5,
+    fontSize: 16,
+    lineHeight: 24,
     color: t.ink1,
   },
   extra: {
@@ -230,7 +230,7 @@ const styles = themedStyleSheet((t) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    minHeight: 26,
+    minHeight: 48,
   },
   actionText: {
     fontSize: 11.5,

@@ -15,7 +15,7 @@ export function BackChip({ onPress }: { onPress: () => void }) {
       onPress={onPress}
       hitSlop={8}
       scale={0.9}
-      style={[styles.back, { backgroundColor: colors.surfaceRaised, borderColor: colors.lineStrong }]}
+      style={styles.back}
     >
       <Icon name="back" size={20} color={colors.ink1} strokeWidth={1.9} />
     </Pressy>
@@ -60,17 +60,18 @@ const styles = themedStyleSheet((t) => ({
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 12,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingTop: 2,
+    paddingBottom: 2,
     backgroundColor: t.canvas,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: t.line,
   },
   back: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
+    width: 48,
+    height: 48,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -81,9 +82,9 @@ const styles = themedStyleSheet((t) => ({
   },
   title: {
     fontFamily: t.serif,
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: "700",
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: "600",
     color: t.ink1,
     letterSpacing: 0.2,
   },

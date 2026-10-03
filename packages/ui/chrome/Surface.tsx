@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../theme";
 
 export type SurfaceTone = "base" | "raised" | "inset";
@@ -10,10 +9,7 @@ export function clear(color: string): string {
   return color.replace(/[\d.]+\)\s*$/, "0)");
 }
 
-/**
- * 有厚度的面。顶沿一道高光，往下渐渐没入底色，边框是发丝线。
- * 卡片、分组列表、输入框的底都用它，整个应用的"材质"只有这一处。
- */
+/** 平整表面和细分隔线；仅弹层使用轻阴影。 */
 export function Surface({
   tone = "base",
   radius,
@@ -38,53 +34,28 @@ export function Surface({
           backgroundColor: background,
           borderRadius: round,
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: tone === "inset" ? colors.line : colors.lineStrong,
+          borderColor: colors.line,
           overflow: "hidden",
         },
         lifted && {
           shadowColor: "#000",
-          shadowOpacity: 0.28,
-          shadowRadius: 18,
-          shadowOffset: { width: 0, height: 8 },
-          elevation: 6,
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 2,
         },
         style,
       ]}
     >
-      {tone === "inset" ? null : (
-        <LinearGradient
-          pointerEvents="none"
-          colors={[colors.sheen, clear(colors.sheen)]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.sheen}
-        />
-      )}
       {children}
     </View>
   );
 }
 
-/** 一条两头渐隐的金线，只用在少数需要"收边"的位置。 */
+/** 中性的细分隔线；保留公开组件名，插件无需改导入。 */
 export function GiltLine({ style }: { style?: StyleProp<ViewStyle> }) {
   const { colors } = useTheme();
   return (
-    <LinearGradient
-      pointerEvents="none"
-      colors={[clear(colors.accentSoft), colors.accentSoft, clear(colors.accentSoft)]}
-      start={{ x: 0, y: 0.5 }}
-      end={{ x: 1, y: 0.5 }}
-      style={[{ height: StyleSheet.hairlineWidth * 2 }, style]}
-    />
+    <View pointerEvents="none" style={[{ height: StyleSheet.hairlineWidth, backgroundColor: colors.line }, style]} />
   );
 }
-
-const styles = StyleSheet.create({
-  sheen: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 56,
-  },
-});

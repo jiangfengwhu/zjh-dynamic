@@ -1,13 +1,7 @@
-import { useEffect, useState } from "react";
-import { Text, View, type LayoutChangeEvent } from "react-native";
-import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
-import { GiltLine, Icon, Pressy } from "../../../../packages/ui/chrome";
+import { useEffect } from "react";
+import { Text, View } from "react-native";
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { Icon, Pressy } from "../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { useNotificationCount, useNotificationSync } from "./feed/notifications";
 
@@ -16,154 +10,37 @@ export const SHELL_TABS = [
   { id: "market", title: "应用市场", icon: "box" },
   { id: "mine", title: "我的", icon: "mine" },
 ] as const;
-
 export type ShellTabId = (typeof SHELL_TABS)[number]["id"];
 
-const PILL_WIDTH = 60;
-const SPRING = { damping: 19, stiffness: 230, mass: 0.9 } as const;
-
-export function TabBar({
-  activeId,
-  onChange,
-}: {
-  activeId: string;
-  onChange: (id: ShellTabId) => void;
+export function TabBar({ activeId, onChange }: { activeId: string; onChange: (id: ShellTabId) => void }) {
+  useTheme();
+  const unread = useNotificationCount();
+  useNotificationSync();
+  return <View style={styles.bar}>{SHELL_TABS.map(item =>
+    <Tab key={item.id} item={item} active={item.id === activeId}
+      unread={item.id === "feed" ? unread : 0} onPress={() => onChange(item.id)} />
+  )}</View>;
+}
+function Tab({ item, active, unread, onPress }: {
+  item: (typeof SHELL_TABS)[number]; active: boolean; unread: number; onPress: () => void;
 }) {
   const { colors } = useTheme();
-  const notificationCount = useNotificationCount(); useNotificationSync();
-  const [width, setWidth] = useState(0);
-  const index = Math.max(0, SHELL_TABS.findIndex((item) => item.id === activeId));
-  const slot = width / SHELL_TABS.length;
-  const x = useSharedValue(0);
-  const placed = useSharedValue(false);
-
-  useEffect(() => {
-    if (!slot) return;
-    const target = index * slot + (slot - PILL_WIDTH) / 2;
-    if (!placed.value) {
-      x.value = target;
-      placed.value = true;
-      return;
-    }
-    x.value = withSpring(target, SPRING);
-  }, [index, slot, x, placed]);
-
-  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-
-  return (
-    <View style={styles.bar} onLayout={(event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)}>
-      <GiltLine style={styles.edge} />
-      {slot ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.pill, { backgroundColor: colors.accentTint, borderColor: colors.accentSoft }, pill]}
-        />
-      ) : null}
-      {SHELL_TABS.map((item) => (
-        <TabButton key={item.id} item={item} active={item.id === activeId} unread={item.id === "feed" ? notificationCount : 0} onPress={() => onChange(item.id)} />
-      ))}
-    </View>
-  );
+  const progress = useSharedValue(active ? 1 : 0);
+  useEffect(() => { progress.value = withTiming(active ? 1 : 0, { duration: 160, reduceMotion: ReduceMotion.System }); }, [active, progress]);
+  const motion = useAnimatedStyle(() => ({ opacity: 0.72 + progress.value * 0.28, transform: [{ translateY: -progress.value }] }));
+  return <Pressy onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: active }}
+    accessibilityLabel={item.title + (unread ? `，${unread}条未读通知` : "")} style={styles.tab}>
+    <Animated.View style={[styles.icon, motion]}>
+      <Icon name={item.icon} size={21} color={active ? colors.accentText : colors.ink3} />
+      {unread > 0 ? <View style={[styles.unread, { backgroundColor: colors.accent }]} /> : null}
+    </Animated.View>
+    <Text style={[styles.label, active && { color: colors.accentText, fontWeight: "600" }]}>{item.title}</Text>
+  </Pressy>;
 }
-
-function TabButton({
-  item,
-  active,
-  onPress,
-  unread,
-}: {
-  item: (typeof SHELL_TABS)[number];
-  active: boolean;
-  onPress: () => void;
-  unread: number;
-}) {
-  const { colors } = useTheme();
-  const level = useSharedValue(active ? 1 : 0);
-
-  useEffect(() => {
-    level.value = withTiming(active ? 1 : 0, { duration: 240 });
-  }, [active, level]);
-
-  const rest = useAnimatedStyle(() => ({ opacity: 1 - level.value }));
-  const lit = useAnimatedStyle(() => ({
-    opacity: level.value,
-    transform: [{ translateY: interpolate(level.value, [0, 1], [3, 0]) }, { scale: interpolate(level.value, [0, 1], [0.86, 1]) }],
-  }));
-
-  return (
-    <Pressy
-      accessibilityRole="tab"
-      accessibilityLabel={`${item.title}${unread ? `，${unread}条未读通知` : ""}`}
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      scale={0.92}
-      style={styles.tab}
-    >
-      <View style={styles.iconBox}>
-        {unread > 0 ? <View style={{ position: "absolute", top: -2, right: -3, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent, zIndex: 2 }} /> : null}
-        <Animated.View style={[styles.layer, rest]}>
-          <Icon name={item.icon} size={23} color={colors.ink3} />
-        </Animated.View>
-        <Animated.View style={[styles.layer, lit]}>
-          <Icon name={item.icon} size={23} color={colors.accentText} strokeWidth={1.9} />
-        </Animated.View>
-      </View>
-      <Text style={[styles.label, active && styles.labelActive]}>{item.title}</Text>
-    </Pressy>
-  );
-}
-
-const styles = themedStyleSheet((t) => ({
-  bar: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    paddingTop: 6,
-    paddingBottom: 4,
-    backgroundColor: t.canvas,
-  },
-  edge: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-  },
-  pill: {
-    position: "absolute",
-    top: 9,
-    left: 0,
-    width: PILL_WIDTH,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  tab: {
-    flex: 1,
-    minHeight: 52,
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: 3,
-    paddingTop: 3,
-  },
-  iconBox: {
-    width: 30,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  layer: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  label: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "500",
-    color: t.ink3,
-    letterSpacing: 0.2,
-  },
-  labelActive: {
-    color: t.accentText,
-    fontWeight: "700",
-  },
+const styles = themedStyleSheet(t => ({
+  bar: { flexDirection: "row", backgroundColor: t.canvas, borderTopWidth: 0.5, borderTopColor: t.line },
+  tab: { flex: 1, height: 56, alignItems: "center", justifyContent: "center", gap: 3 },
+  icon: { width: 26, height: 24, alignItems: "center", justifyContent: "center" },
+  unread: { position: "absolute", right: -1, top: 0, width: 6, height: 6, borderRadius: 3 },
+  label: { fontSize: 10.5, lineHeight: 14, color: t.ink3 },
 }));

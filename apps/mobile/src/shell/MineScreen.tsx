@@ -56,7 +56,6 @@ export const MineScreen = memo(function MineScreen({
     <Screen style={styles.screen}>
       <ScreenBar style={styles.header}>
         <Text style={styles.title}>我的</Text>
-        <Text style={styles.caption}>你的资料、作品与偏好</Text>
       </ScreenBar>
 
       <ScrollView
@@ -65,20 +64,24 @@ export const MineScreen = memo(function MineScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Pressable accessibilityRole="button" accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount}><Surface tone="raised" radius={colors.radius.xl} lifted style={styles.profile}>
+        <Pressable accessibilityRole="button" accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount}><View style={styles.profile}>
           <View style={styles.portrait}>
-            {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={{ width: 68, height: 68, borderRadius: 34 }} /> : <Text style={[styles.profileName, { color: colors.accent, fontSize: 30 }]}>{user ? Array.from(user.name)[0] : "我"}</Text>}
+            {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={{ width: 56, height: 56, borderRadius: 28 }} /> : <Text style={[styles.profileName, { color: colors.accent, fontSize: 20 }]}>{user ? Array.from(user.name)[0] : "我"}</Text>}
           </View>
           <View style={styles.profileCopy}>
             <Text style={styles.profileName}>{user?.name ?? "登录紫金花"}</Text>
             <Text style={styles.profileHint}>{user ? "更换头像与昵称" : "用邮箱验证码登录"}</Text>
           </View>
-        </Surface></Pressable>
+          <Icon name="chevron" size={16} color={colors.ink3} />
+        </View></Pressable>
 
-        <SectionTitle>管理</SectionTitle>
-        <Surface style={styles.group}>
+        <SectionTitle>我的空间</SectionTitle>
+        <View style={styles.group}>
           <Row icon="box" title="我的作品与应用" hint="创作、分享与安装管理" onPress={onApplications} />
-          <Row icon="info" title="应用信息" hint="各个包的体积" onPress={onInfo} />
+          <Row icon="engine" title="AI 引擎" hint="平台和应用共用你的模型配置" onPress={onProviders} last />
+        </View>
+        <SectionTitle>偏好与工具</SectionTitle>
+        <View style={styles.group}>
           <Row
             icon="cloud"
             title="检查更新"
@@ -89,7 +92,6 @@ export const MineScreen = memo(function MineScreen({
               void checkUpdates();
             }}
           />
-          <Row icon="engine" title="AI 引擎" hint="小结和创作使用的模型" onPress={onProviders} />
           <Row
             icon="clock"
             title="动态小结"
@@ -100,12 +102,12 @@ export const MineScreen = memo(function MineScreen({
           <Row
             icon={mode === "dark" ? "moon" : "sun"}
             title="外观"
-            hint="夜紫或淡纸"
-            value={mode === "dark" ? "夜紫" : "淡纸"}
+            hint="选择适合当前环境的主题"
+            value={mode === "dark" ? "深色" : "浅色"}
             onPress={onAppearance}
-            last
           />
-        </Surface>
+          <Row icon="info" title="应用信息" hint="版本、包体与运行信息" onPress={onInfo} last />
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -177,19 +179,19 @@ const styles = themedStyleSheet((t) => ({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
     gap: 1,
     backgroundColor: t.canvas,
   },
   title: {
     fontFamily: t.serif,
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: 20,
+    lineHeight: 28,
     fontWeight: "700",
     color: t.ink1,
-    letterSpacing: 2,
+    letterSpacing: 0,
   },
   caption: {
     fontSize: 12.5,
@@ -197,26 +199,26 @@ const styles = themedStyleSheet((t) => ({
     color: t.ink3,
   },
   content: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 0,
     paddingTop: 6,
-    paddingBottom: 40,
+    paddingBottom: 12,
     gap: 12,
   },
   profile: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: 12,
     padding: 16,
     marginBottom: 6,
   },
   portrait: {
     alignItems: "center",
     justifyContent: "center",
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     overflow: "hidden",
-    borderWidth: 1.5,
+    borderWidth: 0,
     borderColor: t.accentSoft,
   },
   profileCopy: {
@@ -225,8 +227,8 @@ const styles = themedStyleSheet((t) => ({
   },
   profileName: {
     fontFamily: t.serif,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: "700",
     color: t.ink1,
   },
@@ -241,9 +243,9 @@ const styles = themedStyleSheet((t) => ({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   rowIcon: {
     width: 36,
@@ -275,7 +277,7 @@ const styles = themedStyleSheet((t) => ({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: 66,
+    marginLeft: 64,
     backgroundColor: t.line,
   },
 }));

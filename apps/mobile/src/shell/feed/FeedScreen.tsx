@@ -310,7 +310,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
                     );
                   }}
                   ListFooterComponent={<View>
-                  {(!kind || kind === "user") && userTimeline.nextCursor ? <Pressable disabled={loadingMore} onPress={() => { setLoadingMore(true); void loadMoreUserPosts().catch(error => Toast.show({ type: "error", text1: "加载失败", text2: error.message })).finally(() => setLoadingMore(false)); }} style={{ alignItems: "center", padding: 20 }}><Text style={{ color: colors.accentText }}>{loadingMore ? "正在加载…" : "加载更多用户动态"}</Text></Pressable> : null}
+                  {(!kind || kind === "user") && userTimeline.nextCursor ? <Pressable disabled={loadingMore} onPress={() => { setLoadingMore(true); void loadMoreUserPosts().catch(error => Toast.show({ type: "error", text1: "加载失败", text2: error.message })).finally(() => setLoadingMore(false)); }} style={{ alignItems: "center", padding: 16 }}><Text style={{ color: colors.accentText }}>{loadingMore ? "正在加载…" : "加载更多用户动态"}</Text></Pressable> : null}
                   {visible.length > 0 && (!userTimeline.nextCursor || (kind && kind !== "user")) ? (
                     <View style={styles.end}>
                       <Icon name="workshop" size={16} color={colors.accentText} />
@@ -389,7 +389,7 @@ const styles = themedStyleSheet((t) => ({
   },
   wordmark: {
     fontFamily: t.serif,
-    fontSize: 21,
+    fontSize: 19,
     lineHeight: 26,
     fontWeight: "700",
     color: t.ink1,
@@ -417,7 +417,7 @@ const styles = themedStyleSheet((t) => ({
   },
   content: {
     paddingTop: 4,
-    paddingBottom: 28,
+    paddingBottom: 12,
   },
   tabs: {
     flexDirection: "row",
@@ -433,7 +433,7 @@ const styles = themedStyleSheet((t) => ({
   tabInner: {
     alignItems: "center",
     justifyContent: "flex-end",
-    height: 36,
+    height: 44,
   },
   tabText: {
     flex: 1,
@@ -458,8 +458,8 @@ const styles = themedStyleSheet((t) => ({
   },
   empty: {
     alignItems: "center",
-    paddingTop: 48,
-    paddingHorizontal: 28,
+    paddingTop: 12,
+    paddingHorizontal: 16,
     gap: 8,
   },
   emptyTitle: {
@@ -480,7 +480,7 @@ const styles = themedStyleSheet((t) => ({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingTop: 16,
+    paddingTop: 12,
   },
   endText: {
     fontSize: 11.5,

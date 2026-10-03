@@ -36,7 +36,7 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
     <PageHeader title={user ? "个人资料" : "邮箱登录"} caption={user ? "让大家认识你" : "一封邮件，就能回来"} onBack={onBack} />
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       {!ready ? <Text style={styles.hint}>正在读取登录信息…</Text> : user ? <>
-        <Surface style={styles.panel}>
+        <View style={styles.panel}>
           <View style={styles.avatarRow}>
             {user.avatarUrl ? <Image key={user.avatarUrl} source={{ uri: user.avatarUrl }} style={styles.avatar} onError={() => toast.error("头像加载失败，请检查网络后重试")} /> : <View style={[styles.avatar, styles.placeholder]}><Text style={styles.initial}>{Array.from(user.name)[0]}</Text></View>}
             <View style={styles.fill}><Text style={styles.label}>你的头像</Text><Text style={styles.hint}>从相册选择一张喜欢的照片</Text></View>
@@ -48,17 +48,18 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
           <Text style={styles.hint}>最多 24 个字符</Text>
           {button("保存昵称", () => void perform(() => saveAccountName(name), "昵称已保存"), !name.trim() || Array.from(name.trim()).length > 24 || name.trim() === user.name)}
           <Text style={styles.label}>登录邮箱</Text><Text selectable style={styles.hint}>{user.email}</Text>
-        </Surface>
+        </View>
         {button("退出登录", () => Alert.alert("退出登录？", "下次可用邮箱验证码重新登录。", [{ text: "取消", style: "cancel" }, { text: "退出登录", style: "destructive", onPress: () => void perform(logoutAccount) }]), false, true)}
-      </> : <Surface style={styles.panel}>
+      </> : <View style={styles.panel}>
         <Text style={styles.label}>邮箱地址</Text>
         <TextInput accessibilityLabel="邮箱地址" value={email} onChangeText={value => { setEmail(value); setCode(""); }} editable={!busy} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" autoComplete="email" maxLength={254} placeholder="你的常用邮箱" placeholderTextColor={colors.muted} style={styles.input} />
         {button(remaining ? `${remaining} 秒后重新发送` : "发送验证码", () => void perform(async () => { const result = await sendLoginCode(normalizedEmail); setCode(""); setNow(Date.now()); setRetryAt(Date.now() + result.retryAfter * 1000); }, "验证码已发送，请查看邮箱"), !validEmail || remaining > 0, true)}
-        <Text style={styles.label}>六位验证码</Text>
+        {retryAt > 0 ? <><Text style={styles.label}>六位验证码</Text>
         <TextInput accessibilityLabel="六位验证码" value={code} onChangeText={value => setCode(value.replace(/\D/g, ""))} editable={!busy} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="one-time-code" maxLength={6} placeholder="输入邮件中的验证码" placeholderTextColor={colors.muted} style={styles.input} />
         {button(busy ? "请稍候…" : "登录", () => void perform(async () => { await loginWithCode(normalizedEmail, code); if (alive.current) { loginSucceeded.current = true; onBack(); setTimeout(() => finishLoginRequest(true), 220); } }), !validEmail || code.length !== 6)}
-        <Text style={styles.hint}>首次登录会自动创建账号，并送你一个好听的名字。验证码 10 分钟内有效。</Text>
-      </Surface>}
+        </> : null}
+        <Text style={styles.hint}>首次登录自动创建账号。只在创作、发布等操作时需要登录，验证码 10 分钟内有效。</Text>
+      </View>}
       {storageError ? <Text accessibilityRole="alert" style={styles.hint}>无法读取手机安全存储，请重新登录。</Text> : null}
       {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
     </ScrollView>
@@ -66,13 +67,13 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
   </Screen>;
 }
 const styles = themedStyleSheet(t => ({
-  screen: { flex: 1, backgroundColor: t.canvas }, content: { padding: 18, paddingBottom: 40, gap: 16 },
-  panel: { padding: 20, gap: 14 }, label: { color: t.ink1, fontSize: 16, fontWeight: "600" },
+  screen: { flex: 1, backgroundColor: t.canvas }, content: { padding: 16, paddingBottom: 12, gap: 12 },
+  panel: { padding: 0, gap: 12 }, label: { color: t.ink1, fontSize: 13, fontWeight: "600" },
   hint: { color: t.muted, fontSize: 14, lineHeight: 22 }, message: { color: t.ink1, fontSize: 15, lineHeight: 24 },
   input: { color: t.ink1, backgroundColor: t.field, borderRadius: t.radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, minHeight: 48 },
   button: { backgroundColor: t.accent, borderRadius: t.radius.md, minHeight: 48, padding: 12, alignItems: "center", justifyContent: "center" },
   secondary: { backgroundColor: t.accentTint }, disabled: { opacity: 0.45 },
   buttonLabel: { color: t.onAccent, fontSize: 16, fontWeight: "600" }, secondaryLabel: { color: t.accent, fontSize: 16, fontWeight: "600" },
-  avatarRow: { flexDirection: "row", alignItems: "center", gap: 16 }, fill: { flex: 1 },
-  avatar: { width: 72, height: 72, borderRadius: 36 }, placeholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" }, initial: { color: t.accent, fontSize: 30, fontWeight: "600" },
+  avatarRow: { flexDirection: "row", alignItems: "center", gap: 12 }, fill: { flex: 1 },
+  avatar: { width: 72, height: 72, borderRadius: 36 }, placeholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" }, initial: { color: t.accent, fontSize: 20, fontWeight: "600" },
 }));

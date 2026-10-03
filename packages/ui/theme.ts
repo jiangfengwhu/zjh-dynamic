@@ -7,18 +7,18 @@ export type ThemeMode = "dark" | "light";
 export const fonts = {
   mono: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
   sans: Platform.select({ ios: "System", android: "sans-serif", default: "System" }),
-  /** 标题、字标、数字用衬线；正文仍用无衬线。 */
-  serif: Platform.select({ ios: "Georgia", android: "serif", default: "serif" }),
+  /** 保留公共字段名，标题与正文统一采用平台无衬线字体。 */
+  serif: Platform.select({ ios: "System", android: "sans-serif", default: "System" }),
 } as const;
 
 const radius = {
   xs: 6,
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
-  xxl: 30,
-  window: 22,
+  sm: 8,
+  md: 10,
+  lg: 12,
+  xl: 14,
+  xxl: 16,
+  window: 14,
   pill: 999,
 } as const;
 
@@ -57,7 +57,7 @@ export type Theme = {
   jollyBlush: string;
   jollyOrb: string;
 
-  // 主色：金箔。按钮、选中、进度都用它
+  // 主色：紫金花。按钮、选中、进度共用。
   accent: string;
   accentTint: string;
   accentSoft: string;
@@ -97,40 +97,40 @@ export type Theme = {
 export const palettes: Record<ThemeMode, Theme> = {
   dark: {
     // 夜紫：带一点紫的墨色底，金箔只落在关键处
-    ink: "#100C15",
-    inkRaised: "#1F192B",
-    line: "#2A2336",
-    gold: "#D9B46C",
-    goldDim: "#8F7743",
-    text: "#F3EEF8",
-    muted: "#8E8499",
+    ink: "#19181F",
+    inkRaised: "#24222C",
+    line: "#34303F",
+    gold: "#BAA6F3",
+    goldDim: "#A391D1",
+    text: "#EEECF5",
+    muted: "#AAA5B8",
     danger: "#E58A9B",
 
-    canvas: "#100C15",
-    surface: "#171220",
-    surfaceRaised: "#1F192B",
-    inset: "#0C0910",
-    field: "#130F1A",
-    hover: "#272035",
-    hover2: "#322A42",
-    lineStrong: "#3A3149",
+    canvas: "#19181F",
+    surface: "#1D1B25",
+    surfaceRaised: "#24222C",
+    inset: "#15141B",
+    field: "#24222C",
+    hover: "#30283F",
+    hover2: "#3C324E",
+    lineStrong: "#4B4359",
     sheen: "rgba(255, 255, 255, 0.07)",
     shade: "rgba(0, 0, 0, 0.22)",
 
-    ink1: "#F3EEF8",
-    ink2: "#CBC2D6",
-    ink3: "#8E8499",
+    ink1: "#EEECF5",
+    ink2: "#D0CADC",
+    ink3: "#AAA5B8",
 
     jollyFur: "#E8DECE",
     jollyFace: "#FEECE0",
     jollyBlush: "#FDA4AF",
     jollyOrb: "#A78BFA",
 
-    accent: "#D9B46C",
-    accentTint: "rgba(217, 180, 108, 0.13)",
-    accentSoft: "rgba(217, 180, 108, 0.22)",
-    accentText: "#E7C98B",
-    onAccent: "#1C1408",
+    accent: "#BAA6F3",
+    accentTint: "#30283F",
+    accentSoft: "#443457",
+    accentText: "#C5B2F5",
+    onAccent: "#21192F",
 
     orchid: "#A88BEB",
     orchidTint: "rgba(168, 139, 235, 0.16)",
@@ -161,39 +161,39 @@ export const palettes: Record<ThemeMode, Theme> = {
   },
   light: {
     // 淡紫纸：偏冷的白，墨色文字，金箔加深以保证可读
-    ink: "#F5F3F8",
+    ink: "#FFFFFF",
     inkRaised: "#FFFFFF",
-    line: "#E3DDEB",
-    gold: "#9A6A14",
-    goldDim: "#7B5A24",
-    text: "#1B1524",
-    muted: "#7D7189",
+    line: "#E9E7EF",
+    gold: "#644BC1",
+    goldDim: "#7761B8",
+    text: "#24232C",
+    muted: "#74717F",
     danger: "#C43D5A",
 
-    canvas: "#F5F3F8",
+    canvas: "#FFFFFF",
     surface: "#FFFFFF",
-    surfaceRaised: "#EFEBF4",
-    inset: "#E8E3EF",
+    surfaceRaised: "#F7F7FA",
+    inset: "#F0EEF5",
     field: "#FFFFFF",
-    hover: "#EAE5F1",
-    hover2: "#DFD8E9",
-    lineStrong: "#CFC6DB",
+    hover: "#F0ECFA",
+    hover2: "#E8E1F5",
+    lineStrong: "#D5CFDF",
     sheen: "rgba(255, 255, 255, 0.9)",
     shade: "rgba(60, 40, 90, 0.05)",
 
-    ink1: "#1B1524",
-    ink2: "#4A4056",
-    ink3: "#7D7189",
+    ink1: "#24232C",
+    ink2: "#514C5E",
+    ink3: "#74717F",
 
     jollyFur: "#DFD2C0",
     jollyFace: "#FEECE0",
     jollyBlush: "#FB7185",
     jollyOrb: "#8B5CF6",
 
-    accent: "#9A6A14",
-    accentTint: "rgba(154, 106, 20, 0.10)",
-    accentSoft: "rgba(154, 106, 20, 0.17)",
-    accentText: "#7B520B",
+    accent: "#644BC1",
+    accentTint: "#F0ECFA",
+    accentSoft: "#E5DDF5",
+    accentText: "#5B42AF",
     onAccent: "#FFFFFF",
 
     orchid: "#7A5BD0",
@@ -204,9 +204,9 @@ export const palettes: Record<ThemeMode, Theme> = {
     cyanTint: "rgba(31, 134, 160, 0.10)",
     cyanText: "#136982",
 
-    green: "#2E9E6E",
+    green: "#26735E",
     greenTint: "rgba(46, 158, 110, 0.10)",
-    greenText: "#1E7A52",
+    greenText: "#236651",
 
     red: "#C43D5A",
     redTint: "rgba(196, 61, 90, 0.09)",
