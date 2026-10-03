@@ -7,6 +7,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@baronha/react-native-multiple-image-picker": "2.2.5",
     "@d11/react-native-fast-image": "8.13.0",
     "@gorhom/bottom-sheet": "5.2.14",
     "@react-native-clipboard/clipboard": "1.16.3",
@@ -29,6 +30,7 @@
     "react-native": "0.87.1",
     "react-native-blob-util": "0.25.1",
     "react-native-calendars": "1.1314.0",
+    "react-native-enriched-markdown": "1.1.0",
     "react-native-gesture-handler": "3.3.0",
     "react-native-get-random-values": "2.0.0",
     "react-native-gifted-charts": "1.4.78",
@@ -41,6 +43,7 @@
     "react-native-mmkv": "4.3.2",
     "react-native-nitro-image": "0.15.2",
     "react-native-nitro-modules": "0.37.1",
+    "react-native-nitro-web-image": "0.15.2",
     "react-native-pager-view": "9.0.5",
     "react-native-pdf": "7.0.5",
     "react-native-qrcode-svg": "6.3.26",
@@ -75,5 +78,10 @@
   },
   "engines": {
     "node": ">= 22.11.0"
+  },
+  "enriched-markdown": {
+    "enableMath": false,
+    "enableVideo": false,
+    "enableCodeHighlight": false
   }
 }

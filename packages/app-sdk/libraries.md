@@ -4,6 +4,7 @@
 
 | 标准 import 入口 | 固定版本 |
 | --- | --- |
+| `@baronha/react-native-multiple-image-picker` | 2.2.5 |
 | `@d11/react-native-fast-image` | 8.13.0 |
 | `@gorhom/bottom-sheet` | 5.2.14 |
 | `@react-native-clipboard/clipboard` | 1.16.3 |
@@ -24,6 +25,7 @@
 | `react` | 19.2.3 |
 | `react-error-boundary` | 6.1.6 |
 | `react-native` | 0.87.1 |
+| `react-native-enriched-markdown` | 1.1.0 |
 | `react-native-calendars` | 1.1314.0 |
 | `react-native-gesture-handler` | 3.3.0 |
 | `react-native-gifted-charts` | 1.4.78 |
@@ -33,6 +35,7 @@
 | `react-native-linear-gradient` | 2.8.3 |
 | `react-native-markdown-display` | 7.0.2 |
 | `react-native-nitro-image` | 0.15.2 |
+| `react-native-nitro-web-image` | 0.15.2 |
 | `react-native-pager-view` | 9.0.5 |
 | `react-native-pdf` | 7.0.5 |
 | `react-native-qrcode-svg` | 6.3.26 |
@@ -49,6 +52,10 @@
 | `react/jsx-dev-runtime` | 19.2.3 |
 
 ## SDK 能力
+
+新业务图片、选图和 Markdown 优先使用 `@zijinhua/app-sdk/ui` 的 `AppImage`、`MediaPicker`、`RichMarkdown`，不要将具体库散落在业务页面。宿主默认图片走 Nitro Image，网络加载由 Nitro Web Image 提供；请求头、GIF/WebP 动画、加载回调等使用原生 Image 保持行为。选图统一输出经过尺寸约束和 JPEG 编码的临时文件。
+
+`@d11/react-native-fast-image`、`react-native-linear-gradient`、`react-native-markdown-display`、`react-native-image-crop-picker` 和 `@react-native-community/blur` 保留已有版本与公共键，仅供已发布应用兼容，不再用于新增业务。Blur 暂无覆盖原生视图实时背景的等价替代，不能用 Skia BackdropBlur 假装兼容。RN 0.87 的普通渐变直接使用 View 的 `backgroundImage`。旧 Markdown 保留可校验的解析器补丁作为兼容入口。
 
 ```tsx
 import { getAppContext } from "@zijinhua/app-sdk";

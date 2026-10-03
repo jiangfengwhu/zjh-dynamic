@@ -58,7 +58,7 @@ import {
 } from "./userPosts";
 import { UserPostCard } from "./UserPostCard";
 import Toast from "react-native-toast-message";
-import FastImage from "@d11/react-native-fast-image";
+import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { useNotificationCount } from "./notifications";
 
 type FeedProps = {
@@ -418,7 +418,7 @@ export const FeedScreen = memo(function FeedScreen({
                       style={styles.profileControl}
                     >
                       {user?.avatarUrl ? (
-                        <FastImage
+                        <AppImage
                           source={{ uri: user.avatarUrl }}
                           style={styles.profileAvatar}
                         />

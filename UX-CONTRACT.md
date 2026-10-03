@@ -20,7 +20,10 @@
 | 删除 | UserPostCard.tsx、userPosts.ts | 沿用 RN 原生确认和服务端删除行为；不增改数据生命周期 |
 | 头像和卡片 | runtime/application metadata、CardSlot.tsx | 宿主默认应用用新角色，其他应用身份保持；自定义卡错误仅降级当前卡 |
 | 主题 | packages/ui/theme.ts → feed/pixelTheme.ts | 深浅主题沿用账号外观选择；仅迁移动态页语义表面 |
-| 字体 | PixelText.tsx / FeedPresentation.tsx | 内嵌中文像素字体；系统字号缩放和原生可访问标签；可选文字与内联链接保留原生文字行为 |
+| 字体 | PixelText.tsx / FeedPresentation.tsx / APK ReactFontManager | 原生中文像素字体；系统字号缩放、选择、链接和原生可访问语义统一保留 |
+| 图片 | packages/ui/media/AppImage.tsx | 默认延迟加载并按 URI 回收图片；特殊请求头、动画格式与事件回调沿用 RN Image |
+| 选图 | packages/ui/media/MediaPicker.ts | 用户操作触发；全局防重；圆形头像裁剪、多选上限、JPEG 编码和尺寸约束；取消不提示错误；仅删除自身临时副本 |
+| Markdown | packages/ui/media/RichMarkdown.tsx | 共享原生渲染、主题、字号缩放、选择菜单与链接策略；流式更新遵循系统减少动态效果设置 |
 | 滚动条 | RN ScrollView／FlatList | 使用平台原生滚动指示器；分类在最新动态区域，发布按钮固定右下角并避让导航与安全区 |
 | Form / Select / Date / Table Selection | 本轮不涉及 | 编辑、账号与设置现有流程保持原所有者 |
 

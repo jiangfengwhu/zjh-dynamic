@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import LinearGradient from "react-native-linear-gradient";
 import { themedStyleSheet, useTheme } from "../../theme";
 import type { FeedFriend } from "../store";
 
@@ -46,12 +45,10 @@ export function FriendRing({
   return (
     <View style={{ width: outer, height: outer, alignItems: "center", justifyContent: "center" }}>
       {unread ? (
-        <LinearGradient
+        <View
           pointerEvents="none"
-          colors={[friend.accent, colors.orchid]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ position: "absolute", width: outer, height: outer, borderRadius: outer / 2 }}
+          style={{ position: "absolute", width: outer, height: outer, borderRadius: outer / 2,
+            backgroundImage: [{ type: "linear-gradient", direction: "to bottom right", colorStops: [{ color: friend.accent, positions: ["0%"] }, { color: colors.orchid, positions: ["100%"] }] }] }}
         />
       ) : (
         <View

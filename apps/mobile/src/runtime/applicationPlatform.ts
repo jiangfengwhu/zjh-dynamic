@@ -9,6 +9,9 @@ import { readShellValue, writeShellValue } from "../shell/shellStorage";
 import { openCreationRequest } from "../shell/workshopNavigation";
 
 const modules: Record<string, () => unknown> = {
+  "react-native-enriched-markdown": () => require("react-native-enriched-markdown"),
+  "@baronha/react-native-multiple-image-picker": () => require("@baronha/react-native-multiple-image-picker"),
+  "react-native-nitro-web-image": () => require("react-native-nitro-web-image"),
   "@d11/react-native-fast-image": () => require("@d11/react-native-fast-image"),
   "@gorhom/bottom-sheet": () => require("@gorhom/bottom-sheet"),
   "@react-native-clipboard/clipboard": () => require("@react-native-clipboard/clipboard"),

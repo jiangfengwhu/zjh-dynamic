@@ -3,7 +3,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { GestureDetector } from "react-native-gesture-handler";
-import FastImage from "@d11/react-native-fast-image";
+import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { CompactTabs } from "../CompactTabs";
 import { PageHeader } from "../../../../../packages/ui/chrome";
 import { Screen } from "../../../../../packages/ui/edge";
@@ -49,7 +49,7 @@ export function AuthorProfileScreen({ initialAuthor, onBack, onPost, onApplicati
   const header = <View>
     <View style={{ padding: 16, gap: 12 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        {author.avatarUrl ? <FastImage source={{ uri: author.avatarUrl }} style={{ width: 56, height: 56, borderRadius: colors.radius.md }} /> : <View style={{ width: 56, height: 56, borderRadius: colors.radius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ fontSize: 23, fontWeight: "700", color: colors.onAccent }}>{Array.from(author.name)[0]}</Text></View>}
+        {author.avatarUrl ? <AppImage source={{ uri: author.avatarUrl }} style={{ width: 56, height: 56, borderRadius: colors.radius.md }} /> : <View style={{ width: 56, height: 56, borderRadius: colors.radius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ fontSize: 23, fontWeight: "700", color: colors.onAccent }}>{Array.from(author.name)[0]}</Text></View>}
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
           <Text numberOfLines={2} style={{ fontSize: 22, lineHeight: 28, letterSpacing: -0.5, fontWeight: "800", color: colors.ink1 }}>{author.name}</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>

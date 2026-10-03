@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Image, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
-import FastImage from "@d11/react-native-fast-image";
+import { AppImage } from "../../../../packages/ui/media/AppImage";
 import { Search, ArrowUpRight } from "lucide-react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { BackChip, Icon, Pressy } from "../../../../packages/ui/chrome";
@@ -99,7 +99,7 @@ function FeaturedApplication({ item, busy, onPress }: { item: MarketApplication;
       <View style={styles.rowHead}>
         <View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={44} /> : <Text style={{ color: app.accent, fontSize: 20 }}>{app.mark}</Text>}</View>
         <View style={styles.featuredCopy}><Text style={styles.featuredName} numberOfLines={2}>{item.title || app.title}</Text><Text style={styles.summary} numberOfLines={2}>{item.summary || app.summary}</Text><Text numberOfLines={1} style={[styles.caption, { flexShrink: 1 }]} numberOfLines={1}>{item.authorName || "社区创作者"}</Text></View>
-        {item.screenshots?.[0] ? <FastImage accessibilityLabel={`${item.title || app.title}的真实应用截图`} source={{ uri: item.screenshots[0] }} style={styles.featuredImage} resizeMode={FastImage.resizeMode.cover} /> : null}
+        {item.screenshots?.[0] ? <AppImage accessibilityLabel={`${item.title || app.title}的真实应用截图`} source={{ uri: item.screenshots[0] }} style={styles.featuredImage} resizeMode={"cover"} /> : null}
       </View>
     </Pressy>
   </Animated.View>;

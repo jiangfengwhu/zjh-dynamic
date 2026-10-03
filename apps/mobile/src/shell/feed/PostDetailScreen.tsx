@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput as NativeTextInput, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
 import { useReducedMotion } from "react-native-reanimated";
-import FastImage from "@d11/react-native-fast-image";
+import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useNavigation, usePreventRemove, type ParamListBase } from "@react-navigation/native";
@@ -99,7 +99,7 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
         ListHeaderComponent={<View onLayout={event => { headerHeight.current = event.nativeEvent.layout.height; }}><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} onAuthor={onAuthor} onUpdated={updated} /><Text style={{ paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, fontWeight: "700", color: colors.ink1, backgroundColor: colors.inset }}>评论 · {post.commentCount ?? 0}</Text>{initialCommentId ? <Text style={{ paddingHorizontal: 16, paddingBottom: 12, color: colors.ink3, fontSize: 12 }}>从提醒中的评论开始显示</Text> : null}</View>}
         ListEmptyComponent={<View style={{ padding: 16 }}>{loading ? <ActivityIndicator color={colors.accent} /> : !error ? <Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text> : null}</View>}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: colors.line, backgroundColor: item.id === initialCommentId ? colors.accentTint : colors.canvas }}>
-          <Pressable accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)}>{item.author.avatarUrl ? <FastImage source={{ uri: item.author.avatarUrl }} style={{ width: 36, height: 36, borderRadius: colors.radius.sm }} /> : <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.field, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accentText }}>{item.author.name.slice(0, 1)}</Text></View>}</Pressable>
+          <Pressable accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)}>{item.author.avatarUrl ? <AppImage source={{ uri: item.author.avatarUrl }} style={{ width: 36, height: 36, borderRadius: colors.radius.sm }} /> : <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.field, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accentText }}>{item.author.name.slice(0, 1)}</Text></View>}</Pressable>
           <View style={{ flex: 1 }}><View style={{ flexDirection: "row", alignItems: "center" }}><View style={{ flex: 1 }}><Text onPress={() => onAuthor(item.author)} style={{ color: colors.ink1, fontWeight: "700", fontSize: 15 }}>{item.author.name}</Text><Text style={{ color: colors.ink3, fontSize: 11 }}>{when(item.createdAt)}</Text></View>
             <PostMenu busy={deleting === item.id} onCopy={() => { Clipboard.setString(item.body); Toast.show({ type: "success", text1: "已复制" }); }} onDelete={user?.id === item.author.id ? () => remove(item) : undefined} /></View>
             {item.replyTo ? <Text style={{ color: colors.accentText, marginBottom: 4 }}>回复 {item.replyTo.name}</Text> : null}

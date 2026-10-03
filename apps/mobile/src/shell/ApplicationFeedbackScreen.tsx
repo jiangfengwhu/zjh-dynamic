@@ -3,8 +3,8 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { retainDraftImage, removeDraftImage, existingDraftImages } from "./mediaDraft";
 import { usePreventRemove } from "@react-navigation/native";
-import ImagePicker from "react-native-image-crop-picker";
-import FastImage from "@d11/react-native-fast-image";
+import { MediaPicker as ImagePicker } from "../../../../packages/ui/media/MediaPicker";
+import { AppImage } from "../../../../packages/ui/media/AppImage";
 import Toast from "react-native-toast-message";
 import { FormField as TextInput } from "./FormField";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
@@ -86,7 +86,7 @@ export function ApplicationFeedbackScreen({ manifest, ownerId, onBack }: { manif
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"><Text style={styles.name}>{manifest.title}</Text><Text style={styles.caption}>体验版本 {manifest.releaseId.slice(0, 12)} · {manifest.appId}</Text>
       <TextInput accessibilityLabel="应用修改反馈" editable={ready && !busy} multiline maxLength={2000} value={body} onChangeText={setBody} placeholder="哪里不合适？你希望改成什么样？也可以补充复现步骤。" placeholderTextColor={colors.ink3} style={styles.input} />
       <Text style={styles.caption}>{body.length}/2000 · 截图最多三张</Text>
-      <View style={styles.images}>{photos.map((photo, index) => <View key={photo.path || photo.url} style={styles.photo}><FastImage source={{ uri: photo.url || (photo.path?.startsWith("/") ? `file://${photo.path}` : photo.path) }} resizeMode={FastImage.resizeMode.contain} style={styles.image} /><Pressy disabled={busy} accessibilityLabel={`移除截图 ${index + 1}`} onPress={() => { setPhotos(previous => previous.filter((_, i) => i !== index)); void removeDraftImage(photo.path); }}><Text style={styles.link}>移除</Text></Pressy></View>)}</View>
+      <View style={styles.images}>{photos.map((photo, index) => <View key={photo.path || photo.url} style={styles.photo}><AppImage source={{ uri: photo.url || (photo.path?.startsWith("/") ? `file://${photo.path}` : photo.path) }} resizeMode={"contain"} style={styles.image} /><Pressy disabled={busy} accessibilityLabel={`移除截图 ${index + 1}`} onPress={() => { setPhotos(previous => previous.filter((_, i) => i !== index)); void removeDraftImage(photo.path); }}><Text style={styles.link}>移除</Text></Pressy></View>)}</View>
       <Pressy disabled={busy || !ready || photos.length >= 3} onPress={() => void choose()}><Text style={styles.link}>＋ 添加截图</Text></Pressy>
       <Text style={styles.caption}>截图会上传并交给制作服务，请先移除敏感信息。自己的作品继续原会话；别人的应用基于当前公开版本创作一份新作品。</Text>
       <Text style={styles.caption}>带回工坊后可以预览、修改，再确认开始制作。这一步不会启动制作任务。</Text>

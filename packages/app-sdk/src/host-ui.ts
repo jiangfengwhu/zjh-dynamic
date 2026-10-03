@@ -4,3 +4,8 @@ export { PostFrame, PostBody, PostAttachment } from "../../ui/feed/kit";
 export type { FeedCardProps } from "../../ui/feed/store";
 export { EdgeModal, Screen, ScreenBar } from "../../ui/edge";
 export { PromptBar } from "../../ui/beautiful/PromptBar";
+export { AppImage } from "../../ui/media/AppImage";
+export { RichMarkdown } from "../../ui/media/RichMarkdown";
+export type { RichMarkdownProps } from "../../ui/media/RichMarkdown";
+export { MediaPicker } from "../../ui/media/MediaPicker";
+export type { PickedPhoto, PhotoPickerOptions } from "../../ui/media/MediaPicker";

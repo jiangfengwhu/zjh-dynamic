@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import Markdown from "react-native-markdown-display";
+import { RichMarkdown } from "../media/RichMarkdown";
 import { theme, themedStyleSheet, useTheme } from "../theme";
 
 /* ─────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ export function StreamingText({
     <View style={[styles.wrap, style]}>
       {text !== undefined ? (
         <View>
-          <Markdown style={markdownStyles}>{text}</Markdown>
+          <RichMarkdown markdown={text} streaming={isStreaming} />
           {isStreaming ? <Text style={styles.caret}>▍</Text> : null}
         </View>
       ) : (
@@ -272,10 +272,3 @@ const styles = themedStyleSheet(() => ({
     flex: 1,
   },
 }));
-
-const markdownStyles = {
-  body: { color: theme.text, fontSize: 14, lineHeight: 20 },
-  text: { color: theme.text },
-  code_inline: { color: theme.text, backgroundColor: theme.inkRaised },
-  fence: { color: theme.text, backgroundColor: theme.inkRaised },
-};

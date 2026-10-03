@@ -54,9 +54,9 @@ components:
 
 ## Typography
 
-宿主动态文字、导航及共享 PostFrame 文字使用实际嵌入的 Fusion Pixel 12px Proportional SC（上游 2026.09.25，OFL-1.1）。正文 15 / 22，页标题 24 / 32。`PixelText.tsx` 经已固定版本的 Skia 加载 OTF、测量段落并生成 CPU 位图，由原生 Image 呈现；不需要新 APK 或新增原生接口。位图缓存上限 160 项、约 2 MB，支持中文换行、省略号、系统字体缩放、原生可访问标签。详情可选中文字和带内联链接的 Markdown 使用原生文字，保留选择和链接能力；应用自行绘制的内容仍由应用控制。
+宿主动态文字、导航及共享 PostFrame 文字使用 Fusion Pixel 12px Proportional SC（上游 2026.09.25，OFL-1.1）。正文 15 / 22，页标题 24 / 32。APK 1.4 将固定 OTF 注册到 ReactFontManager，`PixelText.tsx` 使用原生 Text；正文 Markdown 由共享 `RichMarkdown` 使用同一原生字体。中文换行、省略号、选择、内联链接、系统字体缩放和原生可访问语义都由原生文字提供。动态包不再携带字体的 base64 或维护文字位图缓存；应用自绘内容仍由应用控制。
 
-字体源、原始许可证及上游字体许可证在 `feed/assets/font/`，生成字节在 `pixelFontAsset.ts`；不修改字体字形与名称，不依赖联网加载字体。字体所有者是该固定 OTF，字号仍由组件样式持有；本文件只记录映射。
+字体源、原始许可证及上游字体许可证在 `feed/assets/font/`；Android 壳维护同一字节的字体资源和随 APK 分发的许可证。不修改字体字形与名称，不依赖联网加载字体。字体所有者是该固定 OTF，字号仍由组件样式持有；本文件只记录映射。
 
 ## Layout
 
@@ -74,7 +74,7 @@ components:
 
 `PixelKit.tsx` 拥有像素图标与角色静态图。`PixelPostFrame.tsx` 是宿主默认动态 item，应用登记的内容仍由应用负责。`FeedPresentationContext` 让共享 PostFrame 在动态页采用紧凑间距与宿主像素文字，在其他位置保留原展示。`UserPostCard`、`FeedScreen` 与动态页导航使用统一语义色。业务可点击目标最小 44 单位，选中状态有文字／形状标识。
 
-本轮删除欢迎区后不再在动态页播放角色动画，三份用户 MP4 源素材保留供后续页面使用，当前宿主包只内嵌头像和字体。源资源修改后运行 `node scripts/embed-feed-assets.mjs`。
+本轮删除欢迎区后不再在动态页播放角色动画，三份用户 MP4 源素材保留供后续页面使用，当前宿主包只内嵌头像。头像源资源修改后运行 `node scripts/embed-feed-assets.mjs`；字体改变需协调新 APK。
 
 ## Do's and Don'ts
 

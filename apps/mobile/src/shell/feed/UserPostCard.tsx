@@ -12,7 +12,7 @@ import {
 import { EdgeModal } from "../../../../../packages/ui/edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";
-import FastImage from "@d11/react-native-fast-image";
+import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { Share2 } from "lucide-react-native";
 import Toast from "react-native-toast-message";
@@ -112,7 +112,7 @@ export function UserPostCard({
     Toast.show({ type: "success", text1: "已复制" });
   }
   const avatar = post.author.avatarUrl ? (
-    <FastImage source={{ uri: post.author.avatarUrl }} style={styles.avatar} />
+    <AppImage source={{ uri: post.author.avatarUrl }} style={styles.avatar} />
   ) : (
     <View style={[styles.avatar, styles.placeholder]}>
       <Text style={styles.initial}>{Array.from(post.author.name)[0]}</Text>
@@ -183,9 +183,9 @@ export function UserPostCard({
                   post.images.length === 1 && styles.singleImage,
                 ]}
               >
-                <FastImage
+                <AppImage
                   source={{ uri: image.url }}
-                  resizeMode={FastImage.resizeMode.cover}
+                  resizeMode={"cover"}
                   style={styles.image}
                 />
               </Pressable>
@@ -253,9 +253,9 @@ export function UserPostCard({
             { paddingTop: insets.top + 56, paddingBottom: insets.bottom },
           ]}
         >
-          <FastImage
+          <AppImage
             source={preview ? { uri: preview } : undefined}
-            resizeMode={FastImage.resizeMode.contain}
+            resizeMode={"contain"}
             style={styles.previewImage}
           />
           <Pressable

@@ -4,6 +4,20 @@
 
 ## 接入
 
+SDK 1.4 的媒体与正文入口统一在 `@zijinhua/app-sdk/ui`：
+
+```tsx
+import { AppImage, MediaPicker, RichMarkdown } from "@zijinhua/app-sdk/ui";
+
+<AppImage source={{ uri: imageUrl }} resizeMode="contain" style={{ width: 160, height: 240 }} />;
+<RichMarkdown markdown={body} streaming={receiving} />;
+const photos = await MediaPicker.openPicker({ multiple: true, maxFiles: 4, compressImageMaxWidth: 1600, compressImageMaxHeight: 1600, compressImageQuality: 0.8 });
+// 上传或复制到草稿目录后清理临时文件；不删除相册原件。
+await Promise.all(photos.map(photo => MediaPicker.cleanSingle(photo.path)));
+```
+
+单选头像传 `cropping: true, cropperCircleOverlay: true, width: 512, height: 512`，返回单个图片；用户取消抛出 `code: E_PICKER_CANCELLED`。临时路径只用于本轮上传／草稿复制，不作永久存储。`RichMarkdown` 默认支持原生选择、中文复制菜单、字体缩放与链接；仅默认打开 HTTP(S)、mailto、tel，应用自定义路由通过 `onLinkPress` 处理。流式更新直接传 `markdown` 和 `streaming`，当前采用原生渐进渲染，不要求 Worklets Bundle Mode。动态页像素字体由配套 APK 注册。新能力需要匹配 1.4 平台契约，旧应用仍可使用既有公共入口。
+
 应用在 zjh-plugin/apps/<id>/，包含 application.json、package.json、src/index.ts 和可选 assets/。所有命令在插件仓库根目录执行；先运行 npm ci，使用仓库锁定的 SDK。发布只接受 origin 为 jiangfengwhu/zjh-plugin 的源码。
 
 - 入口默认导出 defineApp(...)；公共 SDK 入口为 @zijinhua/app-sdk、@zijinhua/app-sdk/ui、@zijinhua/app-sdk/creation。

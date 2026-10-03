@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import Markdown from "react-native-markdown-display";
+import { RichMarkdown } from "../../media/RichMarkdown";
 import { Icon, Pressy } from "../../chrome";
 import { themedStyleSheet, useTheme, type Theme } from "../../theme";
 import type { FeedCardProps, FeedSlot } from "../store";
@@ -185,25 +185,9 @@ export function LikeButton({
 export function PostBody({ post }: Pick<FeedCardProps, "post">) {
   const styles = useFeedStyles();
   const { colors } = useTheme();
+  const compact = useCompactFeed();
   return post.kind === "summary" ? (
-    <Markdown
-      style={markdownStyle(colors)}
-      rules={{
-        textgroup: (node, children, _parent, markdownStyles) => (
-          <Text
-            key={node.key}
-            style={[
-              { color: colors.ink1, fontSize: 13.5, lineHeight: 19.5 },
-              markdownStyles.textgroup,
-            ]}
-          >
-            {children}
-          </Text>
-        ),
-      }}
-    >
-      {post.body}
-    </Markdown>
+    <RichMarkdown markdown={post.body} fontFamily={compact ? "Fusion Pixel 12px Proportional SC" : colors.sans} fontSize={13.5} lineHeight={19.5} />
   ) : (
     <Text style={styles.text}>{post.body}</Text>
   );
@@ -279,22 +263,6 @@ export const PostFrame = memo(function PostFrame({
     </Pressable>
   );
 });
-
-function markdownStyle(colors: Theme) {
-  return {
-    body: { color: colors.ink1, fontSize: 13.5, lineHeight: 19.5 },
-    paragraph: { marginTop: 0, marginBottom: 3 },
-    strong: { fontWeight: "700" as const },
-    bullet_list: { marginBottom: 3 },
-    ordered_list: { marginBottom: 3 },
-    link: { color: colors.accentText },
-    code_inline: {
-      fontFamily: colors.mono,
-      color: colors.ink2,
-      backgroundColor: colors.inset,
-    },
-  };
-}
 
 const styleFactory = (t: Theme) => ({
   row: {

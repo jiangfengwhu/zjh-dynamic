@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as Keychain from "react-native-keychain";
-import ImagePicker from "react-native-image-crop-picker";
+import { MediaPicker as ImagePicker } from "../../../../packages/ui/media/MediaPicker";
 import BlobUtil from "react-native-blob-util";
 
 import { edgeUrl } from "./evolveHost";
