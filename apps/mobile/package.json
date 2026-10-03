@@ -9,6 +9,7 @@
   "dependencies": {
     "@d11/react-native-fast-image": "8.13.0",
     "@gorhom/bottom-sheet": "5.2.14",
+    "@native-html/render": "1.0.3",
     "@react-native-clipboard/clipboard": "1.16.3",
     "@react-native-community/blur": "4.4.1",
     "@react-native-community/datetimepicker": "9.2.1",

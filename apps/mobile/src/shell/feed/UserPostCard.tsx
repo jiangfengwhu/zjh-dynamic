@@ -14,6 +14,7 @@ import { requireAccount } from "../account";
 import { deleteUserPost, setPostLike, type UserPost } from "./userPosts";
 import { PostMenu } from "./PostMenu";
 import { edgeUrl } from "../evolveHost";
+import { HtmlPostContent } from "./HtmlPostContent";
 import { ApplicationPostCard } from "./ApplicationPostCard";
 
 export function UserPostCard({
@@ -94,6 +95,8 @@ export function UserPostCard({
         post.body ||
         (post.application
           ? `分享了应用《${post.application.title}》`
+          : post.content
+          ? "分享了动态"
           : "分享了图片")
       }\n${url}`,
       title: "分享动态",
@@ -143,6 +146,14 @@ export function UserPostCard({
                 >
                   {post.body}
                 </Text>
+              ) : null}
+              {post.content?.format === "html" && post.content.version === 1 ? (
+                <HtmlPostContent
+                  html={post.content.html}
+                  fallback={post.body}
+                  onApplication={onApplication}
+                  onImage={setPreview}
+                />
               ) : null}
               {post.images.length ? (
                 <View style={styles.images}>

@@ -1,5 +1,27 @@
 # 紫金花应用 SDK
 
+## 用户动态分享（宿主 API 2.0）
+
+动态只有用户作者，身份由服务端根据登录账号确定。应用在用户明确点击分享时调用 `feed.share`，不在安装、更新、定时器或状态轮询中自动发布。2.0 删除 `cards` 和旧的 `feed.publish/upsert/remove/recordChange`，不兼容旧应用包，应用须重新构建。
+
+```ts
+const { feed } = getAppContext();
+// 点击即发布，返回动态 ID；请求期间禁用分享按钮，失败会抛错。
+const post = await feed.share({
+  body: "我的制作进度",
+  html: '<div style="padding:12px;background-color:#e8f8ef;border-radius:12px"><p>语音备忘录</p><p>正在制作 · 60%</p></div>',
+  requestId: "optional-unique-operation-id",
+});
+// 需要先编辑时，显式打开宿主发布页。
+await feed.compose({ body: "我的制作进度", html: "<p>正在制作</p>" });
+```
+
+body 最多 2000 字，html 最多 32 KB，二者至少填写一项。分享保存完整 HTML 快照，所有用户都由宿主原生渲染，无需安装来源应用。媒体使用稳定的公开 HTTPS 地址，不使用应用本地文件、临时签名地址或运行时模板变量。链接支持 HTTPS 和 `zijinhua://app/<appId>`。
+
+支持 div/p/span/h1-h4、strong/b/em/i/u/s、br/hr、ul/ol/li、blockquote/pre/code、a/img。使用内联 style，支持基础文字、颜色、间距、边框、圆角、尺寸与简单布局；不提供完整浏览器 CSS 语义，不支持样式表、复杂选择器、脚本、事件属性、iframe 和外部字体。服务端清理不支持的内容；HTML 图片必须使用 HTTPS。默认字体沿用宿主像素字体，身份行、菜单和交互栏由宿主提供。
+
+同一失败操作重试复用 requestId（8–100 位字母、数字或短横线），新的分享操作使用新 ID。匿名用户先登录，取消登录则不发布。应用不导入 `@native-html/render`，它是宿主内部实现；应用只提交 HTML 内容。
+
 提供应用 API、公共 UI、宿主能力和独立打包工具，不包含应用业务或宿主源码。Node.js >=22.11.0。
 
 ## 接入
@@ -9,11 +31,21 @@ SDK 1.4 的媒体与正文入口统一在 `@zijinhua/app-sdk/ui`：
 ```tsx
 import { AppImage, MediaPicker, RichMarkdown } from "@zijinhua/app-sdk/ui";
 
-<AppImage source={{ uri: imageUrl }} resizeMode="contain" style={{ width: 160, height: 240 }} />;
+<AppImage
+  source={{ uri: imageUrl }}
+  resizeMode="contain"
+  style={{ width: 160, height: 240 }}
+/>;
 <RichMarkdown markdown={body} streaming={receiving} />;
-const photos = await MediaPicker.openPicker({ multiple: true, maxFiles: 4, compressImageMaxWidth: 1600, compressImageMaxHeight: 1600, compressImageQuality: 0.8 });
+const photos = await MediaPicker.openPicker({
+  multiple: true,
+  maxFiles: 4,
+  compressImageMaxWidth: 1600,
+  compressImageMaxHeight: 1600,
+  compressImageQuality: 0.8,
+});
 // 上传或复制到草稿目录后清理临时文件；不删除相册原件。
-await Promise.all(photos.map(photo => MediaPicker.cleanSingle(photo.path)));
+await Promise.all(photos.map((photo) => MediaPicker.cleanSingle(photo.path)));
 ```
 
 单选头像传 `cropping: true, cropperCircleOverlay: true, width: 512, height: 512`，返回单个图片；用户取消抛出 `code: E_PICKER_CANCELLED`。临时路径只用于本轮上传／草稿复制，不作永久存储。`RichMarkdown` 默认支持原生选择、中文复制菜单、字体缩放与链接；仅默认打开 HTTP(S)、mailto、tel，应用自定义路由通过 `onLinkPress` 处理。流式更新直接传 `markdown` 和 `streaming`，当前采用原生渐进渲染，不要求 Worklets Bundle Mode。动态页像素字体由配套 APK 注册。新能力需要匹配 1.4 平台契约，旧应用仍可使用既有公共入口。
@@ -72,7 +104,6 @@ getAppContext() 提供存储、文件、资源、动态、导航、剪贴板、�
 AI 使用 getAppContext().ai：listProviders() 获取模型信息，complete({ messages, providerId?, temperature?, maxTokens? }) 请求文本，openSettings() 打开宿主配置页。密钥由原生宿主保存，请求从本机发送至用户配置的服务商；不向应用暴露密钥。失败保留输入并提示，不自动重试；当前不支持流式、图片或工具调用，完整参数和结果见 SDK 类型。
 
 @zijinhua/app-sdk/creation 提供宿主授权给 Jolly 的制作服务，普通应用不能直接获得制作权限。服务按 appId 绑定 session，读取聚合进展和历史，只检查或更新目标应用。缓存用于展示，不代替写操作的实时鉴权。
-
 
 ### 动态内容模板
 

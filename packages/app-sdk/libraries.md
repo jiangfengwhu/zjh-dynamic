@@ -1,54 +1,56 @@
 # SDK 共享库与能力
 
+宿主动态 HTML 渲染内部使用 `@native-html/render` 1.0.3，SDK 固定其依赖版本。它不是应用公共共享入口；应用通过 `getAppContext().feed.share/compose` 提交 HTML，使用规则见 SDK README。
+
 安装 @zijinhua/app-sdk 即获得固定版本依赖、类型和打包工具。不需要在应用或插件根目录再次安装第三方 RN 库。仅允许下表的标准入口，禁止引用包内部文件；子入口必须先加入平台契约。新增原生依赖需要平台协调发布 APK。
 
-| 标准 import 入口 | 固定版本 |
-| --- | --- |
-| `@d11/react-native-fast-image` | 8.13.0 |
-| `@gorhom/bottom-sheet` | 5.2.14 |
-| `@react-native-clipboard/clipboard` | 1.16.3 |
-| `@react-native-community/blur` | 4.4.1 |
-| `@react-native-community/datetimepicker` | 9.2.1 |
-| `@react-native-community/netinfo` | 12.0.1 |
-| `@react-native-community/slider` | 5.2.1 |
-| `@react-native-documents/picker` | 12.0.2 |
-| `@react-native-picker/picker` | 2.11.4 |
-| `@react-navigation/material-top-tabs` | 7.7.2 |
-| `@react-navigation/native` | 7.4.1 |
-| `@react-navigation/native-stack` | 7.19.2 |
-| `@shopify/flash-list` | 2.3.2 |
-| `@shopify/react-native-skia` | 2.13.0 |
-| `date-fns` | 4.4.0 |
-| `lottie-react-native` | 7.5.0 |
-| `lucide-react-native` | 1.48.0 |
-| `react` | 19.2.3 |
-| `react-error-boundary` | 6.1.6 |
-| `react-native` | 0.87.1 |
-| `react-native-enriched-markdown` | 1.1.0 |
-| `react-native-calendars` | 1.1314.0 |
-| `react-native-gesture-handler` | 3.3.0 |
-| `react-native-gifted-charts` | 1.4.78 |
-| `react-native-haptic-feedback` | 3.0.0 |
-| `react-native-image-crop-picker` | 0.52.0 |
-| `react-native-keyboard-controller` | 1.22.5 |
-| `react-native-linear-gradient` | 2.8.3 |
-| `react-native-markdown-display` | 7.0.2 |
-| `react-native-nitro-image` | 0.15.2 |
-| `react-native-nitro-web-image` | 0.15.2 |
-| `react-native-pager-view` | 9.0.5 |
-| `react-native-pdf` | 7.0.5 |
-| `react-native-qrcode-svg` | 6.3.26 |
-| `react-native-reanimated` | 4.7.0 |
-| `react-native-safe-area-context` | 5.10.0 |
-| `react-native-svg` | 15.15.5 |
-| `react-native-video` | 6.19.3 |
-| `react-native-view-shot` | 6.0.1 |
-| `react-native-vision-camera` | 5.2.3 |
-| `react-native-webview` | 14.0.1 |
-| `react-native-worklets` | 0.13.0 |
-| `zod` | 4.6.5 |
-| `react/jsx-runtime` | 19.2.3 |
-| `react/jsx-dev-runtime` | 19.2.3 |
+| 标准 import 入口                         | 固定版本 |
+| ---------------------------------------- | -------- |
+| `@d11/react-native-fast-image`           | 8.13.0   |
+| `@gorhom/bottom-sheet`                   | 5.2.14   |
+| `@react-native-clipboard/clipboard`      | 1.16.3   |
+| `@react-native-community/blur`           | 4.4.1    |
+| `@react-native-community/datetimepicker` | 9.2.1    |
+| `@react-native-community/netinfo`        | 12.0.1   |
+| `@react-native-community/slider`         | 5.2.1    |
+| `@react-native-documents/picker`         | 12.0.2   |
+| `@react-native-picker/picker`            | 2.11.4   |
+| `@react-navigation/material-top-tabs`    | 7.7.2    |
+| `@react-navigation/native`               | 7.4.1    |
+| `@react-navigation/native-stack`         | 7.19.2   |
+| `@shopify/flash-list`                    | 2.3.2    |
+| `@shopify/react-native-skia`             | 2.13.0   |
+| `date-fns`                               | 4.4.0    |
+| `lottie-react-native`                    | 7.5.0    |
+| `lucide-react-native`                    | 1.48.0   |
+| `react`                                  | 19.2.3   |
+| `react-error-boundary`                   | 6.1.6    |
+| `react-native`                           | 0.87.1   |
+| `react-native-enriched-markdown`         | 1.1.0    |
+| `react-native-calendars`                 | 1.1314.0 |
+| `react-native-gesture-handler`           | 3.3.0    |
+| `react-native-gifted-charts`             | 1.4.78   |
+| `react-native-haptic-feedback`           | 3.0.0    |
+| `react-native-image-crop-picker`         | 0.52.0   |
+| `react-native-keyboard-controller`       | 1.22.5   |
+| `react-native-linear-gradient`           | 2.8.3    |
+| `react-native-markdown-display`          | 7.0.2    |
+| `react-native-nitro-image`               | 0.15.2   |
+| `react-native-nitro-web-image`           | 0.15.2   |
+| `react-native-pager-view`                | 9.0.5    |
+| `react-native-pdf`                       | 7.0.5    |
+| `react-native-qrcode-svg`                | 6.3.26   |
+| `react-native-reanimated`                | 4.7.0    |
+| `react-native-safe-area-context`         | 5.10.0   |
+| `react-native-svg`                       | 15.15.5  |
+| `react-native-video`                     | 6.19.3   |
+| `react-native-view-shot`                 | 6.0.1    |
+| `react-native-vision-camera`             | 5.2.3    |
+| `react-native-webview`                   | 14.0.1   |
+| `react-native-worklets`                  | 0.13.0   |
+| `zod`                                    | 4.6.5    |
+| `react/jsx-runtime`                      | 19.2.3   |
+| `react/jsx-dev-runtime`                  | 19.2.3   |
 
 ## SDK 能力
 

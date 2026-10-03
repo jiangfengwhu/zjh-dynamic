@@ -7,9 +7,8 @@ import PagerView, {
 import { useFocusEffect } from "@react-navigation/native";
 import { Gesture } from "react-native-gesture-handler";
 import { runOnJS, runOnUI, useEvent } from "react-native-reanimated";
-import type { FeedSlot } from "../../../../../packages/ui/feed";
 import { useProfileDrawer } from "../ProfileDrawer";
-export type FeedCategory = FeedSlot | "user" | null;
+export type FeedCategory = null;
 
 /** Native paging owns both directions; only All defers right swipes to the drawer. */
 export function useFeedPager({

@@ -132,3 +132,5 @@ Drawer 的“编辑头像与昵称”进入 account 路由时明确使用原生 
 动态列表左右容器留白由 7 增至 16 点，统一由 FEED_PAGE_INSET=16 控制。分割线、图片与各类应用卡片共享此内容宽度；不额外为单条卡片加 margin 或 padding。Header 取消头像列的 -9 点补偿，同步与动态头像列对齐。
 
 Drawer 首滑响应：feedPosition 直接复用原生 onPageScroll 的 position+offset，与 indicator 同源；onTouchesDown 在第 0 页且 position 距离 0 不超过 0.001 时锁定 eligible，后续不因该触摸自己触发 dragging 或晚到的 idle 被取消。非边界开始的分类滑动仍立即失败，方向变更不能重新获得资格，避免边滑分类边打开 drawer。
+
+HTML 用户动态只替换内容区域，继续使用现有像素字体、对称边距和统一交互栏。HTML 采用内联样式子集，宿主提供默认字体及原生布局宽度，不加载应用动态模板。动态只展示用户主动发布的内容，移除旧的应用分类和自动小结入口。

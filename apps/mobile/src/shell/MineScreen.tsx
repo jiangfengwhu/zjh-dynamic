@@ -3,87 +3,336 @@ import { Image, ScrollView, Text, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { useAccount } from "./account";
 import { Screen } from "../../../../packages/ui/edge";
-import { Icon, PageHeader, Pressy, SectionTitle, type IconName } from "../../../../packages/ui/chrome";
-import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
-import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES } from "../../../../packages/ui/feed";
+import {
+  Icon,
+  PageHeader,
+  Pressy,
+  SectionTitle,
+  type IconName,
+} from "../../../../packages/ui/chrome";
+import {
+  themedStyleSheet,
+  useTheme,
+  type ThemeMode,
+} from "../../../../packages/ui/theme";
 
 type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
-type Props = { drawer?: boolean; onClose?: () => void; mode: ThemeMode; onApplications: () => void; onAccount: () => void; onProviders: () => void; onInfo: () => void; onCheckUpdates: () => Promise<boolean>; onSummary: () => void; onAppearance: () => void };
+type Props = {
+  drawer?: boolean;
+  onClose?: () => void;
+  mode: ThemeMode;
+  onApplications: () => void;
+  onAccount: () => void;
+  onProviders: () => void;
+  onInfo: () => void;
+  onCheckUpdates: () => Promise<boolean>;
+  onAppearance: () => void;
+};
 
-export const MineScreen = memo(function MineScreen({ drawer, onClose, mode, onApplications, onAccount, onProviders, onInfo, onCheckUpdates, onSummary, onAppearance }: Props) {
+export const MineScreen = memo(function MineScreen({
+  drawer,
+  onClose,
+  mode,
+  onApplications,
+  onAccount,
+  onProviders,
+  onInfo,
+  onCheckUpdates,
+  onAppearance,
+}: Props) {
   const { colors } = useTheme();
   const { user } = useAccount();
-  const [summaryEvery, setSummaryEvery] = useState(() => readSummaryEvery());
   const [check, setCheck] = useState<CheckState>("idle");
-  useEffect(() => subscribeSummaryEvery(setSummaryEvery), []);
   async function checkUpdates() {
     if (check === "busy") return;
     setCheck("busy");
-    try { setCheck(await onCheckUpdates() ? "ready" : "current"); }
-    catch { setCheck("failed"); }
+    try {
+      setCheck((await onCheckUpdates()) ? "ready" : "current");
+    } catch {
+      setCheck("failed");
+    }
   }
-  return <Screen style={styles.screen}>
-    {!drawer ? <PageHeader title="我的" right={onClose ? <Pressy accessibilityRole="button" accessibilityLabel="关闭我的抽屉" onPress={onClose} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Icon name="close" size={20} color={colors.ink1} /></Pressy> : undefined} /> : null}
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Animated.View entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}>
-        <Pressy accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount} style={styles.profile}>
-          {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={styles.portrait} /> : <View style={[styles.portrait, styles.placeholder]}><Text style={styles.initial}>{Array.from(user?.name || "我")[0]}</Text></View>}
-          <View style={styles.profileCopy}><Text numberOfLines={2} style={styles.profileName}>{user?.name ?? "登录紫金花"}</Text><Text style={styles.profileHint}>{user ? "编辑头像与昵称" : "邮箱验证码登录，开始创作"}</Text></View>
-          <Icon name="chevron" size={18} color={colors.ink3} />
-        </Pressy>
-      </Animated.View>
-      <View style={styles.shortcuts}>
-        <Shortcut icon="box" title="作品与应用" hint="创作 / 分享 / 安装" onPress={onApplications} primary />
-        <Shortcut icon="engine" title="AI 引擎" hint="管理模型与连接" onPress={onProviders} />
-      </View>
-      <SectionTitle>偏好与工具</SectionTitle>
-      <View style={styles.group}>
-        <Row icon={mode === "dark" ? "moon" : "sun"} title="外观" hint="深浅主题，即时切换" value={mode === "dark" ? "深色" : "浅色"} onPress={onAppearance} />
-        <Row icon="clock" title="动态小结" hint="自动整理应用变化" value={summaryLabel(summaryEvery)} onPress={onSummary} />
-        <Row icon="cloud" title="检查更新" hint={check === "busy" ? "正在核对线上版本" : "每 30 分钟自动检查"} value={checkLabel(check)} warn={check === "failed"} disabled={check === "busy"} onPress={() => void checkUpdates()} />
-        <Row icon="info" title="应用信息" hint="版本与本机安装信息" onPress={onInfo} last />
-      </View>
-      {drawer && onClose ? <Pressy accessibilityRole="button" accessibilityLabel="收起我的抽屉" onPress={onClose} style={{ minHeight: 44, flexDirection: "row", gap: 8, alignItems: "center" }}><Icon name="back" size={18} color={colors.ink3} /><Text style={{ fontSize: 12, color: colors.ink3 }}>收起</Text></Pressy> : null}
-    </ScrollView>
-  </Screen>;
+  return (
+    <Screen style={styles.screen}>
+      {!drawer ? (
+        <PageHeader
+          title="我的"
+          right={
+            onClose ? (
+              <Pressy
+                accessibilityRole="button"
+                accessibilityLabel="关闭我的抽屉"
+                onPress={onClose}
+                style={{
+                  width: 44,
+                  height: 44,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="close" size={20} color={colors.ink1} />
+              </Pressy>
+            ) : undefined
+          }
+        />
+      ) : null}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View
+          entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
+        >
+          <Pressy
+            accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"}
+            onPress={onAccount}
+            style={styles.profile}
+          >
+            {user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.portrait} />
+            ) : (
+              <View style={[styles.portrait, styles.placeholder]}>
+                <Text style={styles.initial}>
+                  {Array.from(user?.name || "我")[0]}
+                </Text>
+              </View>
+            )}
+            <View style={styles.profileCopy}>
+              <Text numberOfLines={2} style={styles.profileName}>
+                {user?.name ?? "登录紫金花"}
+              </Text>
+              <Text style={styles.profileHint}>
+                {user ? "编辑头像与昵称" : "邮箱验证码登录，开始创作"}
+              </Text>
+            </View>
+            <Icon name="chevron" size={18} color={colors.ink3} />
+          </Pressy>
+        </Animated.View>
+        <View style={styles.shortcuts}>
+          <Shortcut
+            icon="box"
+            title="作品与应用"
+            hint="创作 / 分享 / 安装"
+            onPress={onApplications}
+            primary
+          />
+          <Shortcut
+            icon="engine"
+            title="AI 引擎"
+            hint="管理模型与连接"
+            onPress={onProviders}
+          />
+        </View>
+        <SectionTitle>偏好与工具</SectionTitle>
+        <View style={styles.group}>
+          <Row
+            icon={mode === "dark" ? "moon" : "sun"}
+            title="外观"
+            hint="深浅主题，即时切换"
+            value={mode === "dark" ? "深色" : "浅色"}
+            onPress={onAppearance}
+          />
+          <Row
+            icon="cloud"
+            title="检查更新"
+            hint={check === "busy" ? "正在核对线上版本" : "每 30 分钟自动检查"}
+            value={checkLabel(check)}
+            warn={check === "failed"}
+            disabled={check === "busy"}
+            onPress={() => void checkUpdates()}
+          />
+          <Row
+            icon="info"
+            title="应用信息"
+            hint="版本与本机安装信息"
+            onPress={onInfo}
+            last
+          />
+        </View>
+        {drawer && onClose ? (
+          <Pressy
+            accessibilityRole="button"
+            accessibilityLabel="收起我的抽屉"
+            onPress={onClose}
+            style={{
+              minHeight: 44,
+              flexDirection: "row",
+              gap: 8,
+              alignItems: "center",
+            }}
+          >
+            <Icon name="back" size={18} color={colors.ink3} />
+            <Text style={{ fontSize: 12, color: colors.ink3 }}>收起</Text>
+          </Pressy>
+        ) : null}
+      </ScrollView>
+    </Screen>
+  );
 });
-function Shortcut({ icon, title, hint, onPress, primary = false }: { icon: IconName; title: string; hint: string; onPress: () => void; primary?: boolean }) {
+function Shortcut({
+  icon,
+  title,
+  hint,
+  onPress,
+  primary = false,
+}: {
+  icon: IconName;
+  title: string;
+  hint: string;
+  onPress: () => void;
+  primary?: boolean;
+}) {
   const { colors } = useTheme();
-  return <Pressy onPress={onPress} style={[styles.shortcut, primary && { backgroundColor: colors.accentTint, borderColor: colors.accentSoft }]}>
-    <View style={styles.shortcutHead}><Icon name={icon} size={22} color={primary ? colors.accentText : colors.ink1} /><Icon name="chevron" size={15} color={colors.ink3} /></View>
-    <Text style={styles.shortcutTitle}>{title}</Text><Text style={styles.rowHint}>{hint}</Text>
-  </Pressy>;
+  return (
+    <Pressy
+      onPress={onPress}
+      style={[
+        styles.shortcut,
+        primary && {
+          backgroundColor: colors.accentTint,
+          borderColor: colors.accentSoft,
+        },
+      ]}
+    >
+      <View style={styles.shortcutHead}>
+        <Icon
+          name={icon}
+          size={22}
+          color={primary ? colors.accentText : colors.ink1}
+        />
+        <Icon name="chevron" size={15} color={colors.ink3} />
+      </View>
+      <Text style={styles.shortcutTitle}>{title}</Text>
+      <Text style={styles.rowHint}>{hint}</Text>
+    </Pressy>
+  );
 }
-function Row({ icon, title, hint, value, warn, last, disabled, onPress }: { icon: IconName; title: string; hint: string; value?: string; warn?: boolean; last?: boolean; disabled?: boolean; onPress: () => void }) {
+function Row({
+  icon,
+  title,
+  hint,
+  value,
+  warn,
+  last,
+  disabled,
+  onPress,
+}: {
+  icon: IconName;
+  title: string;
+  hint: string;
+  value?: string;
+  warn?: boolean;
+  last?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
   const { colors } = useTheme();
-  return <Pressy disabled={disabled} onPress={onPress} style={[styles.row, !last && styles.divider]}>
-    <Icon name={icon} size={19} color={colors.ink2} />
-    <View style={styles.rowCopy}><Text style={styles.rowTitle}>{title}</Text><Text numberOfLines={1} style={styles.rowHint}>{hint}</Text></View>
-    {value ? <Text accessibilityLiveRegion="polite" style={[styles.rowValue, warn && { color: colors.redText }]}>{value}</Text> : null}
-    <Icon name="chevron" size={15} color={colors.ink3} />
-  </Pressy>;
+  return (
+    <Pressy
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.row, !last && styles.divider]}
+    >
+      <Icon name={icon} size={19} color={colors.ink2} />
+      <View style={styles.rowCopy}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text numberOfLines={1} style={styles.rowHint}>
+          {hint}
+        </Text>
+      </View>
+      {value ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          style={[styles.rowValue, warn && { color: colors.redText }]}
+        >
+          {value}
+        </Text>
+      ) : null}
+      <Icon name="chevron" size={15} color={colors.ink3} />
+    </Pressy>
+  );
 }
-function checkLabel(state: CheckState): string | undefined { return ({ busy: "检查中", ready: "有更新", current: "已是最新", failed: "重试" } as Partial<Record<CheckState, string>>)[state]; }
-function summaryLabel(ms: number): string { return SUMMARY_CHOICES.find(item => item.ms === ms)?.label ?? (ms <= 0 ? "关闭" : `${Math.round(ms / 60000)} 分钟`); }
-const styles = themedStyleSheet(t => ({
+function checkLabel(state: CheckState): string | undefined {
+  return (
+    {
+      busy: "检查中",
+      ready: "有更新",
+      current: "已是最新",
+      failed: "重试",
+    } as Partial<Record<CheckState, string>>
+  )[state];
+}
+const styles = themedStyleSheet((t) => ({
   screen: { backgroundColor: t.canvas },
   content: { padding: 16, paddingTop: 12, gap: 12, paddingBottom: 24 },
-  profile: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: t.line },
+  profile: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: t.line,
+  },
   portrait: { width: 52, height: 52, borderRadius: 26 },
-  placeholder: { backgroundColor: t.accent, alignItems: "center", justifyContent: "center" },
+  placeholder: {
+    backgroundColor: t.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   initial: { fontSize: 23, fontWeight: "700", color: t.onAccent },
   profileCopy: { flex: 1, minWidth: 0, gap: 4 },
-  profileName: { fontSize: 22, lineHeight: 28, letterSpacing: -0.5, fontWeight: "800", color: t.ink1 },
+  profileName: {
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.5,
+    fontWeight: "800",
+    color: t.ink1,
+  },
   profileHint: { fontSize: 12, lineHeight: 18, color: t.ink3 },
   shortcuts: { flexDirection: "row", gap: 8 },
-  shortcut: { flex: 1, minWidth: 0, padding: 12, gap: 4, borderRadius: t.radius.md, borderWidth: 0.5, borderColor: t.line, backgroundColor: t.surface },
-  shortcutHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  shortcutTitle: { fontSize: 15, lineHeight: 21, fontWeight: "700", color: t.ink1 },
-  group: { backgroundColor: t.surface, borderRadius: t.radius.md, paddingHorizontal: 12 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 64, paddingVertical: 10 },
+  shortcut: {
+    flex: 1,
+    minWidth: 0,
+    padding: 12,
+    gap: 4,
+    borderRadius: t.radius.md,
+    borderWidth: 0.5,
+    borderColor: t.line,
+    backgroundColor: t.surface,
+  },
+  shortcutHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  shortcutTitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "700",
+    color: t.ink1,
+  },
+  group: {
+    backgroundColor: t.surface,
+    borderRadius: t.radius.md,
+    paddingHorizontal: 12,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 64,
+    paddingVertical: 10,
+  },
   divider: { borderBottomWidth: 0.5, borderBottomColor: t.line },
   rowCopy: { flex: 1, minWidth: 0, gap: 2 },
   rowTitle: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: t.ink1 },
   rowHint: { fontSize: 11, lineHeight: 16, color: t.ink3 },
-  rowValue: { maxWidth: "30%", flexShrink: 1, fontSize: 12, lineHeight: 17, color: t.accentText },
+  rowValue: {
+    maxWidth: "30%",
+    flexShrink: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: t.accentText,
+  },
 }));

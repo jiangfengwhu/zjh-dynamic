@@ -1,17 +1,9 @@
 import { PixelText as Text } from "./PixelText";
-import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentType,
-} from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, View, type FlatListProps } from "react-native";
 import {
   Gesture,
@@ -31,21 +23,7 @@ import Animated, {
   type SharedValue,
   type AnimatedProps,
 } from "react-native-reanimated";
-import { bundles } from "../../../../../packages/features/src/registry";
-import {
-  KIND_LABEL,
-  peekFeedTemplate,
-  readFeedPosts,
-  subscribeFeedPosts,
-  subscribeFeedTemplates,
-  type FeedFriend,
-  type FeedCardProps,
-  type FeedKind,
-  type FeedPost,
-  type FeedSlot,
-} from "../../../../../packages/ui/feed";
 import { Pressy } from "../../../../../packages/ui/chrome";
-const bootstrap = require("../../../../../tools/applications/bootstrap.json");
 import {
   ThemeContext,
   themedStyleSheet,
@@ -58,13 +36,9 @@ import {
   SHELL_BOTTOM_PADDING,
   SHELL_CHROME_THRESHOLD,
 } from "./FeedChrome";
-import { subscribeFeedSummaryBusy } from "./summary";
 import { useAccount } from "../account";
-import { CardSlot } from "./CardSlot";
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
-import { subscribeLikes, toggleLike } from "./likes";
-import { markSeen, subscribeSeen, type SeenMap } from "./seen";
 import {
   useUserPosts,
   refreshUserPosts,
@@ -79,12 +53,6 @@ const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const FEED_PAGE_INSET = 16;
 
 type FeedProps = {
-  installedIds: string[];
-  onOpen: (id: string) => Promise<boolean>;
-  /** 对某位朋友说一句：带着 TA 的名字去工坊。 */
-  onReply: (id: string) => void;
-  /** 找新朋友：去应用市场发现应用。 */
-  onNew: () => void;
   onCompose: () => void;
   onPost: (post: UserPost) => void;
   onProfile: () => void;
@@ -93,15 +61,11 @@ type FeedProps = {
 };
 
 export const FeedScreen = memo(function FeedScreen({
-  onOpen,
-  onReply,
   onCompose,
   onPost,
   onProfile,
   onApplication,
   onAuthor,
-
-  installedIds,
 }: FeedProps) {
   const { user } = useAccount();
   const themeContext = usePixelTheme();
@@ -131,23 +95,7 @@ export const FeedScreen = memo(function FeedScreen({
   const userTimeline = useUserPosts();
   const [loadingMore, setLoadingMore] = useState(false);
   const [timelineError, setTimelineError] = useState("");
-  const [allPosts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
-  const posts = useMemo(
-    () =>
-      allPosts.filter(
-        (post) =>
-          installedIds.includes(post.appId) &&
-          (post.appId !== bootstrap.defaultApplication ||
-            !post.payload.workshopPost ||
-            Boolean(user && post.payload.ownerId === user.id))
-      ),
-    [allPosts, installedIds, user?.id]
-  );
-  const [seen, setSeen] = useState<SeenMap>({});
-  const [likes, setLikes] = useState<string[]>([]);
-  const [kind, setKind] = useState<FeedSlot | "user" | null>(null);
-  const [cardsReady, setCardsReady] = useState(0);
-  const [summarizing, setSummarizing] = useState(false);
+  const kind = null;
   const [timeTick, tickTime] = useState(0);
   useFocusEffect(
     useCallback(() => {
@@ -182,14 +130,6 @@ export const FeedScreen = memo(function FeedScreen({
     })(selectedKey);
   }, [selectedKey, activeCategory, bottomTravel]);
 
-  useEffect(() => subscribeFeedPosts(setPosts), []);
-  useEffect(() => subscribeSeen(setSeen), []);
-  useEffect(() => subscribeLikes(setLikes), []);
-  useEffect(
-    () => subscribeFeedTemplates(() => setCardsReady((value) => value + 1)),
-    []
-  );
-  useEffect(() => subscribeFeedSummaryBusy(setSummarizing), []);
   useEffect(() => {
     const task = requestIdleCallback(() => {
       void refreshUserPosts().then(
@@ -203,7 +143,6 @@ export const FeedScreen = memo(function FeedScreen({
   const { pull, phase, gesture } = usePullToRefresh({
     scrollY,
     onRefresh: async () => {
-      setPosts(readFeedPosts());
       try {
         await refreshUserPosts();
         setTimelineError("");
@@ -220,138 +159,33 @@ export const FeedScreen = memo(function FeedScreen({
   });
   const refreshSpace = useAnimatedStyle(() => ({ height: pull.value }));
 
-  const friends = useMemo(() => {
-    const map = new Map<string, FeedFriend>();
-    for (const bundle of bundles.filter((item) =>
-      installedIds.includes(item.id)
-    )) {
-      map.set(bundle.id, {
-        id: bundle.id,
-        name: bundle.title,
-        mark: bundle.mark,
-        accent: bundle.accent,
-        Avatar: bundle.avatar,
-      });
-    }
-    return map;
-  }, [installedIds, cardsReady]);
-
-  /** 每位朋友最近一条动态的时间，用来判断有没有没看过的。 */
-  const latest = useMemo(() => {
-    const result: Record<string, number> = {};
-    for (const post of posts)
-      result[post.appId] = Math.max(result[post.appId] ?? 0, post.createdAt);
-    return result;
-  }, [posts]);
-
-  const liked = useMemo(() => new Set(likes), [likes]);
-
-  const kinds = useMemo(() => {
-    const present = new Set(posts.map((post) => post.kind));
-    return (Object.keys(KIND_LABEL) as FeedSlot[]).filter((item) =>
-      present.has(item)
-    );
-  }, [posts]);
-
   const timeline = useMemo(
-    () =>
-      [
-        ...posts.map((post) => ({ type: "app" as const, post })),
-        ...userTimeline.posts.map((post) => ({ type: "user" as const, post })),
-      ].sort(
-        (a, b) =>
-          b.post.createdAt - a.post.createdAt ||
-          a.post.id.localeCompare(b.post.id)
-      ),
-    [posts, userTimeline.posts]
+    () => userTimeline.posts.map((post) => ({ type: "user" as const, post })),
+    [userTimeline.posts]
   );
-  useEffect(() => {
-    if (kind && kind !== "user" && !kinds.includes(kind)) setKind(null);
-  }, [kind, kinds]);
-
-  const pages = useMemo(
-    () => [null, "user", ...kinds] as FeedCategory[],
-    [kinds]
-  );
+  const pages = useMemo(() => [null] as FeedCategory[], []);
   const pageRows = useMemo(
-    () =>
-      pages.map((category) => ({
-        category,
-        items: timeline.filter(
-          (item) =>
-            category === null ||
-            (item.type === "user"
-              ? category === "user"
-              : item.post.kind === category)
-        ),
-      })),
-    [pages, timeline]
+    () => [{ category: null, items: timeline }],
+    [timeline]
   );
+  const selectCategory = useCallback(() => {}, []);
   const pager = useFeedPager({
     categories: pages,
-    selected: kind,
-    onSelect: setKind,
+    selected: null,
+    onSelect: selectCategory,
   });
-  const open = useCallback(
-    async (appId: string) => {
-      const at = latest[appId] ?? Date.now();
-      if (await onOpen(appId)) markSeen(appId, at);
-    },
-    [latest, onOpen]
-  );
-
   const renderPost = useCallback(
-    ({ item }: { item: (typeof timeline)[number] }) => {
-      if (item.type === "user") {
-        return (
-          <UserTimelineItem
-            post={item.post}
-            author={user}
-            time={formatWhen(item.post.createdAt)}
-            onPost={onPost}
-            onApplication={onApplication}
-            onAuthor={onAuthor}
-          />
-        );
-      }
-      const post = item.post;
-      const friend = friends.get(post.appId) ?? {
-        id: post.appId,
-        name: post.appId,
-        mark: "友",
-        accent: colors.accent,
-      };
-      const Template =
-        cardsReady >= 0 && post.kind !== "summary"
-          ? peekFeedTemplate(post.appId, post.kind as FeedKind)
-          : undefined;
-      return (
-        <ApplicationTimelineItem
-          post={post}
-          friend={friend}
-          Template={Template}
-          time={formatWhen(post.createdAt)}
-          unread={post.createdAt > (seen[post.appId] ?? 0)}
-          liked={liked.has(post.id)}
-          onOpen={open}
-          onReply={onReply}
-        />
-      );
-    },
-    [
-      user,
-      onPost,
-      onApplication,
-      onAuthor,
-      cardsReady,
-      friends,
-      colors.accent,
-      seen,
-      liked,
-      open,
-      onReply,
-      timeTick,
-    ]
+    ({ item }: { item: (typeof timeline)[number] }) => (
+      <UserTimelineItem
+        post={item.post}
+        author={user}
+        time={formatWhen(item.post.createdAt)}
+        onPost={onPost}
+        onApplication={onApplication}
+        onAuthor={onAuthor}
+      />
+    ),
+    [user, onPost, onApplication, onAuthor, timeTick]
   );
 
   return (
@@ -400,16 +234,10 @@ export const FeedScreen = memo(function FeedScreen({
                         动态<Text style={styles.brand}> / 紫金花</Text>
                       </Text>
                       <Text style={styles.headerCaption} numberOfLines={1}>
-                        {summarizing ? "正在整理动态…" : "应用近况与社区分享"}
+                        分享此刻，记录创造
                       </Text>
                     </View>
                   </View>
-                  <FeedCategoryTabs
-                    categories={pages}
-                    selected={kind}
-                    position={pager.pagePosition}
-                    onSelect={setKind}
-                  />
                 </View>
               </Animated.View>
 
@@ -423,7 +251,7 @@ export const FeedScreen = memo(function FeedScreen({
                       layoutDirection="ltr"
                       offscreenPageLimit={1}
                       overScrollMode="never"
-                      scrollEnabled={phase !== "refreshing" && phase !== "done"}
+                      scrollEnabled={false}
                       onPageSelected={pager.onPageSelected}
                       onPageScroll={pager.onPageScroll}
                       onPageScrollStateChanged={pager.onPageScrollStateChanged}
@@ -498,12 +326,10 @@ export const FeedScreen = memo(function FeedScreen({
                                     <View style={styles.empty}>
                                       <PixelAvatar size={80} />
                                       <Text style={styles.emptyTitle}>
-                                        {pageKind === "user"
-                                          ? "还没有用户动态"
-                                          : "这里还很安静"}
+                                        这里还很安静
                                       </Text>
                                       <Text style={styles.emptyBody}>
-                                        分享一个想法，或换个分类看看。
+                                        分享一个想法，记录你的创造。
                                       </Text>
                                       <Pressy
                                         accessibilityLabel="发布第一条动态"
@@ -529,8 +355,7 @@ export const FeedScreen = memo(function FeedScreen({
                                   renderItem={renderPost}
                                   ListFooterComponent={
                                     <View>
-                                      {(pageKind === null ||
-                                        pageKind === "user") &&
+                                      {pageKind === null &&
                                       userTimeline.nextCursor ? (
                                         <Pressable
                                           disabled={loadingMore}
@@ -558,14 +383,12 @@ export const FeedScreen = memo(function FeedScreen({
                                           >
                                             {loadingMore
                                               ? "正在加载…"
-                                              : "加载更多用户动态"}
+                                              : "加载更多动态"}
                                           </Text>
                                         </Pressable>
                                       ) : null}
                                       {visible.length > 0 &&
-                                      (!userTimeline.nextCursor ||
-                                        (pageKind !== null &&
-                                          pageKind !== "user")) ? (
+                                      !userTimeline.nextCursor ? (
                                         <View style={styles.end}>
                                           <PixelIcon
                                             name="spark"
@@ -591,7 +414,7 @@ export const FeedScreen = memo(function FeedScreen({
               </GestureDetector>
               <Animated.View style={[styles.composeDock, composePosition]}>
                 <Pressy
-                  accessibilityLabel="发布文字和图片动态"
+                  accessibilityLabel="发布动态"
                   onPress={onCompose}
                   scale={1}
                   style={[
@@ -615,9 +438,7 @@ export const FeedScreen = memo(function FeedScreen({
     </ThemeContext.Provider>
   );
 });
-type FeedTimelineItem =
-  | { type: "app"; post: FeedPost }
-  | { type: "user"; post: UserPost };
+type FeedTimelineItem = { type: "user"; post: UserPost };
 const UserTimelineItem = memo(function UserTimelineItem({
   post: original,
   author,
@@ -652,51 +473,6 @@ const UserTimelineItem = memo(function UserTimelineItem({
     </View>
   );
 });
-const ApplicationTimelineItem = memo(function ApplicationTimelineItem({
-  post,
-  friend,
-  Template,
-  time,
-  unread,
-  liked,
-  onOpen,
-  onReply,
-}: {
-  post: FeedPost;
-  friend: FeedFriend;
-  Template?: ComponentType<FeedCardProps>;
-  time: string;
-  unread: boolean;
-  liked: boolean;
-  onOpen: (id: string) => Promise<void>;
-  onReply: FeedProps["onReply"];
-}) {
-  const open = useCallback(() => {
-    void onOpen(post.appId);
-  }, [onOpen, post.appId]);
-  const like = useCallback(() => toggleLike(post.id), [post.id]);
-  const reply = useCallback(() => onReply(post.appId), [onReply, post.appId]);
-  const card = useMemo(
-    () => ({
-      post,
-      friend,
-      kindLabel: KIND_LABEL[post.kind],
-      time,
-      unread,
-      liked,
-      onOpen: open,
-      onLike: like,
-      onReply: reply,
-    }),
-    [post, friend, time, unread, liked, open, like, reply]
-  );
-  return (
-    <View collapsable={false} style={styles.post}>
-      <CardSlot Template={Template} card={card} />
-    </View>
-  );
-});
-
 /** Lists share only the header range. Body offsets stay on their native list. */
 const FeedScrollSurface = memo(function FeedScrollSurface({
   categoryKey,

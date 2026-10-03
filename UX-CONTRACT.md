@@ -4,28 +4,28 @@
 
 ## Canonical UI Map
 
-| Capability | Canonical owner | Source of truth | Allowed variants | Verification |
-| --- | --- | --- | --- | --- |
-| Toast | react-native-toast-message | apps/mobile/App.tsx 与各操作回调 | success / error / info | 源码追踪；真机待验收 |
-| CRUD | navigation.tsx / userPosts.ts | 现有账号与帖子 API 实现 | 发布 / 详情 / 原生删除确认 | 源码追踪；运行时流程待验收 |
-| Scrollbar | RN ScrollView / FlatList | 平台原生滚动实现 | 水平朋友栏、分类 / 垂直列表 | 原生指示器开启；真机待验收 |
+| Capability | Canonical owner               | Source of truth                  | Allowed variants            | Verification               |
+| ---------- | ----------------------------- | -------------------------------- | --------------------------- | -------------------------- |
+| Toast      | react-native-toast-message    | apps/mobile/App.tsx 与各操作回调 | success / error / info      | 源码追踪；真机待验收       |
+| CRUD       | navigation.tsx / userPosts.ts | 现有账号与帖子 API 实现          | 发布 / 详情 / 原生删除确认  | 源码追踪；运行时流程待验收 |
+| Scrollbar  | RN ScrollView / FlatList      | 平台原生滚动实现                 | 水平朋友栏、分类 / 垂直列表 | 原生指示器开启；真机待验收 |
 
-| 能力 | 所有者／证据 | 约定 |
-| --- | --- | --- |
-| 路由 | apps/mobile/src/shell/navigation.tsx | 发动态、作者主页、动态详情、通知沿用现有回调；不改保存返回行为 |
-| 分类与列表 | apps/mobile/src/shell/feed/FeedScreen.tsx | 全部／用户／已有应用类别；按创建时间排序，分类保留独立滚动位置；用户动态显式加载更多 |
-| 同步 | userPosts.ts、pullToRefresh.ts | 刷新失败保留内容，内联提示并可下拉重试；加载更多使用既有分页游标 |
-| 点赞 | likes.ts、UserPostCard.tsx | 用户帖子登录与请求防重沿用现有账号和接口；选中状态向辅助技术公开 |
-| Toast | react-native-toast-message／宿主 provider | 操作失败与成功沿用共享通知；关键同步错误同时内联展示 |
-| 删除 | UserPostCard.tsx、userPosts.ts | 沿用 RN 原生确认和服务端删除行为；不增改数据生命周期 |
-| 头像和卡片 | runtime/application metadata、CardSlot.tsx | 宿主默认应用用新角色，其他应用身份保持；自定义卡错误仅降级当前卡 |
-| 主题 | packages/ui/theme.ts → feed/pixelTheme.ts | 深浅主题沿用账号外观选择；仅迁移动态页语义表面 |
-| 字体 | globalTypography.js / theme.ts / APK ReactFontManager | 原生中文像素字体；系统字号缩放、选择、链接和原生可访问语义统一保留 |
-| 图片 | packages/ui/media/AppImage.tsx | 默认延迟加载并按 URI 回收图片；特殊请求头、动画格式与事件回调沿用 RN Image |
-| 选图 | packages/ui/media/MediaPicker.ts | 用户操作触发；全局防重；圆形头像裁剪、多选上限、JPEG 编码和尺寸约束；取消不提示错误；仅删除自身临时副本 |
-| Markdown | packages/ui/media/RichMarkdown.tsx | 共享原生渲染、主题、字号缩放、选择菜单与链接策略；流式更新遵循系统减少动态效果设置 |
-| 滚动条 | RN ScrollView／FlatList | 按用户偏好隐藏动态列表与分类滚动指示器；分类随头部滚动显隐，发布按钮在右下角随底部导航显隐并避让安全区 |
-| Form / Select / Date / Table Selection | 本轮不涉及 | 编辑、账号与设置现有流程保持原所有者 |
+| 能力                                   | 所有者／证据                                          | 约定                                                                                                    |
+| -------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 路由                                   | apps/mobile/src/shell/navigation.tsx                  | 发动态、作者主页、动态详情、通知沿用现有回调；不改保存返回行为                                          |
+| 分类与列表                             | apps/mobile/src/shell/feed/FeedScreen.tsx             | 仅服务端用户动态；按创建时间排序，显式加载更多；移除应用欢迎、更新、近况和小结                          |
+| 同步                                   | userPosts.ts、pullToRefresh.ts                        | 刷新失败保留内容，内联提示并可下拉重试；加载更多使用既有分页游标                                        |
+| 点赞                                   | likes.ts、UserPostCard.tsx                            | 用户帖子登录与请求防重沿用现有账号和接口；选中状态向辅助技术公开                                        |
+| Toast                                  | react-native-toast-message／宿主 provider             | 操作失败与成功沿用共享通知；关键同步错误同时内联展示                                                    |
+| 删除                                   | UserPostCard.tsx、userPosts.ts                        | 沿用 RN 原生确认和服务端删除行为；不增改数据生命周期                                                    |
+| 头像和卡片                             | runtime/application metadata、CardSlot.tsx            | 宿主默认应用用新角色，其他应用身份保持；自定义卡错误仅降级当前卡                                        |
+| 主题                                   | packages/ui/theme.ts → feed/pixelTheme.ts             | 深浅主题沿用账号外观选择；仅迁移动态页语义表面                                                          |
+| 字体                                   | globalTypography.js / theme.ts / APK ReactFontManager | 原生中文像素字体；系统字号缩放、选择、链接和原生可访问语义统一保留                                      |
+| 图片                                   | packages/ui/media/AppImage.tsx                        | 默认延迟加载并按 URI 回收图片；特殊请求头、动画格式与事件回调沿用 RN Image                              |
+| 选图                                   | packages/ui/media/MediaPicker.ts                      | 用户操作触发；全局防重；圆形头像裁剪、多选上限、JPEG 编码和尺寸约束；取消不提示错误；仅删除自身临时副本 |
+| Markdown                               | packages/ui/media/RichMarkdown.tsx                    | 共享原生渲染、主题、字号缩放、选择菜单与链接策略；流式更新遵循系统减少动态效果设置                      |
+| 滚动条                                 | RN ScrollView／FlatList                               | 按用户偏好隐藏动态列表与分类滚动指示器；分类随头部滚动显隐，发布按钮在右下角随底部导航显隐并避让安全区  |
+| Form / Select / Date / Table Selection | 本轮不涉及                                            | 编辑、账号与设置现有流程保持原所有者                                                                    |
 
 业务来源是现有宿主实现及用户本轮视觉迁移授权；本轮没有引入权限、支付、奖励、上传规则或服务端生命周期决策。账号验证由 `account.ts` 的 `requireAccount` 负责。中文无新增 locale 提供者；相对时间继续沿用动态页原有逻辑。
 
@@ -78,3 +78,7 @@ Drawer 的“编辑头像与昵称”进入 account 路由时明确使用原生 
 动态列表左右容器留白由 7 增至 16 点，统一由 FEED_PAGE_INSET=16 控制。分割线、图片与各类应用卡片共享此内容宽度；不额外为单条卡片加 margin 或 padding。Header 取消头像列的 -9 点补偿，同步与动态头像列对齐。
 
 Drawer 首滑响应：feedPosition 直接复用原生 onPageScroll 的 position+offset，与 indicator 同源；onTouchesDown 在第 0 页且 position 距离 0 不超过 0.001 时锁定 eligible，后续不因该触摸自己触发 dragging 或晚到的 idle 被取消。非边界开始的分类滑动仍立即失败，方向变更不能重新获得资格，避免边滑分类边打开 drawer。
+
+HTML 动态使用宿主 @native-html/render 1.0.3 转为原生视图，列表与详情共享 HtmlPostContent；身份和交互栏由 FeedItemFrame / FeedActionBar 持有。应用仅提交 HTML 快照，不注册动态模板、不需要安装应用才能展示。服务端按登录身份发布并清理标签、属性和内联样式；内容格式 html-v1，HTML 上限 32 KB、20 层嵌套，禁用脚本和外部样式表。正文和图片沿用现有用户发布流程，HTML 编辑／预览、失败重试和草稿自动保存沿用 ComposePostScreen。
+
+SDK 2.0 feed.share 仅由明确用户操作触发，默认直接发布，不弹确认页；同账号、同应用、相同内容的并发点击复用请求，失败重试保留 requestId。feed.compose 显式进入编辑页。旧应用 publish/upsert/remove/recordChange 和 cards 注册接口删除；不兼容旧应用、不迁移历史应用动态、不执行清库。
