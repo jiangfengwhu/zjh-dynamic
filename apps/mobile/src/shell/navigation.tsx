@@ -1,6 +1,6 @@
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useRef, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import type { ApplicationManifest } from "../runtime/applications";
 import { ApplicationFeedbackScreen } from "./ApplicationFeedbackScreen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -45,12 +45,13 @@ import type { UserPost } from "./feed/userPosts";
 import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
 import type { PublicAuthor } from "./feed/userPosts";
 import { fetchPostDetail, type PostDetail } from "./feed/userPosts";
+import type { Notice } from "./feed/notifications";
 import { NotificationsScreen } from "./feed/NotificationsScreen";
 
 export type TabParamList = {
   feed: undefined;
   market: undefined;
-  mine: undefined;
+  notifications: undefined;
 };
 
 export type RootParamList = {
@@ -64,6 +65,7 @@ export type RootParamList = {
   marketDetail: { item: MarketApplication; publish?: boolean };
   myApps: undefined;
   account: undefined;
+  mine: undefined;
   composePost: { application?: MarketApplication } | undefined;
   postDetail: { post: UserPost; commentId?: string; initialDetail?: PostDetail };
   notifications: undefined;
@@ -73,6 +75,14 @@ export type RootParamList = {
 export const shellNavigationRef = createNavigationContainerRef<RootParamList>();
 function openAuthor(author: PublicAuthor) {
   if (shellNavigationRef.isReady()) shellNavigationRef.navigate("authorProfile", { author });
+}
+
+async function openNotice(notice: Notice) {
+  const origin = shellNavigationRef.getCurrentRoute()?.key;
+  const detail = await fetchPostDetail(notice.postId, undefined, notice.commentId);
+  if (!shellNavigationRef.isReady() || shellNavigationRef.getCurrentRoute()?.key !== origin) return false;
+  shellNavigationRef.navigate("postDetail", { post: detail.post, commentId: notice.commentId, initialDetail: detail });
+  return true;
 }
 
 const Stack = createNativeStackNavigator<RootParamList>();
@@ -93,9 +103,10 @@ function waitForBundleMount(id: string): Promise<void> {
 
 const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
-export function openShellTab(id: ShellTabId) {
+export function openShellTab(id: ShellTabId | "mine") {
   if (!shellNavigationRef.isReady()) return;
-  shellNavigationRef.navigate("tabs", { screen: id });
+  if (id === "mine") shellNavigationRef.navigate("mine");
+  else shellNavigationRef.navigate("tabs", { screen: id });
 }
 export async function openPublicMarketApplication(appId: string) {
   if (!shellNavigationRef.isReady()) return;
@@ -143,7 +154,7 @@ function goBack() {
  */
 export const SHELL_NAV_REQUEST = "shell.nav.request";
 
-const SHELL_TAB_IDS: readonly string[] = ["feed", "market", "mine"];
+const SHELL_TAB_IDS: readonly string[] = ["feed", "market", "notifications", "mine"];
 
 function handleShellRequest(raw: string | undefined) {
   if (!raw) return;
@@ -154,7 +165,7 @@ function handleShellRequest(raw: string | undefined) {
     else if (request.action === "providers") shellNavigationRef.navigate("providers");
     else if (request.action === "back") goBack();
     else if (request.action === "tab" && request.tab === "agent") applicationContext(bootstrap.defaultApplication).navigation.create();
-    else if (request.action === "tab" && request.tab && SHELL_TAB_IDS.includes(request.tab)) openShellTab(request.tab as ShellTabId);
+    else if (request.action === "tab" && request.tab && SHELL_TAB_IDS.includes(request.tab)) openShellTab(request.tab as ShellTabId | "mine");
     else if (request.action === "open" && request.id) openShellBundle(request.id);
   } catch (error) {
     console.log("shell request unreadable", error instanceof Error ? error.message : error);
@@ -214,6 +225,7 @@ export type ShellNavigatorProps = {
 
 export function ShellNavigator(props: ShellNavigatorProps) {
   const reduceMotion = useReducedMotion();
+  const { width: windowWidth } = useWindowDimensions();
   const previous = useRef({ label: "", depth: 1 });
   const colors = palettes[props.mode];
   const theme = {
@@ -295,7 +307,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               tabBarPosition="bottom"
               tabBar={(tabProps) => <ShellTabBar {...tabProps} />}
               screenOptions={{
-                swipeEnabled: true,
+                swipeEnabled: false,
                 lazy: true,
                 sceneStyle: { backgroundColor: colors.canvas },
               }}
@@ -303,7 +315,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="feed">
                 {() => (
                   <FeedScreen
-                    onNotifications={() => { void requireAccount().then(allowed => { if (allowed && shellNavigationRef.isReady()) shellNavigationRef.navigate("notifications"); }); }}
                     onAuthor={openAuthor}
                     onApplication={openPublicMarketApplication}
                     onProfile={() => openShellTab("mine")}
@@ -319,9 +330,18 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <Tabs.Screen name="market">
                 {() => <MarketScreen onAuthor={openAuthor} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
               </Tabs.Screen>
-              <Tabs.Screen name="mine">
-                {() => (
-                  <MineScreen
+              <Tabs.Screen name="notifications">
+                {() => <NotificationsScreen onOpen={openNotice} />}
+              </Tabs.Screen>
+            </Tabs.Navigator>
+            </ScreenEdge>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="mine" options={{ presentation: "transparentModal", animation: "slide_from_right", contentStyle: { backgroundColor: "transparent" } }}>
+          {() => <View style={{ flex: 1, flexDirection: "row" }} accessibilityViewIsModal>
+            <Pressable accessibilityRole="button" accessibilityLabel="关闭我的抽屉" onPress={goBack} style={{ flex: 1, backgroundColor: "rgba(25,21,44,0.35)" }} />
+            <View style={{ width: Math.min(380, windowWidth * 0.9), backgroundColor: colors.canvas, borderLeftWidth: 0.5, borderLeftColor: colors.line }}>
+              <MineScreen onClose={goBack}
                     onAccount={() => shellNavigationRef.navigate("account")}
                     mode={props.mode}
                     onApplications={() => shellNavigationRef.navigate("myApps")}
@@ -331,11 +351,8 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     onSummary={() => shellNavigationRef.navigate("summary")}
                     onAppearance={() => shellNavigationRef.navigate("appearance")}
                   />
-                )}
-              </Tabs.Screen>
-            </Tabs.Navigator>
-            </ScreenEdge>
-          )}
+            </View>
+          </View>}
         </Stack.Screen>
         <Stack.Screen name="marketDetail">
           {({ route }) => <MarketDetailScreen publish={route.params.publish} item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} onModify={(manifest, ownerId) => shellNavigationRef.navigate("applicationFeedback", { manifest, ownerId })} onSharePost={application => shellNavigationRef.navigate("composePost", { application })} onAuthor={openAuthor} />}
@@ -356,7 +373,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           {({ route }) => <PostDetailScreen key={`${route.params.post.id}:${route.params.commentId ?? ""}`} initialPost={route.params.post} initialCommentId={route.params.commentId} initialDetail={route.params.initialDetail} onBack={goBack} onApplication={openPublicMarketApplication} onAuthor={openAuthor} />}
         </Stack.Screen>
         <Stack.Screen name="notifications">
-          {() => <NotificationsScreen onBack={goBack} onOpen={async notice => { const origin = shellNavigationRef.getCurrentRoute()?.key; const detail = await fetchPostDetail(notice.postId, undefined, notice.commentId); if (!shellNavigationRef.isReady() || shellNavigationRef.getCurrentRoute()?.key !== origin) return false; shellNavigationRef.navigate("postDetail", { post: detail.post, commentId: notice.commentId, initialDetail: detail }); return true; }} />}
+          {() => <NotificationsScreen onBack={goBack} onOpen={openNotice} />}
         </Stack.Screen>
         <Stack.Screen name="authorProfile">
           {({ route }) => <AuthorProfileScreen key={route.params.author.id} initialAuthor={route.params.author} onBack={goBack} onPost={post => shellNavigationRef.navigate("postDetail", { post })} onApplication={openPublicMarketApplication} />}

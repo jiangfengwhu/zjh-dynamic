@@ -8,9 +8,9 @@ import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages
 import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES } from "../../../../packages/ui/feed";
 
 type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
-type Props = { mode: ThemeMode; onApplications: () => void; onAccount: () => void; onProviders: () => void; onInfo: () => void; onCheckUpdates: () => Promise<boolean>; onSummary: () => void; onAppearance: () => void };
+type Props = { onClose?: () => void; mode: ThemeMode; onApplications: () => void; onAccount: () => void; onProviders: () => void; onInfo: () => void; onCheckUpdates: () => Promise<boolean>; onSummary: () => void; onAppearance: () => void };
 
-export const MineScreen = memo(function MineScreen({ mode, onApplications, onAccount, onProviders, onInfo, onCheckUpdates, onSummary, onAppearance }: Props) {
+export const MineScreen = memo(function MineScreen({ onClose, mode, onApplications, onAccount, onProviders, onInfo, onCheckUpdates, onSummary, onAppearance }: Props) {
   const { colors } = useTheme();
   const { user } = useAccount();
   const [summaryEvery, setSummaryEvery] = useState(() => readSummaryEvery());
@@ -23,7 +23,7 @@ export const MineScreen = memo(function MineScreen({ mode, onApplications, onAcc
     catch { setCheck("failed"); }
   }
   return <Screen style={styles.screen}>
-    <PageHeader title="我的" />
+    <PageHeader title="我的" right={onClose ? <Pressy accessibilityRole="button" accessibilityLabel="关闭我的抽屉" onPress={onClose} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Icon name="close" size={20} color={colors.ink1} /></Pressy> : undefined} />
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Animated.View entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}>
         <Pressy accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount} style={styles.profile}>
@@ -68,7 +68,7 @@ const styles = themedStyleSheet(t => ({
   screen: { backgroundColor: t.canvas },
   content: { padding: 16, paddingTop: 12, gap: 12, paddingBottom: 24 },
   profile: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: t.line },
-  portrait: { width: 52, height: 52, borderRadius: t.radius.md },
+  portrait: { width: 52, height: 52, borderRadius: 26 },
   placeholder: { backgroundColor: t.accent, alignItems: "center", justifyContent: "center" },
   initial: { fontSize: 23, fontWeight: "700", color: t.onAccent },
   profileCopy: { flex: 1, minWidth: 0, gap: 4 },

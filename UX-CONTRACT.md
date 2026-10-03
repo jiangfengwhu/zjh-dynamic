@@ -24,7 +24,7 @@
 | 图片 | packages/ui/media/AppImage.tsx | 默认延迟加载并按 URI 回收图片；特殊请求头、动画格式与事件回调沿用 RN Image |
 | 选图 | packages/ui/media/MediaPicker.ts | 用户操作触发；全局防重；圆形头像裁剪、多选上限、JPEG 编码和尺寸约束；取消不提示错误；仅删除自身临时副本 |
 | Markdown | packages/ui/media/RichMarkdown.tsx | 共享原生渲染、主题、字号缩放、选择菜单与链接策略；流式更新遵循系统减少动态效果设置 |
-| 滚动条 | RN ScrollView／FlatList | 使用平台原生滚动指示器；分类随头部滚动显隐，发布按钮固定右下角并避让导航与安全区 |
+| 滚动条 | RN ScrollView／FlatList | 使用平台原生滚动指示器；分类随头部滚动显隐，发布按钮在右下角随底部导航显隐并避让安全区 |
 | Form / Select / Date / Table Selection | 本轮不涉及 | 编辑、账号与设置现有流程保持原所有者 |
 
 业务来源是现有宿主实现及用户本轮视觉迁移授权；本轮没有引入权限、支付、奖励、上传规则或服务端生命周期决策。账号验证由 `account.ts` 的 `requireAccount` 负责。中文无新增 locale 提供者；相对时间继续沿用动态页原有逻辑。
@@ -38,3 +38,5 @@
 系统导航可见性由 Android MainActivity 与 react-native-screens 原生适配统一持有，默认隐藏；页面 systemBars 调用只设置配色，应用 tab 显隐不再参与系统导航栏生命周期。键盘由现有 KeyboardProvider／IME insets 保持原有所有者。
 
 底部 tab 的可见偏移与头部由 FeedScreen 的 scroll worklet 同帧计算，不做延迟吸附；SHELL_BOTTOM_PADDING=16 为底部布局唯一附加留白。FeedActionBar 在成功确认 false→true 时播放点赞动画，初始恢复、取消点赞与失败不播放，忙碌禁用和计数仍按真实状态。依用户偏好，新增点赞与刷新动画固定播放。刷新完成／失败强制 rotate=0，避免旧变换残留。
+
+首页手势与导航：底部路由禁止横划，动态列表横划按当前分类顺序切换（全部、用户、存在的应用类型），边界不循环；右边缘 32 点左滑或头像打开右侧「我的」抽屉，避免与分类手势竞争。抽屉复用 MineScreen，遮罩、关闭按钮及系统返回均可关闭，子设置保留原路由；旧 mine 导航请求兼容为打开抽屉。底部第三项为通知，未读标记仅属于通知项；通知复用既有 NotificationsScreen，并提供登录入口。发布按钮与底部 tab 使用同一个 chromeHidden 进度，在隐藏时移出视口。

@@ -2,8 +2,15 @@ import { PixelText as Text } from "./PixelText";
 import { PixelText } from "./PixelText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, ScrollView, View } from "react-native";
 import {
+  FlatList,
+  Pressable,
+  ScrollView,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import {
+  Gesture,
   GestureDetector,
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
@@ -54,7 +61,6 @@ import {
 import { UserPostCard } from "./UserPostCard";
 import Toast from "react-native-toast-message";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
-import { useNotificationCount } from "./notifications";
 
 type FeedProps = {
   installedIds: string[];
@@ -68,7 +74,6 @@ type FeedProps = {
   onProfile: () => void;
   onApplication: (appId: string) => Promise<void>;
   onAuthor: (author: UserPost["author"]) => void;
-  onNotifications: () => void;
 };
 
 export const FeedScreen = memo(function FeedScreen({
@@ -79,7 +84,7 @@ export const FeedScreen = memo(function FeedScreen({
   onProfile,
   onApplication,
   onAuthor,
-  onNotifications,
+
   installedIds,
 }: FeedProps) {
   const { user } = useAccount();
@@ -103,7 +108,7 @@ export const FeedScreen = memo(function FeedScreen({
     }, [colors.canvas, mode])
   );
   const userTimeline = useUserPosts();
-  const unreadNotifications = useNotificationCount();
+  const { width: screenWidth } = useWindowDimensions();
   const [loadingMore, setLoadingMore] = useState(false);
   const [timelineError, setTimelineError] = useState("");
   const [allPosts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
@@ -186,12 +191,9 @@ export const FeedScreen = memo(function FeedScreen({
     paddingBottom: tabHeight.value + 68,
   }));
   const composePosition = useAnimatedStyle(() => ({
-    bottom:
-      Math.max(
-        SHELL_BOTTOM_PADDING,
-        insets.bottom,
-        tabHeight.value * (1 - chromeHidden.value)
-      ) + 12,
+    bottom: Math.max(SHELL_BOTTOM_PADDING, insets.bottom, tabHeight.value) + 12,
+    transform: [{ translateY: chromeHidden.value * (tabHeight.value + 76) }],
+    opacity: 1 - chromeHidden.value,
   }));
   useFocusEffect(
     useCallback(() => {
@@ -217,7 +219,7 @@ export const FeedScreen = memo(function FeedScreen({
     );
   }, []);
 
-  const { pull, phase, gesture, scrollGesture } = usePullToRefresh({
+  const { pull, phase, gesture } = usePullToRefresh({
     scrollY,
     onRefresh: async () => {
       setPosts(readFeedPosts());
@@ -305,6 +307,50 @@ export const FeedScreen = memo(function FeedScreen({
     dragging.value = false;
   }, [kind, scrollY, hiddenHeader, chromeHidden, dragging]);
 
+  // Right-edge swipes open the profile drawer; ordinary swipes select categories.
+  const categories = useMemo(() => [null, "user", ...kinds] as const, [kinds]);
+  const horizontalGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-20, 20])
+        .failOffsetY([-12, 12])
+        .maxPointers(1)
+        .runOnJS(true)
+        .onEnd((event) => {
+          if (
+            Math.abs(event.translationX) < 48 &&
+            Math.abs(event.velocityX) < 500
+          )
+            return;
+          const startX = event.x - event.translationX;
+          if (startX >= screenWidth - 32 && event.translationX < 0) {
+            onProfile();
+            return;
+          }
+          const index = categories.indexOf(kind);
+          const next = Math.max(
+            0,
+            Math.min(
+              categories.length - 1,
+              index + (event.translationX < 0 ? 1 : -1)
+            )
+          );
+          if (next !== index) setKind(categories[next]);
+        }),
+    [categories, kind, onProfile, screenWidth]
+  );
+  const timelineGesture = useMemo(
+    () => Gesture.Exclusive(horizontalGesture, gesture),
+    [horizontalGesture, gesture]
+  );
+  const scrollGesture = useMemo(
+    () =>
+      Gesture.Native()
+        .requireExternalGestureToFail(horizontalGesture, gesture)
+        .disallowInterruption(true),
+    [horizontalGesture, gesture]
+  );
+
   const open = useCallback(
     async (appId: string) => {
       const at = latest[appId] ?? Date.now();
@@ -348,33 +394,7 @@ export const FeedScreen = memo(function FeedScreen({
                     </View>
                     <Pressy
                       accessibilityRole="button"
-                      accessibilityLabel={`查看通知${
-                        unreadNotifications
-                          ? `，${unreadNotifications}条未读`
-                          : ""
-                      }`}
-                      onPress={onNotifications}
-                      style={styles.notification}
-                    >
-                      <PixelIcon
-                        name="bell"
-                        size={20}
-                        color={colors.cyanText}
-                      />
-                      {unreadNotifications > 0 ? (
-                        <View style={styles.notificationCount}>
-                          <Text style={{ fontSize: 9, color: colors.onAccent }}>
-                            {unreadNotifications > 99
-                              ? "99+"
-                              : unreadNotifications}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </Pressy>
-
-                    <Pressy
-                      accessibilityRole="button"
-                      accessibilityLabel="打开我的页面"
+                      accessibilityLabel="打开我的侧边抽屉"
                       onPress={onProfile}
                       scale={0.92}
                       style={styles.profileControl}
@@ -420,7 +440,7 @@ export const FeedScreen = memo(function FeedScreen({
                 </View>
               </Animated.View>
 
-              <GestureDetector gesture={gesture}>
+              <GestureDetector gesture={timelineGesture}>
                 <View style={styles.pullHost}>
                   <View style={styles.scroll}>
                     <GestureDetector gesture={scrollGesture}>
@@ -703,23 +723,6 @@ const styles = themedStyleSheet((base) => {
       backgroundColor: t.canvas,
     },
     viewport: { flex: 1, overflow: "hidden" },
-    notification: {
-      width: 44,
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    notificationCount: {
-      position: "absolute",
-      top: 0,
-      right: 0,
-      minWidth: 16,
-      paddingHorizontal: 3,
-      height: 16,
-      backgroundColor: t.accent,
-      alignItems: "center",
-      justifyContent: "center",
-    },
     composeDock: { position: "absolute", right: 16, zIndex: 30 },
     compose: {
       minHeight: 44,

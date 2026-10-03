@@ -7,7 +7,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { Icon, Pressy } from "../../../../packages/ui/chrome";
+import { Pressy } from "../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import {
   useNotificationCount,
@@ -19,7 +19,7 @@ import { pixelTheme } from "./feed/pixelTheme";
 export const SHELL_TABS = [
   { id: "feed", title: "动态", icon: "feed" },
   { id: "market", title: "应用市场", icon: "box" },
-  { id: "mine", title: "我的", icon: "mine" },
+  { id: "notifications", title: "通知", icon: "bell" },
 ] as const;
 export type ShellTabId = (typeof SHELL_TABS)[number]["id"];
 
@@ -41,7 +41,7 @@ export function TabBar({
           item={item}
           pixel={activeId === "feed"}
           active={item.id === activeId}
-          unread={item.id === "feed" ? unread : 0}
+          unread={item.id === "notifications" ? unread : 0}
           onPress={() => onChange(item.id)}
         />
       ))}
@@ -88,19 +88,11 @@ function Tab({
         style={[styles.selected, pixel && pixelStyles.selected, motion]}
       />
       <View style={styles.icon}>
-        {pixel ? (
-          <PixelIcon
-            name={item.icon}
-            size={20}
-            color={active ? colors.onAccent : colors.ink3}
-          />
-        ) : (
-          <Icon
-            name={item.icon}
-            size={20}
-            color={active ? colors.onAccent : colors.ink3}
-          />
-        )}
+        <PixelIcon
+          name={item.icon}
+          size={20}
+          color={active ? colors.onAccent : colors.ink3}
+        />
         {unread > 0 ? (
           <View
             style={[
