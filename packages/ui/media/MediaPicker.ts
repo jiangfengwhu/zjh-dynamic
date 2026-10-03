@@ -41,7 +41,8 @@ async function encodePhoto(source: string, options: PhotoPickerOptions): Promise
       await BlobUtil.fs.cp(source, inputCopy);
       filePath = inputCopy;
     }
-    image = await loadImage({ filePath });
+    // The network/file loader applies EXIF orientation before resizing/encoding.
+    image = await loadImage({ url: `file://${filePath}` });
     const maxWidth = options.width ?? options.compressImageMaxWidth ?? 1600;
     const maxHeight = options.height ?? options.compressImageMaxHeight ?? 1600;
     const scale = Math.min(1, maxWidth / image.width, maxHeight / image.height);
@@ -64,6 +65,7 @@ async function pick(options: PhotoPickerOptions): Promise<PickedPhoto[]> {
   if (picking) throw new Error("相册已打开，请完成当前选择");
   picking = true;
   const encoded: PickedPhoto[] = [];
+  let pickerCopies: string[] = [];
   try {
     const maxFiles = options.multiple ? options.maxFiles ?? 4 : 1;
     if (!Number.isInteger(maxFiles) || maxFiles < 1 || maxFiles > 20) throw new Error("图片数量无效");
@@ -79,6 +81,8 @@ async function pick(options: PhotoPickerOptions): Promise<PickedPhoto[]> {
       compressImageMaxWidth: undefined, compressImageMaxHeight: undefined,
     });
     const photos = Array.isArray(selected) ? selected : [selected];
+    pickerCopies = photos.map(photo => photo.path.replace(/^file:\/\//, ""))
+      .filter(path => path.startsWith(`${BlobUtil.fs.dirs.CacheDir}/react-native-image-crop-picker/`));
     if (!photos.length) throw Object.assign(new Error("已取消选择"), { code: "E_PICKER_CANCELLED" });
     if (photos.length > maxFiles || photos.some(photo => !photo.mime?.startsWith("image/") || !photo.path)) throw new Error("相册返回的图片无效");
     if (!await BlobUtil.fs.exists(temporaryDirectory)) await BlobUtil.fs.mkdir(temporaryDirectory);
@@ -90,7 +94,10 @@ async function pick(options: PhotoPickerOptions): Promise<PickedPhoto[]> {
       throw Object.assign(new Error("已取消选择"), { code: "E_PICKER_CANCELLED" });
     }
     throw error instanceof Error ? error : new Error("选择图片失败，请检查相册权限后重试");
-  } finally { picking = false; }
+  } finally {
+    await Promise.all(pickerCopies.map(path => ImagePicker.cleanSingle(path).catch(() => {})));
+    picking = false;
+  }
 }
 function pickPhotos(options: PhotoPickerOptions & { multiple: true }): Promise<PickedPhoto[]>;
 function pickPhotos(options: PhotoPickerOptions & { multiple?: false }): Promise<PickedPhoto>;
