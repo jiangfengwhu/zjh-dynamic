@@ -19,7 +19,7 @@ export function ApplicationPostCard({
 }) {
   const context = useTheme();
   const inPixelFeed =
-    context.colors.canvas === "#171322" || context.colors.canvas === "#F1EDF8";
+    ["#171322", "#F1EDF8", "#19152C", "#FFF9ED"].includes(context.colors.canvas);
   const colors = inPixelFeed ? pixelTheme(context.colors) : context.colors;
   const [busy, setBusy] = useState(false);
   const working = useRef(false);

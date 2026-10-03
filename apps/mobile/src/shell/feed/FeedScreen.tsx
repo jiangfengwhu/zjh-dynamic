@@ -10,9 +10,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
-  Extrapolation,
   ReduceMotion,
-  interpolate,
   useAnimatedScrollHandler,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -24,6 +22,7 @@ import Animated, {
 import { bundles } from "../../../../../packages/features/src/registry";
 import {
   KIND_LABEL,
+  kindTone,
   peekFeedTemplate,
   readFeedPosts,
   subscribeFeedPosts,
@@ -157,8 +156,10 @@ export const FeedScreen = memo(function FeedScreen({
   );
   function settleHeader(delay = 0) {
     "worklet";
+    // Near the top, follow the list instead of snapping away its reserved header.
+    if (scrollY.value < headerHeight.value) return;
     const hide =
-      scrollY.value > 1 &&
+      scrollY.value >= headerHeight.value &&
       (direction.value > 0 ||
         (direction.value === 0 && hiddenHeader.value > headerHeight.value / 2));
     const animation = withTiming(hide ? headerHeight.value : 0, {
@@ -203,7 +204,7 @@ export const FeedScreen = memo(function FeedScreen({
             ? 0
             : Math.max(
                 0,
-                Math.min(headerHeight.value, hiddenHeader.value + delta)
+                Math.min(headerHeight.value, next, hiddenHeader.value + delta)
               );
       }
       scrollY.value = next;
@@ -239,9 +240,6 @@ export const FeedScreen = memo(function FeedScreen({
       momentum.value = false;
     }, [chromeHidden, hiddenHeader, dragging, momentum])
   );
-  const edge = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, 24], [0, 1], Extrapolation.CLAMP),
-  }));
 
   useEffect(() => subscribeFeedPosts(setPosts), []);
   useEffect(() => subscribeSeen(setSeen), []);
@@ -398,7 +396,11 @@ export const FeedScreen = memo(function FeedScreen({
                       onPress={onNotifications}
                       style={styles.notification}
                     >
-                      <PixelIcon name="bell" size={20} color={colors.ink2} />
+                      <PixelIcon
+                        name="bell"
+                        size={20}
+                        color={colors.cyanText}
+                      />
                       {unreadNotifications > 0 ? (
                         <View style={styles.notificationCount}>
                           <Text style={{ fontSize: 9, color: colors.onAccent }}>
@@ -430,15 +432,18 @@ export const FeedScreen = memo(function FeedScreen({
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator
+                    style={{ flexGrow: 0 }}
                     contentContainerStyle={styles.tabs}
                   >
                     <Tab
                       label="全部"
+                      tone={colors.redText}
                       active={kind === null}
                       onPress={() => setKind(null)}
                     />
                     <Tab
                       label="用户"
+                      tone={colors.cyanText}
                       active={kind === "user"}
                       onPress={() => setKind("user")}
                     />
@@ -446,15 +451,12 @@ export const FeedScreen = memo(function FeedScreen({
                       <Tab
                         key={item}
                         label={KIND_LABEL[item]}
+                        tone={kindTone(item, colors).text}
                         active={kind === item}
                         onPress={() => setKind(item)}
                       />
                     ))}
                   </ScrollView>
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[styles.headerEdge, edge]}
-                  />
                 </View>
               </Animated.View>
 
@@ -465,6 +467,7 @@ export const FeedScreen = memo(function FeedScreen({
                       <Animated.FlatList
                         ref={list}
                         data={visible}
+                        ItemSeparatorComponent={FeedSeparator}
                         keyExtractor={(item) => `${item.type}-${item.post.id}`}
                         initialNumToRender={8}
                         maxToRenderPerBatch={6}
@@ -670,15 +673,21 @@ export const FeedScreen = memo(function FeedScreen({
     </ThemeContext.Provider>
   );
 });
+function FeedSeparator() {
+  return <View style={styles.separator} />;
+}
+
 const feedPresentation = { Text: PixelText, compact: true };
 
 /** 分类切换用字重和短线共同标识选中状态。 */
 function Tab({
   label,
+  tone,
   active,
   onPress,
 }: {
   label: string;
+  tone: string;
   active: boolean;
   onPress: () => void;
 }) {
@@ -695,11 +704,16 @@ function Tab({
       ]}
     >
       <View style={styles.tabInner}>
-        <Text style={[styles.tabText, active && styles.tabTextActive]}>
-          {label}
-        </Text>
+        <Text style={[styles.tabText, active && { color: tone }]}>{label}</Text>
         <View
-          style={[styles.tabBar, active && { backgroundColor: colors.accent }]}
+          style={[
+            styles.tabBar,
+            {
+              backgroundColor: tone,
+              width: active ? 20 : 4,
+              opacity: active ? 1 : 0.3,
+            },
+          ]}
         />
       </View>
     </Pressable>
@@ -773,7 +787,7 @@ const styles = themedStyleSheet((base) => {
     header: {
       backgroundColor: t.canvas,
       paddingHorizontal: 16,
-      paddingBottom: 8,
+      paddingBottom: 0,
     },
     headerRow: {
       flexDirection: "row",
@@ -786,32 +800,24 @@ const styles = themedStyleSheet((base) => {
       fontSize: 24,
       lineHeight: 32,
       fontWeight: "900",
-      color: t.ink1,
+      color: t.cyanText,
     },
-    brand: { fontSize: 11, fontWeight: "500", color: t.ink3 },
+    brand: { fontSize: 11, fontWeight: "500", color: t.redText },
     headerCaption: { fontSize: 10, lineHeight: 15, color: t.ink3 },
-    headerEdge: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: 2,
-      backgroundColor: t.lineStrong,
-    },
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
     content: { paddingBottom: 16 },
     tabs: {
       flexDirection: "row",
-      paddingHorizontal: 8,
-      paddingBottom: 4,
-      gap: 2,
+      paddingHorizontal: 0,
+      paddingBottom: 0,
+      gap: 12,
     },
-    tab: { paddingHorizontal: 10, alignItems: "center", minWidth: 52 },
+    tab: { paddingHorizontal: 0, alignItems: "flex-start", minWidth: 44 },
     tabInner: {
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "center",
-      gap: 4,
+      gap: 2,
       height: 44,
     },
     tabText: {
@@ -819,14 +825,14 @@ const styles = themedStyleSheet((base) => {
       fontWeight: "500",
       color: t.ink3,
     },
-    tabTextActive: { color: t.ink1, fontWeight: "800" },
     tabBar: {
       width: 16,
       height: 4,
       borderRadius: 0,
       backgroundColor: "transparent",
     },
-    post: { paddingVertical: 3 },
+    post: { paddingVertical: 3, paddingRight: 12 },
+    separator: { height: 0.5, marginHorizontal: 16, backgroundColor: t.line },
     empty: {
       marginHorizontal: 16,
       padding: 24,

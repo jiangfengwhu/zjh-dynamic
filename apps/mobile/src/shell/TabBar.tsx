@@ -169,8 +169,8 @@ const pixelStyles = themedStyleSheet((base) => {
   return {
     bar: {
       backgroundColor: t.canvas,
-      borderTopWidth: 2,
-      borderTopColor: t.lineStrong,
+      borderTopWidth: 0.5,
+      borderTopColor: t.line,
     },
     selected: {
       borderRadius: 0,
