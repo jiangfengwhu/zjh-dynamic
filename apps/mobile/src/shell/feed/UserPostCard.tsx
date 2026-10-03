@@ -1,8 +1,7 @@
+import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
 import { PixelText as Text } from "./PixelText";
-import { PixelIcon } from "./PixelKit";
 import { useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   Share,
@@ -14,7 +13,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Clipboard from "@react-native-clipboard/clipboard";
-import { Share2 } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import { useTheme, type Theme } from "../../../../../packages/ui/theme";
 import { requireAccount } from "../account";
@@ -198,48 +196,7 @@ export function UserPostCard({
             onOpen={onApplication}
           />
         ) : null}
-        <View style={styles.actions}>
-          <Pressy
-            accessibilityRole="button"
-            accessibilityLabel={`评论 ${post.commentCount ?? 0} 条`}
-            onPress={onOpen}
-            style={styles.action}
-          >
-            <PixelIcon name="chat" size={18} color={colors.ink3} />
-            <Text style={styles.count}>{post.commentCount || ""}</Text>
-          </Pressy>
-          <Pressy
-            accessibilityRole="button"
-            accessibilityLabel={post.liked ? "取消点赞" : "点赞"}
-            accessibilityState={{ selected: !!post.liked, disabled: liking }}
-            disabled={liking}
-            onPress={() => void like()}
-            style={styles.action}
-          >
-            {liking ? (
-              <ActivityIndicator size="small" color={colors.accent} />
-            ) : (
-              <PixelIcon
-                name="heart"
-                size={18}
-                color={post.liked ? colors.redText : colors.ink3}
-              />
-            )}
-            <Text
-              style={[styles.count, post.liked && { color: colors.accentText }]}
-            >
-              {post.likeCount || ""}
-            </Text>
-          </Pressy>
-          <Pressy
-            accessibilityRole="button"
-            accessibilityLabel="分享动态"
-            onPress={share}
-            style={styles.action}
-          >
-            <Share2 size={19} color={colors.ink3} />
-          </Pressy>
-        </View>
+        <FeedActionBar liked={!!post.liked} busy={liking} comments={post.commentCount} likes={post.likeCount} onComment={onOpen} onLike={() => void like()} onShare={share} />
       </View>
       <EdgeModal
         visible={!!preview}
@@ -287,8 +244,8 @@ const makeStyles = (t: Theme) =>
     avatar: {
       width: 36,
       height: 36,
-      borderRadius: 0,
-      borderWidth: 2,
+      borderRadius: 18,
+      borderWidth: 0,
       borderColor: t.line,
     },
     placeholder: {
@@ -331,24 +288,6 @@ const makeStyles = (t: Theme) =>
     },
     singleImage: { width: "100%", aspectRatio: 1.35 },
     image: { width: "100%", height: "100%" },
-    actions: {
-      flexDirection: "row",
-      borderTopWidth: 1,
-      borderTopColor: t.line,
-      paddingTop: 2,
-      justifyContent: "space-between",
-      flexWrap: "wrap",
-      gap: 2,
-      marginTop: 1,
-    },
-    action: {
-      minHeight: 44,
-      minWidth: 44,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 3,
-    },
-    count: { fontSize: 12, color: t.ink3, fontFamily: t.mono },
     previewImage: { flex: 1, width: "100%" },
     preview: { flex: 1, backgroundColor: "#141517" },
     close: {

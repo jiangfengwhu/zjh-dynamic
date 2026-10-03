@@ -427,6 +427,30 @@ export const FeedScreen = memo(function FeedScreen({
                       )}
                     </Pressy>
                   </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator
+                    contentContainerStyle={styles.tabs}
+                  >
+                    <Tab
+                      label="全部"
+                      active={kind === null}
+                      onPress={() => setKind(null)}
+                    />
+                    <Tab
+                      label="用户"
+                      active={kind === "user"}
+                      onPress={() => setKind("user")}
+                    />
+                    {kinds.map((item) => (
+                      <Tab
+                        key={item}
+                        label={KIND_LABEL[item]}
+                        active={kind === item}
+                        onPress={() => setKind(item)}
+                      />
+                    ))}
+                  </ScrollView>
                   <Animated.View
                     pointerEvents="none"
                     style={[styles.headerEdge, edge]}
@@ -466,36 +490,6 @@ export const FeedScreen = memo(function FeedScreen({
                             <Animated.View style={refreshSpace}>
                               <PullIndicator pull={pull} phase={phase} />
                             </Animated.View>
-                            <View style={styles.timelineHeading}>
-                              <Text style={styles.timelineTitle}>最新动态</Text>
-                              <Text style={styles.timelineCount}>
-                                {visible.length} 条
-                              </Text>
-                            </View>
-                            <ScrollView
-                              horizontal
-                              showsHorizontalScrollIndicator
-                              contentContainerStyle={styles.tabs}
-                            >
-                              <Tab
-                                label="全部"
-                                active={kind === null}
-                                onPress={() => setKind(null)}
-                              />
-                              <Tab
-                                label="用户"
-                                active={kind === "user"}
-                                onPress={() => setKind("user")}
-                              />
-                              {kinds.map((item) => (
-                                <Tab
-                                  key={item}
-                                  label={KIND_LABEL[item]}
-                                  active={kind === item}
-                                  onPress={() => setKind(item)}
-                                />
-                              ))}
-                            </ScrollView>
                             {timelineError ? (
                               <Text
                                 style={{
@@ -656,12 +650,17 @@ export const FeedScreen = memo(function FeedScreen({
                   accessibilityLabel="发布文字和图片动态"
                   onPress={onCompose}
                   scale={1}
-                  style={styles.compose}
+                  style={[
+                    styles.compose,
+                    {
+                      width: 48,
+                      height: 48,
+                      paddingHorizontal: 0,
+                      justifyContent: "center",
+                    },
+                  ]}
                 >
                   <PixelIcon name="plus" size={18} color={colors.onAccent} />
-                  <Text style={{ fontSize: 12, color: colors.onAccent }}>
-                    发动态
-                  </Text>
                 </Pressy>
               </Animated.View>
             </View>
@@ -767,8 +766,10 @@ const styles = themedStyleSheet((base) => {
       borderWidth: 2,
       borderColor: t.line,
       marginLeft: 4,
+      borderRadius: 22,
+      overflow: "hidden",
     },
-    profileAvatar: { width: 34, height: 34, borderRadius: 0 },
+    profileAvatar: { width: 34, height: 34, borderRadius: 17 },
     header: {
       backgroundColor: t.canvas,
       paddingHorizontal: 16,
@@ -825,17 +826,7 @@ const styles = themedStyleSheet((base) => {
       borderRadius: 0,
       backgroundColor: "transparent",
     },
-    timelineHeading: {
-      paddingHorizontal: 16,
-      paddingTop: 8,
-      paddingBottom: 2,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    timelineTitle: { fontSize: 15, fontWeight: "800", color: t.ink1 },
-    timelineCount: { fontSize: 10, color: t.ink3, fontFamily: t.mono },
-    post: { borderBottomWidth: 1, borderBottomColor: t.line },
+    post: { paddingVertical: 3 },
     empty: {
       marginHorizontal: 16,
       padding: 24,

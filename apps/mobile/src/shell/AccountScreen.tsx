@@ -76,5 +76,5 @@ const styles = themedStyleSheet(t => ({
   logout: { backgroundColor: t.redTint }, logoutLabel: { color: t.redText }, secondary: { backgroundColor: t.inset }, disabled: { opacity: 0.45 },
   buttonLabel: { color: t.onAccent, fontSize: 14, fontWeight: "700" }, secondaryLabel: { color: t.accentText, fontSize: 14, fontWeight: "700" },
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 12 }, fill: { flex: 1 },
-  avatar: { width: 56, height: 56, borderRadius: t.radius.md }, placeholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" }, initial: { color: t.accentText, fontSize: 20, fontWeight: "600" },
+  avatar: { width: 56, height: 56, borderRadius: 28 }, placeholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" }, initial: { color: t.accentText, fontSize: 20, fontWeight: "600" },
 }));

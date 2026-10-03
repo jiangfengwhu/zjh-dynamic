@@ -1,14 +1,23 @@
-import { createContext, createElement, useContext, useMemo, type ReactNode } from "react";
-import { Platform, StyleSheet } from "react-native";
-import { readPackageValue, subscribePackageValue, writePackageValue } from "./packageLink";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useMemo,
+  type ReactNode,
+} from "react";
+import { StyleSheet } from "react-native";
+import {
+  readPackageValue,
+  subscribePackageValue,
+  writePackageValue,
+} from "./packageLink";
 
 export type ThemeMode = "dark" | "light";
 
 export const fonts = {
-  mono: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
-  sans: Platform.select({ ios: "System", android: "sans-serif", default: "System" }),
-  /** 保留公共字段名，标题与正文统一采用平台无衬线字体。 */
-  serif: Platform.select({ ios: "System", android: "sans-serif", default: "System" }),
+  mono: "Fusion Pixel 12px Proportional SC",
+  sans: "Fusion Pixel 12px Proportional SC",
+  serif: "Fusion Pixel 12px Proportional SC",
 } as const;
 
 const radius = {
@@ -242,10 +251,12 @@ export function setActiveThemeMode(mode: ThemeMode) {
 }
 
 const storedTheme = readPackageValue(THEME_KEY);
-if (storedTheme === "light" || storedTheme === "dark") applyThemeMode(storedTheme);
+if (storedTheme === "light" || storedTheme === "dark")
+  applyThemeMode(storedTheme);
 
 subscribePackageValue(THEME_KEY, (value) => {
-  if ((value === "light" || value === "dark") && value !== activeMode) applyThemeMode(value);
+  if ((value === "light" || value === "dark") && value !== activeMode)
+    applyThemeMode(value);
 });
 
 export function getActiveThemeMode(): ThemeMode {
@@ -297,7 +308,7 @@ export function useTheme(): ThemeContextValue {
 }
 
 export function themedStyleSheet<
-  T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>,
+  T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>
 >(factory: (t: Theme) => T): T {
   const cache: Partial<Record<ThemeMode, T>> = {};
   return new Proxy({} as T, {

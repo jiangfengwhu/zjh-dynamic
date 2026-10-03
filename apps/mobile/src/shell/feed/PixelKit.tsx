@@ -49,7 +49,7 @@ export function PixelAvatar({ size = 48 }: { size?: number }) {
       accessible={false}
       source={mascotImage}
       resizeMode="contain"
-      style={{ width: size, height: size, backgroundColor: "#FFFFFF" }}
+      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#FFFFFF" }}
     />
   );
 }

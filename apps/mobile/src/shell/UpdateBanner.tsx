@@ -70,7 +70,7 @@ const styles = themedStyleSheet((t) => ({
   avatar: {
     width: 44,
     height: 44,
-    borderRadius: t.radius.sm,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",

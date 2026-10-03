@@ -1,6 +1,13 @@
+import { FeedActionBar } from "./FeedActionBar";
 import { FeedText as Text, useCompactFeed } from "./FeedPresentation";
 import { memo, type ReactNode } from "react";
-import { Pressable, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  Share,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -10,11 +17,11 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { RichMarkdown } from "../../media/RichMarkdown";
-import { Icon, Pressy } from "../../chrome";
+import { Pressy } from "../../chrome";
 import { themedStyleSheet, useTheme, type Theme } from "../../theme";
 import type { FeedCardProps, FeedSlot } from "../store";
 import { FriendAvatar } from "./FriendAvatar";
-import { BubbleGlyph, HeartGlyph } from "./glyphs";
+import { HeartGlyph } from "./glyphs";
 
 export const KIND_LABEL: Record<FeedSlot, string> = {
   welcome: "新朋友",
@@ -81,52 +88,20 @@ export const PostHead = memo(function PostHead({
   );
 });
 
-/** 底部操作：对 TA 说、喜欢、打开主页，均匀排开。 */
-export const PostActions = memo(function PostActions({
-  friend,
-  liked,
-  onLike,
-  onReply,
-  onOpen,
-}: FeedCardProps) {
-  const styles = useFeedStyles();
-  const { colors } = useTheme();
+/** 所有动态使用统一的评论、点赞、分享栏。 */
+export const PostActions = memo(function PostActions(card: FeedCardProps) {
   return (
-    <View style={styles.actions}>
-      <Pressy
-        accessibilityRole="button"
-        accessibilityLabel={`对${friend.name}说一句`}
-        onPress={onReply}
-        scale={0.94}
-        style={styles.action}
-      >
-        <BubbleGlyph size={15} color={colors.ink3} />
-        <Text style={styles.actionText}>对 TA 说</Text>
-      </Pressy>
-      <LikeButton liked={liked} onPress={onLike} />
-      <Pressy
-        accessibilityRole="button"
-        accessibilityLabel={`打开${friend.name}`}
-        onPress={onOpen}
-        scale={0.94}
-        style={styles.action}
-      >
-        <Text
-          style={[
-            styles.actionText,
-            { color: colors.accentText, fontWeight: "700" },
-          ]}
-        >
-          主页
-        </Text>
-        <Icon
-          name="chevron"
-          size={11}
-          color={colors.accentText}
-          strokeWidth={2.2}
-        />
-      </Pressy>
-    </View>
+    <FeedActionBar
+      liked={card.liked}
+      onComment={card.onReply}
+      onLike={card.onLike}
+      onShare={() => {
+        void Share.share({
+          title: "分享动态",
+          message: card.friend.name + "：" + card.post.body,
+        }).catch(() => {});
+      }}
+    />
   );
 });
 
@@ -187,7 +162,12 @@ export function PostBody({ post }: Pick<FeedCardProps, "post">) {
   const { colors } = useTheme();
   const compact = useCompactFeed();
   return post.kind === "summary" ? (
-    <RichMarkdown markdown={post.body} fontFamily={compact ? "Fusion Pixel 12px Proportional SC" : colors.sans} fontSize={13.5} lineHeight={19.5} />
+    <RichMarkdown
+      markdown={post.body}
+      fontFamily={compact ? "Fusion Pixel 12px Proportional SC" : colors.sans}
+      fontSize={13.5}
+      lineHeight={19.5}
+    />
   ) : (
     <Text style={styles.text}>{post.body}</Text>
   );
@@ -206,7 +186,7 @@ export function PostAttachment({
 
 /**
  * 默认的一条动态：左边头像，右边依次是名字和时间、正文、附件、操作。
- * 没有卡片外框，条与条之间的分隔线由壳画。朋友登记的卡片也交给它：
+ * 没有卡片外框，条与条之间以紧凑留白区分。朋友登记的卡片也交给它：
  * App 优先使用 content 自绘名字与操作栏之间的完整区域，无默认正文、底色、边框或内边距。
  * body 和 children 保留兼容；没有自定义内容时才使用默认正文。
  */

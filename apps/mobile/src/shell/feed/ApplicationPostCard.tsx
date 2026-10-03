@@ -62,7 +62,7 @@ export function ApplicationPostCard({
         style={{
           width: 44,
           height: 44,
-          borderRadius: colors.radius.sm,
+          borderRadius: 22,
           backgroundColor: `${application.accent}18`,
           alignItems: "center",
           justifyContent: "center",
