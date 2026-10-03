@@ -1,14 +1,17 @@
 import { currentAccountId, requireAccount, useAccount, uploadMarketScreenshot } from "./account";
 import { openApplicationWorkshop } from "./workshopNavigation";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Modal, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView, type KeyboardAwareScrollViewRef } from "react-native-keyboard-controller";
 import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 import ImagePicker from "react-native-image-crop-picker";
 import FastImage from "@d11/react-native-fast-image";
 import Toast from "react-native-toast-message";
-import { BackChip, Pressy, Surface } from "../../../../packages/ui/chrome";
-import { Screen, ScreenBar } from "../../../../packages/ui/edge";
+import { FormField as TextInput } from "./FormField";
+import { PageHeader, Pressy, Surface } from "../../../../packages/ui/chrome";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useReducedMotion } from "react-native-reanimated";
+import { EdgeModal, Screen } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { loadCatalog, subscribeCatalog } from "./catalog";
 import { readShellValue, writeShellValue, removeShellValue } from "./shellStorage";
@@ -17,6 +20,8 @@ import { offerApplication, applyApplicationUpdate, runningApplication, runningAp
 import { cachedSharing, loadSharing, editMarketApplication, withdrawMarketApplication, shareMarketApplication, installMarketApplication, uninstallMarketApplication, marketCategories, marketDefinition, type MarketApplication, type SharingState } from "./market";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, onSharePost, onAuthor }: { onModify: (manifest: ApplicationManifest, ownerId: string) => void; onAuthor: (author: { id: string; name: string; avatarUrl: string | null; official?: boolean }) => void; publish?: boolean; item: MarketApplication; onBack: () => void; onOpen: (id: string) => void; onSharePost: (item: MarketApplication) => void }) {
+  const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
   const { user } = useAccount();
   const { colors } = useTheme(); const app = item.manifest; const focused = useIsFocused();
   const [installed, setInstalled] = useState(false); const [release, setRelease] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
@@ -161,19 +166,19 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, on
   const authorId = owner && user ? user.id : item.authorId;
   function visitAuthor() { if (authorId) onAuthor({ id: authorId, name: authorName || "社区创作者", avatarUrl: authorAvatar ?? null, official: sharing?.shared?.authorOfficial ?? item.authorOfficial }); }
   const versionName = (manifest: MarketApplication["manifest"]) => `${manifest.version || "1.0.0"}`;
-  if (item.owned && item.authorId !== user?.id) return <Screen style={styles.screen}><ScreenBar style={styles.bar}><BackChip onPress={onBack} /><Text style={styles.copy}>请登录作品所属账号后查看。</Text></ScreenBar></Screen>;
-  return <Screen style={styles.screen}><ScreenBar style={styles.bar}><BackChip onPress={onBack} /><Text style={styles.barTitle}>{owner ? "作品详情" : "应用详情"}</Text></ScreenBar><ScrollView ref={scroll} contentContainerStyle={styles.content}>
-    <View style={styles.hero}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={52} animated /> : <Text style={{ fontSize: 24, color: app.accent }}>{app.mark}</Text>}</View><View style={{ flex: 1, gap: 4 }}><Text style={styles.title}>{item.title || app.title}</Text><Pressy disabled={!authorId} accessibilityLabel="查看作者主页" onPress={visitAuthor} style={{ minHeight: 32, flexDirection: "row", alignItems: "center", gap: 6 }}>{authorAvatar ? <Image source={{ uri: authorAvatar }} style={{ width: 20, height: 20, borderRadius: 10 }} /> : null}<Text style={[styles.caption, { color: colors.accentText }]}>{authorName || "社区创作者"}</Text>{(sharing?.shared?.authorOfficial ?? item.authorOfficial) ? <Text accessibilityLabel="官方发布" style={styles.official}>官方</Text> : null}</Pressy></View></View>
-    <Surface style={styles.description} radius={20}><Text style={styles.subtitle}>它能帮你做什么</Text><Text style={styles.copy}>{shared?.summary ?? item.summary ?? app.summary ?? "打开应用，看看它能带来什么。"}</Text></Surface>
+  if (item.owned && item.authorId !== user?.id) return <Screen style={styles.screen}><PageHeader title="作品详情" onBack={onBack} /><Text style={[styles.copy, { padding: 16 }]}>请登录作品所属账号后查看。</Text></Screen>;
+  return <Screen style={styles.screen}><PageHeader title={owner ? "作品详情" : "应用详情"} onBack={onBack} /><ScrollView ref={scroll} contentContainerStyle={styles.content}>
+    <View style={styles.hero}><View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>{Avatar ? <Avatar size={52} animated /> : <Text style={{ fontSize: 24, color: app.accent }}>{app.mark}</Text>}</View><View style={{ flex: 1, minWidth: 0, gap: 4 }}><Text style={styles.title}>{shared?.title || item.title || app.title}</Text><Pressy disabled={!authorId} accessibilityLabel="查看作者主页" onPress={visitAuthor} style={{ minHeight: 32, flexDirection: "row", alignItems: "center", gap: 6 }}>{authorAvatar ? <Image source={{ uri: authorAvatar }} style={{ width: 20, height: 20, borderRadius: 10 }} /> : null}<Text style={[styles.caption, { color: colors.accentText }]}>{authorName || "社区创作者"}</Text>{(sharing?.shared?.authorOfficial ?? item.authorOfficial) ? <Text accessibilityLabel="官方发布" style={styles.official}>官方</Text> : null}</Pressy></View></View>
+    <View style={styles.description}><Text style={styles.subtitle}>它能帮你做什么</Text><Text style={styles.copy}>{shared?.summary ?? item.summary ?? app.summary ?? "打开应用，看看它能带来什么。"}</Text></View>
     <Text style={styles.caption}>{marketCategories.find(category => category.id === (shared?.category || item.category || "other"))?.label}</Text>
-    {gallery.length ? <View style={{ gap: 12 }}><Text style={styles.subtitle}>应用截图</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>{gallery.map((url, index) => <Pressy key={url} accessibilityLabel={`查看截图 ${index + 1}`} onPress={() => setPreview(url)}><FastImage source={{ uri: url }} style={{ width: 180, height: 300, borderRadius: 14, backgroundColor: colors.inset }} resizeMode={FastImage.resizeMode.contain} /></Pressy>)}</ScrollView></View> : null}
+    {gallery.length ? <View style={{ gap: 12 }}><Text style={styles.subtitle}>应用截图</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>{gallery.map((url, index) => <Pressy key={url} accessibilityLabel={`查看截图 ${index + 1}`} onPress={() => setPreview(url)}><FastImage source={{ uri: url }} style={{ width: 144, height: 240, borderRadius: colors.radius.sm, backgroundColor: colors.inset }} resizeMode={FastImage.resizeMode.contain} /></Pressy>)}</ScrollView></View> : null}
     <View style={styles.facts}><Text style={styles.caption}>版本 {app.version || "1.0.0"}</Text><Text style={styles.caption}>安装包 {bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`}</Text><Text style={styles.caption}>数据保存在本机</Text></View>
     {item.originalAppId ? <Text style={styles.caption}>基于其他作品创作</Text> : null}
     {error ? <Text style={styles.error}>{error}</Text> : null}
-    {installed && update ? <Pressy disabled={busy} onPress={() => onOpen(app.appId)}><Text style={styles.secondary}>先打开已安装版本</Text></Pressy> : null}
+    <View style={styles.tools}>{installed && update ? <Pressy disabled={busy} onPress={() => onOpen(app.appId)}><Text style={styles.secondary}>先打开已安装版本</Text></Pressy> : null}
     {app.appId !== bootstrap.defaultApplication ? <Pressy accessibilityRole="button" accessibilityLabel="改一改这个应用" disabled={busy} onPress={() => void modify()}><Text style={styles.secondary}>改一改</Text></Pressy> : null}
-    <Pressy accessibilityRole="button" disabled={busy} onPress={() => { void requireAccount().then(allowed => { if (allowed) void openApplicationWorkshop(app.appId, app.title, !owner, !owner, app.releaseId).catch(e => setError(String(e))); }); }}><Text style={styles.secondary}>{owner ? "继续修改这个作品" : "基于它创作"}</Text></Pressy>
-    {owner ? <Surface radius={20} style={styles.description}><Text style={styles.subtitle}>管理分享</Text>
+    <Pressy accessibilityRole="button" disabled={busy} onPress={() => { void requireAccount().then(allowed => { if (allowed) void openApplicationWorkshop(app.appId, app.title, !owner, !owner, app.releaseId).catch(e => setError(String(e))); }); }}><Text style={styles.secondary}>{owner ? "继续修改这个作品" : "基于它创作"}</Text></Pressy></View>
+    {owner ? <Surface radius={colors.radius.md} style={styles.management}><Text style={styles.subtitle}>管理分享</Text>
       <Text style={styles.copy}>{shared ? hasNewVersion ? "已分享 · 有新版本待分享" : "已分享到应用市场" : "尚未分享"}</Text>
       {shared ? <><Text style={styles.copy}>分享名称：{shared.title || shared.manifest.title}</Text><Text style={styles.caption}>{shared.summary ?? shared.manifest.summary}</Text></> : null}
       {shared ? <><Text style={styles.caption}>当前公开版本 {versionName(shared.manifest)}</Text><Pressy disabled={busy || !sharingReady} onPress={() => onSharePost(shared)}><Text style={styles.secondary}>发动态介绍这个应用</Text></Pressy></> : null}
@@ -188,9 +193,9 @@ export function MarketDetailScreen({ item, publish, onBack, onOpen, onModify, on
 {uploadStatus ? <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}><ActivityIndicator color={colors.accent} /><Text accessibilityLiveRegion="polite" style={styles.caption}>{uploadStatus}</Text></View> : null}
 <Text style={styles.caption}>{editMode === "edit" ? "只修改展示信息，保留当前公开版本。" : `发布版本 ${selectedRelease.slice(0, 8)} · ${runningApplicationReleases()[app.appId] === selectedRelease ? "正在体验此版本" : "此版本尚未体验"}。之后制作的版本不会自动公开。`}</Text><Pressy disabled={busy || !sharingReady || !shareTitle.trim()} onPress={() => void save()}><Text style={styles.secondary}>{editMode === "edit" ? "保存分享信息" : "发布到市场"}</Text></Pressy><Pressy disabled={busy} onPress={() => { removeShellValue(draftKey); setEditMode(null); }}><Text style={styles.secondary}>取消</Text></Pressy></View> : null}
     </Surface> : null}
-    {installed && app.appId !== bootstrap.defaultApplication ? <Pressy disabled={busy} onPress={uninstall}><Text style={styles.secondary}>卸载应用</Text></Pressy> : null}
+    {installed && app.appId !== bootstrap.defaultApplication ? <Pressy disabled={busy} onPress={uninstall}><Text style={[styles.secondary, { color: colors.redText }]}>卸载应用</Text></Pressy> : null}
     {app.appId === bootstrap.defaultApplication ? <Text style={styles.caption}>Jolly 是默认伙伴，工坊就在它的主页里。</Text> : null}
-  </ScrollView><View style={styles.dock}><Pressy accessibilityRole="button" disabled={busy} onPress={() => installed && !update ? onOpen(app.appId) : void install()} style={styles.primary}>{busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.primaryText}>{installed ? update ? "更新并体验" : "打开应用" : owner ? "加载并体验" : "安装体验"}</Text>}</Pressy></View><Modal visible={!!preview} transparent onRequestClose={() => setPreview(undefined)}><View style={{ flex: 1, backgroundColor: "#111", paddingTop: 12, paddingBottom: 12 }}><Pressy accessibilityLabel="关闭截图" onPress={() => setPreview(undefined)} style={{ padding: 16 }}><Text style={{ color: "#fff", textAlign: "right", fontSize: 16 }}>关闭</Text></Pressy>{preview ? <FastImage source={{ uri: preview }} style={{ flex: 1 }} resizeMode={FastImage.resizeMode.contain} /> : null}</View></Modal></Screen>;
+  </ScrollView><View style={styles.dock}><Pressy accessibilityRole="button" disabled={busy} onPress={() => installed && !update ? onOpen(app.appId) : void install()} style={styles.primary}>{busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.primaryText}>{installed ? update ? "更新并体验" : "打开应用" : owner ? "加载并体验" : "安装体验"}</Text>}</Pressy></View><EdgeModal visible={!!preview} transparent animationType={reduceMotion ? "none" : "fade"} onRequestClose={() => setPreview(undefined)}><View style={{ flex: 1, backgroundColor: "#141517", paddingTop: 12 + insets.top, paddingBottom: 12 + insets.bottom }}><Pressy accessibilityLabel="关闭截图" onPress={() => setPreview(undefined)} style={{ padding: 16 }}><Text style={{ color: "#fff", textAlign: "right", fontSize: 16 }}>关闭</Text></Pressy>{preview ? <FastImage source={{ uri: preview }} style={{ flex: 1 }} resizeMode={FastImage.resizeMode.contain} /> : null}</View></EdgeModal></Screen>;
 }
 const styles = themedStyleSheet(t => ({
   screen: { flex: 1, backgroundColor: t.canvas },
@@ -198,17 +203,17 @@ const styles = themedStyleSheet(t => ({
   barTitle: { fontSize: 19, color: t.ink1, fontWeight: "600" },
   content: { padding: 16, gap: 12, paddingBottom: 16 },
   hero: { flexDirection: "row", alignItems: "center", gap: 12 },
-  mark: { width: 52, height: 52, borderRadius: 12, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  title: { fontSize: 19, color: t.ink1, fontWeight: "600" },
+  mark: { width: 52, height: 52, borderRadius: t.radius.md, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  title: { fontSize: 23, lineHeight: 30, letterSpacing: -0.5, color: t.ink1, fontWeight: "800" },
   official: { color: t.accentText, backgroundColor: t.accentTint, fontSize: 10, fontWeight: "600", borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2, overflow: "hidden" },
   caption: { fontSize: 12, color: t.ink3, lineHeight: 18 },
-  description: { padding: 12, gap: 8 },
+  description: { paddingVertical: 4, gap: 6 }, management: { padding: 12, gap: 8 }, tools: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   subtitle: { color: t.ink1, fontSize: 15, fontWeight: "600" },
-  copy: { color: t.ink2, fontSize: 16, lineHeight: 24 },
-  facts: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  copy: { color: t.ink2, fontSize: 14, lineHeight: 21 },
+  facts: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingVertical: 10, borderTopWidth: 0.5, borderBottomWidth: 0.5, borderColor: t.line },
   primary: { minHeight: 48, backgroundColor: t.accent, borderRadius: 10, padding: 12, alignItems: "center", justifyContent: "center" },
   primaryText: { color: t.onAccent, fontSize: 15, fontWeight: "600" },
-  secondary: { color: t.accentText, fontSize: 14, textAlign: "center", padding: 10 },
+  secondary: { color: t.accentText, fontSize: 13, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: t.inset, borderRadius: t.radius.sm, overflow: "hidden" },
   error: { color: t.redText, lineHeight: 20 },
-  dock: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: t.line, backgroundColor: t.canvas },
+  dock: { paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 0.5, borderTopColor: t.line, backgroundColor: t.canvas },
 }));

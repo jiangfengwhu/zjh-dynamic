@@ -5,7 +5,7 @@ import { themedStyleSheet, useTheme } from "../theme";
 import { Icon } from "./Icon";
 import { Pressy } from "./Pressy";
 
-/** 返回键。圆形、发丝边，和页面标题同一行。 */
+/** 返回键保持 44 点触控区域，与紧凑顶栏对齐。 */
 export function BackChip({ onPress }: { onPress: () => void }) {
   const { colors } = useTheme();
   return (
@@ -13,7 +13,6 @@ export function BackChip({ onPress }: { onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel="返回上一级"
       onPress={onPress}
-      hitSlop={8}
       scale={0.9}
       style={styles.back}
     >
@@ -22,7 +21,7 @@ export function BackChip({ onPress }: { onPress: () => void }) {
   );
 }
 
-/** 二级页面的顶栏。标题用衬线，说明放在标题下面，右侧留一个位置给状态或操作。 */
+/** 详情与设置共用的紧凑顶栏。 */
 export function PageHeader({
   title,
   caption,
@@ -39,7 +38,7 @@ export function PageHeader({
     <ScreenBar style={styles.bar}>
       {onBack ? <BackChip onPress={onBack} /> : null}
       <View style={styles.titleBox}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text accessibilityRole="header" style={styles.title} numberOfLines={1}>
           {title}
         </Text>
         {caption ? (
@@ -62,16 +61,16 @@ const styles = themedStyleSheet((t) => ({
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 12,
-    paddingTop: 6,
-    paddingBottom: 6,
+    paddingTop: 4,
+    paddingBottom: 4,
     backgroundColor: t.canvas,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: t.line,
   },
   back: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: t.radius.sm,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -84,13 +83,13 @@ const styles = themedStyleSheet((t) => ({
     fontFamily: t.serif,
     fontSize: 19,
     lineHeight: 25,
-    fontWeight: "600",
+    fontWeight: "700",
     color: t.ink1,
-    letterSpacing: 0.2,
+    letterSpacing: -0.4,
   },
   caption: {
-    fontSize: 12.5,
-    lineHeight: 17,
+    fontSize: 12,
+    lineHeight: 16,
     color: t.ink3,
   },
 }));

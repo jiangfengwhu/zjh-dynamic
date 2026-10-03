@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { retainDraftImage, removeDraftImage, existingDraftImages } from "./mediaDraft";
 import { usePreventRemove } from "@react-navigation/native";
 import ImagePicker from "react-native-image-crop-picker";
 import FastImage from "@d11/react-native-fast-image";
 import Toast from "react-native-toast-message";
-import { BackChip, Pressy } from "../../../../packages/ui/chrome";
-import { Screen, ScreenBar } from "../../../../packages/ui/edge";
+import { FormField as TextInput } from "./FormField";
+import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
+import { Screen } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { currentAccountId, uploadFeedbackScreenshot } from "./account";
 import { readShellValue, writeShellValue, removeShellValue } from "./shellStorage";
@@ -81,7 +82,7 @@ export function ApplicationFeedbackScreen({ manifest, ownerId, onBack }: { manif
     } catch (e) { if (alive.current) { const message = e instanceof Error ? e.message : "反馈未能带回工坊，请重试"; setError(message); Toast.show({ type: "error", text1: message }); } }
     finally { working.current = false; if (alive.current) { setBusy(false); setStatus(""); setHandoff(false); } }
   }
-  return <Screen style={styles.screen}><ScreenBar style={styles.header}><BackChip onPress={onBack} /><Text style={styles.title}>改一改</Text></ScreenBar>
+  return <Screen style={styles.screen}><PageHeader title="改一改" caption="把体验中的想法带回工坊" onBack={onBack} />
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"><Text style={styles.name}>{manifest.title}</Text><Text style={styles.caption}>体验版本 {manifest.releaseId.slice(0, 12)} · {manifest.appId}</Text>
       <TextInput accessibilityLabel="应用修改反馈" editable={ready && !busy} multiline maxLength={2000} value={body} onChangeText={setBody} placeholder="哪里不合适？你希望改成什么样？也可以补充复现步骤。" placeholderTextColor={colors.ink3} style={styles.input} />
       <Text style={styles.caption}>{body.length}/2000 · 截图最多三张</Text>
@@ -94,4 +95,4 @@ export function ApplicationFeedbackScreen({ manifest, ownerId, onBack }: { manif
       <Pressy disabled={busy || !ready || !body.trim()} onPress={() => void prepare()} style={[styles.submit, (busy || !body.trim()) && { opacity: 0.4 }]}><Text style={{ color: colors.onAccent, fontWeight: "600" }}>带回工坊</Text></Pressy>
     </ScrollView></Screen>;
 }
-const styles = themedStyleSheet(t => ({ screen: { flex: 1, backgroundColor: t.canvas }, header: { padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }, title: { color: t.ink1, fontSize: 23 }, content: { padding: 16, paddingBottom: 12, gap: 12 }, name: { color: t.ink1, fontSize: 19, fontWeight: "600" }, caption: { color: t.ink3, fontSize: 13, lineHeight: 20 }, input: { minHeight: 160, padding: 16, color: t.ink1, backgroundColor: t.field, borderRadius: 16, textAlignVertical: "top" as const }, images: { flexDirection: "row", flexWrap: "wrap", gap: 12 }, photo: { width: 96 }, image: { width: 96, height: 140, backgroundColor: t.field, borderRadius: 10 }, link: { color: t.accentText, paddingVertical: 10 }, submit: { padding: 16, backgroundColor: t.accent, alignItems: "center", borderRadius: 16 }, progress: { flexDirection: "row", alignItems: "center", gap: 10 }, error: { color: t.orangeText, lineHeight: 20 } }));
+const styles = themedStyleSheet(t => ({ screen: { flex: 1, backgroundColor: t.canvas }, header: { padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }, title: { color: t.ink1, fontSize: 23 }, content: { padding: 16, paddingBottom: 12, gap: 12 }, name: { color: t.ink1, fontSize: 19, fontWeight: "600" }, caption: { color: t.ink3, fontSize: 12, lineHeight: 18 }, input: { minHeight: 128, padding: 12, fontSize: 15, lineHeight: 22, color: t.ink1, backgroundColor: t.field, borderRadius: 16, textAlignVertical: "top" as const }, images: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, photo: { width: 88 }, image: { width: 88, height: 132, backgroundColor: t.field, borderRadius: 10 }, link: { color: t.accentText, paddingVertical: 10 }, submit: { minHeight: 44, padding: 12, backgroundColor: t.accent, alignItems: "center", borderRadius: 16 }, progress: { flexDirection: "row", alignItems: "center", gap: 10 }, error: { color: t.orangeText, lineHeight: 20 } }));

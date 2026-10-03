@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
-import { PageHeader, Surface } from "../../../../packages/ui/chrome";
+import { FormField as TextInput } from "./FormField";
+import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import Toast from "react-native-toast-message";
@@ -28,9 +29,9 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
     finally { busyRef.current = false; if (alive.current) { setBusy(false); setUploadStatus(""); } }
   }
   const button = (label: string, action: () => void, disabled = false, secondary = false) => (
-    <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || disabled }} disabled={busy || disabled} onPress={action} style={[styles.button, secondary && styles.secondary, (busy || disabled) && styles.disabled]}>
-      <Text style={secondary ? styles.secondaryLabel : styles.buttonLabel}>{label}</Text>
-    </Pressable>
+    <Pressy accessibilityRole="button" accessibilityState={{ disabled: busy || disabled }} disabled={busy || disabled} onPress={action} style={[styles.button, secondary && styles.secondary, label === "退出登录" && styles.logout, (busy || disabled) && styles.disabled]}>
+      <Text style={[secondary ? styles.secondaryLabel : styles.buttonLabel, label === "退出登录" && styles.logoutLabel]}>{label}</Text>
+    </Pressy>
   );
   return <Screen style={styles.screen}>
     <PageHeader title={user ? "个人资料" : "邮箱登录"} caption={user ? "让大家认识你" : "一封邮件，就能回来"} onBack={onBack} />
@@ -68,12 +69,12 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
 }
 const styles = themedStyleSheet(t => ({
   screen: { flex: 1, backgroundColor: t.canvas }, content: { padding: 16, paddingBottom: 12, gap: 12 },
-  panel: { padding: 0, gap: 12 }, label: { color: t.ink1, fontSize: 13, fontWeight: "600" },
-  hint: { color: t.muted, fontSize: 14, lineHeight: 22 }, message: { color: t.ink1, fontSize: 15, lineHeight: 24 },
-  input: { color: t.ink1, backgroundColor: t.field, borderRadius: t.radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, minHeight: 48 },
-  button: { backgroundColor: t.accent, borderRadius: t.radius.md, minHeight: 48, padding: 12, alignItems: "center", justifyContent: "center" },
-  secondary: { backgroundColor: t.accentTint }, disabled: { opacity: 0.45 },
-  buttonLabel: { color: t.onAccent, fontSize: 16, fontWeight: "600" }, secondaryLabel: { color: t.accentText, fontSize: 16, fontWeight: "600" },
+  panel: { padding: 12, gap: 8, backgroundColor: t.surface, borderRadius: t.radius.md, borderWidth: 0.5, borderColor: t.line }, label: { color: t.ink1, fontSize: 13, fontWeight: "600" },
+  hint: { color: t.muted, fontSize: 12, lineHeight: 18 }, message: { color: t.ink1, fontSize: 15, lineHeight: 24 },
+  input: { color: t.ink1, backgroundColor: t.field, borderRadius: t.radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, minHeight: 44 },
+  button: { backgroundColor: t.accent, borderRadius: t.radius.md, minHeight: 44, padding: 10, alignItems: "center", justifyContent: "center" },
+  logout: { backgroundColor: t.redTint }, logoutLabel: { color: t.redText }, secondary: { backgroundColor: t.inset }, disabled: { opacity: 0.45 },
+  buttonLabel: { color: t.onAccent, fontSize: 14, fontWeight: "700" }, secondaryLabel: { color: t.accentText, fontSize: 14, fontWeight: "700" },
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 12 }, fill: { flex: 1 },
-  avatar: { width: 72, height: 72, borderRadius: 36 }, placeholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" }, initial: { color: t.accentText, fontSize: 20, fontWeight: "600" },
+  avatar: { width: 56, height: 56, borderRadius: t.radius.md }, placeholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" }, initial: { color: t.accentText, fontSize: 20, fontWeight: "600" },
 }));

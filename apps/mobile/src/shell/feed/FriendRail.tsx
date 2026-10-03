@@ -1,10 +1,10 @@
 import { ScrollView, Text, View } from "react-native";
-import Animated, { Easing, FadeInRight } from "react-native-reanimated";
+
 import { Icon, Pressy } from "../../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme } from "../../../../../packages/ui/theme";
 import { FriendAvatar, FriendRing, type Friend } from "../../../../../packages/ui/feed";
 
-const AVATAR = 32;
+const AVATAR = 24;
 
 /**
  * 动态顶部的朋友栏。每位朋友一个头像，有没看过的新动态就亮一圈金环，
@@ -40,14 +40,12 @@ export function FriendRail({
           <Icon name="plus" size={15} color={colors.accentText} strokeWidth={2} />
         </View>
         <Text style={[styles.name, { color: colors.accentText }]} numberOfLines={1}>
-          找新朋友
+          发现应用
         </Text>
       </Pressy>
 
-      {friends.map((friend, index) => (
-        <Animated.View
-          key={friend.id}
-        >
+      {friends.map((friend) => (
+        <View key={friend.id}>
           <Pressy
             accessibilityRole="button"
             accessibilityLabel={`打开${friend.name}`}
@@ -62,7 +60,7 @@ export function FriendRail({
               {friend.name}
             </Text>
           </Pressy>
-        </Animated.View>
+        </View>
       ))}
     </ScrollView>
   );
@@ -70,15 +68,20 @@ export function FriendRail({
 
 const styles = themedStyleSheet((t) => ({
   rail: {
-    gap: 8,
+    gap: 6,
     paddingHorizontal: 14,
-    paddingTop: 1,
+    paddingTop: 8,
     paddingBottom: 8,
   },
   item: {
-    width: 46,
+    minHeight: 44,
+    maxWidth: 156,
+    paddingHorizontal: 8,
+    flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 6,
+    borderRadius: t.radius.sm,
+    backgroundColor: t.surface,
   },
   invite: {
     alignItems: "center",
@@ -86,9 +89,10 @@ const styles = themedStyleSheet((t) => ({
     borderWidth: 1,
   },
   name: {
-    maxWidth: 46,
-    fontSize: 10,
-    lineHeight: 13,
+    maxWidth: 92,
+    flexShrink: 1,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: "500",
     color: t.ink2,
   },

@@ -5,6 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   Extrapolation,
+  ReduceMotion,
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedReaction,
@@ -50,7 +51,6 @@ import FastImage from "@d11/react-native-fast-image";
 import { Bell } from "lucide-react-native";
 import { useNotificationCount } from "./notifications";
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 
 type FeedProps = {
@@ -108,7 +108,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   function settleHeader(delay = 0) {
     "worklet";
     const hide = scrollY.value > 1 && (direction.value > 0 || direction.value === 0 && hiddenHeader.value > headerHeight.value / 2);
-    const animation = withTiming(hide ? headerHeight.value : 0, { duration: 180 });
+    const animation = withTiming(hide ? headerHeight.value : 0, { duration: 180, reduceMotion: ReduceMotion.System });
     hiddenHeader.value = delay ? withDelay(delay, animation) : animation;
   }
   const onScroll = useAnimatedScrollHandler({
@@ -142,7 +142,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
     },
   });
   const headerMotion = useAnimatedStyle(() => ({ transform: [{ translateY: -hiddenHeader.value }] }));
-  const bottomSpace = useAnimatedStyle(() => ({ paddingBottom: tabHeight.value + 28 }));
+  const bottomSpace = useAnimatedStyle(() => ({ paddingBottom: tabHeight.value + 12 }));
   useFocusEffect(useCallback(() => {
     cancelAnimation(hiddenHeader);
     chromeHidden.value = 0;
@@ -241,12 +241,12 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
             <View style={styles.headerCopy}>
               <Text style={styles.wordmark}>紫金花</Text>
               <Text style={styles.headerCaption} numberOfLines={1}>
-                {summarizing ? "正在整理这段时间的动态" : todayLabel()}
+                {summarizing ? "正在整理动态…" : "应用近况与社区分享"}
               </Text>
             </View>
-            <Pressy accessibilityRole="button" accessibilityLabel={`查看通知${unreadNotifications ? `，${unreadNotifications}条未读` : ""}`} onPress={onNotifications} hitSlop={4} style={{ padding: 6 }}><Bell size={21} color={colors.ink2} />{unreadNotifications > 0 ? <View style={{ position: "absolute", top: -2, right: -3, minWidth: 15, paddingHorizontal: 3, height: 15, borderRadius: 8, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ fontSize: 9, color: colors.accentText }}>{unreadNotifications > 99 ? "99+" : unreadNotifications}</Text></View> : null}</Pressy>
-            <Pressy accessibilityRole="button" accessibilityLabel="发布文字和图片动态" onPress={onCompose} hitSlop={8} style={{ paddingHorizontal: 10, paddingVertical: 10 }}><Text style={{ color: colors.accentText, fontWeight: "600", fontSize: 14 }}>发动态</Text></Pressy>
-            <Pressy accessibilityRole="button" accessibilityLabel="打开我的页面" onPress={onProfile} scale={0.92} hitSlop={8}>
+            <Pressy accessibilityRole="button" accessibilityLabel={`查看通知${unreadNotifications ? `，${unreadNotifications}条未读` : ""}`} onPress={onNotifications} style={styles.notification}><Bell size={21} color={colors.ink2} />{unreadNotifications > 0 ? <View style={{ position: "absolute", top: -2, right: -3, minWidth: 15, paddingHorizontal: 3, height: 15, borderRadius: 8, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ fontSize: 9, color: colors.onAccent }}>{unreadNotifications > 99 ? "99+" : unreadNotifications}</Text></View> : null}</Pressy>
+            <Pressy accessibilityRole="button" accessibilityLabel="发布文字和图片动态" onPress={onCompose} style={styles.compose}><Icon name="plus" size={16} color={colors.onAccent} /><Text style={{ color: colors.onAccent, fontWeight: "700", fontSize: 12 }}>发动态</Text></Pressy>
+            <Pressy accessibilityRole="button" accessibilityLabel="打开我的页面" onPress={onProfile} scale={0.92} style={styles.profileControl}>
               {user?.avatarUrl ? <FastImage source={{ uri: user.avatarUrl }} style={styles.profileAvatar} /> : <View style={[styles.profileAvatar, styles.profilePlaceholder]}><Text style={{ color: colors.accentText, fontWeight: "700" }}>{user ? Array.from(user.name)[0] : "我"}</Text></View>}
             </Pressy>
           </View>
@@ -329,7 +329,7 @@ export const FeedScreen = memo(function FeedScreen({ onOpen, onReply, onNew, onC
   );
 });
 
-/** 时间线顶上的分类标签，像 X 的「为你推荐 / 正在关注」：选中的那一项字加粗，底下一道金色的线。 */
+/** 分类切换用字重和短线共同标识选中状态。 */
 function Tab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return (
@@ -345,11 +345,6 @@ function Tab({ label, active, onPress }: { label: string; active: boolean; onPre
       </View>
     </Pressable>
   );
-}
-
-function todayLabel(): string {
-  const now = new Date();
-  return `${now.getMonth() + 1}月${now.getDate()}日 周${WEEKDAYS[now.getDay()]}`;
 }
 
 function formatWhen(ms: number): string {
@@ -369,7 +364,10 @@ const styles = themedStyleSheet((t) => ({
   },
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, backgroundColor: t.canvas },
   viewport: { flex: 1, overflow: "hidden" },
-  profileAvatar: { width: 34, height: 34, borderRadius: 17 },
+  notification: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  compose: { flexDirection: "row", gap: 4, paddingHorizontal: 10, alignItems: "center", backgroundColor: t.accent, borderRadius: t.radius.sm },
+  profileControl: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  profileAvatar: { width: 34, height: 34, borderRadius: t.radius.sm },
   profilePlaceholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" },
   header: {
     backgroundColor: t.canvas,
@@ -379,8 +377,8 @@ const styles = themedStyleSheet((t) => ({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingTop: 2,
+    gap: 4,
+    paddingTop: 4,
   },
   headerCopy: {
     flex: 1,
@@ -389,11 +387,11 @@ const styles = themedStyleSheet((t) => ({
   },
   wordmark: {
     fontFamily: t.serif,
-    fontSize: 19,
-    lineHeight: 26,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "700",
     color: t.ink1,
-    letterSpacing: 1,
+    letterSpacing: -0.5,
   },
   headerCaption: {
     fontSize: 11.5,
@@ -422,12 +420,11 @@ const styles = themedStyleSheet((t) => ({
   tabs: {
     flexDirection: "row",
     backgroundColor: t.canvas,
-    borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: t.line,
   },
   tab: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     alignItems: "center",
   },
   tabInner: {

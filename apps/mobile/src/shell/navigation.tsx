@@ -1,6 +1,6 @@
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useRef, type ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type { ApplicationManifest } from "../runtime/applications";
 import { ApplicationFeedbackScreen } from "./ApplicationFeedbackScreen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +18,7 @@ import type { MaterialTopTabBarProps } from "@react-navigation/material-top-tabs
 import { TabBar, type ShellTabId } from "./TabBar";
 import { FeedScreen } from "./feed/FeedScreen";
 import { FeedChromeProvider, useFeedChrome } from "./feed/FeedChrome";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useReducedMotion } from "react-native-reanimated";
 import { type AppEntry } from "./catalog";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
 import { MarketScreen } from "./MarketScreen";
@@ -212,6 +212,7 @@ export type ShellNavigatorProps = {
 };
 
 export function ShellNavigator(props: ShellNavigatorProps) {
+  const reduceMotion = useReducedMotion();
   const previous = useRef({ label: "", depth: 1 });
   const colors = palettes[props.mode];
   const theme = {
@@ -280,8 +281,8 @@ export function ShellNavigator(props: ShellNavigatorProps) {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          animation: "slide_from_right",
-          animationDuration: 180,
+          animation: reduceMotion ? "none" : "slide_from_right",
+          animationDuration: 220,
           contentStyle: { backgroundColor: colors.canvas },
         }}
       >

@@ -36,9 +36,11 @@ export function Input({
   return (
     <View style={[styles.wrap, containerStyle]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <View style={[styles.field, focused && { borderColor: colors.accentSoft, backgroundColor: colors.field }, error ? styles.fieldError : null]}>
+      <View style={[styles.field, focused && { borderColor: colors.accentText, backgroundColor: colors.field }, error ? styles.fieldError : null]}>
         {leftSlot}
         <TextInput
+          accessibilityLabel={label}
+          selectionColor={colors.accentText}
           placeholderTextColor={colors.ink3}
           style={[styles.input, style]}
           onFocus={(event) => {
@@ -75,9 +77,9 @@ const styles = themedStyleSheet((t) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    minHeight: 46,
-    paddingHorizontal: 14,
-    borderRadius: t.radius.md,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: t.radius.sm,
     backgroundColor: t.field,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: t.lineStrong,

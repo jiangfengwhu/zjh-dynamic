@@ -1,10 +1,12 @@
 import { useAccount } from "./account";
+import { CompactTabs } from "./CompactTabs";
+import { FormField as TextInput } from "./FormField";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, RefreshControl, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, AppState, FlatList, RefreshControl, Text, View } from "react-native";
 import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
-import { BackChip, Pressy, Surface } from "../../../../packages/ui/chrome";
-import { Screen, ScreenBar } from "../../../../packages/ui/edge";
+import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
+import { Screen } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
@@ -82,24 +84,24 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
   const term = query.trim().toLowerCase(); const visibleWorks = worksOwner === user?.id ? works.filter(work => `${work.title} ${work.wish}`.toLowerCase().includes(term)) : [];
   const workIds = new Set(works.map(work => work.appId)); const installedIds = new Set(installed.map(item => item.manifest.appId));
   const visibleApps = worksOwner === user?.id ? installed.filter(item => !workIds.has(item.manifest.appId) && `${item.manifest.title} ${item.manifest.summary}`.toLowerCase().includes(term)) : [];
-  return <Screen style={styles.screen}><ScreenBar style={styles.header}><BackChip onPress={onBack} /><View style={{ flex: 1 }}><Text style={styles.title}>我的作品与应用</Text><Text style={styles.caption}>创作进度、分享和已安装应用</Text></View></ScreenBar>
-    <View style={styles.tabs}>{([['works', '我创作的'], ['installed', '我安装的']] as const).map(([id, label]) => <Pressy key={id} accessibilityRole="tab" accessibilityState={{ selected: tab === id }} onPress={() => setTab(id)} style={[styles.tab, tab === id && { backgroundColor: colors.accentTint }]}><Text style={{ color: tab === id ? colors.accentText : colors.ink3 }}>{label}</Text></Pressy>)}</View>
+  return <Screen style={styles.screen}><PageHeader title="我的作品与应用" caption="创作进度、分享与安装管理" onBack={onBack} right={tab === "works" ? <Pressy accessibilityLabel="创作新作品" onPress={onCreate} style={styles.create}><Text style={styles.createText}>新建</Text></Pressy> : undefined} />
+    <View style={styles.tabs}><CompactTabs value={tab} onChange={setTab} options={[{ id: "works", label: "我创作的" }, { id: "installed", label: "我安装的" }]} /></View>
     <FlatList<{ type: "work"; work: MyWork } | { type: "app"; app: MarketApplication }> data={tab === "works" ? visibleWorks.map(work => ({ type: "work" as const, work })) : visibleApps.map(app => ({ type: "app" as const, app }))} keyExtractor={row => row.type === "work" ? row.work.appId : row.app.manifest.appId} initialNumToRender={8} windowSize={7} removeClippedSubviews={false} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void refresh(true)} tintColor={colors.accent} />} keyboardShouldPersistTaps="handled" ListHeaderComponent={<View style={{ gap: 12 }}>
       <TextInput accessibilityLabel="搜索我的作品与应用" value={query} onChangeText={setQuery} placeholder="搜索名称或心愿" placeholderTextColor={colors.ink3} style={styles.search} />
-      {tab === "works" ? <Pressy onPress={onCreate}><Text style={styles.link}>＋ 创作新作品</Text></Pressy> : null}
+      <Text style={styles.caption}>{tab === "works" ? `${visibleWorks.length} 份作品` : `${visibleApps.length} 个应用`}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {busy && !works.length && !installed.length ? <ActivityIndicator color={colors.accent} /> : null}
       </View>}
       renderItem={({ item: row }) => { if (row.type === "work") { const work = row.work; return <View key={`work:${work.appId}`} style={styles.card}>
-        <View style={styles.line}><Text style={[styles.name, { flex: 1 }]}>{work.title}</Text><Text style={styles.badge}>{workLabels[work.stage]}</Text></View>
+        <View style={styles.line}><Text style={[styles.name, { flex: 1, minWidth: 0 }]} numberOfLines={2}>{work.title}</Text><Text style={styles.badge} numberOfLines={2}>{workLabels[work.stage]}</Text></View>
         {work.wish ? <Text style={styles.copy} numberOfLines={2}>{work.wish}</Text> : null}
         <Text style={styles.caption}>{sharingLabel(work)}{work.stale ? " · 状态待刷新" : ""}</Text>
         <View style={styles.actions}><Pressy onPress={() => work.stage === "ready" && work.manifest ? detail(work) : void workshop(work)}><Text style={styles.link}>{workActions[work.stage]}</Text></Pressy>
           {work.manifest && work.stage !== "ready" ? <Pressy onPress={() => detail(work)}><Text style={styles.secondary}>作品详情与分享</Text></Pressy> : null}
           {installedIds.has(work.appId) ? <Pressy onPress={() => onOpen(work.appId)}><Text style={styles.secondary}>打开作品</Text></Pressy> : null}</View>
       </View>; } const item = row.app; return <View key={`installed:${item.manifest.appId}`} style={styles.card}>
-        <View style={styles.line}><Text style={[styles.name, { flex: 1 }]}>{item.manifest.title}</Text>{updates[item.manifest.appId]?.status === "update" ? <Text style={styles.badge}>有新版</Text> : null}</View>
-        <Text style={styles.copy}>{item.manifest.summary}</Text>
+        <View style={styles.line}><Text style={[styles.name, { flex: 1, minWidth: 0 }]} numberOfLines={2}>{item.manifest.title}</Text>{updates[item.manifest.appId]?.status === "update" ? <Text style={styles.badge}>有新版</Text> : null}</View>
+        <Text style={styles.copy} numberOfLines={2}>{item.manifest.summary}</Text>
         <Text style={styles.caption}>{updates[item.manifest.appId]?.message || (updates[item.manifest.appId]?.status === "current" ? "已是当前公开版本" : "更新只使用作者公开发布的版本")}</Text>
         <View style={styles.actions}><Pressy disabled={Boolean(updating)} onPress={() => onOpen(item.manifest.appId)}><Text style={styles.link}>打开应用</Text></Pressy>
           {updates[item.manifest.appId]?.status === "update" ? <Pressy disabled={Boolean(updating)} onPress={() => void updateApplication(item)}><Text style={styles.link}>{updating === item.manifest.appId ? "正在下载更新…" : "更新应用"}</Text></Pressy> : null}
@@ -108,4 +110,4 @@ export function MyApplicationsScreen({ onBack, onCreate, onDetail, onOpen }: { o
       ListEmptyComponent={!busy && !error ? <Text style={styles.caption}>{term ? "没有找到匹配的作品与应用" : tab === "works" ? "还没有创作作品，从一个小心愿开始吧。" : "还没有安装市场应用，去应用市场看看吧。"}</Text> : null}
     /></Screen>;
 }
-const styles = themedStyleSheet(t => ({ screen: { flex: 1, backgroundColor: t.canvas }, header: { paddingHorizontal: 12, paddingVertical: 2, flexDirection: "row", gap: 8, alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: t.line }, title: { color: t.ink1, fontFamily: t.serif, fontSize: 19 }, caption: { color: t.ink3, fontSize: 12, lineHeight: 18 }, tabs: { flexDirection: "row", paddingHorizontal: 16, gap: 12 }, tab: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14 }, content: { padding: 16, gap: 8, paddingBottom: 16 }, search: { color: t.ink1, backgroundColor: t.field, padding: 16, borderRadius: 16 }, card: { paddingVertical: 12, gap: 6, borderBottomWidth: 0.5, borderBottomColor: t.line }, line: { flexDirection: "row", alignItems: "center", gap: 12 }, name: { color: t.ink1, fontSize: 15, fontWeight: "600" }, copy: { color: t.ink2, fontSize: 14, lineHeight: 22 }, badge: { color: t.accentText, fontSize: 12 }, actions: { flexDirection: "row", flexWrap: "wrap", gap: 12, alignItems: "center" }, link: { color: t.accentText, fontSize: 14, paddingVertical: 5 }, secondary: { color: t.ink3, fontSize: 13, paddingVertical: 5 }, error: { color: t.orangeText, fontSize: 13, lineHeight: 20 } }));
+const styles = themedStyleSheet(t => ({ screen: { flex: 1, backgroundColor: t.canvas }, create: { backgroundColor: t.accent, paddingHorizontal: 12, borderRadius: t.radius.sm }, createText: { color: t.onAccent, fontWeight: "700", fontSize: 13 }, header: { paddingHorizontal: 12, paddingVertical: 2, flexDirection: "row", gap: 8, alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: t.line }, title: { color: t.ink1, fontFamily: t.serif, fontSize: 19 }, caption: { color: t.ink3, fontSize: 12, lineHeight: 18 }, tabs: { paddingHorizontal: 16, paddingTop: 12 }, tab: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14 }, content: { padding: 16, gap: 8, paddingBottom: 16 }, search: { color: t.ink1, backgroundColor: t.inset, minHeight: 44, paddingHorizontal: 12, paddingVertical: 8, borderRadius: t.radius.sm, borderWidth: 0.5, borderColor: t.lineStrong, fontSize: 14 }, card: { paddingVertical: 10, gap: 4, borderBottomWidth: 0.5, borderBottomColor: t.line }, line: { flexDirection: "row", alignItems: "center", gap: 12 }, name: { color: t.ink1, fontSize: 15, fontWeight: "600" }, copy: { color: t.ink2, fontSize: 13, lineHeight: 20 }, badge: { maxWidth: "35%", color: t.accentText, fontSize: 11, backgroundColor: t.accentTint, paddingHorizontal: 8, paddingVertical: 4, borderRadius: t.radius.xs }, actions: { flexDirection: "row", flexWrap: "wrap", gap: 12, alignItems: "center" }, link: { color: t.accentText, fontSize: 14, paddingVertical: 5 }, secondary: { color: t.ink3, fontSize: 13, paddingVertical: 5 }, error: { color: t.orangeText, fontSize: 13, lineHeight: 20 } }));

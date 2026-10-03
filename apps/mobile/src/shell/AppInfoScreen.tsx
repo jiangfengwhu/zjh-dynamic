@@ -60,10 +60,7 @@ export function AppInfoScreen({ onBack }: Props) {
     <Screen style={styles.screen}>
       <PageHeader title="应用信息" caption="本机正在使用的包" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <SectionTitle>当前版本</SectionTitle>
-        <Text style={styles.empty}>平台能力版本 {sdk}</Text>
-        <Text selectable style={styles.empty}>界面版本 {buildId.slice(0, 8)}</Text>
-        <Text style={styles.empty}>已安装文件 {formatBytes(total)}</Text>
+        <Surface style={styles.version}><Text accessibilityRole="header" style={styles.brand}>紫金花</Text><View style={styles.metrics}><View style={styles.metric}><Text style={styles.empty}>平台版本</Text><Text style={styles.metricValue}>{sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>界面版本</Text><Text selectable style={styles.metricValue}>{buildId.slice(0, 8)}</Text></View></View><View style={styles.storage}><Text style={styles.empty}>本机安装文件</Text><Text style={styles.metricValue}>{formatBytes(total)}</Text></View></Surface>
         {loading ? <ActivityIndicator color={colors.accent} /> : null}
         {error ? <Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)}><Text style={styles.error}>{error} · 重试</Text></Pressy> : null}
         <Text style={styles.empty}>页面运行包负责界面，原生扩展提供手机能力。下方体积为本机安装文件大小。</Text>
@@ -130,6 +127,12 @@ const styles = themedStyleSheet((t) => ({
     paddingBottom: 12,
     gap: 10,
   },
+  version: { padding: 12, gap: 12 },
+  brand: { color: t.ink1, fontSize: 22, fontWeight: "800", letterSpacing: -0.5 },
+  metrics: { flexDirection: "row", gap: 12 },
+  metric: { flex: 1, gap: 4 },
+  metricValue: { fontFamily: t.mono, fontSize: 14, lineHeight: 20, fontWeight: "600", color: t.ink1 },
+  storage: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: t.line },
   group: {
     borderRadius: t.radius.xl,
   },
@@ -137,8 +140,8 @@ const styles = themedStyleSheet((t) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
@@ -151,13 +154,13 @@ const styles = themedStyleSheet((t) => ({
     gap: 2,
   },
   cardTitle: {
-    fontSize: 15.5,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: "600",
     color: t.ink1,
   },
   cardHint: {
-    fontSize: 12.5,
+    fontSize: 12,
     lineHeight: 17,
     color: t.ink3,
   },

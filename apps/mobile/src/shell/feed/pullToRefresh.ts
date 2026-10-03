@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Vibration } from "react-native";
 import { Gesture } from "react-native-gesture-handler";
-import { cancelAnimation, runOnJS, withSpring, withTiming, type SharedValue, useSharedValue } from "react-native-reanimated";
+import { ReduceMotion, cancelAnimation, runOnJS, withSpring, withTiming, type SharedValue, useSharedValue } from "react-native-reanimated";
 
 /** 拖到这个位置松手就刷新。紧凑灵敏。 */
 export const PULL_THRESHOLD = 68;
@@ -74,7 +74,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
         setPhase(succeeded ? "done" : "failed");
         timers.current.push(
           setTimeout(() => {
-            pull.value = withTiming(0, { duration: 280 });
+            pull.value = withTiming(0, { duration: 220, reduceMotion: ReduceMotion.System });
             setPhase("idle");
             timers.current = [];
           }, DONE_HOLD_MS),
@@ -144,11 +144,11 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
           if (!success || phaseUI.value === "refreshing" || phaseUI.value === "done" || phaseUI.value === "failed") return;
           if (phaseUI.value === "ready") {
             phaseUI.value = "refreshing";
-            pull.value = withSpring(PULL_HOLD, { damping: 18, stiffness: 220 });
+            pull.value = withSpring(PULL_HOLD, { damping: 22, stiffness: 280, reduceMotion: ReduceMotion.System });
             runOnJS(beginRefresh)();
           } else {
             phaseUI.value = "idle";
-            pull.value = withSpring(0, { damping: 20, stiffness: 240 });
+            pull.value = withSpring(0, { damping: 22, stiffness: 300, reduceMotion: ReduceMotion.System });
             runOnJS(notifyPhase)("idle");
           }
         })
@@ -156,7 +156,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
           "worklet";
           // 系统取消或切 Tab 时只回弹，不执行刷新。
           if (dragging.value && !success && phaseUI.value !== "refreshing" && phaseUI.value !== "done" && phaseUI.value !== "failed") {
-            pull.value = withSpring(0, { damping: 20, stiffness: 240 });
+            pull.value = withSpring(0, { damping: 22, stiffness: 300, reduceMotion: ReduceMotion.System });
             phaseUI.value = "idle";
             runOnJS(notifyPhase)("idle");
           }

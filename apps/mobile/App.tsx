@@ -1,7 +1,7 @@
 import { openApplicationWorkshop } from "./src/shell/workshopNavigation";
 import { reportApplicationFailure } from "./src/runtime/applications";
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { StatusBar, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StatusBar, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -11,17 +11,15 @@ import { bundles, openFeature, cachedFeature, refreshApplications, restoreApplic
 import type { FeatureComponent } from "../../packages/features/src/featureHost";
 import NativePluginHost from "./src/NativePluginHost";
 import { loadCatalog, saveCatalog, subscribeCatalog, type CatalogEntry } from "./src/shell/catalog";
-import { openShellBundle, openShellTab, ShellNavigator } from "./src/shell/navigation";
-import { Pressy } from "../../packages/ui/chrome";
+import { openShellBundle, ShellNavigator } from "./src/shell/navigation";
+import { Icon, Pressy } from "../../packages/ui/chrome";
 import { BackButton } from "./src/shell/BackButton";
 import { readPackageValue, subscribePackageValue } from "../../packages/ui/packageLink";
 import { theme, palettes, themedStyleSheet, type ThemeMode } from "../../packages/ui/theme";
 import { ThemeProvider } from "../../packages/ui/ThemeProvider";
 import { shellAppearance } from "../../packages/platform/src/shellCapabilities";
-import { applicationContext } from "../../packages/app-sdk/src/runtime";
 import { readShellValue, removeShellValue, writeShellValue } from "./src/shell/shellStorage";
 import { startFeedSummary } from "./src/shell/feed/summary";
-import { readFeedPosts } from "../../packages/ui/feed/store";
 import { UpdateBanner } from "./src/shell/UpdateBanner";
 import { applyPackageUpdates, checkPackageUpdates, startReleaseWatch, updateSignature, type PendingPackage } from "./src/shell/packageUpdates";
 
@@ -58,7 +56,7 @@ class FeatureBoundary extends Component<BoundaryProps, BoundaryState> {
 
   render() {
     if (this.state.error) {
-      return <View style={styles.boot}><Text style={styles.error}>应用暂时无法显示，请重试。</Text><Pressy accessibilityRole="button" onPress={this.props.onRetry}><Text style={styles.error}>重新加载页面</Text></Pressy><Pressy accessibilityRole="button" onPress={this.props.onBack}><Text style={styles.error}>返回</Text></Pressy></View>;
+      return <View style={styles.boot}><Icon name="alert" size={28} color={theme.accentText} /><Text accessibilityRole="header" style={styles.stateTitle}>应用暂时无法显示</Text><Text style={styles.stateHint}>可以重新加载页面，或返回继续浏览。</Text><View style={styles.recoveryActions}><Pressy onPress={this.props.onRetry} style={styles.retry}><Text style={styles.retryText}>重新加载</Text></Pressy><Pressy onPress={this.props.onBack} style={styles.backAction}><Text style={styles.stateHint}>返回</Text></Pressy></View></View>;
     }
     return this.props.children;
   }
@@ -293,7 +291,7 @@ function ShellApp() {
         <StatusBar barStyle={mode === "light" ? "dark-content" : "light-content"} />
         {!pluginsReady ? (
           <View style={styles.boot}>
-            <Text style={{ color: palettes[mode].ink2 }}>正在打开应用空间…</Text>
+            <Text accessibilityRole="header" style={[styles.stateTitle, { color: palettes[mode].ink1 }]}>紫金花</Text><ActivityIndicator color={palettes[mode].accentText} /><Text style={{ color: palettes[mode].ink3, fontSize: 12 }}>正在打开应用空间…</Text>
           </View>
         ) : (
           <ShellNavigator
@@ -345,6 +343,7 @@ function FeatureHost({
 }) {
   const [opened, setOpened] = useState<{ id: string; component?: FeatureComponent; failed: string }>(() => ({ id, component: cachedFeature(id), failed: "" }));
   const [loadingVisible, setLoadingVisible] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let disposed = false;
     const cached = cachedFeature(id);
@@ -360,7 +359,7 @@ function FeatureHost({
       if (!disposed) setOpened({ id, failed: error instanceof Error ? error.message : String(error) });
     });
     return () => { disposed = true; clearTimeout(timer); };
-  }, [id]);
+  }, [id, attempt]);
   const component = cachedFeature(id) ?? (opened.id === id ? opened.component : undefined);
   const failed = opened.id === id ? opened.failed : "";
   useEffect(() => { if (failed) onError?.(failed); }, [failed]);
@@ -376,7 +375,7 @@ function FeatureHost({
           <BackButton onPress={onBack} />
         </View>
       ) : null}
-      {failed || (opened.id === id && loadingVisible) ? <Text style={styles.error}>{failed || "正在加载应用…"}</Text> : null}
+      {failed ? <><Icon name="alert" size={28} color={theme.accentText} /><Text accessibilityRole="header" style={styles.stateTitle}>应用未能打开</Text><Text style={styles.stateHint}>请检查网络，再试一次。</Text><Pressy onPress={() => setAttempt(value => value + 1)} style={styles.retry}><Text style={styles.retryText}>重新加载</Text></Pressy></> : opened.id === id && loadingVisible ? <><ActivityIndicator color={theme.accentText} /><Text style={styles.stateHint}>正在加载应用…</Text></> : null}
     </View>
   );
 }
@@ -424,7 +423,15 @@ const styles = themedStyleSheet(() => ({
     backgroundColor: theme.canvas,
     alignItems: "center",
     justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 24,
   },
+  stateTitle: { color: theme.ink1, fontSize: 21, lineHeight: 28, fontWeight: "700" },
+  stateHint: { color: theme.ink3, fontSize: 13, lineHeight: 20, textAlign: "center" },
+  recoveryActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  retry: { backgroundColor: theme.accent, borderRadius: theme.radius.sm, paddingHorizontal: 20, alignItems: "center" },
+  retryText: { color: theme.onAccent, fontSize: 14, fontWeight: "700" },
+  backAction: { backgroundColor: theme.inset, borderRadius: theme.radius.sm, paddingHorizontal: 20 },
   error: {
     color: theme.danger,
     fontSize: 16,

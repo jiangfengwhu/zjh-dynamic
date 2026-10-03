@@ -1,285 +1,88 @@
-import { Fragment, memo, useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { memo, useEffect, useState } from "react";
+import { Image, ScrollView, Text, View } from "react-native";
+import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { useAccount } from "./account";
-import { Screen, ScreenBar } from "../../../../packages/ui/edge";
-import { Icon, SectionTitle, Surface, type IconName } from "../../../../packages/ui/chrome";
-
+import { Screen } from "../../../../packages/ui/edge";
+import { Icon, PageHeader, Pressy, SectionTitle, type IconName } from "../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
 import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES } from "../../../../packages/ui/feed";
 
-
-
-
 type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
+type Props = { mode: ThemeMode; onApplications: () => void; onAccount: () => void; onProviders: () => void; onInfo: () => void; onCheckUpdates: () => Promise<boolean>; onSummary: () => void; onAppearance: () => void };
 
-type Props = {
-  mode: ThemeMode;
-  onApplications: () => void;
-  onAccount: () => void;
-  onProviders: () => void;
-  onInfo: () => void;
-  onCheckUpdates: () => Promise<boolean>;
-  onSummary: () => void;
-  onAppearance: () => void;
-};
-
-export const MineScreen = memo(function MineScreen({
-  mode,
-  onApplications,
-  onAccount,
-  onProviders,
-  onInfo,
-  onCheckUpdates,
-  onSummary,
-  onAppearance,
-}: Props) {
+export const MineScreen = memo(function MineScreen({ mode, onApplications, onAccount, onProviders, onInfo, onCheckUpdates, onSummary, onAppearance }: Props) {
   const { colors } = useTheme();
   const { user } = useAccount();
   const [summaryEvery, setSummaryEvery] = useState(() => readSummaryEvery());
   const [check, setCheck] = useState<CheckState>("idle");
   useEffect(() => subscribeSummaryEvery(setSummaryEvery), []);
-
   async function checkUpdates() {
     if (check === "busy") return;
     setCheck("busy");
-    try {
-      const found = await onCheckUpdates();
-      setCheck(found ? "ready" : "current");
-      console.log("release check manual", found ? "ready" : "current");
-    } catch (error) {
-      console.log("release check manual failed", error instanceof Error ? error.message : error);
-      setCheck("failed");
-    }
+    try { setCheck(await onCheckUpdates() ? "ready" : "current"); }
+    catch { setCheck("failed"); }
   }
-
-  return (
-    <Screen style={styles.screen}>
-      <ScreenBar style={styles.header}>
-        <Text style={styles.title}>我的</Text>
-      </ScreenBar>
-
-      <ScrollView
-        style={styles.fill}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Pressable accessibilityRole="button" accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount}><View style={styles.profile}>
-          <View style={styles.portrait}>
-            {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={{ width: 56, height: 56, borderRadius: 28 }} /> : <Text style={[styles.profileName, { color: colors.accentText, fontSize: 20 }]}>{user ? Array.from(user.name)[0] : "我"}</Text>}
-          </View>
-          <View style={styles.profileCopy}>
-            <Text style={styles.profileName}>{user?.name ?? "登录紫金花"}</Text>
-            <Text style={styles.profileHint}>{user ? "更换头像与昵称" : "用邮箱验证码登录"}</Text>
-          </View>
-          <Icon name="chevron" size={16} color={colors.ink3} />
-        </View></Pressable>
-
-        <SectionTitle>我的空间</SectionTitle>
-        <View style={styles.group}>
-          <Row icon="box" title="我的作品与应用" hint="创作、分享与安装管理" onPress={onApplications} />
-          <Row icon="engine" title="AI 引擎" hint="平台和应用共用你的模型配置" onPress={onProviders} last />
-        </View>
-        <SectionTitle>偏好与工具</SectionTitle>
-        <View style={styles.group}>
-          <Row
-            icon="cloud"
-            title="检查更新"
-            hint={check === "busy" ? "正在向线上核对这一整套" : "每 30 分钟也会自动检查"}
-            value={checkLabel(check)}
-            warn={check === "failed"}
-            onPress={() => {
-              void checkUpdates();
-            }}
-          />
-          <Row
-            icon="clock"
-            title="动态小结"
-            hint="到点后按变化写一条动态"
-            value={summaryLabel(summaryEvery)}
-            onPress={onSummary}
-          />
-          <Row
-            icon={mode === "dark" ? "moon" : "sun"}
-            title="外观"
-            hint="选择适合当前环境的主题"
-            value={mode === "dark" ? "深色" : "浅色"}
-            onPress={onAppearance}
-          />
-          <Row icon="info" title="应用信息" hint="版本、包体与运行信息" onPress={onInfo} last />
-        </View>
-      </ScrollView>
-    </Screen>
-  );
+  return <Screen style={styles.screen}>
+    <PageHeader title="我的" />
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Animated.View entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}>
+        <Pressy accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount} style={styles.profile}>
+          {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={styles.portrait} /> : <View style={[styles.portrait, styles.placeholder]}><Text style={styles.initial}>{Array.from(user?.name || "我")[0]}</Text></View>}
+          <View style={styles.profileCopy}><Text numberOfLines={2} style={styles.profileName}>{user?.name ?? "登录紫金花"}</Text><Text style={styles.profileHint}>{user ? "编辑头像与昵称" : "邮箱验证码登录，开始创作"}</Text></View>
+          <Icon name="chevron" size={18} color={colors.ink3} />
+        </Pressy>
+      </Animated.View>
+      <View style={styles.shortcuts}>
+        <Shortcut icon="box" title="作品与应用" hint="创作 / 分享 / 安装" onPress={onApplications} primary />
+        <Shortcut icon="engine" title="AI 引擎" hint="管理模型与连接" onPress={onProviders} />
+      </View>
+      <SectionTitle>偏好与工具</SectionTitle>
+      <View style={styles.group}>
+        <Row icon={mode === "dark" ? "moon" : "sun"} title="外观" hint="深浅主题，即时切换" value={mode === "dark" ? "深色" : "浅色"} onPress={onAppearance} />
+        <Row icon="clock" title="动态小结" hint="自动整理应用变化" value={summaryLabel(summaryEvery)} onPress={onSummary} />
+        <Row icon="cloud" title="检查更新" hint={check === "busy" ? "正在核对线上版本" : "每 30 分钟自动检查"} value={checkLabel(check)} warn={check === "failed"} disabled={check === "busy"} onPress={() => void checkUpdates()} />
+        <Row icon="info" title="应用信息" hint="版本与本机安装信息" onPress={onInfo} last />
+      </View>
+    </ScrollView>
+  </Screen>;
 });
-
-function Row({
-  icon,
-  title,
-  hint,
-  value,
-  warn,
-  last,
-  onPress,
-}: {
-  icon: IconName;
-  title: string;
-  hint: string;
-  value?: string;
-  warn?: boolean;
-  last?: boolean;
-  onPress: () => void;
-}) {
+function Shortcut({ icon, title, hint, onPress, primary = false }: { icon: IconName; title: string; hint: string; onPress: () => void; primary?: boolean }) {
   const { colors } = useTheme();
-  return (
-    <Fragment>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onPress}
-        android_ripple={{ color: colors.accentTint }}
-        style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.hover }]}
-      >
-        <View style={styles.rowIcon}>
-          <Icon name={icon} size={19} color={colors.accentText} />
-        </View>
-        <View style={styles.rowCopy}>
-          <Text style={styles.rowTitle}>{title}</Text>
-          <Text style={styles.rowHint} numberOfLines={1}>
-            {hint}
-          </Text>
-        </View>
-        {value ? <Text style={[styles.rowValue, warn && { color: colors.orangeText }]}>{value}</Text> : null}
-        <Icon name="chevron" size={16} color={colors.ink3} />
-      </Pressable>
-      {last ? null : <View style={styles.divider} />}
-    </Fragment>
-  );
+  return <Pressy onPress={onPress} style={[styles.shortcut, primary && { backgroundColor: colors.accentTint, borderColor: colors.accentSoft }]}>
+    <View style={styles.shortcutHead}><Icon name={icon} size={22} color={primary ? colors.accentText : colors.ink1} /><Icon name="chevron" size={15} color={colors.ink3} /></View>
+    <Text style={styles.shortcutTitle}>{title}</Text><Text style={styles.rowHint}>{hint}</Text>
+  </Pressy>;
 }
-
-function checkLabel(state: CheckState): string | undefined {
-  if (state === "busy") return "检查中";
-  if (state === "ready") return "有更新";
-  if (state === "current") return "已是最新";
-  if (state === "failed") return "检查失败";
-  return undefined;
+function Row({ icon, title, hint, value, warn, last, disabled, onPress }: { icon: IconName; title: string; hint: string; value?: string; warn?: boolean; last?: boolean; disabled?: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  return <Pressy disabled={disabled} onPress={onPress} style={[styles.row, !last && styles.divider]}>
+    <Icon name={icon} size={19} color={colors.ink2} />
+    <View style={styles.rowCopy}><Text style={styles.rowTitle}>{title}</Text><Text numberOfLines={1} style={styles.rowHint}>{hint}</Text></View>
+    {value ? <Text accessibilityLiveRegion="polite" style={[styles.rowValue, warn && { color: colors.redText }]}>{value}</Text> : null}
+    <Icon name="chevron" size={15} color={colors.ink3} />
+  </Pressy>;
 }
-
-function summaryLabel(ms: number): string {
-  const choice = SUMMARY_CHOICES.find((item) => item.ms === ms);
-  if (choice) return choice.label;
-  if (ms <= 0) return "关闭";
-  return `${Math.round(ms / 60000)} 分钟`;
-}
-
-const styles = themedStyleSheet((t) => ({
-  screen: {
-    backgroundColor: t.canvas,
-  },
-  fill: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-    gap: 1,
-    backgroundColor: t.canvas,
-  },
-  title: {
-    fontFamily: t.serif,
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: "700",
-    color: t.ink1,
-    letterSpacing: 0,
-  },
-  caption: {
-    fontSize: 12.5,
-    lineHeight: 17,
-    color: t.ink3,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-    gap: 12,
-  },
-  profile: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    marginBottom: 6,
-  },
-  portrait: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    overflow: "hidden",
-    borderWidth: 0,
-    borderColor: t.accentSoft,
-  },
-  profileCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  profileName: {
-    fontFamily: t.serif,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "700",
-    color: t.ink1,
-  },
-  profileHint: {
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: t.ink2,
-  },
-  group: {
-    borderRadius: t.radius.md,
-    backgroundColor: t.surface,
-    paddingVertical: 4,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: t.accentTint,
-  },
-  rowCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 1,
-  },
-  rowTitle: {
-    fontSize: 15.5,
-    lineHeight: 21,
-    fontWeight: "600",
-    color: t.ink1,
-  },
-  rowHint: {
-    fontSize: 12.5,
-    lineHeight: 17,
-    color: t.ink3,
-  },
-  rowValue: {
-    fontSize: 13,
-    color: t.ink3,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: 64,
-    backgroundColor: t.line,
-  },
+function checkLabel(state: CheckState): string | undefined { return ({ busy: "检查中", ready: "有更新", current: "已是最新", failed: "重试" } as Partial<Record<CheckState, string>>)[state]; }
+function summaryLabel(ms: number): string { return SUMMARY_CHOICES.find(item => item.ms === ms)?.label ?? (ms <= 0 ? "关闭" : `${Math.round(ms / 60000)} 分钟`); }
+const styles = themedStyleSheet(t => ({
+  screen: { backgroundColor: t.canvas },
+  content: { padding: 16, paddingTop: 12, gap: 12, paddingBottom: 24 },
+  profile: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: t.line },
+  portrait: { width: 52, height: 52, borderRadius: t.radius.md },
+  placeholder: { backgroundColor: t.accent, alignItems: "center", justifyContent: "center" },
+  initial: { fontSize: 23, fontWeight: "700", color: t.onAccent },
+  profileCopy: { flex: 1, minWidth: 0, gap: 4 },
+  profileName: { fontSize: 22, lineHeight: 28, letterSpacing: -0.5, fontWeight: "800", color: t.ink1 },
+  profileHint: { fontSize: 12, lineHeight: 18, color: t.ink3 },
+  shortcuts: { flexDirection: "row", gap: 8 },
+  shortcut: { flex: 1, minWidth: 0, padding: 12, gap: 4, borderRadius: t.radius.md, borderWidth: 0.5, borderColor: t.line, backgroundColor: t.surface },
+  shortcutHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  shortcutTitle: { fontSize: 15, lineHeight: 21, fontWeight: "700", color: t.ink1 },
+  group: { backgroundColor: t.surface, borderRadius: t.radius.md, paddingHorizontal: 12 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 64, paddingVertical: 10 },
+  divider: { borderBottomWidth: 0.5, borderBottomColor: t.line },
+  rowCopy: { flex: 1, minWidth: 0, gap: 2 },
+  rowTitle: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: t.ink1 },
+  rowHint: { fontSize: 11, lineHeight: 16, color: t.ink3 },
+  rowValue: { maxWidth: "30%", flexShrink: 1, fontSize: 12, lineHeight: 17, color: t.accentText },
 }));

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { useIsFocused } from "@react-navigation/native";
 import { shellProviders } from "../../../../packages/platform/src/shellCapabilities";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { retryFeedSummary, subscribeSummaryStatus, type SummaryStatus } from "./feed/summary";
 import Toast from "react-native-toast-message";
-import { PageHeader, Pressy, Surface } from "../../../../packages/ui/chrome";
+import { FormField as TextInput } from "./FormField";
+import { PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES, writeSummaryEvery } from "../../../../packages/ui/feed";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
@@ -34,12 +35,16 @@ export function SummaryScreen({ onBack }: Props) {
     <Screen style={styles.screen}>
       <PageHeader title="动态小结" caption="到点后按变化写一条动态" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <SectionTitle>运行状态</SectionTitle>
         <Surface style={styles.panel}>
           <Text style={styles.hint}>到点后，用默认的 AI 引擎，按每个应用这段时间的变化写一条动态。</Text>
           <Text style={styles.hint}>默认引擎：{engine}</Text>
           <Pressy accessibilityRole="button" onPress={() => applicationContext("jolly").ai.openSettings()}><Text style={{ color: colors.accentText }}>配置 AI 引擎</Text></Pressy>
           <Text accessibilityLiveRegion="polite" style={styles.hint}>{status.running ? "正在生成小结…" : status.error ? `小结未完成：${status.error}。变更已保留，重试前请检查引擎。` : status.completedAt ? `最近成功：${new Date(status.completedAt).toLocaleString()}` : "尚未生成小结"}</Text>
-          <Pressy accessibilityRole="button" disabled={status.running || summaryEvery <= 0} onPress={() => void retryFeedSummary()}><Text style={{ color: colors.accentText }}>{status.error ? "重试小结" : "立即整理变更"}</Text></Pressy>
+          <Pressy accessibilityRole="button" disabled={status.running || summaryEvery <= 0} onPress={() => void retryFeedSummary()} style={styles.run}><Text style={{ color: colors.onAccent, fontWeight: "700" }}>{status.error ? "重试小结" : "立即整理变更"}</Text></Pressy>
+          </Surface>
+        <SectionTitle>整理频率</SectionTitle>
+        <Surface style={styles.panel}>
           <View style={styles.choices}>
             {SUMMARY_CHOICES.map((choice) => {
               const active = summaryEvery === choice.ms;
@@ -93,28 +98,30 @@ const styles = themedStyleSheet((t) => ({
   },
   content: {
     paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 16,
+    gap: 8,
   },
   panel: {
-    padding: 16,
-    gap: 12,
+    padding: 12,
+    gap: 8,
     borderRadius: t.radius.xl,
   },
   hint: {
-    fontSize: 13.5,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 19,
     color: t.ink2,
   },
+  run: { backgroundColor: t.accent, borderRadius: t.radius.sm, alignItems: "center" },
   choices: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
   choice: {
-    height: 34,
-    paddingHorizontal: 14,
-    borderRadius: 17,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: t.radius.sm,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: StyleSheet.hairlineWidth,

@@ -1,138 +1,34 @@
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
-import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { PageHeader, Surface } from "../../../../packages/ui/chrome";
+import { ScrollView, Text, View } from "react-native";
+import { Icon, PageHeader, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
-import { palettes, themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
+import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
+import { CompactTabs } from "./CompactTabs";
 
-type Props = {
-  mode: ThemeMode;
-  onMode: (mode: ThemeMode) => void;
-  onBack: () => void;
-};
-
-const MODE_OPTIONS: { id: ThemeMode; label: string; hint: string }[] = [
-  { id: "dark", label: "深色", hint: "中性紫灰，柔和对比" },
-  { id: "light", label: "浅色", hint: "清爽白色，克制紫色" },
-];
+type Props = { mode: ThemeMode; onMode: (mode: ThemeMode) => void; onBack: () => void };
+const options = [{ id: "dark", label: "深色" }, { id: "light", label: "浅色" }] as const;
 
 export function AppearanceScreen({ mode, onMode, onBack }: Props) {
-  useTheme();
-  return (
-    <Screen style={styles.screen}>
-      <PageHeader title="外观" caption="选择一套配色" onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Segmented value={mode} onChange={onMode} />
-      </ScrollView>
-    </Screen>
-  );
-}
-
-/** 两个选项共用一块滑动的金色底，点哪边就滑到哪边。 */
-function Segmented({ value, onChange }: { value: ThemeMode; onChange: (mode: ThemeMode) => void }) {
   const { colors } = useTheme();
-  const [width, setWidth] = useState(0);
-  const slot = width / MODE_OPTIONS.length;
-  const x = useSharedValue(0);
-  const index = MODE_OPTIONS.findIndex((item) => item.id === value);
-  useEffect(() => {
-    if (slot) x.value = withTiming(index * slot, { duration: 180, reduceMotion: ReduceMotion.System });
-  }, [index, slot, x]);
-  const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-  return (
-    <Surface tone="inset" radius={colors.radius.lg} style={styles.segment}>
-      <View style={styles.track} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
-        {slot ? (
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.thumb, { width: slot, backgroundColor: colors.accentTint, borderColor: colors.accentSoft }, thumb]}
-          />
-        ) : null}
-        {MODE_OPTIONS.map((item) => {
-          const active = item.id === value;
-          const palette = palettes[item.id];
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              onPress={() => onChange(item.id)}
-              style={styles.cell}
-            >
-              <View style={[styles.swatch, { backgroundColor: palette.canvas, borderColor: palette.lineStrong }]}>
-                <View style={[styles.swatchCore, { backgroundColor: palette.accent }]} />
-              </View>
-              <View style={styles.copy}>
-                <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
-                <Text style={styles.hint}>{item.hint}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
-    </Surface>
-  );
+  return <Screen style={styles.screen}>
+    <PageHeader title="外观" caption="石墨、银灰与酸橙色" onBack={onBack} />
+    <ScrollView contentContainerStyle={styles.content}>
+      <CompactTabs value={mode} options={options} onChange={onMode} />
+      <Surface style={styles.preview}>
+        <View style={styles.previewHeading}><Icon name={mode === "dark" ? "moon" : "sun"} color={colors.accentText} size={24} /><View style={styles.copy}><Text accessibilityRole="header" style={styles.title}>{mode === "dark" ? "石墨深色" : "冷白浅色"}</Text><Text style={styles.hint}>当前配色即时应用到所有页面</Text></View><Icon name="check" size={18} color={colors.accentText} /></View>
+        <View style={styles.palette}>{[colors.canvas, colors.surface, colors.surfaceRaised, colors.ink1, colors.accent].map((color, index) => <View key={index} accessibilityLabel={["画布", "内容表面", "浮层", "正文", "强调色"][index]} style={[styles.swatch, { backgroundColor: color }]} />)}</View>
+        <Text style={styles.sampleTitle}>清晰的层级，紧凑的节奏</Text>
+        <Text style={styles.sampleBody}>用边界和字重区分内容，给动态、作品与操作留出恰好的空间。</Text>
+        <View style={styles.sampleRow}><Text style={styles.hint}>正文与次要信息</Text><Text style={styles.link}>操作强调</Text></View>
+      </Surface>
+      <Text style={styles.hint}>动效遵循手机的「减少动态效果」设置。</Text>
+    </ScrollView>
+  </Screen>;
 }
-
-const styles = themedStyleSheet((t) => ({
-  screen: {
-    flex: 1,
-    backgroundColor: t.canvas,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 12,
-  },
-  segment: {
-    padding: 4,
-  },
-  track: {
-    flexDirection: "row",
-  },
-  thumb: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: t.radius.md,
-    borderWidth: 1,
-  },
-  cell: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    minHeight: 64,
-    paddingHorizontal: 8,
-  },
-  swatch: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  swatchCore: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  copy: {
-    gap: 1,
-  },
-  label: {
-    fontSize: 15,
-    color: t.ink2,
-  },
-  labelActive: {
-    color: t.accentText,
-    fontWeight: "700",
-  },
-  hint: {
-    fontSize: 11.5,
-    color: t.ink3,
-  },
+const styles = themedStyleSheet(t => ({
+  screen: { backgroundColor: t.canvas }, content: { padding: 16, gap: 12 },
+  preview: { padding: 16, gap: 12 }, previewHeading: { flexDirection: "row", alignItems: "center", gap: 12 }, copy: { flex: 1, gap: 2 },
+  title: { fontSize: 16, lineHeight: 22, fontWeight: "700", color: t.ink1 }, hint: { fontSize: 12, lineHeight: 18, color: t.ink3 },
+  palette: { flexDirection: "row", gap: 4 }, swatch: { flex: 1, height: 36, borderRadius: t.radius.xs, borderWidth: 0.5, borderColor: t.lineStrong },
+  sampleTitle: { fontSize: 21, lineHeight: 28, letterSpacing: -0.5, color: t.ink1, fontWeight: "700" }, sampleBody: { fontSize: 14, lineHeight: 21, color: t.ink2 },
+  sampleRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8, borderTopWidth: 0.5, borderTopColor: t.line, paddingTop: 12 }, link: { color: t.accentText, fontSize: 12, fontWeight: "600" },
 }));

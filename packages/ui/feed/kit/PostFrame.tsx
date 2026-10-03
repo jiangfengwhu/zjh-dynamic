@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from "react";
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import Markdown from "react-native-markdown-display";
 import { Icon, Pressy } from "../../chrome";
 import { themedStyleSheet, useTheme, type Theme } from "../../theme";
@@ -57,12 +57,12 @@ export const PostActions = memo(function PostActions({ friend, liked, onLike, on
   const { colors } = useTheme();
   return (
     <View style={styles.actions}>
-      <Pressy accessibilityRole="button" accessibilityLabel={`对${friend.name}说一句`} onPress={onReply} scale={0.94} hitSlop={8} style={styles.action}>
+      <Pressy accessibilityRole="button" accessibilityLabel={`对${friend.name}说一句`} onPress={onReply} scale={0.94} style={styles.action}>
         <BubbleGlyph size={15} color={colors.ink3} />
         <Text style={styles.actionText}>对 TA 说</Text>
       </Pressy>
       <LikeButton liked={liked} onPress={onLike} />
-      <Pressy accessibilityRole="button" accessibilityLabel={`打开${friend.name}`} onPress={onOpen} scale={0.94} hitSlop={8} style={styles.action}>
+      <Pressy accessibilityRole="button" accessibilityLabel={`打开${friend.name}`} onPress={onOpen} scale={0.94} style={styles.action}>
         <Text style={[styles.actionText, { color: colors.accentText, fontWeight: "700" }]}>主页</Text>
         <Icon name="chevron" size={11} color={colors.accentText} strokeWidth={2.2} />
       </Pressy>
@@ -81,11 +81,10 @@ export function LikeButton({ liked, onPress }: { liked: boolean; onPress: () => 
       accessibilityState={{ selected: liked }}
       accessibilityLabel={liked ? "取消喜欢" : "喜欢"}
       onPress={() => {
-        if (!liked) pop.value = withSequence(withTiming(0.78, { duration: 90 }), withSpring(1, { damping: 7, stiffness: 260 }));
+        if (!liked) pop.value = withSequence(withTiming(0.78, { duration: 90, reduceMotion: ReduceMotion.System }), withSpring(1, { damping: 15, stiffness: 300, reduceMotion: ReduceMotion.System }));
         onPress();
       }}
       scale={0.94}
-      hitSlop={8}
       style={styles.action}
     >
       <Animated.View style={animated}>
@@ -199,8 +198,10 @@ const styles = themedStyleSheet((t) => ({
     color: t.ink1,
   },
   time: {
-    fontSize: 12,
+    flexShrink: 1,
+    fontSize: 11,
     lineHeight: 17,
+    fontFamily: t.mono,
     color: t.ink3,
   },
   dot: {
@@ -212,8 +213,8 @@ const styles = themedStyleSheet((t) => ({
     marginTop: 1,
   },
   text: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 22,
     color: t.ink1,
   },
   extra: {
@@ -221,6 +222,7 @@ const styles = themedStyleSheet((t) => ({
   },
   actions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 4,
@@ -230,7 +232,7 @@ const styles = themedStyleSheet((t) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    minHeight: 48,
+    minHeight: 44,
   },
   actionText: {
     fontSize: 11.5,

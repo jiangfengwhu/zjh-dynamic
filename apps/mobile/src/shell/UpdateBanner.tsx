@@ -1,5 +1,5 @@
 import { Text, View } from "react-native";
-import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
+import Animated, { FadeInUp, FadeOutUp, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
@@ -14,20 +14,13 @@ type Props = {
   onLater: () => void;
 };
 
-const layerTitle: Record<string, string> = {
-  vendor: "第三方库",
-  app: "应用代码",
-  release: "一整套",
-};
-
 export function UpdateBanner({ items, busy, completed, error, onNow, onLater }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const names = items.map(titleOf);
-  const shown = names.slice(0, 3).join("、");
-  const extra = names.length > 3 ? ` 等 ${names.length} 个` : "";
   return (
     <Animated.View
+      entering={FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}
+      exiting={FadeOutUp.duration(160).reduceMotion(ReduceMotion.System)}
       style={[styles.wrap, { top: insets.top + 8 }]}
     >
       <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.card}>
@@ -36,11 +29,11 @@ export function UpdateBanner({ items, busy, completed, error, onNow, onLater }: 
             <Icon name="box" size={28} color={colors.accentText} />
           </View>
           <View style={styles.copy}>
-            <Text style={styles.title}>{completed ? "你的新作品送到了" : "伙伴们带来了新内容"}</Text>
+            <Text style={styles.title}>{completed ? "作品已准备好" : "有可用更新"}</Text>
             <Text style={styles.detail}>
               {completed
                 ? "加载这次的作品，即可体验。加载时会刷新应用。"
-                : "新内容已经备好。加载时会刷新应用，也可以留到下次见面。"}
+                : `${items.length} 项更新已备好，加载后会刷新应用。`}
             </Text>
           </View>
         </View>
@@ -58,10 +51,6 @@ export function UpdateBanner({ items, busy, completed, error, onNow, onLater }: 
   );
 }
 
-function titleOf(item: PendingPackage): string {
-  return layerTitle[item.id] ?? item.id;
-}
-
 const styles = themedStyleSheet((t) => ({
   wrap: {
     position: "absolute",
@@ -70,18 +59,20 @@ const styles = themedStyleSheet((t) => ({
     zIndex: 30,
   },
   card: {
-    padding: 16,
-    gap: 14,
+    padding: 12,
+    gap: 10,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 10,
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: t.radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
     overflow: "hidden",
     borderWidth: 1.5,
     borderColor: t.accentSoft,
@@ -108,7 +99,7 @@ const styles = themedStyleSheet((t) => ({
     gap: 8,
   },
   later: {
-    height: 40,
+    minHeight: 44,
     paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
@@ -120,7 +111,7 @@ const styles = themedStyleSheet((t) => ({
     color: t.ink2,
   },
   now: {
-    height: 40,
+    minHeight: 44,
     paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",

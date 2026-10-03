@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { useDiscardChanges, confirmDiscard } from "./useDiscardChanges";
-import Animated from "react-native-reanimated";
+import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import Toast from "react-native-toast-message";
 import { Icon, PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
@@ -111,7 +111,7 @@ export function ProvidersScreen({ onBack }: Props) {
         title="AI 引擎"
         caption={items.length > 0 ? `已接入 ${items.length} 个` : "接入一个模型，小结和创作都会用到"}
         onBack={onBack}
-        right={<Pressy accessibilityLabel="添加 AI 引擎" disabled={busy} onPress={() => selectDraft(empty)}><Icon name="plus" size={20} color={colors.accentText} /></Pressy>}
+        right={<Pressy accessibilityLabel="添加 AI 引擎" style={styles.add} disabled={busy} onPress={() => selectDraft(empty)}><Icon name="plus" size={20} color={colors.accentText} /></Pressy>}
       />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -122,7 +122,7 @@ export function ProvidersScreen({ onBack }: Props) {
             {items.map((item) => {
               const selected = draft.id === item.id;
               return (
-                <Animated.View key={item.id}>
+                <Animated.View key={item.id} entering={FadeInDown.duration(180).reduceMotion(ReduceMotion.System)}>
                   <Surface
                     tone={selected ? "raised" : "base"}
                     style={[
@@ -149,8 +149,8 @@ export function ProvidersScreen({ onBack }: Props) {
                           </View>
                         ) : null}
                         {selected ? (
-                          <View style={[styles.badge, { backgroundColor: colors.orchidTint }]}>
-                            <Text style={[styles.badgeText, { color: colors.orchidText }]}>编辑中</Text>
+                          <View style={[styles.badge, { backgroundColor: colors.accentTint }]}>
+                            <Text style={[styles.badgeText, { color: colors.accentText }]}>编辑中</Text>
                           </View>
                         ) : null}
                       </View>
@@ -170,7 +170,7 @@ export function ProvidersScreen({ onBack }: Props) {
                       <Icon name="close" size={16} color={colors.redText} strokeWidth={2} />
                     </Pressy>
                   </Surface>
-                  <Pressy disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("验证引擎连接", "将发送一条简短请求，可能消耗少量模型额度。", [{ text: "取消", style: "cancel" }, { text: "验证", onPress: () => void verify(item) }])} style={{ padding: 12 }}><Text style={{ color: colors.accentText }}>验证连接</Text></Pressy>
+                  <Pressy disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("验证引擎连接", "将发送一条简短请求，可能消耗少量模型额度。", [{ text: "取消", style: "cancel" }, { text: "验证", onPress: () => void verify(item) }])} style={styles.verify}><Text style={{ color: colors.accentText, fontSize: 12 }}>验证连接</Text></Pressy>
                 </Animated.View>
               );
             })}
@@ -254,10 +254,12 @@ const styles = themedStyleSheet((t) => ({
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 12,
-    gap: 12,
+    gap: 8,
   },
+  add: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: t.radius.sm, backgroundColor: t.accentTint },
+  verify: { alignSelf: "flex-end", paddingHorizontal: 12 },
   block: {
-    gap: 10,
+    gap: 4,
   },
   card: {
     flexDirection: "row",
@@ -272,7 +274,7 @@ const styles = themedStyleSheet((t) => ({
     flex: 1,
     minWidth: 0,
     gap: 4,
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   titleRow: {
     flexDirection: "row",
@@ -282,7 +284,7 @@ const styles = themedStyleSheet((t) => ({
   name: {
     flexShrink: 1,
     fontFamily: t.serif,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     color: t.ink1,
   },
@@ -301,16 +303,16 @@ const styles = themedStyleSheet((t) => ({
     color: t.ink3,
   },
   remove: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: t.radius.sm,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: t.redTint,
   },
   form: {
-    padding: 16,
-    gap: 12,
+    padding: 12,
+    gap: 10,
   },
   reset: {
     alignSelf: "flex-start",
@@ -359,7 +361,7 @@ const styles = themedStyleSheet((t) => ({
     color: t.redText,
   },
   save: {
-    height: 48,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: t.radius.lg,
