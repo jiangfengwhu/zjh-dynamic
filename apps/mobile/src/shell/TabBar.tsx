@@ -30,7 +30,7 @@ function Tab({ item, active, unread, onPress }: {
   const motion = useAnimatedStyle(() => ({ opacity: 0.72 + progress.value * 0.28, transform: [{ translateY: -progress.value }] }));
   return <Pressy onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: active }}
     accessibilityLabel={item.title + (unread ? `，${unread}条未读通知` : "")} style={styles.tab}>
-    <Animated.View style={[styles.icon, motion]}>
+    <Animated.View style={[styles.icon, active && styles.selectedIcon, motion]}>
       <Icon name={item.icon} size={21} color={active ? colors.accentText : colors.ink3} />
       {unread > 0 ? <View style={[styles.unread, { backgroundColor: colors.accent }]} /> : null}
     </Animated.View>
@@ -38,9 +38,10 @@ function Tab({ item, active, unread, onPress }: {
   </Pressy>;
 }
 const styles = themedStyleSheet(t => ({
-  bar: { flexDirection: "row", backgroundColor: t.canvas, borderTopWidth: 0.5, borderTopColor: t.line },
-  tab: { flex: 1, height: 56, alignItems: "center", justifyContent: "center", gap: 3 },
-  icon: { width: 26, height: 24, alignItems: "center", justifyContent: "center" },
+  bar: { flexDirection: "row", backgroundColor: t.canvas, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4, gap: 8, borderTopWidth: 0.5, borderTopColor: t.line },
+  tab: { flex: 1, height: 56, alignItems: "center", justifyContent: "center", gap: 4 },
+  icon: { width: 44, height: 30, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  selectedIcon: { backgroundColor: t.accentTint, boxShadow: `0 2px 4px ${t.shade}, inset 0 1px 2px ${t.sheen}` },
   unread: { position: "absolute", right: -1, top: 0, width: 6, height: 6, borderRadius: 3 },
   label: { fontSize: 10.5, lineHeight: 14, color: t.ink3 },
 }));

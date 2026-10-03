@@ -73,7 +73,7 @@ const styles = themedStyleSheet(t => ({
   input: { color: t.ink1, backgroundColor: t.field, borderRadius: t.radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, minHeight: 48 },
   button: { backgroundColor: t.accent, borderRadius: t.radius.md, minHeight: 48, padding: 12, alignItems: "center", justifyContent: "center" },
   secondary: { backgroundColor: t.accentTint }, disabled: { opacity: 0.45 },
-  buttonLabel: { color: t.onAccent, fontSize: 16, fontWeight: "600" }, secondaryLabel: { color: t.accent, fontSize: 16, fontWeight: "600" },
+  buttonLabel: { color: t.onAccent, fontSize: 16, fontWeight: "600" }, secondaryLabel: { color: t.accentText, fontSize: 16, fontWeight: "600" },
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 12 }, fill: { flex: 1 },
-  avatar: { width: 72, height: 72, borderRadius: 36 }, placeholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" }, initial: { color: t.accent, fontSize: 20, fontWeight: "600" },
+  avatar: { width: 72, height: 72, borderRadius: 36 }, placeholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" }, initial: { color: t.accentText, fontSize: 20, fontWeight: "600" },
 }));

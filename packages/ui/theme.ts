@@ -13,12 +13,12 @@ export const fonts = {
 
 const radius = {
   xs: 6,
-  sm: 8,
-  md: 10,
-  lg: 12,
-  xl: 14,
-  xxl: 16,
-  window: 14,
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 20,
+  xxl: 24,
+  window: 20,
   pill: 999,
 } as const;
 
@@ -57,7 +57,7 @@ export type Theme = {
   jollyBlush: string;
   jollyOrb: string;
 
-  // 主色：紫金花。按钮、选中、进度共用。
+  // 珊瑚软陶：主操作填色；正文链接使用较深的 accentText。
   accent: string;
   accentTint: string;
   accentSoft: string;
@@ -96,41 +96,41 @@ export type Theme = {
 
 export const palettes: Record<ThemeMode, Theme> = {
   dark: {
-    // 夜紫：带一点紫的墨色底，金箔只落在关键处
-    ink: "#19181F",
-    inkRaised: "#24222C",
-    line: "#34303F",
-    gold: "#BAA6F3",
-    goldDim: "#A391D1",
-    text: "#EEECF5",
-    muted: "#AAA5B8",
+    // 夜间天空，保留软陶暖色，与浅色使用同一信息层级。
+    ink: "#192C37",
+    inkRaised: "#2B404B",
+    line: "#3A505C",
+    gold: "#F2A38F",
+    goldDim: "#E69580",
+    text: "#EAF3F6",
+    muted: "#AFBFCA",
     danger: "#E58A9B",
 
-    canvas: "#19181F",
-    surface: "#1D1B25",
-    surfaceRaised: "#24222C",
-    inset: "#15141B",
-    field: "#24222C",
-    hover: "#30283F",
-    hover2: "#3C324E",
-    lineStrong: "#4B4359",
+    canvas: "#192C37",
+    surface: "#223743",
+    surfaceRaised: "#2B404B",
+    inset: "#172731",
+    field: "#2B404B",
+    hover: "#493B3B",
+    hover2: "#594747",
+    lineStrong: "#56707D",
     sheen: "rgba(255, 255, 255, 0.07)",
     shade: "rgba(0, 0, 0, 0.22)",
 
-    ink1: "#EEECF5",
-    ink2: "#D0CADC",
-    ink3: "#AAA5B8",
+    ink1: "#EAF3F6",
+    ink2: "#CADAE2",
+    ink3: "#AFBFCA",
 
     jollyFur: "#E8DECE",
     jollyFace: "#FEECE0",
     jollyBlush: "#FDA4AF",
-    jollyOrb: "#A78BFA",
+    jollyOrb: "#EFCF83",
 
-    accent: "#BAA6F3",
-    accentTint: "#30283F",
-    accentSoft: "#443457",
-    accentText: "#C5B2F5",
-    onAccent: "#21192F",
+    accent: "#F2A38F",
+    accentTint: "#493B3B",
+    accentSoft: "#624645",
+    accentText: "#F6BAA9",
+    onAccent: "#49251F",
 
     orchid: "#A88BEB",
     orchidTint: "rgba(168, 139, 235, 0.16)",
@@ -160,41 +160,41 @@ export const palettes: Record<ThemeMode, Theme> = {
     radius,
   },
   light: {
-    // 淡紫纸：偏冷的白，墨色文字，金箔加深以保证可读
-    ink: "#FFFFFF",
-    inkRaised: "#FFFFFF",
-    line: "#E9E7EF",
-    gold: "#644BC1",
-    goldDim: "#7761B8",
-    text: "#24232C",
-    muted: "#74717F",
+    // 天蓝画布，信息平面，珊瑚与奶油黄仅强调主操作和角色。
+    ink: "#EAF4FA",
+    inkRaised: "#F7FBFE",
+    line: "#D3E3EC",
+    gold: "#F2A38F",
+    goldDim: "#C67D69",
+    text: "#263E4C",
+    muted: "#597180",
     danger: "#C43D5A",
 
-    canvas: "#FFFFFF",
-    surface: "#FFFFFF",
-    surfaceRaised: "#F7F7FA",
-    inset: "#F0EEF5",
-    field: "#FFFFFF",
-    hover: "#F0ECFA",
-    hover2: "#E8E1F5",
-    lineStrong: "#D5CFDF",
+    canvas: "#EAF4FA",
+    surface: "#F7FBFE",
+    surfaceRaised: "#FFF3CF",
+    inset: "#DFEDF5",
+    field: "#F7FBFE",
+    hover: "#FCE8E1",
+    hover2: "#F8D8CD",
+    lineStrong: "#B7CFDD",
     sheen: "rgba(255, 255, 255, 0.9)",
-    shade: "rgba(60, 40, 90, 0.05)",
+    shade: "rgba(58, 102, 130, 0.12)",
 
-    ink1: "#24232C",
-    ink2: "#514C5E",
-    ink3: "#74717F",
+    ink1: "#263E4C",
+    ink2: "#425E6F",
+    ink3: "#597180",
 
-    jollyFur: "#DFD2C0",
-    jollyFace: "#FEECE0",
-    jollyBlush: "#FB7185",
-    jollyOrb: "#8B5CF6",
+    jollyFur: "#EFDDB0",
+    jollyFace: "#FFF3CF",
+    jollyBlush: "#EEA18F",
+    jollyOrb: "#EBCB78",
 
-    accent: "#644BC1",
-    accentTint: "#F0ECFA",
-    accentSoft: "#E5DDF5",
-    accentText: "#5B42AF",
-    onAccent: "#FFFFFF",
+    accent: "#F2A38F",
+    accentTint: "#FCE8E1",
+    accentSoft: "#F8D8CD",
+    accentText: "#984633",
+    onAccent: "#49251F",
 
     orchid: "#7A5BD0",
     orchidTint: "rgba(122, 91, 208, 0.10)",

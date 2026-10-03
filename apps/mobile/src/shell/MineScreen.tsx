@@ -66,7 +66,7 @@ export const MineScreen = memo(function MineScreen({
       >
         <Pressable accessibilityRole="button" accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount}><View style={styles.profile}>
           <View style={styles.portrait}>
-            {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={{ width: 56, height: 56, borderRadius: 28 }} /> : <Text style={[styles.profileName, { color: colors.accent, fontSize: 20 }]}>{user ? Array.from(user.name)[0] : "我"}</Text>}
+            {user?.avatarUrl ? <Image source={{ uri: user.avatarUrl }} style={{ width: 56, height: 56, borderRadius: 28 }} /> : <Text style={[styles.profileName, { color: colors.accentText, fontSize: 20 }]}>{user ? Array.from(user.name)[0] : "我"}</Text>}
           </View>
           <View style={styles.profileCopy}>
             <Text style={styles.profileName}>{user?.name ?? "登录紫金花"}</Text>
@@ -199,16 +199,16 @@ const styles = themedStyleSheet((t) => ({
     color: t.ink3,
   },
   content: {
-    paddingHorizontal: 0,
-    paddingTop: 6,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
     gap: 12,
   },
   profile: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    padding: 16,
+    padding: 12,
     marginBottom: 6,
   },
   portrait: {
@@ -238,13 +238,15 @@ const styles = themedStyleSheet((t) => ({
     color: t.ink2,
   },
   group: {
-    borderRadius: t.radius.xl,
+    borderRadius: t.radius.md,
+    backgroundColor: t.surface,
+    paddingVertical: 4,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 12,
   },
   rowIcon: {

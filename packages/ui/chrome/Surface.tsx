@@ -9,7 +9,7 @@ export function clear(color: string): string {
   return color.replace(/[\d.]+\)\s*$/, "0)");
 }
 
-/** 平整表面和细分隔线；仅弹层使用轻阴影。 */
+/** 信息面保持平整；raised / lifted 面采用克制的软陶高光。 */
 export function Surface({
   tone = "base",
   radius,
@@ -37,12 +37,8 @@ export function Surface({
           borderColor: colors.line,
           overflow: "hidden",
         },
-        lifted && {
-          shadowColor: "#000",
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 2 },
-          elevation: 2,
+        (lifted || tone === "raised") && {
+          boxShadow: `0 4px 10px ${colors.shade}, inset 0 2px 3px ${colors.sheen}`,
         },
         style,
       ]}
