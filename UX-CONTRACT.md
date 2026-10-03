@@ -20,8 +20,8 @@
 | 删除 | UserPostCard.tsx、userPosts.ts | 沿用 RN 原生确认和服务端删除行为；不增改数据生命周期 |
 | 头像和卡片 | runtime/application metadata、CardSlot.tsx | 宿主默认应用用新角色，其他应用身份保持；自定义卡错误仅降级当前卡 |
 | 主题 | packages/ui/theme.ts → feed/pixelTheme.ts | 深浅主题沿用账号外观选择；仅迁移动态页语义表面 |
-| 动画 | PixelKit.tsx | 一处视频，静音；后台、失焦与离开欢迎区暂停；减少动态效果／媒体失败回退头像 |
-| 滚动条 | RN ScrollView／FlatList | 使用平台原生滚动指示器，不引入 Web CSS 或隐藏主要滚动提示 |
+| 字体 | PixelText.tsx / FeedPresentation.tsx | 内嵌中文像素字体；系统字号缩放和原生可访问标签；可选文字与内联链接保留原生文字行为 |
+| 滚动条 | RN ScrollView／FlatList | 使用平台原生滚动指示器；分类在最新动态区域，发布按钮固定右下角并避让导航与安全区 |
 | Form / Select / Date / Table Selection | 本轮不涉及 | 编辑、账号与设置现有流程保持原所有者 |
 
 业务来源是现有宿主实现及用户本轮视觉迁移授权；本轮没有引入权限、支付、奖励、上传规则或服务端生命周期决策。账号验证由 `account.ts` 的 `requireAccount` 负责。中文无新增 locale 提供者；相对时间继续沿用动态页原有逻辑。

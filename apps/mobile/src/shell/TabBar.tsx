@@ -1,5 +1,6 @@
+import { PixelText as Text } from "./feed/PixelText";
 import { useEffect } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -111,6 +112,7 @@ function Tab({
         ) : null}
       </View>
       <Text
+        pixel={pixel}
         numberOfLines={1}
         style={[
           styles.label,

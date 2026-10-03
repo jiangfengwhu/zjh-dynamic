@@ -1,3 +1,4 @@
+import { PixelText as Text } from "./PixelText";
 import { PixelIcon } from "./PixelKit";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -6,7 +7,6 @@ import {
   Pressable,
   Share,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
 import { EdgeModal } from "../../../../../packages/ui/edge";
@@ -274,9 +274,9 @@ const makeStyles = (t: Theme) =>
   StyleSheet.create({
     row: {
       flexDirection: "row",
-      paddingHorizontal: 12,
-      paddingVertical: 14,
-      gap: 10,
+      paddingHorizontal: 6,
+      paddingVertical: 7,
+      gap: 5,
     },
     avatarControl: {
       width: 44,
@@ -297,11 +297,11 @@ const makeStyles = (t: Theme) =>
       justifyContent: "center",
     },
     initial: { fontSize: 20, color: t.accentText },
-    content: { flex: 1, minWidth: 0, gap: 6 },
+    content: { flex: 1, minWidth: 0, gap: 3 },
     heading: {
       flexDirection: "row",
       alignItems: "center",
-      marginTop: -6,
+      marginTop: -3,
       marginRight: -8,
     },
     identity: {
@@ -309,7 +309,7 @@ const makeStyles = (t: Theme) =>
       minWidth: 0,
       flexDirection: "row",
       alignItems: "baseline",
-      gap: 6,
+      gap: 3,
     },
     name: { flexShrink: 1, fontSize: 15, fontWeight: "700", color: t.ink1 },
     time: {
@@ -321,7 +321,7 @@ const makeStyles = (t: Theme) =>
     },
     body: { fontSize: 15, lineHeight: 22, color: t.ink1 },
     detailBody: { fontSize: 16, lineHeight: 24 },
-    images: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 4 },
+    images: { flexDirection: "row", flexWrap: "wrap", gap: 2, marginTop: 2 },
     imageCell: {
       width: "49%",
       aspectRatio: 1,
@@ -335,18 +335,18 @@ const makeStyles = (t: Theme) =>
       flexDirection: "row",
       borderTopWidth: 1,
       borderTopColor: t.line,
-      paddingTop: 4,
+      paddingTop: 2,
       justifyContent: "space-between",
       flexWrap: "wrap",
-      gap: 4,
-      marginTop: 2,
+      gap: 2,
+      marginTop: 1,
     },
     action: {
       minHeight: 44,
       minWidth: 44,
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 3,
     },
     count: { fontSize: 12, color: t.ink3, fontFamily: t.mono },
     previewImage: { flex: 1, width: "100%" },
@@ -355,7 +355,7 @@ const makeStyles = (t: Theme) =>
       position: "absolute",
       top: 54,
       right: 20,
-      padding: 14,
+      padding: 7,
       borderRadius: 24,
       backgroundColor: "#333333",
     },

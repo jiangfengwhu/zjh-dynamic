@@ -1,5 +1,6 @@
+import { PixelText as Text } from "./PixelText";
 import { useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { ChevronRight } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import { Pressy } from "../../../../../packages/ui/chrome";
@@ -46,15 +47,15 @@ export function ApplicationPostCard({
       disabled={preview || busy}
       onPress={() => void open()}
       style={{
-        marginTop: 6,
-        padding: 10,
+        marginTop: 3,
+        padding: 5,
         borderRadius: inPixelFeed ? 0 : colors.radius.sm,
         borderWidth: inPixelFeed ? 2 : 0.5,
         borderColor: colors.line,
         backgroundColor: inPixelFeed ? colors.inset : undefined,
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
+        gap: 6,
       }}
     >
       <View
@@ -71,7 +72,7 @@ export function ApplicationPostCard({
           {application.mark}
         </Text>
       </View>
-      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 1.5 }}>
         <Text
           numberOfLines={1}
           style={{ fontSize: 14, fontWeight: "700", color: colors.ink1 }}

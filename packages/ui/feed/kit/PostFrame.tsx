@@ -1,6 +1,14 @@
+import { FeedText as Text, useCompactFeed } from "./FeedPresentation";
 import { memo, type ReactNode } from "react";
-import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from "react-native-reanimated";
+import { Pressable, View, type StyleProp, type ViewStyle } from "react-native";
+import Animated, {
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import Markdown from "react-native-markdown-display";
 import { Icon, Pressy } from "../../chrome";
 import { themedStyleSheet, useTheme, type Theme } from "../../theme";
@@ -16,10 +24,16 @@ export const KIND_LABEL: Record<FeedSlot, string> = {
 };
 
 /** 类别的配色。 */
-export function kindTone(kind: FeedSlot, colors: Theme): { text: string; tint: string } {
-  if (kind === "welcome") return { text: colors.orchidText, tint: colors.orchidTint };
-  if (kind === "update") return { text: colors.greenText, tint: colors.greenTint };
-  if (kind === "activity") return { text: colors.cyanText, tint: colors.cyanTint };
+export function kindTone(
+  kind: FeedSlot,
+  colors: Theme
+): { text: string; tint: string } {
+  if (kind === "welcome")
+    return { text: colors.orchidText, tint: colors.orchidTint };
+  if (kind === "update")
+    return { text: colors.greenText, tint: colors.greenTint };
+  if (kind === "activity")
+    return { text: colors.cyanText, tint: colors.cyanTint };
   return { text: colors.accentText, tint: colors.accentTint };
 }
 
@@ -29,16 +43,29 @@ const GUTTER = 10;
 const SIDE = 14;
 
 /** 头像。点一下去 TA 的主页。 */
-export const PostAvatar = memo(function PostAvatar({ friend, onOpen }: Pick<FeedCardProps, "friend" | "onOpen">) {
+export const PostAvatar = memo(function PostAvatar({
+  friend,
+  onOpen,
+}: Pick<FeedCardProps, "friend" | "onOpen">) {
   return (
-    <Pressy accessibilityRole="button" accessibilityLabel={`打开${friend.name}`} onPress={onOpen} scale={0.92}>
+    <Pressy
+      accessibilityRole="button"
+      accessibilityLabel={`打开${friend.name}`}
+      onPress={onOpen}
+      scale={0.92}
+    >
       <FriendAvatar friend={friend} size={AVATAR} />
     </Pressy>
   );
 });
 
 /** 名字、时间，没看过的新动态在时间后面有一颗点。 */
-export const PostHead = memo(function PostHead({ friend, time, unread }: Pick<FeedCardProps, "friend" | "time" | "unread">) {
+export const PostHead = memo(function PostHead({
+  friend,
+  time,
+  unread,
+}: Pick<FeedCardProps, "friend" | "time" | "unread">) {
+  const styles = useFeedStyles();
   return (
     <View style={styles.head}>
       <Text style={styles.name} numberOfLines={1}>
@@ -47,66 +74,149 @@ export const PostHead = memo(function PostHead({ friend, time, unread }: Pick<Fe
       <Text style={styles.time} numberOfLines={1}>
         · {time}
       </Text>
-      {unread ? <View style={[styles.dot, { backgroundColor: friend.accent }]} /> : null}
+      {unread ? (
+        <View style={[styles.dot, { backgroundColor: friend.accent }]} />
+      ) : null}
     </View>
   );
 });
 
 /** 底部操作：对 TA 说、喜欢、打开主页，均匀排开。 */
-export const PostActions = memo(function PostActions({ friend, liked, onLike, onReply, onOpen }: FeedCardProps) {
+export const PostActions = memo(function PostActions({
+  friend,
+  liked,
+  onLike,
+  onReply,
+  onOpen,
+}: FeedCardProps) {
+  const styles = useFeedStyles();
   const { colors } = useTheme();
   return (
     <View style={styles.actions}>
-      <Pressy accessibilityRole="button" accessibilityLabel={`对${friend.name}说一句`} onPress={onReply} scale={0.94} style={styles.action}>
+      <Pressy
+        accessibilityRole="button"
+        accessibilityLabel={`对${friend.name}说一句`}
+        onPress={onReply}
+        scale={0.94}
+        style={styles.action}
+      >
         <BubbleGlyph size={15} color={colors.ink3} />
         <Text style={styles.actionText}>对 TA 说</Text>
       </Pressy>
       <LikeButton liked={liked} onPress={onLike} />
-      <Pressy accessibilityRole="button" accessibilityLabel={`打开${friend.name}`} onPress={onOpen} scale={0.94} style={styles.action}>
-        <Text style={[styles.actionText, { color: colors.accentText, fontWeight: "700" }]}>主页</Text>
-        <Icon name="chevron" size={11} color={colors.accentText} strokeWidth={2.2} />
+      <Pressy
+        accessibilityRole="button"
+        accessibilityLabel={`打开${friend.name}`}
+        onPress={onOpen}
+        scale={0.94}
+        style={styles.action}
+      >
+        <Text
+          style={[
+            styles.actionText,
+            { color: colors.accentText, fontWeight: "700" },
+          ]}
+        >
+          主页
+        </Text>
+        <Icon
+          name="chevron"
+          size={11}
+          color={colors.accentText}
+          strokeWidth={2.2}
+        />
       </Pressy>
     </View>
   );
 });
 
 /** 喜欢。点亮的一瞬间心先收一下再弹开。 */
-export function LikeButton({ liked, onPress }: { liked: boolean; onPress: () => void }) {
+export function LikeButton({
+  liked,
+  onPress,
+}: {
+  liked: boolean;
+  onPress: () => void;
+}) {
+  const styles = useFeedStyles();
   const { colors } = useTheme();
   const pop = useSharedValue(1);
-  const animated = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
+  const animated = useAnimatedStyle(() => ({
+    transform: [{ scale: pop.value }],
+  }));
   return (
     <Pressy
       accessibilityRole="button"
       accessibilityState={{ selected: liked }}
       accessibilityLabel={liked ? "取消喜欢" : "喜欢"}
       onPress={() => {
-        if (!liked) pop.value = withSequence(withTiming(0.78, { duration: 90, reduceMotion: ReduceMotion.System }), withSpring(1, { damping: 15, stiffness: 300, reduceMotion: ReduceMotion.System }));
+        if (!liked)
+          pop.value = withSequence(
+            withTiming(0.78, {
+              duration: 90,
+              reduceMotion: ReduceMotion.System,
+            }),
+            withSpring(1, {
+              damping: 15,
+              stiffness: 300,
+              reduceMotion: ReduceMotion.System,
+            })
+          );
         onPress();
       }}
       scale={0.94}
       style={styles.action}
     >
       <Animated.View style={animated}>
-        <HeartGlyph size={19} color={liked ? colors.red : colors.ink3} filled={liked} />
+        <HeartGlyph
+          size={19}
+          color={liked ? colors.red : colors.ink3}
+          filled={liked}
+        />
       </Animated.View>
-      <Text style={[styles.actionText, liked && { color: colors.red }]}>{liked ? "已喜欢" : "喜欢"}</Text>
+      <Text style={[styles.actionText, liked && { color: colors.red }]}>
+        {liked ? "已喜欢" : "喜欢"}
+      </Text>
     </Pressy>
   );
 }
 
 /** 正文。小结按 Markdown 排，其余是纯文本。 */
 export function PostBody({ post }: Pick<FeedCardProps, "post">) {
+  const styles = useFeedStyles();
   const { colors } = useTheme();
   return post.kind === "summary" ? (
-    <Markdown style={markdownStyle(colors)}>{post.body}</Markdown>
+    <Markdown
+      style={markdownStyle(colors)}
+      rules={{
+        textgroup: (node, children, _parent, markdownStyles) => (
+          <Text
+            key={node.key}
+            style={[
+              { color: colors.ink1, fontSize: 13.5, lineHeight: 19.5 },
+              markdownStyles.textgroup,
+            ]}
+          >
+            {children}
+          </Text>
+        ),
+      }}
+    >
+      {post.body}
+    </Markdown>
   ) : (
     <Text style={styles.text}>{post.body}</Text>
   );
 }
 
 /** 无默认样式的内容容器。底色、边框、圆角和内边距均由 App 决定。 */
-export function PostAttachment({ children, style }: { children?: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function PostAttachment({
+  children,
+  style,
+}: {
+  children?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   return <View style={style}>{children}</View>;
 }
 
@@ -133,22 +243,36 @@ export const PostFrame = memo(function PostFrame({
   style?: StyleProp<ViewStyle>;
 }) {
   const { colors } = useTheme();
-  const lead = body !== undefined ? body : hideBody ? null : <PostBody post={card.post} />;
+  const styles = useFeedStyles();
+  const lead =
+    body !== undefined ? body : hideBody ? null : <PostBody post={card.post} />;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${card.friend.name}的动态，打开主页`}
       onPress={card.onOpen}
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.inset }, style]}
+      style={({ pressed }) => [
+        styles.row,
+        pressed && { backgroundColor: colors.inset },
+        style,
+      ]}
     >
       <View style={styles.main}>
         <PostAvatar friend={card.friend} onOpen={card.onOpen} />
         <View style={styles.column}>
-          <PostHead friend={card.friend} time={card.time} unread={card.unread} />
-          {content !== undefined ? content : <>
-            {lead ? <View style={styles.lead}>{lead}</View> : null}
-            {children ? <View style={styles.extra}>{children}</View> : null}
-          </>}
+          <PostHead
+            friend={card.friend}
+            time={card.time}
+            unread={card.unread}
+          />
+          {content !== undefined ? (
+            content
+          ) : (
+            <>
+              {lead ? <View style={styles.lead}>{lead}</View> : null}
+              {children ? <View style={styles.extra}>{children}</View> : null}
+            </>
+          )}
           <PostActions {...card} />
         </View>
       </View>
@@ -164,11 +288,15 @@ function markdownStyle(colors: Theme) {
     bullet_list: { marginBottom: 3 },
     ordered_list: { marginBottom: 3 },
     link: { color: colors.accentText },
-    code_inline: { fontFamily: colors.mono, color: colors.ink2, backgroundColor: colors.inset },
+    code_inline: {
+      fontFamily: colors.mono,
+      color: colors.ink2,
+      backgroundColor: colors.inset,
+    },
   };
 }
 
-const styles = themedStyleSheet((t) => ({
+const styleFactory = (t: Theme) => ({
   row: {
     paddingTop: 8,
     paddingBottom: 5,
@@ -239,4 +367,25 @@ const styles = themedStyleSheet((t) => ({
     fontWeight: "500",
     color: t.ink3,
   },
-}));
+});
+
+const regularStyles = themedStyleSheet(styleFactory);
+const compactStyles = themedStyleSheet((t) => {
+  const original = styleFactory(t);
+  return Object.fromEntries(
+    Object.entries(original).map(([name, style]) => [
+      name,
+      Object.fromEntries(
+        Object.entries(style).map(([property, value]) => [
+          property,
+          /^(padding|margin|gap)/.test(property) && typeof value === "number"
+            ? value / 2
+            : value,
+        ])
+      ),
+    ])
+  ) as typeof original;
+});
+function useFeedStyles() {
+  return useCompactFeed() ? compactStyles : regularStyles;
+}

@@ -1,10 +1,6 @@
-import { useEffect, useState } from "react";
-import { AppState, Image, Text, View } from "react-native";
-import { useIsFocused } from "@react-navigation/native";
-import { useReducedMotion } from "react-native-reanimated";
+import { Image, View } from "react-native";
+import { PixelText as Text } from "./PixelText";
 import Svg, { Path } from "react-native-svg";
-import Video from "react-native-video";
-import RNBlobUtil from "react-native-blob-util";
 import { pixelAssets } from "./pixelAssets";
 
 export type PixelSymbol =
@@ -58,104 +54,6 @@ export function PixelAvatar({ size = 48 }: { size?: number }) {
   );
 }
 
-type Scene = "working" | "making" | "milestone";
-const cache = new Map<Scene, Promise<string>>();
-function materialize(scene: Scene) {
-  let pending = cache.get(scene);
-  if (!pending) {
-    pending = (async () => {
-      const asset = pixelAssets[scene];
-      const path = `${RNBlobUtil.fs.dirs.CacheDir}/pixel-${asset.hash}.mp4`;
-      if (!(await RNBlobUtil.fs.exists(path)))
-        await RNBlobUtil.fs.writeFile(path, asset.base64, "base64");
-      return `file://${path}`;
-    })();
-    cache.set(scene, pending);
-    pending.catch(() => cache.delete(scene));
-  }
-  return pending;
-}
-
-/** One video surface only. No audio, background playback, or scroll-time decoders. */
-export function PixelScene({
-  scene,
-  size = 112,
-  playing = true,
-}: {
-  scene?: Scene;
-  size?: number;
-  playing?: boolean;
-}) {
-  const focused = useIsFocused();
-  const reduced = useReducedMotion();
-  const [active, setActive] = useState(AppState.currentState === "active");
-  const [uri, setUri] = useState<string>();
-  const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) =>
-      setActive(state === "active")
-    );
-    return () => sub.remove();
-  }, []);
-  useEffect(() => {
-    let current = true;
-    setUri(undefined);
-    setFailed(false);
-    setLoaded(false);
-    if (scene && !reduced)
-      void materialize(scene).then(
-        (value) => {
-          if (current) setUri(value);
-        },
-        () => {
-          if (current) setFailed(true);
-        }
-      );
-    return () => {
-      current = false;
-    };
-  }, [scene, reduced]);
-  return (
-    <View
-      accessible={false}
-      style={{
-        width: size,
-        height: size,
-        backgroundColor: "#FFFFFF",
-        overflow: "hidden",
-      }}
-    >
-      <View
-        style={{
-          position: "absolute",
-          inset: 0,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <PixelAvatar size={size} />
-      </View>
-      {uri && !failed && !reduced ? (
-        <Video
-          key={uri}
-          source={{ uri }}
-          muted
-          repeat
-          paused={!playing || !focused || !active}
-          playInBackground={false}
-          playWhenInactive={false}
-          resizeMode="contain"
-          controls={false}
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-          style={{ width: size, height: size, opacity: loaded ? 1 : 0 }}
-        />
-      ) : null}
-    </View>
-  );
-}
-
 export function PixelBadge({
   label,
   color,
@@ -169,8 +67,8 @@ export function PixelBadge({
     <View
       style={{
         alignSelf: "flex-start",
-        paddingHorizontal: 7,
-        paddingVertical: 3,
+        paddingHorizontal: 4,
+        paddingVertical: 1.5,
         backgroundColor: background,
       }}
     >
