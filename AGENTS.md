@@ -1,11 +1,10 @@
-# 平台与 SDK 仓库边界
+# SDK 仓库维护规则
 
-本仓库 jiangfengwhu/zjh-dynamic 维护独立 npm SDK、RN 宿主、加载器和打包发布工具。应用业务、Jolly、模板和工坊云端任务在 jiangfengwhu/zjh-plugin，按 apps/<id>/ 目录管理；本仓库不再新增应用业务。
+适用于 zjh-dynamic 的 SDK 与宿主维护。应用业务在 zjh-plugin。
 
-沿用稳定应用 ID、数据键、模块范围与 runtime 契约。SDK 公共类型不得依赖宿主私有源码；实现适配可留在 host-ui.ts、runtime.ts，发布类型须自包含。源码与工具在本仓库维护，npm 包只包含 dist 和说明文档。
-
-安装 npm ci、npm ci --prefix apps/mobile。SDK 发包使用 npm run pack:sdk 或 npm run publish:sdk；宿主发布使用 npm run publish。默认不单独运行类型检查、测试或预览，发布所需构建和兼容检查仍执行。
-
-先提交源码再动态发布，source.commit 对应实际源码且 source.dirty 为 false。不绕过线上提交基线、兼容性检查、vendor 稳定模块键或工坊确认逻辑。SDK/API 或共享原生依赖变更需维护者协调 APK 与 server。纯文档修改无需发布。
-
-不得输出凭证、硬编码密钥或擅自合入工坊 PR。云端应用 Agent 的具体实现、发布和交付要求以 zjh-plugin/AGENTS.md 为准。
+- SDK 公共类型必须自包含，不引用宿主私有源码。应用 ID、数据键、模块范围和 vendor 公共模块键保持稳定。
+- 共享依赖由 SDK 固定版本；与平台契约保持一致，不绕过兼容检查。新增原生能力需协调 APK，接口变更需协调服务端。
+- 安装、构建和发布命令见 README.md。默认不单独运行类型检查、测试或预览。
+- 发布前提交源码，确保 source.commit 对应实际源码、source.dirty=false。
+- 不输出或提交凭证，不硬编码密钥，不擅自合入应用 PR。
+- 纯文档修改不发布。SDK 使用规则只维护在 packages/app-sdk/README.md，共享库清单只维护在 packages/app-sdk/libraries.md。
