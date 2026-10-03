@@ -229,12 +229,12 @@ const makeStyles = (t: Theme) =>
     imageCell: {
       width: "49%",
       aspectRatio: 1,
-      borderRadius: 0,
+      borderRadius: 12,
       overflow: "hidden",
       backgroundColor: t.surface,
     },
     singleImage: { width: "100%", aspectRatio: 1.35 },
-    image: { width: "100%", height: "100%" },
+    image: { width: "100%", height: "100%", borderRadius: 12 },
     previewImage: { flex: 1, width: "100%" },
     preview: { flex: 1, backgroundColor: "#141517" },
     close: {

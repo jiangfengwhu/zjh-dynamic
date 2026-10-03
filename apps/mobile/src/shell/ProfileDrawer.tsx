@@ -38,6 +38,7 @@ export function showProfileDrawer() {
   reveal?.();
 }
 type Drawer = {
+  gesture: ReturnType<typeof Gesture.Pan>;
   progress: SharedValue<number>;
   width: number;
   open: () => void;
@@ -52,7 +53,7 @@ export function useProfileDrawer() {
   return value;
 }
 
-/** Drawer and the whole tab surface share one translation, with no route transition. */
+/** One overlay drawer and opening gesture for every main tab. */
 export function ProfileDrawer({
   children,
   render,
@@ -107,9 +108,64 @@ export function ProfileDrawer({
     );
     return () => subscription.remove();
   }, [opened, focused, close]);
+  const canOpen = useSharedValue(focused && !opened);
+  useEffect(() => {
+    canOpen.value = focused && !opened;
+  }, [focused, opened, canOpen]);
+  const origin = useSharedValue({ x: 0, y: 0 });
+  const active = useSharedValue(false);
+  const gesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .manualActivation(true)
+        .maxPointers(1)
+        .onTouchesDown((event, manager) => {
+          active.value = false;
+          const touch = event.allTouches[0];
+          if (!canOpen.value || !touch || event.numberOfTouches !== 1) {
+            manager.fail();
+            return;
+          }
+          origin.value = { x: touch.absoluteX, y: touch.absoluteY };
+        })
+        .onTouchesMove((event, manager) => {
+          if (active.value) return;
+          const touch = event.allTouches[0];
+          if (!touch || event.numberOfTouches !== 1) {
+            manager.fail();
+            return;
+          }
+          const dx = touch.absoluteX - origin.value.x;
+          const dy = Math.abs(touch.absoluteY - origin.value.y);
+          if (dx < -4 || (dy > 4 && dy >= Math.abs(dx))) manager.fail();
+          else if (dx > 6 && dx > dy * 1.3) manager.activate();
+        })
+        .onTouchesUp((_event, manager) => {
+          if (!active.value) manager.fail();
+        })
+        .onStart(() => {
+          active.value = true;
+          cancelAnimation(progress);
+          runOnJS(startDrag)();
+        })
+        .onUpdate((event) => {
+          progress.value = Math.max(0, Math.min(1, event.translationX / width));
+        })
+        .onEnd((event) => {
+          runOnJS(settle)(
+            event.velocityX > 500 ||
+              (event.velocityX >= -500 && progress.value > 0.4)
+          );
+        })
+        .onFinalize((_event, success) => {
+          if (active.value && !success) runOnJS(settle)(false);
+          active.value = false;
+        }),
+    [canOpen, origin, active, progress, width, startDrag, settle]
+  );
   const value = useMemo(
-    () => ({ progress, width, open, close, startDrag, settle }),
-    [progress, width, open, close, startDrag, settle]
+    () => ({ gesture, progress, width, open, close, startDrag, settle }),
+    [gesture, progress, width, open, close, startDrag, settle]
   );
   const closing = useMemo(
     () =>
@@ -141,17 +197,13 @@ export function ProfileDrawer({
         }),
     [opened, opening, progress, start, width, settle, closingActive]
   );
-  const surface = useAnimatedStyle(() => ({
-    transform: [{ translateX: progress.value * width }],
-  }));
   const panel = useAnimatedStyle(() => ({
-    transform: [{ translateX: -width * 0.15 * (1 - progress.value) }],
-    opacity: progress.value,
+    transform: [{ translateX: -width * (1 - progress.value) }],
   }));
   const shade = useAnimatedStyle(() => ({ opacity: progress.value * 0.28 }));
   return (
     <Context.Provider value={value}>
-      <GestureDetector gesture={closing}>
+      <GestureDetector gesture={Gesture.Simultaneous(gesture, closing)}>
         <View
           style={{
             flex: 1,
@@ -171,6 +223,9 @@ export function ProfileDrawer({
                 bottom: 0,
                 left: 0,
                 width,
+                zIndex: 200,
+                borderTopRightRadius: 24,
+                borderBottomRightRadius: 24,
                 overflow: "hidden",
                 backgroundColor: colors.canvas,
               },
@@ -184,7 +239,6 @@ export function ProfileDrawer({
           <Animated.View
             style={[
               { flex: 1, overflow: "hidden", backgroundColor: colors.canvas },
-              surface,
             ]}
           >
             <View

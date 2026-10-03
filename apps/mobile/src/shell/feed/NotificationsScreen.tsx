@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
-import { GestureDetector } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
@@ -14,14 +14,17 @@ import { markNotificationsRead, readNotifications, useNotificationCount, type No
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
 
-export function NotificationsScreen({ onBack, onOpen }: { onBack?: () => void; onOpen: (notice: Notice) => Promise<boolean> }) {
+export function NotificationsScreen({ onBack, onOpen, drawerGesture }: { drawerGesture?: ReturnType<typeof Gesture.Pan>; onBack?: () => void; onOpen: (notice: Notice) => Promise<boolean> }) {
   const { colors } = useTheme(); const { user } = useAccount(); const count = useNotificationCount(); const focused = useIsFocused();
   const [page, setPage] = useState<NoticePage>({ notices: [], nextCursor: null, unreadCount: 0 }); const [loading, setLoading] = useState(false); const [acting, setActing] = useState(false); const [error, setError] = useState("");
   const alive = useRef(true); const revision = useRef(0); const reading = useRef(false); const writing = useRef(false); const firstCursor = useRef<string | null>(null); const loadedOwner = useRef<string | undefined>(undefined);
   const reload = useRef<() => Promise<void | boolean>>(async () => {}); const again = useRef(false);
   reload.current = () => load();
   const scrollY = useSharedValue(0); const onScroll = useAnimatedScrollHandler(event => { scrollY.value = event.contentOffset.y; });
-  const { pull, phase, gesture, scrollGesture } = usePullToRefresh({ scrollY, onRefresh: () => load() }); const lift = useAnimatedStyle(() => ({ transform: [{ translateY: pull.value }] }));
+  const { pull, phase, gesture, scrollGesture: refreshScrollGesture } = usePullToRefresh({ scrollY, onRefresh: () => load() }); const lift = useAnimatedStyle(() => ({ transform: [{ translateY: pull.value }] }));
+  const scrollGesture = useMemo(() => drawerGesture
+    ? Gesture.Native().requireExternalGestureToFail(gesture, drawerGesture).disallowInterruption(true)
+    : refreshScrollGesture, [drawerGesture, gesture, refreshScrollGesture]);
   function remember(next: NoticePage) { setPage(next); if (user) writeShellValue(`social.notifications.${user.id}`, JSON.stringify({ ...next, notices: next.notices.slice(0, 50), nextCursor: firstCursor.current })); }
   async function load(more = false) {
     if (!user || writing.current || (more && !page.nextCursor)) return false;

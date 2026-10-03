@@ -136,21 +136,21 @@ export const FeedScreen = memo(function FeedScreen({
 
   const scrollY = useSharedValue(0);
   const selectedKey = kind ?? "all";
+  const activeCategory = useSharedValue(selectedKey);
   const scrollMemory = useSharedValue<
-    Record<
-      string,
-      { offset: number; hidden: number; viewport: number; content: number }
-    >
+    Record<string, { offset: number; viewport: number; content: number }>
   >({});
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
   const dragging = useSharedValue(false);
+  const momentum = useSharedValue(false);
   const layoutSize = useSharedValue({ viewport: 0, content: 0 });
   const [headerSize, setHeaderSize] = useState(144);
   const [viewportSize, setViewportSize] = useState(0);
   const onScroll = useAnimatedScrollHandler(
     {
       onBeginDrag: (event) => {
+        if (activeCategory.value !== selectedKey) return;
         cancelAnimation(hiddenHeader);
         dragging.value = true;
         scrollY.value = Math.max(0, event.contentOffset.y);
@@ -160,42 +160,47 @@ export const FeedScreen = memo(function FeedScreen({
         };
       },
       onScroll: (event) => {
+        if (activeCategory.value !== selectedKey) return;
         const next = Math.max(0, event.contentOffset.y);
         const size = {
           viewport: event.layoutMeasurement.height,
           content: event.contentSize.height,
         };
-        const resized =
-          Math.abs(size.viewport - layoutSize.value.viewport) > 0.5 ||
-          Math.abs(size.content - layoutSize.value.content) > 0.5;
         layoutSize.value = size;
-        // A finger drag remains authoritative even when a card changes its size.
-        // Ignore layout-only offset changes outside an active drag.
-        if (dragging.value || !resized || next === 0) {
+        // Only vertical interaction changes shared chrome visibility.
+        // Category attachment and layout events preserve the current state.
+        if (dragging.value || momentum.value) {
           const delta = next - scrollY.value;
           hiddenHeader.value =
-            next === 0
+            next === 0 && delta < 0
               ? 0
               : Math.max(
                   0,
-                  Math.min(headerHeight.value, next, hiddenHeader.value + delta)
+                  Math.min(headerHeight.value, hiddenHeader.value + delta)
                 );
+          chromeHidden.value =
+            headerHeight.value > 0
+              ? hiddenHeader.value / headerHeight.value
+              : 0;
         }
         scrollY.value = next;
-        chromeHidden.value =
-          headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
         scrollMemory.value = {
           ...scrollMemory.value,
           [selectedKey]: {
             offset: next,
-            hidden: hiddenHeader.value,
             viewport: size.viewport,
             content: size.content,
           },
         };
       },
+      onMomentumBegin: () => {
+        if (activeCategory.value === selectedKey) momentum.value = true;
+      },
+      onMomentumEnd: () => {
+        if (activeCategory.value === selectedKey) momentum.value = false;
+      },
       onEndDrag: () => {
-        dragging.value = false;
+        if (activeCategory.value === selectedKey) dragging.value = false;
       },
     },
     [selectedKey]
@@ -216,22 +221,19 @@ export const FeedScreen = memo(function FeedScreen({
       runOnUI((key: string) => {
         "worklet";
         cancelAnimation(hiddenHeader);
+        activeCategory.value = key;
         const saved = scrollMemory.value[key];
         scrollY.value = saved?.offset ?? 0;
-        hiddenHeader.value = Math.max(
-          0,
-          Math.min(headerHeight.value, scrollY.value, saved?.hidden ?? 0)
-        );
-        chromeHidden.value =
-          headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
         layoutSize.value = {
           viewport: saved?.viewport ?? 0,
           content: saved?.content ?? 0,
         };
         dragging.value = false;
+        momentum.value = false;
       })(selectedKey);
     }, [
       selectedKey,
+      activeCategory,
       scrollMemory,
       scrollY,
       hiddenHeader,
@@ -239,6 +241,7 @@ export const FeedScreen = memo(function FeedScreen({
       chromeHidden,
       layoutSize,
       dragging,
+      momentum,
     ])
   );
 
@@ -347,13 +350,8 @@ export const FeedScreen = memo(function FeedScreen({
   const pager = useFeedPager({
     categories: pages,
     selected: kind,
-    blocked: phase === "refreshing" || phase === "done",
     onSelect: setKind,
   });
-  const timelineGesture = useMemo(
-    () => Gesture.Simultaneous(pager.gesture, gesture),
-    [pager.gesture, gesture]
-  );
   const open = useCallback(
     async (appId: string) => {
       const at = latest[appId] ?? Date.now();
@@ -496,7 +494,7 @@ export const FeedScreen = memo(function FeedScreen({
                 </View>
               </Animated.View>
 
-              <GestureDetector gesture={timelineGesture}>
+              <GestureDetector gesture={gesture}>
                 <View style={styles.pullHost}>
                   <GestureDetector gesture={pager.nativeGesture}>
                     <AnimatedPagerView

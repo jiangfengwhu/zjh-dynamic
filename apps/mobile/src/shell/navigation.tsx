@@ -27,7 +27,7 @@ import { MarketDetailScreen } from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
 import { fetchPublicMarketApplication } from "./market";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
-import { ProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
+import { ProfileDrawer, showProfileDrawer, useProfileDrawer } from "./ProfileDrawer";
 import { MineScreen } from "./MineScreen";
 import { requireAccount, currentAccountId } from "./account";
 import { readShellValue, removeShellValue } from "./shellStorage";
@@ -83,6 +83,11 @@ async function openNotice(notice: Notice) {
   if (!shellNavigationRef.isReady() || shellNavigationRef.getCurrentRoute()?.key !== origin) return false;
   shellNavigationRef.navigate("postDetail", { post: detail.post, commentId: notice.commentId, initialDetail: detail });
   return true;
+}
+
+function NotificationsTab({ onOpen }: { onOpen: (notice: Notice) => Promise<boolean> }) {
+  const { gesture } = useProfileDrawer();
+  return <NotificationsScreen drawerGesture={gesture} onOpen={onOpen} />;
 }
 
 const Stack = createNativeStackNavigator<RootParamList>();
@@ -339,7 +344,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 {() => <MarketScreen onAuthor={openAuthor} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => { void requireAccount().then(allowed => { if (allowed) applicationContext(bootstrap.defaultApplication).navigation.create(); }); }} />}
               </Tabs.Screen>
               <Tabs.Screen name="notifications">
-                {() => <NotificationsScreen onOpen={openNotice} />}
+                {() => <NotificationsTab onOpen={openNotice} />}
               </Tabs.Screen>
             </Tabs.Navigator>
             </ScreenEdge></ProfileDrawer>
