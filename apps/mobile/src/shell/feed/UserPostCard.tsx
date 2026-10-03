@@ -1,4 +1,5 @@
 import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
+import { useCompactFeed } from "../../../../../packages/ui/feed/kit/FeedPresentation";
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
 import { PixelText as Text } from "./PixelText";
 import { useMemo, useRef, useState } from "react";
@@ -37,6 +38,7 @@ export function UserPostCard({
   onUpdated?: (post: UserPost) => void;
   detail?: boolean;
 }) {
+  const compact = useCompactFeed();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const { colors } = useTheme();
@@ -166,10 +168,12 @@ export function UserPostCard({
                 </View>
               ) : null}
               {post.application ? (
-                <ApplicationPostCard
-                  application={post.application}
-                  onOpen={onApplication}
-                />
+                <View style={compact ? styles.applicationInset : undefined}>
+                  <ApplicationPostCard
+                    application={post.application}
+                    onOpen={onApplication}
+                  />
+                </View>
               ) : null}
             </>
           }
@@ -218,6 +222,7 @@ export function UserPostCard({
 const makeStyles = (t: Theme) =>
   StyleSheet.create({
     openArea: { alignSelf: "stretch", minHeight: 44 },
+    applicationInset: { marginRight: 9 },
     avatar: {
       width: 36,
       height: 36,

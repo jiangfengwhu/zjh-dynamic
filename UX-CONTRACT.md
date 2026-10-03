@@ -70,3 +70,5 @@ Drawer 的“编辑头像与昵称”进入 account 路由时明确使用原生 
 分类与 Drawer 手势交接以 UI 线程原生事件为准：feedActive 只随大 tab 焦点变化，feedPage 由原生 onPageSelected／idle 更新，feedIdle 在 dragging／settling 及非零分页 offset 时为 false。只有动态页停稳在第 0 页“全部”时，新的右滑才可以打开 Drawer；手势按下与方向识别阶段均检查资格，左滑判定失败后同一触摸不可转为 Drawer。分类状态更新和清理函数不得临时放开资格。到达“全部”并 idle 时立即在 UI 线程开放，无需等待 React 更新；市场、通知右滑入口保持。
 
 分割线左右边距与紧凑动态容器共用 FeedPresentation.COMPACT_FEED_INSET=7；应用分享卡片、图片、正文的右侧内容边界和分割线终点一致。删除分割线独立的 16 点 margin，保持条目两侧对称，不额外缩窄应用卡片。
+
+用户动态内的应用分享卡片在紧凑动态页单独补 9 点右 margin，与 FeedItemFrame 容器 7 点横向 padding 合计为 16，对齐 item 分割线右端；不恢复整条 item 的额外右 padding，不影响正文、图片、操作栏或其他页面的应用卡片布局。
