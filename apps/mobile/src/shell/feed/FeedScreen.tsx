@@ -1,4 +1,5 @@
 import { PixelText as Text } from "./PixelText";
+import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -92,7 +93,7 @@ export const FeedScreen = memo(function FeedScreen({
   const { colors, mode } = themeContext;
   const insets = useSafeAreaInsets();
   const { hidden: chromeHidden, tabHeight } = useFeedChrome();
-  // Native window owns global navigation hiding. Pages only request their colors.
+  // Native window owns transparent system bars. Pages only request their colors.
   useFocusEffect(
     useCallback(() => {
       void NativePluginHost.call(
@@ -137,7 +138,9 @@ export const FeedScreen = memo(function FeedScreen({
   );
 
   const scrollY = useSharedValue(0);
-  const list = useRef<FlatList<(typeof timeline)[number]>>(null);
+  const lists = useRef(
+    new Map<FeedCategory, FlatList<(typeof timeline)[number]>>()
+  );
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
   const dragging = useSharedValue(false);
@@ -284,22 +287,12 @@ export const FeedScreen = memo(function FeedScreen({
       ),
     [posts, userTimeline.posts]
   );
-  const visible = useMemo(
-    () =>
-      timeline.filter(
-        (item) =>
-          !kind ||
-          (item.type === "user" ? kind === "user" : item.post.kind === kind)
-      ),
-    [timeline, kind]
-  );
-
   useEffect(() => {
     if (kind && kind !== "user" && !kinds.includes(kind)) setKind(null);
   }, [kind, kinds]);
 
   useEffect(() => {
-    list.current?.scrollToOffset({ offset: 0, animated: false });
+    lists.current.get(kind)?.scrollToOffset({ offset: 0, animated: false });
     cancelAnimation(hiddenHeader);
     scrollY.value = 0;
     hiddenHeader.value = 0;
@@ -307,48 +300,47 @@ export const FeedScreen = memo(function FeedScreen({
     dragging.value = false;
   }, [kind, scrollY, hiddenHeader, chromeHidden, dragging]);
 
-  // Right-edge swipes open the profile drawer; ordinary swipes select categories.
-  const categories = useMemo(() => [null, "user", ...kinds] as const, [kinds]);
-  const horizontalGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetX([-20, 20])
-        .failOffsetY([-12, 12])
-        .maxPointers(1)
-        .runOnJS(true)
-        .onEnd((event) => {
-          if (
-            Math.abs(event.translationX) < 48 &&
-            Math.abs(event.velocityX) < 500
-          )
-            return;
-          const startX = event.x - event.translationX;
-          if (startX >= screenWidth - 32 && event.translationX < 0) {
-            onProfile();
-            return;
-          }
-          const index = categories.indexOf(kind);
-          const next = Math.max(
-            0,
-            Math.min(
-              categories.length - 1,
-              index + (event.translationX < 0 ? 1 : -1)
-            )
-          );
-          if (next !== index) setKind(categories[next]);
-        }),
-    [categories, kind, onProfile, screenWidth]
+  // All is the rightmost page: left swipes open the drawer, right swipes enter User.
+  const categories = useMemo(
+    () => [...kinds].reverse() as FeedCategory[],
+    [kinds]
   );
+  const pages = useMemo(
+    () => [...categories, "user", null] as FeedCategory[],
+    [categories]
+  );
+  const pageRows = useMemo(
+    () =>
+      pages.map((category) => ({
+        category,
+        items: timeline.filter(
+          (item) =>
+            category === null ||
+            (item.type === "user"
+              ? category === "user"
+              : item.post.kind === category)
+        ),
+      })),
+    [pages, timeline]
+  );
+  const pager = useFeedPager({
+    categories: pages,
+    selected: kind,
+    width: screenWidth,
+    blocked: phase === "refreshing" || phase === "done",
+    onSelect: setKind,
+    onDrawer: onProfile,
+  });
   const timelineGesture = useMemo(
-    () => Gesture.Exclusive(horizontalGesture, gesture),
-    [horizontalGesture, gesture]
+    () => Gesture.Simultaneous(pager.gesture, gesture),
+    [pager.gesture, gesture]
   );
   const scrollGesture = useMemo(
     () =>
       Gesture.Native()
-        .requireExternalGestureToFail(horizontalGesture, gesture)
+        .requireExternalGestureToFail(pager.gesture, gesture)
         .disallowInterruption(true),
-    [horizontalGesture, gesture]
+    [pager.gesture, gesture]
   );
 
   const open = useCallback(
@@ -384,14 +376,6 @@ export const FeedScreen = memo(function FeedScreen({
               >
                 <View style={styles.header}>
                   <View style={styles.headerRow}>
-                    <View style={styles.headerCopy}>
-                      <Text style={styles.wordmark}>
-                        动态<Text style={styles.brand}> / 紫金花</Text>
-                      </Text>
-                      <Text style={styles.headerCaption} numberOfLines={1}>
-                        {summarizing ? "正在整理动态…" : "应用近况与社区分享"}
-                      </Text>
-                    </View>
                     <Pressy
                       accessibilityRole="button"
                       accessibilityLabel="打开我的侧边抽屉"
@@ -408,6 +392,14 @@ export const FeedScreen = memo(function FeedScreen({
                         <PixelAvatar size={34} />
                       )}
                     </Pressy>
+                    <View style={styles.headerCopy}>
+                      <Text style={styles.wordmark}>
+                        动态<Text style={styles.brand}> / 紫金花</Text>
+                      </Text>
+                      <Text style={styles.headerCaption} numberOfLines={1}>
+                        {summarizing ? "正在整理动态…" : "应用近况与社区分享"}
+                      </Text>
+                    </View>
                   </View>
                   <ScrollView
                     horizontal
@@ -442,190 +434,234 @@ export const FeedScreen = memo(function FeedScreen({
 
               <GestureDetector gesture={timelineGesture}>
                 <View style={styles.pullHost}>
-                  <View style={styles.scroll}>
-                    <GestureDetector gesture={scrollGesture}>
-                      <Animated.FlatList
-                        ref={list}
-                        data={visible}
-                        ItemSeparatorComponent={FeedSeparator}
-                        keyExtractor={(item) => `${item.type}-${item.post.id}`}
-                        initialNumToRender={8}
-                        maxToRenderPerBatch={6}
-                        windowSize={7}
-                        removeClippedSubviews={false}
-                        style={styles.scroll}
-                        contentContainerStyle={[
-                          styles.content,
-                          bottomSpace,
-                          { minHeight: viewportSize + headerSize },
-                        ]}
-                        showsVerticalScrollIndicator
-                        onScroll={onScroll}
-                        scrollEventThrottle={16}
-                        overScrollMode="never"
-                        bounces={false}
-                        scrollEnabled={
-                          phase !== "refreshing" && phase !== "done"
-                        }
-                        ListHeaderComponent={
-                          <View>
-                            <View style={{ height: headerSize }} />
-                            <Animated.View style={refreshSpace}>
-                              <PullIndicator pull={pull} phase={phase} />
-                            </Animated.View>
-                            {timelineError ? (
-                              <Text
-                                style={{
-                                  color: colors.ink3,
-                                  padding: 16,
-                                  fontSize: 12,
-                                }}
-                              >
-                                {timelineError}
-                              </Text>
-                            ) : null}
-                          </View>
-                        }
-                        ListEmptyComponent={
-                          <View style={styles.empty}>
-                            <PixelAvatar size={80} />
-                            <Text style={styles.emptyTitle}>
-                              {kind === "user"
-                                ? "还没有用户动态"
-                                : "这里还很安静"}
-                            </Text>
-                            <Text style={styles.emptyBody}>
-                              分享一个想法，或换个分类看看。
-                            </Text>
-                            <Pressy
-                              accessibilityLabel="发布第一条动态"
-                              onPress={onCompose}
-                              style={styles.compose}
+                  <Animated.View
+                    style={[
+                      {
+                        flex: 1,
+                        flexDirection: "row",
+                        width: screenWidth * pages.length,
+                      },
+                      pager.motion,
+                    ]}
+                  >
+                    {pageRows.map(
+                      ({ category: pageKind, items: visible }, pageIndex) => (
+                        <View
+                          key={pageKind ?? "all"}
+                          collapsable={false}
+                          style={{ width: screenWidth, height: "100%" }}
+                        >
+                          {Math.abs(pageIndex - pager.index) <= 1 ? (
+                            <FeedListGesture
+                              active={pageKind === kind}
+                              gesture={scrollGesture}
                             >
-                              <PixelIcon
-                                name="plus"
-                                size={14}
-                                color={colors.onAccent}
-                              />
-                              <Text
-                                style={{
-                                  color: colors.onAccent,
-                                  fontWeight: "700",
+                              <Animated.FlatList
+                                ref={(node) => {
+                                  if (node) lists.current.set(pageKind, node);
+                                  else lists.current.delete(pageKind);
                                 }}
-                              >
-                                发第一条动态
-                              </Text>
-                            </Pressy>
-                          </View>
-                        }
-                        renderItem={({ item }) => {
-                          if (item.type === "user") {
-                            const post =
-                              user && item.post.author.id === user.id
-                                ? {
-                                    ...item.post,
-                                    author: {
-                                      id: user.id,
-                                      name: user.name,
-                                      avatarUrl: user.avatarUrl,
-                                    },
+                                data={visible}
+                                ItemSeparatorComponent={FeedSeparator}
+                                keyExtractor={(item) =>
+                                  `${item.type}-${item.post.id}`
+                                }
+                                initialNumToRender={8}
+                                maxToRenderPerBatch={6}
+                                windowSize={7}
+                                removeClippedSubviews={false}
+                                style={styles.scroll}
+                                contentContainerStyle={[
+                                  styles.content,
+                                  bottomSpace,
+                                  { minHeight: viewportSize + headerSize },
+                                ]}
+                                showsVerticalScrollIndicator
+                                onScroll={
+                                  pageKind === kind ? onScroll : undefined
+                                }
+                                scrollEventThrottle={16}
+                                overScrollMode="never"
+                                bounces={false}
+                                scrollEnabled={
+                                  phase !== "refreshing" && phase !== "done"
+                                }
+                                ListHeaderComponent={
+                                  <View>
+                                    <View style={{ height: headerSize }} />
+                                    <Animated.View style={refreshSpace}>
+                                      <PullIndicator
+                                        pull={pull}
+                                        phase={phase}
+                                      />
+                                    </Animated.View>
+                                    {timelineError ? (
+                                      <Text
+                                        style={{
+                                          color: colors.ink3,
+                                          padding: 16,
+                                          fontSize: 12,
+                                        }}
+                                      >
+                                        {timelineError}
+                                      </Text>
+                                    ) : null}
+                                  </View>
+                                }
+                                ListEmptyComponent={
+                                  <View style={styles.empty}>
+                                    <PixelAvatar size={80} />
+                                    <Text style={styles.emptyTitle}>
+                                      {pageKind === "user"
+                                        ? "还没有用户动态"
+                                        : "这里还很安静"}
+                                    </Text>
+                                    <Text style={styles.emptyBody}>
+                                      分享一个想法，或换个分类看看。
+                                    </Text>
+                                    <Pressy
+                                      accessibilityLabel="发布第一条动态"
+                                      onPress={onCompose}
+                                      style={styles.compose}
+                                    >
+                                      <PixelIcon
+                                        name="plus"
+                                        size={14}
+                                        color={colors.onAccent}
+                                      />
+                                      <Text
+                                        style={{
+                                          color: colors.onAccent,
+                                          fontWeight: "700",
+                                        }}
+                                      >
+                                        发第一条动态
+                                      </Text>
+                                    </Pressy>
+                                  </View>
+                                }
+                                renderItem={({ item }) => {
+                                  if (item.type === "user") {
+                                    const post =
+                                      user && item.post.author.id === user.id
+                                        ? {
+                                            ...item.post,
+                                            author: {
+                                              id: user.id,
+                                              name: user.name,
+                                              avatarUrl: user.avatarUrl,
+                                            },
+                                          }
+                                        : item.post;
+                                    return (
+                                      <View style={styles.post}>
+                                        <UserPostCard
+                                          post={post}
+                                          time={formatWhen(post.createdAt)}
+                                          own={user?.id === post.author.id}
+                                          onOpen={() => onPost(post)}
+                                          onApplication={onApplication}
+                                          onAuthor={onAuthor}
+                                        />
+                                      </View>
+                                    );
                                   }
-                                : item.post;
-                            return (
-                              <View style={styles.post}>
-                                <UserPostCard
-                                  post={post}
-                                  time={formatWhen(post.createdAt)}
-                                  own={user?.id === post.author.id}
-                                  onOpen={() => onPost(post)}
-                                  onApplication={onApplication}
-                                  onAuthor={onAuthor}
-                                />
-                              </View>
-                            );
-                          }
-                          const post = item.post;
-                          const friend = friends.get(post.appId) ?? {
-                            id: post.appId,
-                            name: post.appId,
-                            mark: "友",
-                            accent: colors.accent,
-                          };
-                          const Template =
-                            cardsReady >= 0 && post.kind !== "summary"
-                              ? peekFeedTemplate(
-                                  post.appId,
-                                  post.kind as FeedKind
-                                )
-                              : undefined;
-                          return (
-                            <View>
-                              <View style={styles.post}>
-                                <CardSlot
-                                  Template={Template}
-                                  card={{
-                                    post,
-                                    friend,
-                                    kindLabel: KIND_LABEL[post.kind],
-                                    time: formatWhen(post.createdAt),
-                                    unread:
-                                      post.createdAt > (seen[post.appId] ?? 0),
-                                    liked: liked.has(post.id),
-                                    onOpen: () => open(post.appId),
-                                    onLike: () => toggleLike(post.id),
-                                    onReply: () => onReply(post.appId),
-                                  }}
-                                />
-                              </View>
-                            </View>
-                          );
-                        }}
-                        ListFooterComponent={
-                          <View>
-                            {(!kind || kind === "user") &&
-                            userTimeline.nextCursor ? (
-                              <Pressable
-                                disabled={loadingMore}
-                                onPress={() => {
-                                  setLoadingMore(true);
-                                  void loadMoreUserPosts()
-                                    .catch((error) =>
-                                      Toast.show({
-                                        type: "error",
-                                        text1: "加载失败",
-                                        text2: error.message,
-                                      })
-                                    )
-                                    .finally(() => setLoadingMore(false));
+                                  const post = item.post;
+                                  const friend = friends.get(post.appId) ?? {
+                                    id: post.appId,
+                                    name: post.appId,
+                                    mark: "友",
+                                    accent: colors.accent,
+                                  };
+                                  const Template =
+                                    cardsReady >= 0 && post.kind !== "summary"
+                                      ? peekFeedTemplate(
+                                          post.appId,
+                                          post.kind as FeedKind
+                                        )
+                                      : undefined;
+                                  return (
+                                    <View>
+                                      <View style={styles.post}>
+                                        <CardSlot
+                                          Template={Template}
+                                          card={{
+                                            post,
+                                            friend,
+                                            kindLabel: KIND_LABEL[post.kind],
+                                            time: formatWhen(post.createdAt),
+                                            unread:
+                                              post.createdAt >
+                                              (seen[post.appId] ?? 0),
+                                            liked: liked.has(post.id),
+                                            onOpen: () => open(post.appId),
+                                            onLike: () => toggleLike(post.id),
+                                            onReply: () => onReply(post.appId),
+                                          }}
+                                        />
+                                      </View>
+                                    </View>
+                                  );
                                 }}
-                                style={{ alignItems: "center", padding: 16 }}
-                              >
-                                <Text style={{ color: colors.accentText }}>
-                                  {loadingMore
-                                    ? "正在加载…"
-                                    : "加载更多用户动态"}
-                                </Text>
-                              </Pressable>
-                            ) : null}
-                            {visible.length > 0 &&
-                            (!userTimeline.nextCursor ||
-                              (kind && kind !== "user")) ? (
-                              <View style={styles.end}>
-                                <PixelIcon
-                                  name="spark"
-                                  size={16}
-                                  color={colors.accentText}
-                                />
-                                <Text style={styles.endText}>
-                                  已浏览全部动态
-                                </Text>
-                              </View>
-                            ) : null}
-                          </View>
-                        }
-                      />
-                    </GestureDetector>
-                  </View>
+                                ListFooterComponent={
+                                  <View>
+                                    {(pageKind === null ||
+                                      pageKind === "user") &&
+                                    userTimeline.nextCursor ? (
+                                      <Pressable
+                                        disabled={loadingMore}
+                                        onPress={() => {
+                                          setLoadingMore(true);
+                                          void loadMoreUserPosts()
+                                            .catch((error) =>
+                                              Toast.show({
+                                                type: "error",
+                                                text1: "加载失败",
+                                                text2: error.message,
+                                              })
+                                            )
+                                            .finally(() =>
+                                              setLoadingMore(false)
+                                            );
+                                        }}
+                                        style={{
+                                          alignItems: "center",
+                                          padding: 16,
+                                        }}
+                                      >
+                                        <Text
+                                          style={{ color: colors.accentText }}
+                                        >
+                                          {loadingMore
+                                            ? "正在加载…"
+                                            : "加载更多用户动态"}
+                                        </Text>
+                                      </Pressable>
+                                    ) : null}
+                                    {visible.length > 0 &&
+                                    (!userTimeline.nextCursor ||
+                                      (pageKind !== null &&
+                                        pageKind !== "user")) ? (
+                                      <View style={styles.end}>
+                                        <PixelIcon
+                                          name="spark"
+                                          size={16}
+                                          color={colors.accentText}
+                                        />
+                                        <Text style={styles.endText}>
+                                          已浏览全部动态
+                                        </Text>
+                                      </View>
+                                    ) : null}
+                                  </View>
+                                }
+                              />
+                            </FeedListGesture>
+                          ) : null}
+                        </View>
+                      )
+                    )}
+                  </Animated.View>
                 </View>
               </GestureDetector>
               <Animated.View style={[styles.composeDock, composePosition]}>
@@ -653,6 +689,21 @@ export const FeedScreen = memo(function FeedScreen({
     </ThemeContext.Provider>
   );
 });
+function FeedListGesture({
+  active,
+  gesture,
+  children,
+}: {
+  active: boolean;
+  gesture: ReturnType<typeof Gesture.Native>;
+  children: import("react").ReactElement;
+}) {
+  return active ? (
+    <GestureDetector gesture={gesture}>{children}</GestureDetector>
+  ) : (
+    children
+  );
+}
 function FeedSeparator() {
   return <View style={styles.separator} />;
 }
