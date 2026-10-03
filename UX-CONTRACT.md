@@ -56,3 +56,5 @@ APK 1.4.2：系统导航栏保持可见、透明背景，关闭导航栏对比�
 Drawer 开关保持遮罩与主页面原生父容器常驻，关闭只改变 pointerEvents、辅助技术状态与 UI 线程透明度；手势对象不随 opened 状态重建。像素头像采用 memo、稳定 source 和 Android fadeDuration=0，避免关闭后重复解码淡入。
 
 Drawer 的“编辑头像与昵称”进入 account 路由时明确使用原生 slide_from_right、220ms 转场，返回沿用原生反向转场；不得以 animation:none 代替性能修复。Drawer 同步复位，不叠加收起动画。
+
+用户动态列表详情热区由 UserPostCard 的整条 Pressable 持有，覆盖正文、身份行空白、头像列空白和内容留白，并向右扩展 24 点 hitSlop；原有布局间距不变。外层 accessible=false，不吞并子控件的辅助技术入口。图片预览、头像／姓名、应用链接、菜单、点赞与分享仍由嵌套控件优先响应。详情页关闭整条点击入口，保留正文选择及评论输入操作；纯图片或应用分享动态同样可以从条目留白进入详情。

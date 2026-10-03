@@ -112,73 +112,81 @@ export function UserPostCard({
   );
   return (
     <>
-      <FeedItemFrame
-        avatar={avatar}
-        name={post.author.name}
-        time={time}
-        onIdentity={onAuthor ? () => onAuthor(post.author) : undefined}
-        menu={
-          <PostMenu
-            busy={busy}
-            onDelete={own ? remove : undefined}
-            onCopy={copy}
-            onShare={share}
-          />
-        }
-        content={
-          <>
-            {post.body ? (
-              <Text
-                accessibilityRole={onOpen ? "button" : undefined}
-                accessibilityLabel={onOpen ? "打开动态详情" : undefined}
-                onPress={onOpen}
-                selectable={detail}
-                style={[styles.body, detail && styles.detailBody]}
-              >
-                {post.body}
-              </Text>
-            ) : null}
-            {post.images.length ? (
-              <View style={styles.images}>
-                {post.images.map((image) => (
-                  <Pressable
-                    key={image.id}
-                    accessibilityLabel="查看大图"
-                    onPress={() => setPreview(image.url)}
-                    style={[
-                      styles.imageCell,
-                      post.images.length === 1 && styles.singleImage,
-                    ]}
-                  >
-                    <AppImage
-                      source={{ uri: image.url }}
-                      resizeMode={"cover"}
-                      style={styles.image}
-                    />
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-            {post.application ? (
-              <ApplicationPostCard
-                application={post.application}
-                onOpen={onApplication}
-              />
-            ) : null}
-          </>
-        }
-        actions={
-          <FeedActionBar
-            liked={!!post.liked}
-            busy={liking}
-            comments={post.commentCount}
-            likes={post.likeCount}
-            onComment={onOpen}
-            onLike={() => void like()}
-            onShare={share}
-          />
-        }
-      />
+      <Pressable
+        accessible={false}
+        disabled={detail || !onOpen}
+        onPress={onOpen}
+        hitSlop={{ right: 24 }}
+        style={styles.openArea}
+      >
+        <FeedItemFrame
+          avatar={avatar}
+          name={post.author.name}
+          time={time}
+          onIdentity={onAuthor ? () => onAuthor(post.author) : undefined}
+          menu={
+            <PostMenu
+              busy={busy}
+              onDelete={own ? remove : undefined}
+              onCopy={copy}
+              onShare={share}
+            />
+          }
+          content={
+            <>
+              {post.body ? (
+                <Text
+                  accessibilityRole={onOpen ? "button" : undefined}
+                  accessibilityLabel={onOpen ? "打开动态详情" : undefined}
+                  onPress={onOpen}
+                  selectable={detail}
+                  style={[styles.body, detail && styles.detailBody]}
+                >
+                  {post.body}
+                </Text>
+              ) : null}
+              {post.images.length ? (
+                <View style={styles.images}>
+                  {post.images.map((image) => (
+                    <Pressable
+                      key={image.id}
+                      accessibilityLabel="查看大图"
+                      onPress={() => setPreview(image.url)}
+                      style={[
+                        styles.imageCell,
+                        post.images.length === 1 && styles.singleImage,
+                      ]}
+                    >
+                      <AppImage
+                        source={{ uri: image.url }}
+                        resizeMode={"cover"}
+                        style={styles.image}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+              {post.application ? (
+                <ApplicationPostCard
+                  application={post.application}
+                  onOpen={onApplication}
+                />
+              ) : null}
+            </>
+          }
+          actions={
+            <FeedActionBar
+              liked={!!post.liked}
+              busy={liking}
+              comments={post.commentCount}
+              likes={post.likeCount}
+              onComment={onOpen}
+              onLike={() => void like()}
+              onShare={share}
+            />
+          }
+        />
+      </Pressable>
       <EdgeModal
         visible={!!preview}
         transparent
@@ -210,6 +218,7 @@ export function UserPostCard({
 }
 const makeStyles = (t: Theme) =>
   StyleSheet.create({
+    openArea: { alignSelf: "stretch", minHeight: 44 },
     avatar: {
       width: 36,
       height: 36,
