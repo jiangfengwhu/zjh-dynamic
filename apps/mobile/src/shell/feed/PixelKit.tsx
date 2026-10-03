@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Image, View } from "react-native";
 import { PixelText as Text } from "./PixelText";
 import { pixelAssets } from "./pixelAssets";
@@ -10,9 +11,14 @@ export {
 export const mascotImage = {
   uri: `data:image/png;base64,${pixelAssets.avatar.base64}`,
 };
-export function PixelAvatar({ size = 48 }: { size?: number }) {
+export const PixelAvatar = memo(function PixelAvatar({
+  size = 48,
+}: {
+  size?: number;
+}) {
   return (
     <Image
+      fadeDuration={0}
       accessible={false}
       source={mascotImage}
       resizeMode="contain"
@@ -24,7 +30,7 @@ export function PixelAvatar({ size = 48 }: { size?: number }) {
       }}
     />
   );
-}
+});
 
 export function PixelBadge({
   label,

@@ -193,12 +193,39 @@ export function ProfileDrawer({
     }),
     [feedBoundary, gesture, progress, width, open, close, startDrag, settle]
   );
+  const canClose = useSharedValue(false);
+  useEffect(() => {
+    canClose.value = opened && !opening;
+  }, [opened, opening, canClose]);
   const closing = useMemo(
     () =>
       Gesture.Pan()
-        .enabled(opened && !opening)
-        .activeOffsetX([-8, 8])
-        .failOffsetY([-6, 6])
+        .manualActivation(true)
+        .maxPointers(1)
+        .onTouchesDown((event, manager) => {
+          closingActive.value = false;
+          const touch = event.allTouches[0];
+          if (!canClose.value || !touch || event.numberOfTouches !== 1) {
+            manager.fail();
+            return;
+          }
+          origin.value = { x: touch.absoluteX, y: touch.absoluteY };
+        })
+        .onTouchesMove((event, manager) => {
+          if (closingActive.value) return;
+          const touch = event.allTouches[0];
+          if (!touch || event.numberOfTouches !== 1) {
+            manager.fail();
+            return;
+          }
+          const dx = Math.abs(touch.absoluteX - origin.value.x);
+          const dy = Math.abs(touch.absoluteY - origin.value.y);
+          if (dy > 4 && dy >= dx) manager.fail();
+          else if (dx > 6 && dx > dy * 1.3) manager.activate();
+        })
+        .onTouchesUp((_event, manager) => {
+          if (!closingActive.value) manager.fail();
+        })
         .onStart(() => {
           closingActive.value = true;
           cancelAnimation(progress);
@@ -221,7 +248,11 @@ export function ProfileDrawer({
             runOnJS(settle)(progress.value > 0.5);
           closingActive.value = false;
         }),
-    [opened, opening, progress, start, width, settle, closingActive]
+    [canClose, origin, progress, start, width, settle, closingActive]
+  );
+  const drawerGestures = useMemo(
+    () => Gesture.Simultaneous(gesture, closing),
+    [gesture, closing]
   );
   const panel = useAnimatedStyle(() => ({
     transform: [{ translateX: -width * (1 - progress.value) }],
@@ -229,7 +260,7 @@ export function ProfileDrawer({
   const shade = useAnimatedStyle(() => ({ opacity: progress.value * 0.28 }));
   return (
     <Context.Provider value={value}>
-      <GestureDetector gesture={Gesture.Simultaneous(gesture, closing)}>
+      <GestureDetector gesture={drawerGestures}>
         <View
           style={{
             flex: 1,
@@ -268,6 +299,7 @@ export function ProfileDrawer({
             ]}
           >
             <View
+              collapsable={false}
               style={{ flex: 1 }}
               accessibilityElementsHidden={opened}
               importantForAccessibility={
@@ -276,26 +308,27 @@ export function ProfileDrawer({
             >
               {children}
             </View>
-            {opened ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="关闭我的抽屉"
-                onPress={close}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  zIndex: 100,
-                }}
-              >
-                <Animated.View
-                  pointerEvents="none"
-                  style={[{ flex: 1, backgroundColor: "#19152C" }, shade]}
-                />
-              </Pressable>
-            ) : null}
+            <Pressable
+              pointerEvents={opened ? "auto" : "none"}
+              accessibilityElementsHidden={!opened}
+              importantForAccessibility={opened ? "yes" : "no-hide-descendants"}
+              accessibilityRole="button"
+              accessibilityLabel="关闭我的抽屉"
+              onPress={close}
+              style={{
+                position: "absolute",
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 100,
+              }}
+            >
+              <Animated.View
+                pointerEvents="none"
+                style={[{ flex: 1, backgroundColor: "#19152C" }, shade]}
+              />
+            </Pressable>
           </Animated.View>
         </View>
       </GestureDetector>

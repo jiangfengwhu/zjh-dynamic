@@ -24,7 +24,6 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  cancelAnimation,
   runOnUI,
   useAnimatedRef,
   useAnimatedReaction,
@@ -150,82 +149,10 @@ export const FeedScreen = memo(function FeedScreen({
   const scrollY = useSharedValue(0);
   const selectedKey = kind ?? "all";
   const activeCategory = useSharedValue(selectedKey);
-  const restoredCategory = useSharedValue("");
-  const scrollMemory = useSharedValue<Record<string, FeedScrollSnapshot>>({});
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
-  const dragging = useSharedValue(false);
-  const momentum = useSharedValue(false);
-  const layoutSize = useSharedValue({ viewport: 0, content: 0 });
   const [headerSize, setHeaderSize] = useState(144);
   const [viewportSize, setViewportSize] = useState(0);
-  const onScroll = useAnimatedScrollHandler(
-    {
-      onBeginDrag: (event) => {
-        if (
-          activeCategory.value !== selectedKey ||
-          restoredCategory.value !== selectedKey
-        )
-          return;
-        cancelAnimation(hiddenHeader);
-        dragging.value = true;
-        scrollY.value = Math.max(0, event.contentOffset.y);
-        layoutSize.value = {
-          viewport: event.layoutMeasurement.height,
-          content: event.contentSize.height,
-        };
-      },
-      onScroll: (event) => {
-        if (
-          activeCategory.value !== selectedKey ||
-          restoredCategory.value !== selectedKey
-        )
-          return;
-        const next = Math.max(0, event.contentOffset.y);
-        const size = {
-          viewport: event.layoutMeasurement.height,
-          content: event.contentSize.height,
-        };
-        layoutSize.value = size;
-        // Only vertical interaction changes shared chrome visibility.
-        // Category attachment and layout events preserve the current state.
-        if (dragging.value || momentum.value) {
-          const delta = next - scrollY.value;
-          hiddenHeader.value =
-            next === 0 && delta < 0
-              ? 0
-              : Math.max(
-                  0,
-                  Math.min(headerHeight.value, hiddenHeader.value + delta)
-                );
-          chromeHidden.value =
-            headerHeight.value > 0
-              ? hiddenHeader.value / headerHeight.value
-              : 0;
-        }
-        scrollY.value = next;
-        scrollMemory.value = {
-          ...scrollMemory.value,
-          [selectedKey]: {
-            offset: next,
-            inset: hiddenHeader.value,
-            viewport: size.viewport,
-            content: size.content,
-          },
-        };
-      },
-      onMomentumBegin: () => {
-        if (activeCategory.value === selectedKey) momentum.value = true;
-      },
-      onMomentumEnd: () => {
-        if (activeCategory.value === selectedKey) momentum.value = false;
-      },
-      onEndDrag: () => {
-        if (activeCategory.value === selectedKey) dragging.value = false;
-      },
-    },
-    [selectedKey]
-  );
   const headerMotion = useAnimatedStyle(() => ({
     transform: [{ translateY: -hiddenHeader.value }],
   }));
@@ -237,36 +164,12 @@ export const FeedScreen = memo(function FeedScreen({
     transform: [{ translateY: chromeHidden.value * (tabHeight.value + 76) }],
     opacity: 1 - chromeHidden.value,
   }));
-  useFocusEffect(
-    useCallback(() => {
-      runOnUI((key: string) => {
-        "worklet";
-        cancelAnimation(hiddenHeader);
-        restoredCategory.value = "";
-        activeCategory.value = key;
-        const saved = scrollMemory.value[key];
-        scrollY.value = saved?.offset ?? 0;
-        layoutSize.value = {
-          viewport: saved?.viewport ?? 0,
-          content: saved?.content ?? 0,
-        };
-        dragging.value = false;
-        momentum.value = false;
-      })(selectedKey);
-    }, [
-      selectedKey,
-      activeCategory,
-      restoredCategory,
-      scrollMemory,
-      scrollY,
-      hiddenHeader,
-      headerHeight,
-      chromeHidden,
-      layoutSize,
-      dragging,
-      momentum,
-    ])
-  );
+  useEffect(() => {
+    runOnUI((key: string) => {
+      "worklet";
+      activeCategory.value = key;
+    })(selectedKey);
+  }, [selectedKey, activeCategory]);
 
   useEffect(() => subscribeFeedPosts(setPosts), []);
   useEffect(() => subscribeSeen(setSeen), []);
@@ -531,9 +434,9 @@ export const FeedScreen = memo(function FeedScreen({
                                 <FeedScrollSurface
                                   categoryKey={pageKind ?? "all"}
                                   activeCategory={activeCategory}
-                                  restoredCategory={restoredCategory}
-                                  memory={scrollMemory}
                                   hiddenHeader={hiddenHeader}
+                                  headerHeight={headerHeight}
+                                  chromeHidden={chromeHidden}
                                   scrollY={scrollY}
                                   data={visible}
                                   ItemSeparatorComponent={FeedSeparator}
@@ -551,9 +454,6 @@ export const FeedScreen = memo(function FeedScreen({
                                     { minHeight: viewportSize + headerSize },
                                   ]}
                                   showsVerticalScrollIndicator={false}
-                                  onScroll={
-                                    pageKind === kind ? onScroll : undefined
-                                  }
                                   scrollEventThrottle={16}
                                   overScrollMode="never"
                                   bounces={false}
@@ -785,55 +685,95 @@ const ApplicationTimelineItem = memo(function ApplicationTimelineItem({
   );
 });
 
-type FeedScrollSnapshot = {
-  offset: number;
-  inset: number;
-  viewport: number;
-  content: number;
-};
-/** Keep body reading position while reconciling the shared header's geometry. */
+/** Lists share only the header range. Body offsets stay on their native list. */
 const FeedScrollSurface = memo(function FeedScrollSurface({
   categoryKey,
   activeCategory,
-  restoredCategory,
-  memory,
   hiddenHeader,
+  headerHeight,
+  chromeHidden,
   scrollY,
   ...props
 }: AnimatedProps<FlatListProps<FeedTimelineItem>> & {
   categoryKey: string;
   activeCategory: SharedValue<string>;
-  restoredCategory: SharedValue<string>;
-  memory: SharedValue<Record<string, FeedScrollSnapshot>>;
   hiddenHeader: SharedValue<number>;
+  headerHeight: SharedValue<number>;
+  chromeHidden: SharedValue<number>;
   scrollY: SharedValue<number>;
 }) {
   const ref = useAnimatedRef<FlatList<FeedTimelineItem>>();
   const ready = useSharedValue(false);
+  const offset = useSharedValue(0);
+  const dragging = useSharedValue(false);
+  const momentum = useSharedValue(false);
+  const onScroll = useAnimatedScrollHandler(
+    {
+      onBeginDrag: (event) => {
+        dragging.value = true;
+        offset.value = Math.max(0, event.contentOffset.y);
+        if (activeCategory.value === categoryKey) scrollY.value = offset.value;
+      },
+      onScroll: (event) => {
+        const next = Math.max(0, event.contentOffset.y);
+        const delta = next - offset.value;
+        offset.value = next;
+        if (activeCategory.value !== categoryKey) return;
+        scrollY.value = next;
+        if (!dragging.value && !momentum.value) return;
+        hiddenHeader.value =
+          next === 0 && delta < 0
+            ? 0
+            : Math.max(
+                0,
+                Math.min(headerHeight.value, hiddenHeader.value + delta)
+              );
+        chromeHidden.value =
+          headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
+      },
+      onEndDrag: () => {
+        dragging.value = false;
+      },
+      onMomentumBegin: () => {
+        momentum.value = true;
+      },
+      onMomentumEnd: () => {
+        momentum.value = false;
+      },
+    },
+    [categoryKey]
+  );
   useAnimatedReaction(
-    () =>
-      ready.value &&
-      activeCategory.value === categoryKey &&
-      restoredCategory.value !== categoryKey,
-    (active, previous) => {
-      if (!active || previous) return;
-      const saved = memory.value[categoryKey];
-      const offset = Math.max(
-        0,
-        (saved?.offset ?? 0) + hiddenHeader.value - (saved?.inset ?? 0)
-      );
-      scrollY.value = offset;
-      memory.value = {
-        ...memory.value,
-        [categoryKey]: {
-          offset,
-          inset: hiddenHeader.value,
-          viewport: saved?.viewport ?? 0,
-          content: saved?.content ?? 0,
-        },
-      };
-      scrollTo(ref, 0, offset, false);
-      restoredCategory.value = categoryKey;
+    () => ({
+      active: activeCategory.value === categoryKey,
+      header: hiddenHeader.value,
+      ready: ready.value,
+    }),
+    (state, previous) => {
+      if (!state.ready) return;
+      if (state.active) {
+        // A page first mounted while chrome is hidden starts in the shared
+        // header range, before the user can begin scrolling its body.
+        if (
+          !previous?.ready &&
+          !dragging.value &&
+          offset.value < state.header
+        ) {
+          offset.value = state.header;
+          scrollTo(ref, 0, state.header, false);
+        }
+        if (!previous?.active || !previous.ready) scrollY.value = offset.value;
+        return;
+      }
+      // Synchronize only lists inside the shared header range. Never touch
+      // a category's body reading position or scroll the active finger's list.
+      if (
+        offset.value <= headerHeight.value &&
+        Math.abs(offset.value - state.header) > 0.5
+      ) {
+        offset.value = state.header;
+        scrollTo(ref, 0, state.header, false);
+      }
     },
     [categoryKey]
   );
@@ -841,6 +781,7 @@ const FeedScrollSurface = memo(function FeedScrollSurface({
     <Animated.FlatList
       {...props}
       ref={ref}
+      onScroll={onScroll}
       onContentSizeChange={(_width, height) => {
         if (height > 0) ready.value = true;
       }}
