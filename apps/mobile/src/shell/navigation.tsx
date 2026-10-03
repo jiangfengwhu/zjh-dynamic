@@ -360,7 +360,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         <Stack.Screen name="applicationFeedback">
           {({ route }) => <ApplicationFeedbackScreen key={`${route.params.ownerId}.${route.params.manifest.appId}.${route.params.manifest.releaseId}`} manifest={route.params.manifest} ownerId={route.params.ownerId} onBack={goBack} />}
         </Stack.Screen>
-        <Stack.Screen name="account" options={{ animation: "none" }}>
+        <Stack.Screen name="account" options={{ animation: "slide_from_right", animationDuration: 220 }}>
           {() => <AccountScreen onBack={goBack} />}
         </Stack.Screen>
         <Stack.Screen name="composePost">
