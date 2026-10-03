@@ -2,7 +2,11 @@ import type { ReactNode } from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { Pressy } from "../../chrome";
 import { useTheme } from "../../theme";
-import { FeedText, useCompactFeed } from "./FeedPresentation";
+import {
+  COMPACT_FEED_INSET,
+  FeedText,
+  useCompactFeed,
+} from "./FeedPresentation";
 
 /** Shared identity row; the menu never changes the content's vertical origin. */
 export function FeedItemHeading({
@@ -121,7 +125,7 @@ export function FeedItemFrame({
     <View
       style={[
         {
-          paddingHorizontal: compact ? 7 : 14,
+          paddingHorizontal: compact ? COMPACT_FEED_INSET : 14,
           paddingTop: compact ? 4 : 8,
           paddingBottom: compact ? 3 : 6,
         },

@@ -3,7 +3,10 @@ import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
-import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
+import {
+  COMPACT_FEED_INSET,
+  FeedPresentationContext,
+} from "../../../../../packages/ui/feed/kit/FeedPresentation";
 import {
   memo,
   useCallback,
@@ -916,7 +919,11 @@ const styles = themedStyleSheet((base) => {
     pullHost: { flex: 1, overflow: "hidden" },
     content: { paddingBottom: 16 },
     post: { paddingVertical: 3 },
-    separator: { height: 0.5, marginHorizontal: 16, backgroundColor: t.line },
+    separator: {
+      height: 0.5,
+      marginHorizontal: COMPACT_FEED_INSET,
+      backgroundColor: t.line,
+    },
     empty: {
       marginHorizontal: 16,
       padding: 24,
