@@ -42,7 +42,7 @@ async function encodePhoto(source: string, options: PhotoPickerOptions): Promise
       filePath = inputCopy;
     }
     // The network/file loader applies EXIF orientation before resizing/encoding.
-    image = await loadImage({ url: `file://${filePath}` });
+    image = await loadImage({ url: `file://${filePath}`, options: { allowHardware: false, scaleDownLargeImages: true } });
     const maxWidth = options.width ?? options.compressImageMaxWidth ?? 1600;
     const maxHeight = options.height ?? options.compressImageMaxHeight ?? 1600;
     const scale = Math.min(1, maxWidth / image.width, maxHeight / image.height);
