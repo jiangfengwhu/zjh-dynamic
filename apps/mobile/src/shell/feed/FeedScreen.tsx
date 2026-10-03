@@ -3,10 +3,7 @@ import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
-import {
-  COMPACT_FEED_INSET,
-  FeedPresentationContext,
-} from "../../../../../packages/ui/feed/kit/FeedPresentation";
+import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
 import {
   memo,
   useCallback,
@@ -79,6 +76,7 @@ import Toast from "react-native-toast-message";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
+const FEED_PAGE_INSET = 16;
 
 type FeedProps = {
   installedIds: string[];
@@ -889,14 +887,14 @@ const styles = themedStyleSheet((base) => {
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 0,
-      marginLeft: -9,
+      marginLeft: 0,
       borderRadius: 22,
       overflow: "hidden",
     },
     profileAvatar: { width: 36, height: 36, borderRadius: 18 },
     header: {
       backgroundColor: t.canvas,
-      paddingLeft: 16,
+      paddingLeft: FEED_PAGE_INSET,
       paddingRight: 24,
       paddingBottom: 0,
     },
@@ -917,7 +915,7 @@ const styles = themedStyleSheet((base) => {
     headerCaption: { fontSize: 10, lineHeight: 15, color: t.ink3 },
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
-    content: { paddingBottom: 16, paddingHorizontal: COMPACT_FEED_INSET },
+    content: { paddingBottom: 16, paddingHorizontal: FEED_PAGE_INSET },
     post: {
       paddingVertical: 3,
       width: "100%",

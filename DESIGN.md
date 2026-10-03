@@ -97,7 +97,7 @@ APK 1.4.2 全局窗口采用 edge-to-edge 全屏容器，系统导航栏保持�
 
 APK 1.4.2：系统导航栏保持可见、透明背景，关闭导航栏对比度遮罩，全屏内容仍延伸至系统栏底下；应用 tab 留白使用真实底部安全区。页面导航选项不再隐藏系统导航，避免导航手势需要先唤出系统栏。
 
-头像对齐：动态紧凑帧的 44 点头像列从 x=7 开始，36 点头像左边为 x=11；header 复用相同列尺寸和 5 点列间距，标题从 x=56 开始。header 右留白为 24；动态 item 不加额外右内边距，使用共享容器的对称横向内边距。动态列表、分类与抽屉隐藏滚动条。
+头像对齐：动态紧凑帧的 44 点头像列从 x=16 开始，36 点头像左边为 x=20；header 复用相同列尺寸和 5 点列间距，标题从 x=65 开始。header 右留白为 24；动态 item 不加额外右内边距，使用共享容器的对称横向内边距。动态列表、分类与抽屉隐藏滚动条。
 
 动态分类各自保留原生列表正文滚动位置；每个 FeedScrollSurface 持有自己的 UI 线程 offset，不使用共享位置表逐帧复制；顶部、底部及发布按钮的显隐状态由动态页统一持有，分类切换不重置，仅真实纵向拖动和惯性滚动更新。非当前分类及布局事件不得改动显隐状态，不调用归顶。FeedCategoryTabs 的单个 indicator 由原生 onPageScroll 在 UI 线程连续插值位置与颜色，不经 JS 每帧重渲染。ProfileDrawer 松手采用 220ms 无回弹 timing，抽屉右侧 24 圆角，覆盖主页面，使用 pixelTheme.canvas。发布按钮 48×48、半径 24。底部导航所有 route 使用相同像素配色、透明导航容器和 12 圆角选中背景，选中仅淡入，不做弹簧缩放。
 
@@ -119,12 +119,14 @@ Drawer 的“编辑头像与昵称”进入 account 路由时明确使用原生 
 
 动态 item 的整条详情／主页热区不使用 pressed 背景、涟漪或高亮底色。共享 PostFrame 移除按下时 colors.inset 背景，仅保留既有点击入口与子控件独立交互。
 
-动态 item 的 styles.post 仅保留 paddingVertical=3，删除 paddingRight=24。左右间距统一由动态列表 content 容器的 paddingHorizontal=7 持有，动态页 FeedItemFrame.frameInset=0，不重复叠加单侧 padding；整条点击热区随完整容器宽度扩展，不再额外补右侧 hitSlop。
+动态 item 的 styles.post 仅保留 paddingVertical=3，删除 paddingRight=24。左右间距统一由动态列表 content 容器的 paddingHorizontal=16 持有，动态页 FeedItemFrame.frameInset=0，不重复叠加单侧 padding；整条点击热区随完整容器宽度扩展，不再额外补右侧 hitSlop。
 
 分类与 Drawer 手势交接以 UI 线程原生事件为准：feedActive 只随大 tab 焦点变化，feedPage 由原生 onPageSelected／idle 更新，feedIdle 在 dragging／settling 及非零分页 offset 时为 false。只有动态页停稳在第 0 页“全部”时，新的右滑才可以打开 Drawer；手势按下与方向识别阶段均检查资格，左滑判定失败后同一触摸不可转为 Drawer。分类状态更新和清理函数不得临时放开资格。到达“全部”并 idle 时立即在 UI 线程开放，无需等待 React 更新；市场、通知右滑入口保持。
 
-分割线左右边距与紧凑动态容器共用 FeedPresentation.COMPACT_FEED_INSET=7；应用分享卡片、图片、正文的右侧内容边界和分割线终点一致。分割线不另加横向 margin，保持条目两侧对称，不额外缩窄应用卡片。
+分割线左右边距与紧凑动态容器共用 FeedScreen.FEED_PAGE_INSET=16；应用分享卡片、图片、正文的右侧内容边界和分割线终点一致。分割线不另加横向 margin，保持条目两侧对称，不额外缩窄应用卡片。
 
 删除用户应用分享卡片单独的 9 点右 margin。正文、图片、用户分享卡片和其他应用自绘内容统一受动态列表容器的对称边界约束。
 
-动态页容器统一边界：FlatList contentContainerStyle.paddingHorizontal=COMPACT_FEED_INSET=7；item 容器 width=100%、minWidth=0、overflow=hidden、collapsable=false，保证自绘应用内容和媒体不会越过分割线边界。FeedPresentation.frameInset=0 只在此宿主列表取消内部重复横向间距，其他调用方仍保持原默认 7／14。分割线直接铺满同一列表内容宽度；头像左位置保持 x=11。
+动态页容器统一边界：FlatList contentContainerStyle.paddingHorizontal=FEED_PAGE_INSET=16；item 容器 width=100%、minWidth=0、overflow=hidden、collapsable=false，保证自绘应用内容和媒体不会越过分割线边界。FeedPresentation.frameInset=0 只在此宿主列表取消内部重复横向间距，其他调用方仍保持原默认 7／14。分割线直接铺满同一列表内容宽度；header 头像同步对齐到 x=20，标题 x=65。
+
+动态列表左右容器留白由 7 增至 16 点，统一由 FEED_PAGE_INSET=16 控制。分割线、图片与各类应用卡片共享此内容宽度；不额外为单条卡片加 margin 或 padding。Header 取消头像列的 -9 点补偿，同步与动态头像列对齐。
