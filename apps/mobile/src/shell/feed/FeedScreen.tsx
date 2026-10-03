@@ -108,6 +108,7 @@ export const FeedScreen = memo(function FeedScreen({
   const insets = useSafeAreaInsets();
   const {
     hidden: chromeHidden,
+    target: chromeTarget,
     travel: bottomTravel,
     tabHeight,
   } = useFeedChrome();
@@ -445,7 +446,7 @@ export const FeedScreen = memo(function FeedScreen({
                                   activeCategory={activeCategory}
                                   hiddenHeader={hiddenHeader}
                                   headerHeight={headerHeight}
-                                  chromeHidden={chromeHidden}
+                                  chromeHidden={chromeTarget}
                                   bottomTravel={bottomTravel}
                                   scrollY={scrollY}
                                   data={visible}
