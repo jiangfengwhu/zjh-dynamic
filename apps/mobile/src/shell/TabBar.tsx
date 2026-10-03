@@ -5,7 +5,7 @@ import Animated, {
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
@@ -34,12 +34,11 @@ export function TabBar({
   const unread = useNotificationCount();
   useNotificationSync();
   return (
-    <View style={[styles.bar, activeId === "feed" && pixelStyles.bar]}>
+    <View style={styles.bar}>
       {SHELL_TABS.map((item) => (
         <Tab
           key={item.id}
           item={item}
-          pixel={activeId === "feed"}
           active={item.id === activeId}
           unread={item.id === "notifications" ? unread : 0}
           onPress={() => onChange(item.id)}
@@ -50,43 +49,37 @@ export function TabBar({
 }
 function Tab({
   item,
-  pixel,
   active,
   unread,
   onPress,
 }: {
   item: (typeof SHELL_TABS)[number];
-  pixel: boolean;
   active: boolean;
   unread: number;
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const colors = pixel ? pixelTheme(theme.colors) : theme.colors;
+  const colors = pixelTheme(theme.colors);
   const progress = useSharedValue(active ? 1 : 0);
   useEffect(() => {
-    progress.value = withSpring(active ? 1 : 0, {
-      damping: 22,
-      stiffness: 300,
-      reduceMotion: ReduceMotion.System,
+    progress.value = withTiming(active ? 1 : 0, {
+      duration: 150,
+      reduceMotion: ReduceMotion.Never,
     });
   }, [active, progress]);
   const motion = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [{ scale: 0.9 + progress.value * 0.1 }],
   }));
   return (
     <Pressy
       onPress={onPress}
+      scale={1}
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       accessibilityLabel={item.title + (unread ? `，${unread}条未读通知` : "")}
       style={styles.tab}
     >
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.selected, pixel && pixelStyles.selected, motion]}
-      />
+      <Animated.View pointerEvents="none" style={[styles.selected, motion]} />
       <View style={styles.icon}>
         <PixelIcon
           name={item.icon}
@@ -97,18 +90,16 @@ function Tab({
           <View
             style={[
               styles.unread,
-              pixel && { borderRadius: 0 },
               { backgroundColor: active ? colors.onAccent : colors.accentText },
             ]}
           />
         ) : null}
       </View>
       <Text
-        pixel={pixel}
+        pixel
         numberOfLines={1}
         style={[
           styles.label,
-          pixel && { color: colors.ink3 },
           active && { color: colors.onAccent, fontWeight: "700" },
         ]}
       >
@@ -117,58 +108,49 @@ function Tab({
     </Pressy>
   );
 }
-const styles = themedStyleSheet((t) => ({
-  bar: {
-    flexDirection: "row",
-    backgroundColor: t.canvas,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-    borderTopWidth: 0.5,
-    borderTopColor: t.line,
-  },
-  tab: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  selected: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderRadius: t.radius.sm,
-    backgroundColor: t.accent,
-  },
-  icon: { alignItems: "center", justifyContent: "center" },
-  unread: {
-    position: "absolute",
-    right: -3,
-    top: -2,
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
-  label: { fontSize: 12, lineHeight: 17, color: t.ink3, flexShrink: 1 },
-}));
-const pixelStyles = themedStyleSheet((base) => {
+const styles = themedStyleSheet((base) => {
   const t = pixelTheme(base);
   return {
     bar: {
-      backgroundColor: t.canvas,
-      borderTopWidth: 0.5,
-      borderTopColor: t.line,
+      flexDirection: "row",
+      backgroundColor: t.inset,
+      marginHorizontal: 12,
+      borderRadius: 20,
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+      gap: 8,
+      borderWidth: 0.5,
+      borderColor: t.line,
+    },
+    tab: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
     },
     selected: {
-      borderRadius: 0,
-      borderWidth: 2,
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      borderRadius: 12,
+      borderWidth: 0.5,
       borderColor: t.accentSoft,
       backgroundColor: t.accent,
     },
+    icon: { alignItems: "center", justifyContent: "center" },
+    unread: {
+      position: "absolute",
+      right: -3,
+      top: -2,
+      width: 5,
+      height: 5,
+      borderRadius: 3,
+    },
+    label: { fontSize: 12, lineHeight: 17, color: t.ink3, flexShrink: 1 },
   };
 });

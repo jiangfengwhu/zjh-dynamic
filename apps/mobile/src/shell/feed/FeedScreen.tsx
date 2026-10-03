@@ -1,10 +1,11 @@
 import { PixelText as Text } from "./PixelText";
+import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, ScrollView, View } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, View } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -17,11 +18,11 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   cancelAnimation,
+  runOnUI,
 } from "react-native-reanimated";
 import { bundles } from "../../../../../packages/features/src/registry";
 import {
   KIND_LABEL,
-  kindTone,
   peekFeedTemplate,
   readFeedPosts,
   subscribeFeedPosts,
@@ -57,6 +58,8 @@ import {
 import { UserPostCard } from "./UserPostCard";
 import Toast from "react-native-toast-message";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
+
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 type FeedProps = {
   installedIds: string[];
@@ -132,55 +135,71 @@ export const FeedScreen = memo(function FeedScreen({
   );
 
   const scrollY = useSharedValue(0);
-  const lists = useRef(
-    new Map<FeedCategory, FlatList<(typeof timeline)[number]>>()
-  );
+  const selectedKey = kind ?? "all";
+  const scrollMemory = useSharedValue<
+    Record<
+      string,
+      { offset: number; hidden: number; viewport: number; content: number }
+    >
+  >({});
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
   const dragging = useSharedValue(false);
   const layoutSize = useSharedValue({ viewport: 0, content: 0 });
   const [headerSize, setHeaderSize] = useState(144);
   const [viewportSize, setViewportSize] = useState(0);
-  const onScroll = useAnimatedScrollHandler({
-    onBeginDrag: (event) => {
-      cancelAnimation(hiddenHeader);
-      dragging.value = true;
-      scrollY.value = Math.max(0, event.contentOffset.y);
-      layoutSize.value = {
-        viewport: event.layoutMeasurement.height,
-        content: event.contentSize.height,
-      };
+  const onScroll = useAnimatedScrollHandler(
+    {
+      onBeginDrag: (event) => {
+        cancelAnimation(hiddenHeader);
+        dragging.value = true;
+        scrollY.value = Math.max(0, event.contentOffset.y);
+        layoutSize.value = {
+          viewport: event.layoutMeasurement.height,
+          content: event.contentSize.height,
+        };
+      },
+      onScroll: (event) => {
+        const next = Math.max(0, event.contentOffset.y);
+        const size = {
+          viewport: event.layoutMeasurement.height,
+          content: event.contentSize.height,
+        };
+        const resized =
+          Math.abs(size.viewport - layoutSize.value.viewport) > 0.5 ||
+          Math.abs(size.content - layoutSize.value.content) > 0.5;
+        layoutSize.value = size;
+        // A finger drag remains authoritative even when a card changes its size.
+        // Ignore layout-only offset changes outside an active drag.
+        if (dragging.value || !resized || next === 0) {
+          const delta = next - scrollY.value;
+          hiddenHeader.value =
+            next === 0
+              ? 0
+              : Math.max(
+                  0,
+                  Math.min(headerHeight.value, next, hiddenHeader.value + delta)
+                );
+        }
+        scrollY.value = next;
+        chromeHidden.value =
+          headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
+        scrollMemory.value = {
+          ...scrollMemory.value,
+          [selectedKey]: {
+            offset: next,
+            hidden: hiddenHeader.value,
+            viewport: size.viewport,
+            content: size.content,
+          },
+        };
+      },
+      onEndDrag: () => {
+        dragging.value = false;
+      },
     },
-    onScroll: (event) => {
-      const next = Math.max(0, event.contentOffset.y);
-      const size = {
-        viewport: event.layoutMeasurement.height,
-        content: event.contentSize.height,
-      };
-      const resized =
-        Math.abs(size.viewport - layoutSize.value.viewport) > 0.5 ||
-        Math.abs(size.content - layoutSize.value.content) > 0.5;
-      layoutSize.value = size;
-      // A finger drag remains authoritative even when a card changes its size.
-      // Ignore layout-only offset changes outside an active drag.
-      if (dragging.value || !resized || next === 0) {
-        const delta = next - scrollY.value;
-        hiddenHeader.value =
-          next === 0
-            ? 0
-            : Math.max(
-                0,
-                Math.min(headerHeight.value, next, hiddenHeader.value + delta)
-              );
-      }
-      scrollY.value = next;
-      chromeHidden.value =
-        headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
-    },
-    onEndDrag: () => {
-      dragging.value = false;
-    },
-  });
+    [selectedKey]
+  );
   const headerMotion = useAnimatedStyle(() => ({
     transform: [{ translateY: -hiddenHeader.value }],
   }));
@@ -194,11 +213,33 @@ export const FeedScreen = memo(function FeedScreen({
   }));
   useFocusEffect(
     useCallback(() => {
-      cancelAnimation(hiddenHeader);
-      chromeHidden.value = 0;
-      hiddenHeader.value = 0;
-      dragging.value = false;
-    }, [chromeHidden, hiddenHeader, dragging])
+      runOnUI((key: string) => {
+        "worklet";
+        cancelAnimation(hiddenHeader);
+        const saved = scrollMemory.value[key];
+        scrollY.value = saved?.offset ?? 0;
+        hiddenHeader.value = Math.max(
+          0,
+          Math.min(headerHeight.value, scrollY.value, saved?.hidden ?? 0)
+        );
+        chromeHidden.value =
+          headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
+        layoutSize.value = {
+          viewport: saved?.viewport ?? 0,
+          content: saved?.content ?? 0,
+        };
+        dragging.value = false;
+      })(selectedKey);
+    }, [
+      selectedKey,
+      scrollMemory,
+      scrollY,
+      hiddenHeader,
+      headerHeight,
+      chromeHidden,
+      layoutSize,
+      dragging,
+    ])
   );
 
   useEffect(() => subscribeFeedPosts(setPosts), []);
@@ -284,15 +325,6 @@ export const FeedScreen = memo(function FeedScreen({
   useEffect(() => {
     if (kind && kind !== "user" && !kinds.includes(kind)) setKind(null);
   }, [kind, kinds]);
-
-  useEffect(() => {
-    lists.current.get(kind)?.scrollToOffset({ offset: 0, animated: false });
-    cancelAnimation(hiddenHeader);
-    scrollY.value = 0;
-    hiddenHeader.value = 0;
-    chromeHidden.value = 0;
-    dragging.value = false;
-  }, [kind, scrollY, hiddenHeader, chromeHidden, dragging]);
 
   const pages = useMemo(
     () => [null, "user", ...kinds] as FeedCategory[],
@@ -455,41 +487,19 @@ export const FeedScreen = memo(function FeedScreen({
                       </Text>
                     </View>
                   </View>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={{ flexGrow: 0 }}
-                    contentContainerStyle={styles.tabs}
-                  >
-                    <Tab
-                      label="全部"
-                      tone={colors.redText}
-                      active={kind === null}
-                      onPress={() => setKind(null)}
-                    />
-                    <Tab
-                      label="用户"
-                      tone={colors.cyanText}
-                      active={kind === "user"}
-                      onPress={() => setKind("user")}
-                    />
-                    {kinds.map((item) => (
-                      <Tab
-                        key={item}
-                        label={KIND_LABEL[item]}
-                        tone={kindTone(item, colors).text}
-                        active={kind === item}
-                        onPress={() => setKind(item)}
-                      />
-                    ))}
-                  </ScrollView>
+                  <FeedCategoryTabs
+                    categories={pages}
+                    selected={kind}
+                    position={pager.pagePosition}
+                    onSelect={setKind}
+                  />
                 </View>
               </Animated.View>
 
               <GestureDetector gesture={timelineGesture}>
                 <View style={styles.pullHost}>
                   <GestureDetector gesture={pager.nativeGesture}>
-                    <PagerView
+                    <AnimatedPagerView
                       ref={pager.ref}
                       initialPage={0}
                       style={styles.scroll}
@@ -498,6 +508,7 @@ export const FeedScreen = memo(function FeedScreen({
                       overScrollMode="never"
                       scrollEnabled={phase !== "refreshing" && phase !== "done"}
                       onPageSelected={pager.onPageSelected}
+                      onPageScroll={pager.onPageScroll}
                     >
                       {pageRows.map(
                         ({ category: pageKind, items: visible }) => (
@@ -514,10 +525,6 @@ export const FeedScreen = memo(function FeedScreen({
                                 pager={pager.nativeGesture}
                               >
                                 <Animated.FlatList
-                                  ref={(node) => {
-                                    if (node) lists.current.set(pageKind, node);
-                                    else lists.current.delete(pageKind);
-                                  }}
                                   data={visible}
                                   ItemSeparatorComponent={FeedSeparator}
                                   keyExtractor={(item) =>
@@ -656,7 +663,7 @@ export const FeedScreen = memo(function FeedScreen({
                           </View>
                         )
                       )}
-                    </PagerView>
+                    </AnimatedPagerView>
                   </GestureDetector>
                 </View>
               </GestureDetector>
@@ -670,6 +677,7 @@ export const FeedScreen = memo(function FeedScreen({
                     {
                       width: 48,
                       height: 48,
+                      borderRadius: 24,
                       paddingHorizontal: 0,
                       justifyContent: "center",
                     },
@@ -710,47 +718,6 @@ function FeedSeparator() {
 }
 
 const feedPresentation = { Text: PixelText, compact: true };
-
-/** 分类切换用字重和短线共同标识选中状态。 */
-function Tab({
-  label,
-  tone,
-  active,
-  onPress,
-}: {
-  label: string;
-  tone: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const { colors } = usePixelTheme();
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityLabel={label}
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.tab,
-        pressed && { backgroundColor: colors.inset },
-      ]}
-    >
-      <View style={styles.tabInner}>
-        <Text style={[styles.tabText, active && { color: tone }]}>{label}</Text>
-        <View
-          style={[
-            styles.tabBar,
-            {
-              backgroundColor: tone,
-              width: active ? 20 : 4,
-              opacity: active ? 1 : 0.3,
-            },
-          ]}
-        />
-      </View>
-    </Pressable>
-  );
-}
 
 function formatWhen(ms: number): string {
   const delta = Date.now() - ms;
@@ -822,30 +789,6 @@ const styles = themedStyleSheet((base) => {
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
     content: { paddingBottom: 16 },
-    tabs: {
-      flexDirection: "row",
-      paddingHorizontal: 0,
-      paddingBottom: 0,
-      gap: 12,
-    },
-    tab: { paddingHorizontal: 0, alignItems: "flex-start", minWidth: 44 },
-    tabInner: {
-      alignItems: "flex-start",
-      justifyContent: "center",
-      gap: 2,
-      height: 44,
-    },
-    tabText: {
-      fontSize: 13,
-      fontWeight: "500",
-      color: t.ink3,
-    },
-    tabBar: {
-      width: 16,
-      height: 4,
-      borderRadius: 0,
-      backgroundColor: "transparent",
-    },
     post: { paddingVertical: 3, paddingRight: 24 },
     separator: { height: 0.5, marginHorizontal: 16, backgroundColor: t.line },
     empty: {

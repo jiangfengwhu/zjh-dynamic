@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import PagerView from "react-native-pager-view";
+import PagerView, {
+  type PagerViewOnPageScrollEvent,
+} from "react-native-pager-view";
 import { Gesture } from "react-native-gesture-handler";
 import {
   cancelAnimation,
   runOnJS,
   useSharedValue,
+  useEvent,
 } from "react-native-reanimated";
 import type { FeedSlot } from "../../../../../packages/ui/feed";
 import { useProfileDrawer } from "../ProfileDrawer";
@@ -26,14 +29,24 @@ export function useFeedPager({
   const ref = useRef<PagerView>(null);
   const current = useRef(0);
   const index = Math.max(0, categories.indexOf(selected));
+  const pagePosition = useSharedValue(0);
+  const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
+    (event) => {
+      "worklet";
+      pagePosition.value = event.position + event.offset;
+    },
+    ["onPageScroll"]
+  );
   const [mounted, setMounted] = useState(() => new Set(categories.slice(0, 2)));
   useEffect(() => {
     if (current.current === index) return;
     const distance = Math.abs(current.current - index);
     current.current = index;
-    if (distance > 1) ref.current?.setPageWithoutAnimation(index);
-    else ref.current?.setPage(index);
-  }, [index]);
+    if (distance > 1) {
+      pagePosition.value = index;
+      ref.current?.setPageWithoutAnimation(index);
+    } else ref.current?.setPage(index);
+  }, [index, pagePosition]);
   useEffect(() => {
     const task = requestIdleCallback(() =>
       setMounted((previous) => {
@@ -113,5 +126,14 @@ export function useFeedPager({
     current.current = next;
     if (categories[next] !== undefined) onSelect(categories[next]);
   };
-  return { ref, gesture, nativeGesture, onPageSelected, mounted, index };
+  return {
+    ref,
+    gesture,
+    nativeGesture,
+    onPageSelected,
+    onPageScroll,
+    pagePosition,
+    mounted,
+    index,
+  };
 }

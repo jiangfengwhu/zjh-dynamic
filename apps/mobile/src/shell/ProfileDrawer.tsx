@@ -21,14 +21,16 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
+  Easing,
   type SharedValue,
 } from "react-native-reanimated";
-import { useTheme } from "../../../../packages/ui/theme";
+import { ThemeContext } from "../../../../packages/ui/theme";
+import { usePixelTheme } from "./feed/pixelTheme";
 
-const spring = {
-  damping: 28,
-  stiffness: 320,
+const timing = {
+  duration: 220,
+  easing: Easing.out(Easing.cubic),
   reduceMotion: ReduceMotion.Never,
 };
 let reveal: (() => void) | undefined;
@@ -59,7 +61,12 @@ export function ProfileDrawer({
   render: (close: () => void) => ReactNode;
 }) {
   const { width: screenWidth } = useWindowDimensions();
-  const { colors } = useTheme();
+  const theme = usePixelTheme();
+  const { colors } = theme;
+  const drawerTheme = useMemo(
+    () => ({ ...theme, colors: { ...colors, surface: colors.canvas } }),
+    [theme, colors]
+  );
   const width = Math.min(340, screenWidth * 0.84);
   const progress = useSharedValue(0);
   const start = useSharedValue(0);
@@ -71,7 +78,7 @@ export function ProfileDrawer({
     (next: boolean) => {
       setOpening(false);
       if (next) setOpened(true);
-      progress.value = withSpring(next ? 1 : 0, spring, (finished) => {
+      progress.value = withTiming(next ? 1 : 0, timing, (finished) => {
         if (finished && !next) runOnJS(setOpened)(false);
       });
     },
@@ -136,7 +143,6 @@ export function ProfileDrawer({
   );
   const surface = useAnimatedStyle(() => ({
     transform: [{ translateX: progress.value * width }],
-    borderRadius: progress.value * 24,
   }));
   const panel = useAnimatedStyle(() => ({
     transform: [{ translateX: -width * 0.15 * (1 - progress.value) }],
@@ -147,7 +153,11 @@ export function ProfileDrawer({
     <Context.Provider value={value}>
       <GestureDetector gesture={closing}>
         <View
-          style={{ flex: 1, overflow: "hidden", backgroundColor: colors.field }}
+          style={{
+            flex: 1,
+            overflow: "hidden",
+            backgroundColor: colors.canvas,
+          }}
         >
           <Animated.View
             pointerEvents={opened ? "auto" : "none"}
@@ -157,18 +167,19 @@ export function ProfileDrawer({
             style={[
               {
                 position: "absolute",
-                top: 8,
-                bottom: 8,
-                left: 8,
-                width: width - 8,
-                borderRadius: 24,
+                top: 0,
+                bottom: 0,
+                left: 0,
+                width,
                 overflow: "hidden",
                 backgroundColor: colors.canvas,
               },
               panel,
             ]}
           >
-            {render(close)}
+            <ThemeContext.Provider value={drawerTheme}>
+              {render(close)}
+            </ThemeContext.Provider>
           </Animated.View>
           <Animated.View
             style={[
