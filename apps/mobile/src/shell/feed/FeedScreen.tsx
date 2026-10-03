@@ -48,6 +48,9 @@ import {
 import { UserPostCard } from "./UserPostCard";
 import Toast from "react-native-toast-message";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
+import { FeedCategoryTabs } from "./FeedCategoryTabs";
+import { requireAccount } from "../account";
+import { pixelAssets } from "./pixelAssets";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const FEED_PAGE_INSET = 16;
@@ -93,9 +96,18 @@ export const FeedScreen = memo(function FeedScreen({
     }, [colors.canvas, mode])
   );
   const userTimeline = useUserPosts();
+  const followingTimeline = useUserPosts("following");
   const [loadingMore, setLoadingMore] = useState(false);
-  const [timelineError, setTimelineError] = useState("");
-  const kind = null;
+  const [timelineErrors, setTimelineErrors] = useState({
+    recommended: "",
+    following: "",
+  });
+  const setTimelineError = useCallback(
+    (category: FeedCategory, message: string) =>
+      setTimelineErrors((previous) => ({ ...previous, [category]: message })),
+    []
+  );
+  const [kind, selectCategory] = useState<FeedCategory>("recommended");
   const [timeTick, tickTime] = useState(0);
   useFocusEffect(
     useCallback(() => {
@@ -105,7 +117,7 @@ export const FeedScreen = memo(function FeedScreen({
   );
 
   const scrollY = useSharedValue(0);
-  const selectedKey = kind ?? "all";
+  const selectedKey = kind;
   const activeCategory = useSharedValue(selectedKey);
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
@@ -130,24 +142,26 @@ export const FeedScreen = memo(function FeedScreen({
     })(selectedKey);
   }, [selectedKey, activeCategory, bottomTravel]);
 
-  useEffect(() => {
-    const task = requestIdleCallback(() => {
-      void refreshUserPosts().then(
-        () => setTimelineError(""),
-        () => setTimelineError("用户动态暂时未能同步，下拉可重试")
-      );
-    });
-    return () => cancelIdleCallback(task);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const task = requestIdleCallback(() => {
+        void refreshUserPosts(kind).then(
+          () => setTimelineError(kind, ""),
+          () => setTimelineError(kind, "用户动态暂时未能同步，下拉可重试")
+        );
+      });
+      return () => cancelIdleCallback(task);
+    }, [kind, setTimelineError])
+  );
 
   const { pull, phase, gesture } = usePullToRefresh({
     scrollY,
     onRefresh: async () => {
       try {
-        await refreshUserPosts();
-        setTimelineError("");
+        await refreshUserPosts(kind);
+        setTimelineError(kind, "");
       } catch (error) {
-        setTimelineError("用户动态暂时未能同步，下拉可重试");
+        setTimelineError(kind, "用户动态暂时未能同步，下拉可重试");
         Toast.show({
           type: "error",
           text1: "刷新未完成",
@@ -163,15 +177,27 @@ export const FeedScreen = memo(function FeedScreen({
     () => userTimeline.posts.map((post) => ({ type: "user" as const, post })),
     [userTimeline.posts]
   );
-  const pages = useMemo(() => [null] as FeedCategory[], []);
-  const pageRows = useMemo(
-    () => [{ category: null, items: timeline }],
-    [timeline]
+  const pages = useMemo(
+    () => ["recommended", "following"] as FeedCategory[],
+    []
   );
-  const selectCategory = useCallback(() => {}, []);
+  const pageRows = useMemo(
+    () => [
+      { category: "recommended" as const, items: timeline, page: userTimeline },
+      {
+        category: "following" as const,
+        items: followingTimeline.posts.map((post) => ({
+          type: "user" as const,
+          post,
+        })),
+        page: followingTimeline,
+      },
+    ],
+    [timeline, userTimeline, followingTimeline]
+  );
   const pager = useFeedPager({
     categories: pages,
-    selected: null,
+    selected: kind,
     onSelect: selectCategory,
   });
   const renderPost = useCallback(
@@ -229,15 +255,22 @@ export const FeedScreen = memo(function FeedScreen({
                         <PixelAvatar size={36} />
                       )}
                     </Pressy>
-                    <View style={styles.headerCopy}>
-                      <Text style={styles.wordmark}>
-                        动态<Text style={styles.brand}> / 紫金花</Text>
-                      </Text>
-                      <Text style={styles.headerCaption} numberOfLines={1}>
-                        分享此刻，记录创造
-                      </Text>
+                    <View pointerEvents="none" style={styles.centerLogo}>
+                      <AppImage
+                        source={{
+                          uri: `data:image/png;base64,${pixelAssets.logo.base64}`,
+                        }}
+                        accessibilityLabel="紫金花"
+                        style={{ width: 44, height: 44 }}
+                        resizeMode="contain"
+                      />
                     </View>
                   </View>
+                  <FeedCategoryTabs
+                    selected={kind}
+                    position={pager.pagePosition}
+                    onSelect={selectCategory}
+                  />
                 </View>
               </Animated.View>
 
@@ -251,15 +284,15 @@ export const FeedScreen = memo(function FeedScreen({
                       layoutDirection="ltr"
                       offscreenPageLimit={1}
                       overScrollMode="never"
-                      scrollEnabled={false}
+                      scrollEnabled={phase !== "refreshing" && phase !== "done"}
                       onPageSelected={pager.onPageSelected}
                       onPageScroll={pager.onPageScroll}
                       onPageScrollStateChanged={pager.onPageScrollStateChanged}
                     >
                       {pageRows.map(
-                        ({ category: pageKind, items: visible }) => (
+                        ({ category: pageKind, items: visible, page }) => (
                           <View
-                            key={pageKind ?? "all"}
+                            key={pageKind}
                             collapsable={false}
                             style={{ width: "100%", height: "100%" }}
                           >
@@ -271,7 +304,7 @@ export const FeedScreen = memo(function FeedScreen({
                                 pager={pager.nativeGesture}
                               >
                                 <FeedScrollSurface
-                                  categoryKey={pageKind ?? "all"}
+                                  categoryKey={pageKind}
                                   activeCategory={activeCategory}
                                   hiddenHeader={hiddenHeader}
                                   headerHeight={headerHeight}
@@ -309,7 +342,7 @@ export const FeedScreen = memo(function FeedScreen({
                                           phase={phase}
                                         />
                                       </Animated.View>
-                                      {timelineError ? (
+                                      {timelineErrors[pageKind] ? (
                                         <Text
                                           style={{
                                             color: colors.ink3,
@@ -317,7 +350,7 @@ export const FeedScreen = memo(function FeedScreen({
                                             fontSize: 12,
                                           }}
                                         >
-                                          {timelineError}
+                                          {timelineErrors[pageKind]}
                                         </Text>
                                       ) : null}
                                     </View>
@@ -326,14 +359,31 @@ export const FeedScreen = memo(function FeedScreen({
                                     <View style={styles.empty}>
                                       <PixelAvatar size={80} />
                                       <Text style={styles.emptyTitle}>
-                                        这里还很安静
+                                        {pageKind === "following"
+                                          ? user
+                                            ? "还没有关注动态"
+                                            : "登录后查看关注动态"
+                                          : "这里还很安静"}
                                       </Text>
                                       <Text style={styles.emptyBody}>
-                                        分享一个想法，记录你的创造。
+                                        {pageKind === "following"
+                                          ? user
+                                            ? "点击动态作者头像，进入主页关注。"
+                                            : "关注喜欢的创作者，不错过新的分享。"
+                                          : "分享一个想法，记录你的创造。"}
                                       </Text>
                                       <Pressy
                                         accessibilityLabel="发布第一条动态"
-                                        onPress={onCompose}
+                                        onPress={
+                                          pageKind === "following"
+                                            ? user
+                                              ? () =>
+                                                  selectCategory("recommended")
+                                              : () => {
+                                                  void requireAccount();
+                                                }
+                                            : onCompose
+                                        }
                                         style={styles.compose}
                                       >
                                         <PixelIcon
@@ -347,7 +397,11 @@ export const FeedScreen = memo(function FeedScreen({
                                             fontWeight: "700",
                                           }}
                                         >
-                                          发第一条动态
+                                          {pageKind === "following"
+                                            ? user
+                                              ? "去发现创作者"
+                                              : "登录"
+                                            : "发第一条动态"}
                                         </Text>
                                       </Pressy>
                                     </View>
@@ -355,13 +409,12 @@ export const FeedScreen = memo(function FeedScreen({
                                   renderItem={renderPost}
                                   ListFooterComponent={
                                     <View>
-                                      {pageKind === null &&
-                                      userTimeline.nextCursor ? (
+                                      {page.nextCursor ? (
                                         <Pressable
                                           disabled={loadingMore}
                                           onPress={() => {
                                             setLoadingMore(true);
-                                            void loadMoreUserPosts()
+                                            void loadMoreUserPosts(pageKind)
                                               .catch((error) =>
                                                 Toast.show({
                                                   type: "error",
@@ -388,7 +441,7 @@ export const FeedScreen = memo(function FeedScreen({
                                         </Pressable>
                                       ) : null}
                                       {visible.length > 0 &&
-                                      !userTimeline.nextCursor ? (
+                                      !page.nextCursor ? (
                                         <View style={styles.end}>
                                           <PixelIcon
                                             name="spark"
@@ -671,7 +724,7 @@ const styles = themedStyleSheet((base) => {
     header: {
       backgroundColor: t.canvas,
       paddingLeft: FEED_PAGE_INSET,
-      paddingRight: 24,
+      paddingRight: FEED_PAGE_INSET,
       paddingBottom: 0,
     },
     headerRow: {
@@ -680,15 +733,14 @@ const styles = themedStyleSheet((base) => {
       gap: 5,
       paddingTop: 8,
     },
-    headerCopy: { flex: 1, minWidth: 0, gap: 3 },
-    wordmark: {
-      fontSize: 24,
-      lineHeight: 32,
-      fontWeight: "900",
-      color: t.cyanText,
+    centerLogo: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      top: 8,
+      height: 44,
+      alignItems: "center",
     },
-    brand: { fontSize: 11, fontWeight: "500", color: t.redText },
-    headerCaption: { fontSize: 10, lineHeight: 15, color: t.ink3 },
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
     content: { paddingBottom: 16, paddingHorizontal: FEED_PAGE_INSET },

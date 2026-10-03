@@ -46,6 +46,9 @@ export type PostDetail = {
 };
 export type PublicAuthor = UserPost["author"] & { official?: boolean };
 export type AuthorProfile = {
+  following?: boolean;
+  followerCount?: number;
+  followingCount?: number;
   author: PublicAuthor;
   posts: UserPost[];
   applications: MarketApplication[];
@@ -101,17 +104,97 @@ async function initialize() {
     })();
   await initialization;
 }
-export function useUserPosts() {
+export type FeedScope = "recommended" | "following";
+let followingPage: Page = { posts: [], nextCursor: null };
+let followingRevision = 0;
+let followingRefresh: Promise<void> | undefined;
+let followingPaging: Promise<void> | undefined;
+const followingListeners = new Set<(page: Page) => void>();
+function saveFollowing(page: Page) {
+  followingPage = page;
+  followingListeners.forEach((listener) => listener(page));
+}
+export async function setAuthorFollow(id: string, following: boolean) {
+  const result = await readSocial<{
+    following: boolean;
+    followerCount: number;
+    followingCount: number;
+  }>(`/v1/profiles/${id}/follow`, { method: following ? "POST" : "DELETE" });
+  followingRevision++;
+  if (!following)
+    saveFollowing({
+      ...followingPage,
+      posts: followingPage.posts.filter((post) => post.author.id !== id),
+    });
+  // Let the button response render before fetching the updated timeline.
+  requestIdleCallback(() => {
+    void Promise.resolve(followingRefresh)
+      .catch(() => {})
+      .then(() => refreshFollowing())
+      .catch(() => {});
+  });
+  return result;
+}
+async function refreshFollowing() {
+  if (followingRefresh) return followingRefresh;
+  followingRefresh = (async () => {
+    const before = followingRevision;
+    const page = await readSocial<Page>("/v1/posts?feed=following");
+    if (before === followingRevision) {
+      followingRevision++;
+      saveFollowing(page);
+    }
+  })().finally(() => {
+    followingRefresh = undefined;
+  });
+  return followingRefresh;
+}
+async function loadMoreFollowing() {
+  if (followingPaging) return followingPaging;
+  followingPaging = (async () => {
+    const cursor = followingPage.nextCursor;
+    const before = followingRevision;
+    if (!cursor) return;
+    const page = await readSocial<Page>(
+      `/v1/posts?feed=following&cursor=${encodeURIComponent(cursor)}`
+    );
+    if (before !== followingRevision || followingPage.nextCursor !== cursor)
+      return;
+    const known = new Set(followingPage.posts.map((post) => post.id));
+    followingRevision++;
+    saveFollowing({
+      posts: [
+        ...followingPage.posts,
+        ...page.posts.filter((post) => !known.has(post.id)),
+      ],
+      nextCursor: page.nextCursor,
+    });
+  })().finally(() => {
+    followingPaging = undefined;
+  });
+  return followingPaging;
+}
+export function useUserPosts(scope: FeedScope = "recommended") {
+  const [following, setFollowing] = useState(followingPage);
+  useEffect(() => {
+    if (scope !== "following") return;
+    followingListeners.add(setFollowing);
+    setFollowing(followingPage);
+    return () => {
+      followingListeners.delete(setFollowing);
+    };
+  }, [scope]);
   const [page, setPage] = useState(value);
   useEffect(() => {
+    if (scope === "following") return;
     listeners.add(setPage);
     setPage(value);
     void initialize();
     return () => {
       listeners.delete(setPage);
     };
-  }, []);
-  return page;
+  }, [scope]);
+  return scope === "following" ? following : page;
 }
 async function requestPage(cursor?: string) {
   const before = notificationRevision();
@@ -122,7 +205,10 @@ async function requestPage(cursor?: string) {
     updateNotificationCount(page.unreadCount, before);
   return page;
 }
-export function refreshUserPosts(): Promise<void> {
+export function refreshUserPosts(
+  scope: FeedScope = "recommended"
+): Promise<void> {
+  if (scope === "following") return refreshFollowing();
   if (refreshing) return refreshing;
   refreshing = (async () => {
     await initialize();
@@ -137,7 +223,10 @@ export function refreshUserPosts(): Promise<void> {
   });
   return refreshing;
 }
-export function loadMoreUserPosts(): Promise<void> {
+export function loadMoreUserPosts(
+  scope: FeedScope = "recommended"
+): Promise<void> {
+  if (scope === "following") return loadMoreFollowing();
   if (paging) return paging;
   paging = (async () => {
     const cursor = value.nextCursor;
@@ -212,6 +301,11 @@ export async function deleteUserPost(id: string): Promise<void> {
     throw new Error("账号已改变，请重新查看动态");
   revision++;
   save({ ...value, posts: value.posts.filter((post) => post.id !== id) });
+  followingRevision++;
+  saveFollowing({
+    ...followingPage,
+    posts: followingPage.posts.filter((post) => post.id !== id),
+  });
 }
 
 async function readSocial<T>(path: string, options?: RequestInit): Promise<T> {
@@ -227,6 +321,13 @@ async function readSocial<T>(path: string, options?: RequestInit): Promise<T> {
   return result;
 }
 export function updateUserPost(post: UserPost) {
+  followingRevision++;
+  saveFollowing({
+    ...followingPage,
+    posts: followingPage.posts.map((item) =>
+      item.id === post.id ? post : item
+    ),
+  });
   revision++;
   save({
     ...value,
@@ -281,6 +382,12 @@ export async function deletePostComment(id: string, commentId: string) {
   return result;
 }
 subscribeAccountIdentity(() => {
+  followingRevision++;
+  saveFollowing({ posts: [], nextCursor: null });
+  void Promise.resolve(followingRefresh)
+    .catch(() => {})
+    .then(() => refreshFollowing())
+    .catch(() => {});
   revision++;
   const next = {
     ...value,

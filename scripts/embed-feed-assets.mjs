@@ -2,10 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 
 // The dynamic host ships JS only. The pixel font is registered by the APK;
-// only the avatar must be embedded in the dynamic package.
+// the avatar and application logo are embedded in the dynamic package.
 const root = new URL("../apps/mobile/src/shell/feed/", import.meta.url);
 const entries = await Promise.all(
-  ["avatar.png"].map(async (name) => {
+  ["avatar.png", "logo.png"].map(async (name) => {
     const bytes = await readFile(new URL(`assets/${name}`, root));
     return [
       name.split(".")[0],

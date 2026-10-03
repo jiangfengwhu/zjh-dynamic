@@ -13,7 +13,7 @@
 | 能力                                   | 所有者／证据                                          | 约定                                                                                                    |
 | -------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | 路由                                   | apps/mobile/src/shell/navigation.tsx                  | 发动态、作者主页、动态详情、通知沿用现有回调；不改保存返回行为                                          |
-| 分类与列表                             | apps/mobile/src/shell/feed/FeedScreen.tsx             | 仅服务端用户动态；按创建时间排序，显式加载更多；移除应用欢迎、更新、近况和小结                          |
+| 分类与列表                             | apps/mobile/src/shell/feed/FeedScreen.tsx             | 为你推荐展示社区用户动态（目前按时间排序），正在关注仅展示当前账号关注的作者；独立分页与滚动位置，显隐不因切换改变 |
 | 同步                                   | userPosts.ts、pullToRefresh.ts                        | 刷新失败保留内容，内联提示并可下拉重试；加载更多使用既有分页游标                                        |
 | 点赞                                   | likes.ts、UserPostCard.tsx                            | 用户帖子登录与请求防重沿用现有账号和接口；选中状态向辅助技术公开                                        |
 | Toast                                  | react-native-toast-message／宿主 provider             | 操作失败与成功沿用共享通知；关键同步错误同时内联展示                                                    |
@@ -82,3 +82,5 @@ Drawer 首滑响应：feedPosition 直接复用原生 onPageScroll 的 position+
 HTML 动态使用宿主 @native-html/render 1.0.3 转为原生视图，列表与详情共享 HtmlPostContent；身份和交互栏由 FeedItemFrame / FeedActionBar 持有。应用仅提交 HTML 快照，不注册动态模板、不需要安装应用才能展示。服务端按登录身份发布并清理标签、属性和内联样式；内容格式 html-v1，HTML 上限 32 KB、20 层嵌套，禁用脚本和外部样式表。正文和图片沿用现有用户发布流程，HTML 编辑／预览、失败重试和草稿自动保存沿用 ComposePostScreen。
 
 SDK 2.0 feed.share 仅由明确用户操作触发，默认直接发布，不弹确认页；同账号、同应用、相同内容的并发点击复用请求，失败重试保留 requestId。feed.compose 显式进入编辑页。旧应用 publish/upsert/remove/recordChange 和 cards 注册接口删除；不兼容旧应用、不迁移历史应用动态、不执行清库。
+
+关注由 userPosts.ts 和服务端 Posts 管理：作者主页关注/取消关注，登录验证，重复请求幂等，关注计数原子更新。关注列表只存于当前会话，切换账号立即清空；取消关注立即移除作者内容，关注后空闲刷新。推荐页第一屏右滑呼出抽屉，关注页右滑回推荐。顶部保留左侧头像，居中使用 APK 同源应用 Logo，分类 indicator 在 UI 线程随 native PagerView 跟手。路由由 JS 发起，页面和转场由 Native Stack 原生执行。

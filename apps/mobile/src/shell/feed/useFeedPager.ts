@@ -8,9 +8,9 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Gesture } from "react-native-gesture-handler";
 import { runOnJS, runOnUI, useEvent } from "react-native-reanimated";
 import { useProfileDrawer } from "../ProfileDrawer";
-export type FeedCategory = null;
+export type FeedCategory = "recommended" | "following";
 
-/** Native paging owns both directions; only All defers right swipes to the drawer. */
+/** Native paging owns both directions; only Recommended defers right swipes to the drawer. */
 export function useFeedPager({
   categories,
   selected,
