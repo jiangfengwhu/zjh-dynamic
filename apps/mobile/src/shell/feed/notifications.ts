@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../account";
 import { edgeUrl } from "../evolveHost";
@@ -7,7 +7,7 @@ export type Notice = { id: string; actor: { id: string; name: string; avatarUrl:
 export type NoticePage = { notices: Notice[]; nextCursor: string | null; unreadCount: number };
 let owner: string | undefined; let count = 0; let revision = 0; let syncing: Promise<void> | undefined;
 const listeners = new Set<(count: number) => void>();
-function emit(value: number) { count = Math.max(0, value); listeners.forEach(listener => listener(count)); }
+function emit(value: number) { const next = Math.max(0, value); if (next === count) return; count = next; listeners.forEach(listener => listener(count)); }
 function identity(id?: string) { if (id !== owner) { owner = id; revision++; emit(0); } }
 subscribeAccountIdentity(id => { identity(id ?? undefined); syncing = undefined; });
 export function notificationRevision() { return revision; }
@@ -36,13 +36,20 @@ export async function markNotificationsRead(ids?: string[]) {
 }
 export function useNotificationCount() {
   const [value, setValue] = useState(count);
-  useEffect(() => { listeners.add(setValue); setValue(count); return () => { listeners.delete(setValue); }; }, []); return value;
+  useEffect(() => { const update = (next: number) => startTransition(() => setValue(next)); listeners.add(update); update(count); return () => { listeners.delete(update); }; }, []); return value;
 }
 /** One foreground poller for the shell; anonymous/background sessions make no requests. */
 export function useNotificationSync() {
   useEffect(() => {
-    const sync = () => { if (AppState.currentState === "active") void syncNotificationCount().catch(() => {}); };
+    let pending: ReturnType<typeof requestIdleCallback> | undefined;
+    const sync = () => {
+      if (pending !== undefined) cancelIdleCallback(pending);
+      pending = requestIdleCallback(() => {
+        pending = undefined;
+        if (AppState.currentState === "active") void syncNotificationCount().catch(() => {});
+      });
+    };
     sync(); const timer = setInterval(sync, 30000); const app = AppState.addEventListener("change", state => { if (state === "active") sync(); }); const off = subscribeAccountIdentity(() => sync());
-    return () => { clearInterval(timer); app.remove(); off(); };
+    return () => { if (pending !== undefined) cancelIdleCallback(pending); clearInterval(timer); app.remove(); off(); };
   }, []);
 }

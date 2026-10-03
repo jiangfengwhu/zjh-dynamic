@@ -113,14 +113,12 @@ const styles = themedStyleSheet((base) => {
   return {
     bar: {
       flexDirection: "row",
-      backgroundColor: t.inset,
+      backgroundColor: "transparent",
       marginHorizontal: 12,
       borderRadius: 20,
       paddingHorizontal: 8,
       paddingVertical: 8,
       gap: 8,
-      borderWidth: 0.5,
-      borderColor: t.line,
     },
     tab: {
       flex: 1,

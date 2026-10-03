@@ -38,6 +38,7 @@ export function showProfileDrawer() {
   reveal?.();
 }
 type Drawer = {
+  feedBoundary: SharedValue<boolean>;
   gesture: ReturnType<typeof Gesture.Pan>;
   progress: SharedValue<number>;
   width: number;
@@ -59,7 +60,7 @@ export function ProfileDrawer({
   render,
 }: {
   children: ReactNode;
-  render: (close: () => void) => ReactNode;
+  render: (close: () => void, dismiss: () => void) => ReactNode;
 }) {
   const { width: screenWidth } = useWindowDimensions();
   const theme = usePixelTheme();
@@ -69,6 +70,7 @@ export function ProfileDrawer({
     [theme, colors]
   );
   const width = Math.min(340, screenWidth * 0.84);
+  const feedBoundary = useSharedValue(true);
   const progress = useSharedValue(0);
   const start = useSharedValue(0);
   const [opened, setOpened] = useState(false);
@@ -87,6 +89,16 @@ export function ProfileDrawer({
   );
   const open = useCallback(() => settle(true), [settle]);
   const close = useCallback(() => settle(false), [settle]);
+  const dismiss = useCallback(() => {
+    cancelAnimation(progress);
+    progress.value = 0;
+    setOpening(false);
+    setOpened(false);
+  }, [progress]);
+  const drawerContent = useMemo(
+    () => render(close, dismiss),
+    [render, close, dismiss]
+  );
   const startDrag = useCallback(() => {
     setOpening(true);
     setOpened(true);
@@ -122,7 +134,12 @@ export function ProfileDrawer({
         .onTouchesDown((event, manager) => {
           active.value = false;
           const touch = event.allTouches[0];
-          if (!canOpen.value || !touch || event.numberOfTouches !== 1) {
+          if (
+            !canOpen.value ||
+            !feedBoundary.value ||
+            !touch ||
+            event.numberOfTouches !== 1
+          ) {
             manager.fail();
             return;
           }
@@ -161,11 +178,20 @@ export function ProfileDrawer({
           if (active.value && !success) runOnJS(settle)(false);
           active.value = false;
         }),
-    [canOpen, origin, active, progress, width, startDrag, settle]
+    [canOpen, feedBoundary, origin, active, progress, width, startDrag, settle]
   );
   const value = useMemo(
-    () => ({ gesture, progress, width, open, close, startDrag, settle }),
-    [gesture, progress, width, open, close, startDrag, settle]
+    () => ({
+      feedBoundary,
+      gesture,
+      progress,
+      width,
+      open,
+      close,
+      startDrag,
+      settle,
+    }),
+    [feedBoundary, gesture, progress, width, open, close, startDrag, settle]
   );
   const closing = useMemo(
     () =>
@@ -233,7 +259,7 @@ export function ProfileDrawer({
             ]}
           >
             <ThemeContext.Provider value={drawerTheme}>
-              {render(close)}
+              {drawerContent}
             </ThemeContext.Provider>
           </Animated.View>
           <Animated.View

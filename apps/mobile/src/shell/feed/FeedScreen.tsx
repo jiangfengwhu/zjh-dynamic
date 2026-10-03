@@ -4,8 +4,15 @@ import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, View } from "react-native";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+} from "react";
+import { FlatList, Pressable, View, type FlatListProps } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -19,6 +26,11 @@ import Animated, {
   useSharedValue,
   cancelAnimation,
   runOnUI,
+  useAnimatedRef,
+  useAnimatedReaction,
+  scrollTo,
+  type SharedValue,
+  type AnimatedProps,
 } from "react-native-reanimated";
 import { bundles } from "../../../../../packages/features/src/registry";
 import {
@@ -28,6 +40,7 @@ import {
   subscribeFeedPosts,
   subscribeFeedTemplates,
   type FeedFriend,
+  type FeedCardProps,
   type FeedKind,
   type FeedPost,
   type FeedSlot,
@@ -137,9 +150,8 @@ export const FeedScreen = memo(function FeedScreen({
   const scrollY = useSharedValue(0);
   const selectedKey = kind ?? "all";
   const activeCategory = useSharedValue(selectedKey);
-  const scrollMemory = useSharedValue<
-    Record<string, { offset: number; viewport: number; content: number }>
-  >({});
+  const restoredCategory = useSharedValue("");
+  const scrollMemory = useSharedValue<Record<string, FeedScrollSnapshot>>({});
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
   const dragging = useSharedValue(false);
@@ -150,7 +162,11 @@ export const FeedScreen = memo(function FeedScreen({
   const onScroll = useAnimatedScrollHandler(
     {
       onBeginDrag: (event) => {
-        if (activeCategory.value !== selectedKey) return;
+        if (
+          activeCategory.value !== selectedKey ||
+          restoredCategory.value !== selectedKey
+        )
+          return;
         cancelAnimation(hiddenHeader);
         dragging.value = true;
         scrollY.value = Math.max(0, event.contentOffset.y);
@@ -160,7 +176,11 @@ export const FeedScreen = memo(function FeedScreen({
         };
       },
       onScroll: (event) => {
-        if (activeCategory.value !== selectedKey) return;
+        if (
+          activeCategory.value !== selectedKey ||
+          restoredCategory.value !== selectedKey
+        )
+          return;
         const next = Math.max(0, event.contentOffset.y);
         const size = {
           viewport: event.layoutMeasurement.height,
@@ -188,6 +208,7 @@ export const FeedScreen = memo(function FeedScreen({
           ...scrollMemory.value,
           [selectedKey]: {
             offset: next,
+            inset: hiddenHeader.value,
             viewport: size.viewport,
             content: size.content,
           },
@@ -221,6 +242,7 @@ export const FeedScreen = memo(function FeedScreen({
       runOnUI((key: string) => {
         "worklet";
         cancelAnimation(hiddenHeader);
+        restoredCategory.value = "";
         activeCategory.value = key;
         const saved = scrollMemory.value[key];
         scrollY.value = saved?.offset ?? 0;
@@ -234,6 +256,7 @@ export const FeedScreen = memo(function FeedScreen({
     }, [
       selectedKey,
       activeCategory,
+      restoredCategory,
       scrollMemory,
       scrollY,
       hiddenHeader,
@@ -254,10 +277,13 @@ export const FeedScreen = memo(function FeedScreen({
   );
   useEffect(() => subscribeFeedSummaryBusy(setSummarizing), []);
   useEffect(() => {
-    void refreshUserPosts().then(
-      () => setTimelineError(""),
-      () => setTimelineError("用户动态暂时未能同步，下拉可重试")
-    );
+    const task = requestIdleCallback(() => {
+      void refreshUserPosts().then(
+        () => setTimelineError(""),
+        () => setTimelineError("用户动态暂时未能同步，下拉可重试")
+      );
+    });
+    return () => cancelIdleCallback(task);
   }, []);
 
   const { pull, phase, gesture } = usePullToRefresh({
@@ -363,28 +389,15 @@ export const FeedScreen = memo(function FeedScreen({
   const renderPost = useCallback(
     ({ item }: { item: (typeof timeline)[number] }) => {
       if (item.type === "user") {
-        const post =
-          user && item.post.author.id === user.id
-            ? {
-                ...item.post,
-                author: {
-                  id: user.id,
-                  name: user.name,
-                  avatarUrl: user.avatarUrl,
-                },
-              }
-            : item.post;
         return (
-          <View style={styles.post}>
-            <UserPostCard
-              post={post}
-              time={formatWhen(post.createdAt)}
-              own={user?.id === post.author.id}
-              onOpen={() => onPost(post)}
-              onApplication={onApplication}
-              onAuthor={onAuthor}
-            />
-          </View>
+          <UserTimelineItem
+            post={item.post}
+            author={user}
+            time={formatWhen(item.post.createdAt)}
+            onPost={onPost}
+            onApplication={onApplication}
+            onAuthor={onAuthor}
+          />
         );
       }
       const post = item.post;
@@ -399,24 +412,16 @@ export const FeedScreen = memo(function FeedScreen({
           ? peekFeedTemplate(post.appId, post.kind as FeedKind)
           : undefined;
       return (
-        <View>
-          <View style={styles.post}>
-            <CardSlot
-              Template={Template}
-              card={{
-                post,
-                friend,
-                kindLabel: KIND_LABEL[post.kind],
-                time: formatWhen(post.createdAt),
-                unread: post.createdAt > (seen[post.appId] ?? 0),
-                liked: liked.has(post.id),
-                onOpen: () => open(post.appId),
-                onLike: () => toggleLike(post.id),
-                onReply: () => onReply(post.appId),
-              }}
-            />
-          </View>
-        </View>
+        <ApplicationTimelineItem
+          post={post}
+          friend={friend}
+          Template={Template}
+          time={formatWhen(post.createdAt)}
+          unread={post.createdAt > (seen[post.appId] ?? 0)}
+          liked={liked.has(post.id)}
+          onOpen={open}
+          onReply={onReply}
+        />
       );
     },
     [
@@ -507,6 +512,7 @@ export const FeedScreen = memo(function FeedScreen({
                       scrollEnabled={phase !== "refreshing" && phase !== "done"}
                       onPageSelected={pager.onPageSelected}
                       onPageScroll={pager.onPageScroll}
+                      onPageScrollStateChanged={pager.onPageScrollStateChanged}
                     >
                       {pageRows.map(
                         ({ category: pageKind, items: visible }) => (
@@ -522,7 +528,13 @@ export const FeedScreen = memo(function FeedScreen({
                                 drawer={pager.gesture}
                                 pager={pager.nativeGesture}
                               >
-                                <Animated.FlatList
+                                <FeedScrollSurface
+                                  categoryKey={pageKind ?? "all"}
+                                  activeCategory={activeCategory}
+                                  restoredCategory={restoredCategory}
+                                  memory={scrollMemory}
+                                  hiddenHeader={hiddenHeader}
+                                  scrollY={scrollY}
                                   data={visible}
                                   ItemSeparatorComponent={FeedSeparator}
                                   keyExtractor={(item) =>
@@ -691,6 +703,151 @@ export const FeedScreen = memo(function FeedScreen({
     </ThemeContext.Provider>
   );
 });
+type FeedTimelineItem =
+  | { type: "app"; post: FeedPost }
+  | { type: "user"; post: UserPost };
+const UserTimelineItem = memo(function UserTimelineItem({
+  post: original,
+  author,
+  time,
+  onPost,
+  onApplication,
+  onAuthor,
+}: {
+  post: UserPost;
+  author: UserPost["author"] | null;
+  time: string;
+  onPost: FeedProps["onPost"];
+  onApplication: FeedProps["onApplication"];
+  onAuthor: FeedProps["onAuthor"];
+}) {
+  const own = author?.id === original.author.id;
+  const post = useMemo(
+    () => (own && author ? { ...original, author } : original),
+    [original, own, author]
+  );
+  const open = useCallback(() => onPost(post), [onPost, post]);
+  return (
+    <View style={styles.post}>
+      <UserPostCard
+        post={post}
+        time={time}
+        own={own}
+        onOpen={open}
+        onApplication={onApplication}
+        onAuthor={onAuthor}
+      />
+    </View>
+  );
+});
+const ApplicationTimelineItem = memo(function ApplicationTimelineItem({
+  post,
+  friend,
+  Template,
+  time,
+  unread,
+  liked,
+  onOpen,
+  onReply,
+}: {
+  post: FeedPost;
+  friend: FeedFriend;
+  Template?: ComponentType<FeedCardProps>;
+  time: string;
+  unread: boolean;
+  liked: boolean;
+  onOpen: (id: string) => Promise<void>;
+  onReply: FeedProps["onReply"];
+}) {
+  const open = useCallback(() => {
+    void onOpen(post.appId);
+  }, [onOpen, post.appId]);
+  const like = useCallback(() => toggleLike(post.id), [post.id]);
+  const reply = useCallback(() => onReply(post.appId), [onReply, post.appId]);
+  const card = useMemo(
+    () => ({
+      post,
+      friend,
+      kindLabel: KIND_LABEL[post.kind],
+      time,
+      unread,
+      liked,
+      onOpen: open,
+      onLike: like,
+      onReply: reply,
+    }),
+    [post, friend, time, unread, liked, open, like, reply]
+  );
+  return (
+    <View style={styles.post}>
+      <CardSlot Template={Template} card={card} />
+    </View>
+  );
+});
+
+type FeedScrollSnapshot = {
+  offset: number;
+  inset: number;
+  viewport: number;
+  content: number;
+};
+/** Keep body reading position while reconciling the shared header's geometry. */
+const FeedScrollSurface = memo(function FeedScrollSurface({
+  categoryKey,
+  activeCategory,
+  restoredCategory,
+  memory,
+  hiddenHeader,
+  scrollY,
+  ...props
+}: AnimatedProps<FlatListProps<FeedTimelineItem>> & {
+  categoryKey: string;
+  activeCategory: SharedValue<string>;
+  restoredCategory: SharedValue<string>;
+  memory: SharedValue<Record<string, FeedScrollSnapshot>>;
+  hiddenHeader: SharedValue<number>;
+  scrollY: SharedValue<number>;
+}) {
+  const ref = useAnimatedRef<FlatList<FeedTimelineItem>>();
+  const ready = useSharedValue(false);
+  useAnimatedReaction(
+    () =>
+      ready.value &&
+      activeCategory.value === categoryKey &&
+      restoredCategory.value !== categoryKey,
+    (active, previous) => {
+      if (!active || previous) return;
+      const saved = memory.value[categoryKey];
+      const offset = Math.max(
+        0,
+        (saved?.offset ?? 0) + hiddenHeader.value - (saved?.inset ?? 0)
+      );
+      scrollY.value = offset;
+      memory.value = {
+        ...memory.value,
+        [categoryKey]: {
+          offset,
+          inset: hiddenHeader.value,
+          viewport: saved?.viewport ?? 0,
+          content: saved?.content ?? 0,
+        },
+      };
+      scrollTo(ref, 0, offset, false);
+      restoredCategory.value = categoryKey;
+    },
+    [categoryKey]
+  );
+  return (
+    <Animated.FlatList
+      {...props}
+      ref={ref}
+      onContentSizeChange={(_width, height) => {
+        if (height > 0) ready.value = true;
+      }}
+    />
+  );
+});
+
 function FeedListGesture({
   pull,
   drawer,

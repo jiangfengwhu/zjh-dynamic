@@ -1,5 +1,5 @@
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import type { ApplicationManifest } from "../runtime/applications";
 import { ApplicationFeedbackScreen } from "./ApplicationFeedbackScreen";
@@ -230,6 +230,7 @@ export type ShellNavigatorProps = {
 
 export function ShellNavigator(props: ShellNavigatorProps) {
   const reduceMotion = useReducedMotion();
+  const installedIds = useMemo(() => props.listed.map(item => item.id), [props.listed]);
   const previous = useRef({ label: "", depth: 1 });
   const colors = palettes[props.mode];
   const theme = {
@@ -305,15 +306,15 @@ export function ShellNavigator(props: ShellNavigatorProps) {
       >
         <Stack.Screen name="tabs" options={{ freezeOnBlur: true }}>
           {() => (
-            <ProfileDrawer render={close => (<MineScreen drawer onClose={close}
-                    onAccount={() => { close(); shellNavigationRef.navigate("account"); }}
+            <ProfileDrawer render={(close, dismiss) => (<MineScreen drawer onClose={close}
+                    onAccount={() => { dismiss(); shellNavigationRef.navigate("account"); }}
                     mode={props.mode}
-                    onApplications={() => { close(); shellNavigationRef.navigate("myApps"); }}
-                    onProviders={() => { close(); shellNavigationRef.navigate("providers"); }}
-                    onInfo={() => { close(); shellNavigationRef.navigate("info"); }}
+                    onApplications={() => { dismiss(); shellNavigationRef.navigate("myApps"); }}
+                    onProviders={() => { dismiss(); shellNavigationRef.navigate("providers"); }}
+                    onInfo={() => { dismiss(); shellNavigationRef.navigate("info"); }}
                     onCheckUpdates={props.onCheckUpdates}
-                    onSummary={() => { close(); shellNavigationRef.navigate("summary"); }}
-                    onAppearance={() => { close(); shellNavigationRef.navigate("appearance"); }}
+                    onSummary={() => { dismiss(); shellNavigationRef.navigate("summary"); }}
+                    onAppearance={() => { dismiss(); shellNavigationRef.navigate("appearance"); }}
                   />)}><ScreenEdge bottom={false}>
             <Tabs.Navigator
               backBehavior="none"
@@ -335,7 +336,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     onCompose={() => { void requireAccount().then(allowed => { if (allowed && shellNavigationRef.isReady()) shellNavigationRef.navigate("composePost"); }); }}
                     onOpen={props.onOpenBundle}
                     onReply={props.onReplyToFriend}
-                    installedIds={props.listed.map(item => item.id)}
+                    installedIds={installedIds}
                     onNew={() => openShellTab("market")}
                   />
                 )}
