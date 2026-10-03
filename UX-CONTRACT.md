@@ -36,3 +36,5 @@
 用户与应用动态共享 FeedItemFrame 渲染结构，内容插槽对应 PostFrame.content；菜单为身份行的附加入口，头像和姓名触达作者／应用。用户正文打开详情、图片预览、删除确认、点赞鉴权与防重、系统分享行为保持。应用 content/body/children 原有契约兼容，不改变数据或服务端接口。
 
 系统导航可见性由 Android MainActivity 与 react-native-screens 原生适配统一持有，默认隐藏；页面 systemBars 调用只设置配色，应用 tab 显隐不再参与系统导航栏生命周期。键盘由现有 KeyboardProvider／IME insets 保持原有所有者。
+
+底部 tab 的可见偏移与头部由 FeedScreen 的 scroll worklet 同帧计算，不做延迟吸附；SHELL_BOTTOM_PADDING=16 为底部布局唯一附加留白。FeedActionBar 在成功确认 false→true 时播放点赞动画，初始恢复、取消点赞与失败不播放，忙碌禁用和计数仍按真实状态。依用户偏好，新增点赞与刷新动画固定播放。刷新完成／失败强制 rotate=0，避免旧变换残留。

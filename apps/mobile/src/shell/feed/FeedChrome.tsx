@@ -1,7 +1,12 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useSharedValue, type SharedValue } from "react-native-reanimated";
 
-type FeedChrome = { hidden: SharedValue<number>; tabHeight: SharedValue<number> };
+export const SHELL_BOTTOM_PADDING = 16;
+
+type FeedChrome = {
+  hidden: SharedValue<number>;
+  tabHeight: SharedValue<number>;
+};
 const Context = createContext<FeedChrome | null>(null);
 
 /** Header and bottom navigation share scroll progress on the UI thread. */

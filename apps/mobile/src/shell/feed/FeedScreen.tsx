@@ -10,14 +10,10 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
-  ReduceMotion,
   useAnimatedScrollHandler,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   cancelAnimation,
-  withDelay,
-  withTiming,
 } from "react-native-reanimated";
 import { bundles } from "../../../../../packages/features/src/registry";
 import {
@@ -41,7 +37,7 @@ import {
 import { pixelTheme, usePixelTheme } from "./pixelTheme";
 import { PixelAvatar, PixelIcon } from "./PixelKit";
 import NativePluginHost from "../../NativePluginHost";
-import { useFeedChrome } from "./FeedChrome";
+import { useFeedChrome, SHELL_BOTTOM_PADDING } from "./FeedChrome";
 import { subscribeFeedSummaryBusy } from "./summary";
 import { useAccount } from "../account";
 import { CardSlot } from "./CardSlot";
@@ -140,47 +136,18 @@ export const FeedScreen = memo(function FeedScreen({
   const headerHeight = useSharedValue(144);
   const hiddenHeader = useSharedValue(0);
   const dragging = useSharedValue(false);
-  const momentum = useSharedValue(false);
-  const direction = useSharedValue(0);
   const layoutSize = useSharedValue({ viewport: 0, content: 0 });
   const [headerSize, setHeaderSize] = useState(144);
   const [viewportSize, setViewportSize] = useState(0);
-  useAnimatedReaction(
-    () =>
-      headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0,
-    (progress) => {
-      chromeHidden.value = progress;
-    }
-  );
-  function settleHeader(delay = 0) {
-    "worklet";
-    // Near the top, follow the list instead of snapping away its reserved header.
-    if (scrollY.value < headerHeight.value) return;
-    const hide =
-      scrollY.value >= headerHeight.value &&
-      (direction.value > 0 ||
-        (direction.value === 0 && hiddenHeader.value > headerHeight.value / 2));
-    const animation = withTiming(hide ? headerHeight.value : 0, {
-      duration: 180,
-      reduceMotion: ReduceMotion.System,
-    });
-    hiddenHeader.value = delay ? withDelay(delay, animation) : animation;
-  }
   const onScroll = useAnimatedScrollHandler({
     onBeginDrag: (event) => {
       cancelAnimation(hiddenHeader);
       dragging.value = true;
-      momentum.value = false;
-      direction.value = 0;
       scrollY.value = Math.max(0, event.contentOffset.y);
       layoutSize.value = {
         viewport: event.layoutMeasurement.height,
         content: event.contentSize.height,
       };
-    },
-    onMomentumBegin: () => {
-      cancelAnimation(hiddenHeader);
-      momentum.value = true;
     },
     onScroll: (event) => {
       const next = Math.max(0, event.contentOffset.y);
@@ -194,9 +161,8 @@ export const FeedScreen = memo(function FeedScreen({
       layoutSize.value = size;
       // A finger drag remains authoritative even when a card changes its size.
       // Ignore layout-only offset changes outside an active drag.
-      if (dragging.value || (momentum.value && !resized)) {
+      if (dragging.value || !resized || next === 0) {
         const delta = next - scrollY.value;
-        if (Math.abs(delta) > 0.5) direction.value = delta > 0 ? 1 : -1;
         hiddenHeader.value =
           next === 0
             ? 0
@@ -206,17 +172,11 @@ export const FeedScreen = memo(function FeedScreen({
               );
       }
       scrollY.value = next;
+      chromeHidden.value =
+        headerHeight.value > 0 ? hiddenHeader.value / headerHeight.value : 0;
     },
-    // A fling cancels this delayed snap; a drag without momentum still finishes.
     onEndDrag: () => {
       dragging.value = false;
-      settleHeader(120);
-    },
-    onMomentumEnd: () => {
-      momentum.value = false;
-      // Android can deliver the interrupted fling's end after a new drag begins.
-      // It must not stop or snap the header underneath the finger.
-      if (!dragging.value) settleHeader();
     },
   });
   const headerMotion = useAnimatedStyle(() => ({
@@ -227,7 +187,11 @@ export const FeedScreen = memo(function FeedScreen({
   }));
   const composePosition = useAnimatedStyle(() => ({
     bottom:
-      Math.max(insets.bottom, tabHeight.value * (1 - chromeHidden.value)) + 12,
+      Math.max(
+        SHELL_BOTTOM_PADDING,
+        insets.bottom,
+        tabHeight.value * (1 - chromeHidden.value)
+      ) + 12,
   }));
   useFocusEffect(
     useCallback(() => {
@@ -235,8 +199,7 @@ export const FeedScreen = memo(function FeedScreen({
       chromeHidden.value = 0;
       hiddenHeader.value = 0;
       dragging.value = false;
-      momentum.value = false;
-    }, [chromeHidden, hiddenHeader, dragging, momentum])
+    }, [chromeHidden, hiddenHeader, dragging])
   );
 
   useEffect(() => subscribeFeedPosts(setPosts), []);
@@ -340,8 +303,7 @@ export const FeedScreen = memo(function FeedScreen({
     hiddenHeader.value = 0;
     chromeHidden.value = 0;
     dragging.value = false;
-    momentum.value = false;
-  }, [kind, scrollY, hiddenHeader, chromeHidden, dragging, momentum]);
+  }, [kind, scrollY, hiddenHeader, chromeHidden, dragging]);
 
   const open = useCallback(
     async (appId: string) => {

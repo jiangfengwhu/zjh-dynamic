@@ -1,7 +1,7 @@
 import { PixelText as Text } from "./PixelText";
 import { useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { ChevronRight } from "lucide-react-native";
+import { PixelIcon } from "./PixelKit";
 import Toast from "react-native-toast-message";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { useTheme } from "../../../../../packages/ui/theme";
@@ -18,8 +18,9 @@ export function ApplicationPostCard({
   onOpen?: (appId: string) => Promise<void>;
 }) {
   const context = useTheme();
-  const inPixelFeed =
-    ["#171322", "#F1EDF8", "#19152C", "#FFF9ED"].includes(context.colors.canvas);
+  const inPixelFeed = ["#171322", "#F1EDF8", "#19152C", "#FFF9ED"].includes(
+    context.colors.canvas
+  );
   const colors = inPixelFeed ? pixelTheme(context.colors) : context.colors;
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
@@ -49,8 +50,8 @@ export function ApplicationPostCard({
       style={{
         marginTop: 3,
         padding: 5,
-        borderRadius: inPixelFeed ? 0 : colors.radius.sm,
-        borderWidth: inPixelFeed ? 2 : 0.5,
+        borderRadius: 12,
+        borderWidth: 0.5,
         borderColor: colors.line,
         backgroundColor: inPixelFeed ? colors.inset : undefined,
         flexDirection: "row",
@@ -93,7 +94,7 @@ export function ApplicationPostCard({
         busy ? (
           <ActivityIndicator size="small" color={colors.accent} />
         ) : (
-          <ChevronRight size={18} color={colors.ink3} />
+          <PixelIcon name="arrow" size={18} color={colors.ink3} />
         )
       ) : null}
     </Pressy>

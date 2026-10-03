@@ -72,7 +72,7 @@ components:
 
 ## Components
 
-`PixelKit.tsx` 拥有像素图标与角色静态图。`PixelPostFrame.tsx` 是宿主默认动态 item，应用登记的内容仍由应用负责。`FeedPresentationContext` 让共享 PostFrame 在动态页采用紧凑间距与宿主像素文字，在其他位置保留原展示。`UserPostCard`、`FeedScreen` 与动态页导航使用统一语义色。业务可点击目标最小 44 单位，选中状态有文字／形状标识。
+`packages/ui/chrome/PixelIcon.tsx` 持有统一 16 格像素图标，公共 Icon 的名字与参数保持；`PixelKit.tsx` 复用图标并拥有角色静态图。`PixelPostFrame.tsx` 是宿主默认动态 item，应用登记的内容仍由应用负责。`FeedPresentationContext` 让共享 PostFrame 在动态页采用紧凑间距与宿主像素文字，在其他位置保留原展示。`UserPostCard`、`FeedScreen` 与动态页导航使用统一语义色。业务可点击目标最小 44 单位，选中状态有文字／形状标识。
 
 本轮删除欢迎区后不再在动态页播放角色动画，三份用户 MP4 源素材保留供后续页面使用，当前宿主包只内嵌头像。头像源资源修改后运行 `node scripts/embed-feed-assets.mjs`；字体改变需协调新 APK。
 
@@ -90,3 +90,5 @@ components:
 统一动态骨架由 packages/ui/feed/kit/FeedItemFrame.tsx 持有。UserPostCard、PostFrame 和 PixelPostFrame 复用其头像列、姓名时间、内容插槽和操作栏位置。红框对应 PostFrame.content，仅自绘该区；头像、标题、菜单和操作栏由同一骨架定位，菜单不增加头部高度。
 
 APK 1.4.1 全局窗口采用 edge-to-edge 全屏容器，默认隐藏系统导航栏。系统顶部状态栏保留，原生导航栈切换沿用全局隐藏策略；页面滚动只影响应用头部与底部 tab。原生 safe-area 正常读取可见系统栏与屏幕缺口，不通过 JS 伪造底部 inset。
+
+导航底部留白由 FeedChrome 的 SHELL_BOTTOM_PADDING=16 持有；tab、发布按钮统一避让。头部和底部 tab 直接在同一滚动事件中更新偏移，取消延迟吸附与惯性切换时的动画接管。应用分享卡片采用 0.5 边框和 12 圆角。交互图标使用统一像素路径；确认点赞后播放心形弹跳、扩散环与方形粒子，恢复已有点赞不播放。按用户明确偏好，点赞与刷新动画不读取系统减少动态效果设置。刷新完成和失败的图标显式旋转归零。
