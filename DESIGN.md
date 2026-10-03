@@ -121,7 +121,7 @@ Drawer 的“编辑头像与昵称”进入 account 路由时明确使用原生 
 
 动态 item 的 styles.post 仅保留 paddingVertical=3，删除 paddingRight=24。左右间距统一由动态列表 content 容器的 paddingHorizontal=16 持有，动态页 FeedItemFrame.frameInset=0，不重复叠加单侧 padding；整条点击热区随完整容器宽度扩展，不再额外补右侧 hitSlop。
 
-分类与 Drawer 手势交接以 UI 线程原生事件为准：feedActive 只随大 tab 焦点变化，feedPage 由原生 onPageSelected／idle 更新，feedIdle 在 dragging／settling 及非零分页 offset 时为 false。只有动态页停稳在第 0 页“全部”时，新的右滑才可以打开 Drawer；手势按下与方向识别阶段均检查资格，左滑判定失败后同一触摸不可转为 Drawer。分类状态更新和清理函数不得临时放开资格。到达“全部”并 idle 时立即在 UI 线程开放，无需等待 React 更新；市场、通知右滑入口保持。
+分类与 Drawer 手势交接以 UI 线程原生事件为准：feedActive 只随大 tab 焦点变化，feedPage 由原生 onPageSelected／idle 更新，feedIdle 在 dragging／settling 及非零分页 offset 时为 false。新的触摸在实际原生分页位置为第 0 页“全部”边界时确定 Drawer 资格，不依赖可能晚到的 idle 通知；资格对本次触摸锁定，左滑判定失败后同一触摸不可转为 Drawer。分类状态更新和清理函数不得临时放开资格。实际分页到达“全部”边界时立即在 UI 线程开放，无需等待 idle 或 React 更新；市场、通知右滑入口保持。
 
 分割线左右边距与紧凑动态容器共用 FeedScreen.FEED_PAGE_INSET=16；应用分享卡片、图片、正文的右侧内容边界和分割线终点一致。分割线不另加横向 margin，保持条目两侧对称，不额外缩窄应用卡片。
 
@@ -130,3 +130,5 @@ Drawer 的“编辑头像与昵称”进入 account 路由时明确使用原生 
 动态页容器统一边界：FlatList contentContainerStyle.paddingHorizontal=FEED_PAGE_INSET=16；item 容器 width=100%、minWidth=0、overflow=hidden、collapsable=false，保证自绘应用内容和媒体不会越过分割线边界。FeedPresentation.frameInset=0 只在此宿主列表取消内部重复横向间距，其他调用方仍保持原默认 7／14。分割线直接铺满同一列表内容宽度；header 头像同步对齐到 x=20，标题 x=65。
 
 动态列表左右容器留白由 7 增至 16 点，统一由 FEED_PAGE_INSET=16 控制。分割线、图片与各类应用卡片共享此内容宽度；不额外为单条卡片加 margin 或 padding。Header 取消头像列的 -9 点补偿，同步与动态头像列对齐。
+
+Drawer 首滑响应：feedPosition 直接复用原生 onPageScroll 的 position+offset，与 indicator 同源；onTouchesDown 在第 0 页且 position 距离 0 不超过 0.001 时锁定 eligible，后续不因该触摸自己触发 dragging 或晚到的 idle 被取消。非边界开始的分类滑动仍立即失败，方向变更不能重新获得资格，避免边滑分类边打开 drawer。

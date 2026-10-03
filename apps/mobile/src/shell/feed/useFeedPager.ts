@@ -6,12 +6,7 @@ import PagerView, {
 } from "react-native-pager-view";
 import { useFocusEffect } from "@react-navigation/native";
 import { Gesture } from "react-native-gesture-handler";
-import {
-  runOnJS,
-  runOnUI,
-  useSharedValue,
-  useEvent,
-} from "react-native-reanimated";
+import { runOnJS, runOnUI, useEvent } from "react-native-reanimated";
 import type { FeedSlot } from "../../../../../packages/ui/feed";
 import { useProfileDrawer } from "../ProfileDrawer";
 export type FeedCategory = FeedSlot | "user" | null;
@@ -28,7 +23,7 @@ export function useFeedPager({
 }) {
   const drawer = useProfileDrawer();
   const ref = useRef<PagerView>(null);
-  const { feedActive, feedPage, feedIdle } = drawer;
+  const { feedActive, feedPage, feedPosition, feedIdle } = drawer;
   useFocusEffect(
     useCallback(() => {
       runOnUI(() => {
@@ -45,12 +40,16 @@ export function useFeedPager({
   );
   const current = useRef(0);
   const index = Math.max(0, categories.indexOf(selected));
-  const pagePosition = useSharedValue(0);
+  const pagePosition = feedPosition;
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
     (event) => {
       "worklet";
       pagePosition.value = event.position + event.offset;
       if (Math.abs(event.offset) > 0.001) feedIdle.value = false;
+      else {
+        feedPage.value = event.position;
+        feedIdle.value = true;
+      }
     },
     ["onPageScroll"]
   );

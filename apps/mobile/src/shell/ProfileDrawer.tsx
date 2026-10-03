@@ -40,6 +40,7 @@ export function showProfileDrawer() {
 type Drawer = {
   feedActive: SharedValue<boolean>;
   feedPage: SharedValue<number>;
+  feedPosition: SharedValue<number>;
   feedIdle: SharedValue<boolean>;
   gesture: ReturnType<typeof Gesture.Pan>;
   progress: SharedValue<number>;
@@ -74,6 +75,7 @@ export function ProfileDrawer({
   const width = Math.min(340, screenWidth * 0.84);
   const feedActive = useSharedValue(false);
   const feedPage = useSharedValue(0);
+  const feedPosition = useSharedValue(0);
   const feedIdle = useSharedValue(true);
   const progress = useSharedValue(0);
   const start = useSharedValue(0);
@@ -130,6 +132,7 @@ export function ProfileDrawer({
   }, [focused, opened, canOpen]);
   const origin = useSharedValue({ x: 0, y: 0 });
   const active = useSharedValue(false);
+  const eligible = useSharedValue(false);
   const gesture = useMemo(
     () =>
       Gesture.Pan()
@@ -137,13 +140,15 @@ export function ProfileDrawer({
         .maxPointers(1)
         .onTouchesDown((event, manager) => {
           active.value = false;
+          // Ownership is decided once per touch from the actual native edge.
+          // Idle can arrive after the final frame, or turn dragging for this
+          // very touch, so it must not veto an edge-originating drawer drag.
+          eligible.value =
+            canOpen.value &&
+            (!feedActive.value ||
+              (feedPage.value === 0 && Math.abs(feedPosition.value) <= 0.001));
           const touch = event.allTouches[0];
-          if (
-            !canOpen.value ||
-            (feedActive.value && (!feedIdle.value || feedPage.value !== 0)) ||
-            !touch ||
-            event.numberOfTouches !== 1
-          ) {
+          if (!eligible.value || !touch || event.numberOfTouches !== 1) {
             manager.fail();
             return;
           }
@@ -152,11 +157,7 @@ export function ProfileDrawer({
         .onTouchesMove((event, manager) => {
           if (active.value) return;
           const touch = event.allTouches[0];
-          if (
-            (feedActive.value && (!feedIdle.value || feedPage.value !== 0)) ||
-            !touch ||
-            event.numberOfTouches !== 1
-          ) {
+          if (!eligible.value || !touch || event.numberOfTouches !== 1) {
             manager.fail();
             return;
           }
@@ -190,7 +191,8 @@ export function ProfileDrawer({
       canOpen,
       feedActive,
       feedPage,
-      feedIdle,
+      feedPosition,
+      eligible,
       origin,
       active,
       progress,
@@ -203,6 +205,7 @@ export function ProfileDrawer({
     () => ({
       feedActive,
       feedPage,
+      feedPosition,
       feedIdle,
       gesture,
       progress,
@@ -215,6 +218,7 @@ export function ProfileDrawer({
     [
       feedActive,
       feedPage,
+      feedPosition,
       feedIdle,
       gesture,
       progress,
