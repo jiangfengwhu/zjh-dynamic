@@ -38,7 +38,9 @@ export function showProfileDrawer() {
   reveal?.();
 }
 type Drawer = {
-  feedBoundary: SharedValue<boolean>;
+  feedActive: SharedValue<boolean>;
+  feedPage: SharedValue<number>;
+  feedIdle: SharedValue<boolean>;
   gesture: ReturnType<typeof Gesture.Pan>;
   progress: SharedValue<number>;
   width: number;
@@ -70,7 +72,9 @@ export function ProfileDrawer({
     [theme, colors]
   );
   const width = Math.min(340, screenWidth * 0.84);
-  const feedBoundary = useSharedValue(true);
+  const feedActive = useSharedValue(false);
+  const feedPage = useSharedValue(0);
+  const feedIdle = useSharedValue(true);
   const progress = useSharedValue(0);
   const start = useSharedValue(0);
   const [opened, setOpened] = useState(false);
@@ -136,7 +140,7 @@ export function ProfileDrawer({
           const touch = event.allTouches[0];
           if (
             !canOpen.value ||
-            !feedBoundary.value ||
+            (feedActive.value && (!feedIdle.value || feedPage.value !== 0)) ||
             !touch ||
             event.numberOfTouches !== 1
           ) {
@@ -148,7 +152,11 @@ export function ProfileDrawer({
         .onTouchesMove((event, manager) => {
           if (active.value) return;
           const touch = event.allTouches[0];
-          if (!touch || event.numberOfTouches !== 1) {
+          if (
+            (feedActive.value && (!feedIdle.value || feedPage.value !== 0)) ||
+            !touch ||
+            event.numberOfTouches !== 1
+          ) {
             manager.fail();
             return;
           }
@@ -178,11 +186,24 @@ export function ProfileDrawer({
           if (active.value && !success) runOnJS(settle)(false);
           active.value = false;
         }),
-    [canOpen, feedBoundary, origin, active, progress, width, startDrag, settle]
+    [
+      canOpen,
+      feedActive,
+      feedPage,
+      feedIdle,
+      origin,
+      active,
+      progress,
+      width,
+      startDrag,
+      settle,
+    ]
   );
   const value = useMemo(
     () => ({
-      feedBoundary,
+      feedActive,
+      feedPage,
+      feedIdle,
       gesture,
       progress,
       width,
@@ -191,7 +212,18 @@ export function ProfileDrawer({
       startDrag,
       settle,
     }),
-    [feedBoundary, gesture, progress, width, open, close, startDrag, settle]
+    [
+      feedActive,
+      feedPage,
+      feedIdle,
+      gesture,
+      progress,
+      width,
+      open,
+      close,
+      startDrag,
+      settle,
+    ]
   );
   const canClose = useSharedValue(false);
   useEffect(() => {

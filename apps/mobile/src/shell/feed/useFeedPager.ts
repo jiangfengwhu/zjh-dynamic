@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
+  type PagerViewOnPageSelectedEvent,
+  type PageScrollStateChangedNativeEvent,
 } from "react-native-pager-view";
 import { useFocusEffect } from "@react-navigation/native";
 import { Gesture } from "react-native-gesture-handler";
-import { useSharedValue, useEvent } from "react-native-reanimated";
+import {
+  runOnJS,
+  runOnUI,
+  useSharedValue,
+  useEvent,
+} from "react-native-reanimated";
 import type { FeedSlot } from "../../../../../packages/ui/feed";
 import { useProfileDrawer } from "../ProfileDrawer";
 export type FeedCategory = FeedSlot | "user" | null;
@@ -21,14 +28,20 @@ export function useFeedPager({
 }) {
   const drawer = useProfileDrawer();
   const ref = useRef<PagerView>(null);
-  const boundary = drawer.feedBoundary;
+  const { feedActive, feedPage, feedIdle } = drawer;
   useFocusEffect(
     useCallback(() => {
-      boundary.value = selected === null;
+      runOnUI(() => {
+        "worklet";
+        feedActive.value = true;
+      })();
       return () => {
-        boundary.value = true;
+        runOnUI(() => {
+          "worklet";
+          feedActive.value = false;
+        })();
       };
-    }, [boundary, selected])
+    }, [feedActive])
   );
   const current = useRef(0);
   const index = Math.max(0, categories.indexOf(selected));
@@ -37,6 +50,7 @@ export function useFeedPager({
     (event) => {
       "worklet";
       pagePosition.value = event.position + event.offset;
+      if (Math.abs(event.offset) > 0.001) feedIdle.value = false;
     },
     ["onPageScroll"]
   );
@@ -45,11 +59,18 @@ export function useFeedPager({
     if (current.current === index) return;
     const distance = Math.abs(current.current - index);
     current.current = index;
+    runOnUI((next: number, animated: boolean) => {
+      "worklet";
+      feedIdle.value = !animated;
+      if (!animated) {
+        feedPage.value = next;
+        pagePosition.value = next;
+      }
+    })(index, distance <= 1);
     if (distance > 1) {
-      pagePosition.value = index;
       ref.current?.setPageWithoutAnimation(index);
     } else ref.current?.setPage(index);
-  }, [index, pagePosition]);
+  }, [index, pagePosition, feedPage, feedIdle]);
   const idleTask = useRef<ReturnType<typeof requestIdleCallback> | null>(null);
   const moving = useRef(false);
   const warm = useCallback(() => {
@@ -76,24 +97,43 @@ export function useFeedPager({
       if (idleTask.current !== null) cancelIdleCallback(idleTask.current);
     };
   }, [warm, index]);
-  const onPageScrollStateChanged = useCallback(
-    (event: { nativeEvent: { pageScrollState: string } }) => {
-      moving.current = event.nativeEvent.pageScrollState !== "idle";
+  const updateWarmState = useCallback(
+    (idle: boolean) => {
+      moving.current = !idle;
       warm();
     },
     [warm]
+  );
+  const onPageScrollStateChanged = useEvent<PageScrollStateChangedNativeEvent>(
+    (event) => {
+      "worklet";
+      const idle = event.pageScrollState === "idle";
+      if (idle) feedPage.value = Math.round(pagePosition.value);
+      feedIdle.value = idle;
+      runOnJS(updateWarmState)(idle);
+    },
+    ["onPageScrollStateChanged"]
+  );
+  const selectPage = useCallback(
+    (next: number) => {
+      current.current = next;
+      if (categories[next] !== undefined) onSelect(categories[next]);
+    },
+    [categories, onSelect]
+  );
+  const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
+    (event) => {
+      "worklet";
+      feedPage.value = event.position;
+      runOnJS(selectPage)(event.position);
+    },
+    ["onPageSelected"]
   );
   const gesture = drawer.gesture;
   const nativeGesture = useMemo(
     () => Gesture.Native().requireExternalGestureToFail(gesture),
     [gesture]
   );
-  const onPageSelected = (event: { nativeEvent: { position: number } }) => {
-    const next = event.nativeEvent.position;
-    current.current = next;
-    boundary.value = next === 0;
-    if (categories[next] !== undefined) onSelect(categories[next]);
-  };
   return {
     ref,
     gesture,
