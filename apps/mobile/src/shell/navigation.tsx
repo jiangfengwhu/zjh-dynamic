@@ -1,6 +1,6 @@
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useRef, type ReactNode } from "react";
-import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type { ApplicationManifest } from "../runtime/applications";
 import { ApplicationFeedbackScreen } from "./ApplicationFeedbackScreen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,6 +27,7 @@ import { MarketDetailScreen } from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
 import { fetchPublicMarketApplication } from "./market";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
+import { ProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
 import { MineScreen } from "./MineScreen";
 import { requireAccount, currentAccountId } from "./account";
 import { readShellValue, removeShellValue } from "./shellStorage";
@@ -65,7 +66,6 @@ export type RootParamList = {
   marketDetail: { item: MarketApplication; publish?: boolean };
   myApps: undefined;
   account: undefined;
-  mine: undefined;
   composePost: { application?: MarketApplication } | undefined;
   postDetail: { post: UserPost; commentId?: string; initialDetail?: PostDetail };
   notifications: undefined;
@@ -105,7 +105,7 @@ const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() =>
 
 export function openShellTab(id: ShellTabId | "mine") {
   if (!shellNavigationRef.isReady()) return;
-  if (id === "mine") shellNavigationRef.navigate("mine");
+  if (id === "mine") { shellNavigationRef.navigate("tabs", { screen: "feed" }); showProfileDrawer(); }
   else shellNavigationRef.navigate("tabs", { screen: id });
 }
 export async function openPublicMarketApplication(appId: string) {
@@ -225,7 +225,6 @@ export type ShellNavigatorProps = {
 
 export function ShellNavigator(props: ShellNavigatorProps) {
   const reduceMotion = useReducedMotion();
-  const { width: windowWidth } = useWindowDimensions();
   const previous = useRef({ label: "", depth: 1 });
   const colors = palettes[props.mode];
   const theme = {
@@ -301,7 +300,16 @@ export function ShellNavigator(props: ShellNavigatorProps) {
       >
         <Stack.Screen name="tabs" options={{ freezeOnBlur: true }}>
           {() => (
-            <ScreenEdge bottom={false}>
+            <ProfileDrawer render={close => (<MineScreen drawer onClose={close}
+                    onAccount={() => { close(); shellNavigationRef.navigate("account"); }}
+                    mode={props.mode}
+                    onApplications={() => { close(); shellNavigationRef.navigate("myApps"); }}
+                    onProviders={() => { close(); shellNavigationRef.navigate("providers"); }}
+                    onInfo={() => { close(); shellNavigationRef.navigate("info"); }}
+                    onCheckUpdates={props.onCheckUpdates}
+                    onSummary={() => { close(); shellNavigationRef.navigate("summary"); }}
+                    onAppearance={() => { close(); shellNavigationRef.navigate("appearance"); }}
+                  />)}><ScreenEdge bottom={false}>
             <Tabs.Navigator
               backBehavior="none"
               tabBarPosition="bottom"
@@ -317,7 +325,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   <FeedScreen
                     onAuthor={openAuthor}
                     onApplication={openPublicMarketApplication}
-                    onProfile={() => openShellTab("mine")}
+                    onProfile={showProfileDrawer}
                     onPost={post => shellNavigationRef.navigate("postDetail", { post })}
                     onCompose={() => { void requireAccount().then(allowed => { if (allowed && shellNavigationRef.isReady()) shellNavigationRef.navigate("composePost"); }); }}
                     onOpen={props.onOpenBundle}
@@ -334,25 +342,8 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 {() => <NotificationsScreen onOpen={openNotice} />}
               </Tabs.Screen>
             </Tabs.Navigator>
-            </ScreenEdge>
+            </ScreenEdge></ProfileDrawer>
           )}
-        </Stack.Screen>
-        <Stack.Screen name="mine" options={{ presentation: "transparentModal", animation: "slide_from_right", contentStyle: { backgroundColor: "transparent" } }}>
-          {() => <View style={{ flex: 1, flexDirection: "row" }} accessibilityViewIsModal>
-            <Pressable accessibilityRole="button" accessibilityLabel="关闭我的抽屉" onPress={goBack} style={{ flex: 1, backgroundColor: "rgba(25,21,44,0.35)" }} />
-            <View style={{ width: Math.min(380, windowWidth * 0.9), backgroundColor: colors.canvas, borderLeftWidth: 0.5, borderLeftColor: colors.line }}>
-              <MineScreen onClose={goBack}
-                    onAccount={() => shellNavigationRef.navigate("account")}
-                    mode={props.mode}
-                    onApplications={() => shellNavigationRef.navigate("myApps")}
-                    onProviders={() => shellNavigationRef.navigate("providers")}
-                    onInfo={() => shellNavigationRef.navigate("info")}
-                    onCheckUpdates={props.onCheckUpdates}
-                    onSummary={() => shellNavigationRef.navigate("summary")}
-                    onAppearance={() => shellNavigationRef.navigate("appearance")}
-                  />
-            </View>
-          </View>}
         </Stack.Screen>
         <Stack.Screen name="marketDetail">
           {({ route }) => <MarketDetailScreen publish={route.params.publish} item={route.params.item} onBack={goBack} onOpen={props.onOpenBundle} onModify={(manifest, ownerId) => shellNavigationRef.navigate("applicationFeedback", { manifest, ownerId })} onSharePost={application => shellNavigationRef.navigate("composePost", { application })} onAuthor={openAuthor} />}

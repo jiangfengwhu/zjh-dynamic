@@ -8,9 +8,9 @@ import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages
 import { readSummaryEvery, subscribeSummaryEvery, SUMMARY_CHOICES } from "../../../../packages/ui/feed";
 
 type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
-type Props = { onClose?: () => void; mode: ThemeMode; onApplications: () => void; onAccount: () => void; onProviders: () => void; onInfo: () => void; onCheckUpdates: () => Promise<boolean>; onSummary: () => void; onAppearance: () => void };
+type Props = { drawer?: boolean; onClose?: () => void; mode: ThemeMode; onApplications: () => void; onAccount: () => void; onProviders: () => void; onInfo: () => void; onCheckUpdates: () => Promise<boolean>; onSummary: () => void; onAppearance: () => void };
 
-export const MineScreen = memo(function MineScreen({ onClose, mode, onApplications, onAccount, onProviders, onInfo, onCheckUpdates, onSummary, onAppearance }: Props) {
+export const MineScreen = memo(function MineScreen({ drawer, onClose, mode, onApplications, onAccount, onProviders, onInfo, onCheckUpdates, onSummary, onAppearance }: Props) {
   const { colors } = useTheme();
   const { user } = useAccount();
   const [summaryEvery, setSummaryEvery] = useState(() => readSummaryEvery());
@@ -23,7 +23,7 @@ export const MineScreen = memo(function MineScreen({ onClose, mode, onApplicatio
     catch { setCheck("failed"); }
   }
   return <Screen style={styles.screen}>
-    <PageHeader title="我的" right={onClose ? <Pressy accessibilityRole="button" accessibilityLabel="关闭我的抽屉" onPress={onClose} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Icon name="close" size={20} color={colors.ink1} /></Pressy> : undefined} />
+    {!drawer ? <PageHeader title="我的" right={onClose ? <Pressy accessibilityRole="button" accessibilityLabel="关闭我的抽屉" onPress={onClose} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Icon name="close" size={20} color={colors.ink1} /></Pressy> : undefined} /> : null}
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Animated.View entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}>
         <Pressy accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"} onPress={onAccount} style={styles.profile}>
@@ -43,6 +43,7 @@ export const MineScreen = memo(function MineScreen({ onClose, mode, onApplicatio
         <Row icon="cloud" title="检查更新" hint={check === "busy" ? "正在核对线上版本" : "每 30 分钟自动检查"} value={checkLabel(check)} warn={check === "failed"} disabled={check === "busy"} onPress={() => void checkUpdates()} />
         <Row icon="info" title="应用信息" hint="版本与本机安装信息" onPress={onInfo} last />
       </View>
+      {drawer && onClose ? <Pressy accessibilityRole="button" accessibilityLabel="收起我的抽屉" onPress={onClose} style={{ minHeight: 44, flexDirection: "row", gap: 8, alignItems: "center" }}><Icon name="back" size={18} color={colors.ink3} /><Text style={{ fontSize: 12, color: colors.ink3 }}>收起</Text></Pressy> : null}
     </ScrollView>
   </Screen>;
 });

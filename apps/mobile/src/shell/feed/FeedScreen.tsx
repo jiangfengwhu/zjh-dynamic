@@ -1,15 +1,10 @@
 import { PixelText as Text } from "./PixelText";
+import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  FlatList,
-  Pressable,
-  ScrollView,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { FlatList, Pressable, ScrollView, View } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -109,7 +104,6 @@ export const FeedScreen = memo(function FeedScreen({
     }, [colors.canvas, mode])
   );
   const userTimeline = useUserPosts();
-  const { width: screenWidth } = useWindowDimensions();
   const [loadingMore, setLoadingMore] = useState(false);
   const [timelineError, setTimelineError] = useState("");
   const [allPosts, setPosts] = useState<FeedPost[]>(() => readFeedPosts());
@@ -129,7 +123,7 @@ export const FeedScreen = memo(function FeedScreen({
   const [kind, setKind] = useState<FeedSlot | "user" | null>(null);
   const [cardsReady, setCardsReady] = useState(0);
   const [summarizing, setSummarizing] = useState(false);
-  const [, tickTime] = useState(0);
+  const [timeTick, tickTime] = useState(0);
   useFocusEffect(
     useCallback(() => {
       const timer = setInterval(() => tickTime((value) => value + 1), 60000);
@@ -300,14 +294,9 @@ export const FeedScreen = memo(function FeedScreen({
     dragging.value = false;
   }, [kind, scrollY, hiddenHeader, chromeHidden, dragging]);
 
-  // All is the rightmost page: left swipes open the drawer, right swipes enter User.
-  const categories = useMemo(
-    () => [...kinds].reverse() as FeedCategory[],
-    [kinds]
-  );
   const pages = useMemo(
-    () => [...categories, "user", null] as FeedCategory[],
-    [categories]
+    () => [null, "user", ...kinds] as FeedCategory[],
+    [kinds]
   );
   const pageRows = useMemo(
     () =>
@@ -326,29 +315,94 @@ export const FeedScreen = memo(function FeedScreen({
   const pager = useFeedPager({
     categories: pages,
     selected: kind,
-    width: screenWidth,
     blocked: phase === "refreshing" || phase === "done",
     onSelect: setKind,
-    onDrawer: onProfile,
   });
   const timelineGesture = useMemo(
     () => Gesture.Simultaneous(pager.gesture, gesture),
     [pager.gesture, gesture]
   );
-  const scrollGesture = useMemo(
-    () =>
-      Gesture.Native()
-        .requireExternalGestureToFail(pager.gesture, gesture)
-        .disallowInterruption(true),
-    [pager.gesture, gesture]
-  );
-
   const open = useCallback(
     async (appId: string) => {
       const at = latest[appId] ?? Date.now();
       if (await onOpen(appId)) markSeen(appId, at);
     },
     [latest, onOpen]
+  );
+
+  const renderPost = useCallback(
+    ({ item }: { item: (typeof timeline)[number] }) => {
+      if (item.type === "user") {
+        const post =
+          user && item.post.author.id === user.id
+            ? {
+                ...item.post,
+                author: {
+                  id: user.id,
+                  name: user.name,
+                  avatarUrl: user.avatarUrl,
+                },
+              }
+            : item.post;
+        return (
+          <View style={styles.post}>
+            <UserPostCard
+              post={post}
+              time={formatWhen(post.createdAt)}
+              own={user?.id === post.author.id}
+              onOpen={() => onPost(post)}
+              onApplication={onApplication}
+              onAuthor={onAuthor}
+            />
+          </View>
+        );
+      }
+      const post = item.post;
+      const friend = friends.get(post.appId) ?? {
+        id: post.appId,
+        name: post.appId,
+        mark: "友",
+        accent: colors.accent,
+      };
+      const Template =
+        cardsReady >= 0 && post.kind !== "summary"
+          ? peekFeedTemplate(post.appId, post.kind as FeedKind)
+          : undefined;
+      return (
+        <View>
+          <View style={styles.post}>
+            <CardSlot
+              Template={Template}
+              card={{
+                post,
+                friend,
+                kindLabel: KIND_LABEL[post.kind],
+                time: formatWhen(post.createdAt),
+                unread: post.createdAt > (seen[post.appId] ?? 0),
+                liked: liked.has(post.id),
+                onOpen: () => open(post.appId),
+                onLike: () => toggleLike(post.id),
+                onReply: () => onReply(post.appId),
+              }}
+            />
+          </View>
+        </View>
+      );
+    },
+    [
+      user,
+      onPost,
+      onApplication,
+      onAuthor,
+      cardsReady,
+      friends,
+      colors.accent,
+      seen,
+      liked,
+      open,
+      onReply,
+      timeTick,
+    ]
   );
 
   return (
@@ -389,7 +443,7 @@ export const FeedScreen = memo(function FeedScreen({
                           style={styles.profileAvatar}
                         />
                       ) : (
-                        <PixelAvatar size={34} />
+                        <PixelAvatar size={36} />
                       )}
                     </Pressy>
                     <View style={styles.headerCopy}>
@@ -403,7 +457,7 @@ export const FeedScreen = memo(function FeedScreen({
                   </View>
                   <ScrollView
                     horizontal
-                    showsHorizontalScrollIndicator
+                    showsHorizontalScrollIndicator={false}
                     style={{ flexGrow: 0 }}
                     contentContainerStyle={styles.tabs}
                   >
@@ -434,234 +488,176 @@ export const FeedScreen = memo(function FeedScreen({
 
               <GestureDetector gesture={timelineGesture}>
                 <View style={styles.pullHost}>
-                  <Animated.View
-                    style={[
-                      {
-                        flex: 1,
-                        flexDirection: "row",
-                        width: screenWidth * pages.length,
-                      },
-                      pager.motion,
-                    ]}
-                  >
-                    {pageRows.map(
-                      ({ category: pageKind, items: visible }, pageIndex) => (
-                        <View
-                          key={pageKind ?? "all"}
-                          collapsable={false}
-                          style={{ width: screenWidth, height: "100%" }}
-                        >
-                          {Math.abs(pageIndex - pager.index) <= 1 ? (
-                            <FeedListGesture
-                              active={pageKind === kind}
-                              gesture={scrollGesture}
-                            >
-                              <Animated.FlatList
-                                ref={(node) => {
-                                  if (node) lists.current.set(pageKind, node);
-                                  else lists.current.delete(pageKind);
-                                }}
-                                data={visible}
-                                ItemSeparatorComponent={FeedSeparator}
-                                keyExtractor={(item) =>
-                                  `${item.type}-${item.post.id}`
-                                }
-                                initialNumToRender={8}
-                                maxToRenderPerBatch={6}
-                                windowSize={7}
-                                removeClippedSubviews={false}
-                                style={styles.scroll}
-                                contentContainerStyle={[
-                                  styles.content,
-                                  bottomSpace,
-                                  { minHeight: viewportSize + headerSize },
-                                ]}
-                                showsVerticalScrollIndicator
-                                onScroll={
-                                  pageKind === kind ? onScroll : undefined
-                                }
-                                scrollEventThrottle={16}
-                                overScrollMode="never"
-                                bounces={false}
-                                scrollEnabled={
-                                  phase !== "refreshing" && phase !== "done"
-                                }
-                                ListHeaderComponent={
-                                  <View>
-                                    <View style={{ height: headerSize }} />
-                                    <Animated.View style={refreshSpace}>
-                                      <PullIndicator
-                                        pull={pull}
-                                        phase={phase}
-                                      />
-                                    </Animated.View>
-                                    {timelineError ? (
-                                      <Text
-                                        style={{
-                                          color: colors.ink3,
-                                          padding: 16,
-                                          fontSize: 12,
-                                        }}
-                                      >
-                                        {timelineError}
-                                      </Text>
-                                    ) : null}
-                                  </View>
-                                }
-                                ListEmptyComponent={
-                                  <View style={styles.empty}>
-                                    <PixelAvatar size={80} />
-                                    <Text style={styles.emptyTitle}>
-                                      {pageKind === "user"
-                                        ? "还没有用户动态"
-                                        : "这里还很安静"}
-                                    </Text>
-                                    <Text style={styles.emptyBody}>
-                                      分享一个想法，或换个分类看看。
-                                    </Text>
-                                    <Pressy
-                                      accessibilityLabel="发布第一条动态"
-                                      onPress={onCompose}
-                                      style={styles.compose}
-                                    >
-                                      <PixelIcon
-                                        name="plus"
-                                        size={14}
-                                        color={colors.onAccent}
-                                      />
-                                      <Text
-                                        style={{
-                                          color: colors.onAccent,
-                                          fontWeight: "700",
-                                        }}
-                                      >
-                                        发第一条动态
-                                      </Text>
-                                    </Pressy>
-                                  </View>
-                                }
-                                renderItem={({ item }) => {
-                                  if (item.type === "user") {
-                                    const post =
-                                      user && item.post.author.id === user.id
-                                        ? {
-                                            ...item.post,
-                                            author: {
-                                              id: user.id,
-                                              name: user.name,
-                                              avatarUrl: user.avatarUrl,
-                                            },
-                                          }
-                                        : item.post;
-                                    return (
-                                      <View style={styles.post}>
-                                        <UserPostCard
-                                          post={post}
-                                          time={formatWhen(post.createdAt)}
-                                          own={user?.id === post.author.id}
-                                          onOpen={() => onPost(post)}
-                                          onApplication={onApplication}
-                                          onAuthor={onAuthor}
-                                        />
-                                      </View>
-                                    );
+                  <GestureDetector gesture={pager.nativeGesture}>
+                    <PagerView
+                      ref={pager.ref}
+                      initialPage={0}
+                      style={styles.scroll}
+                      layoutDirection="ltr"
+                      offscreenPageLimit={1}
+                      overScrollMode="never"
+                      scrollEnabled={phase !== "refreshing" && phase !== "done"}
+                      onPageSelected={pager.onPageSelected}
+                    >
+                      {pageRows.map(
+                        ({ category: pageKind, items: visible }) => (
+                          <View
+                            key={pageKind ?? "all"}
+                            collapsable={false}
+                            style={{ width: "100%", height: "100%" }}
+                          >
+                            {pager.mounted.has(pageKind) ||
+                            pageKind === kind ? (
+                              <FeedListGesture
+                                pull={gesture}
+                                drawer={pager.gesture}
+                                pager={pager.nativeGesture}
+                              >
+                                <Animated.FlatList
+                                  ref={(node) => {
+                                    if (node) lists.current.set(pageKind, node);
+                                    else lists.current.delete(pageKind);
+                                  }}
+                                  data={visible}
+                                  ItemSeparatorComponent={FeedSeparator}
+                                  keyExtractor={(item) =>
+                                    `${item.type}-${item.post.id}`
                                   }
-                                  const post = item.post;
-                                  const friend = friends.get(post.appId) ?? {
-                                    id: post.appId,
-                                    name: post.appId,
-                                    mark: "友",
-                                    accent: colors.accent,
-                                  };
-                                  const Template =
-                                    cardsReady >= 0 && post.kind !== "summary"
-                                      ? peekFeedTemplate(
-                                          post.appId,
-                                          post.kind as FeedKind
-                                        )
-                                      : undefined;
-                                  return (
+                                  initialNumToRender={8}
+                                  maxToRenderPerBatch={6}
+                                  windowSize={7}
+                                  removeClippedSubviews={false}
+                                  style={styles.scroll}
+                                  contentContainerStyle={[
+                                    styles.content,
+                                    bottomSpace,
+                                    { minHeight: viewportSize + headerSize },
+                                  ]}
+                                  showsVerticalScrollIndicator={false}
+                                  onScroll={
+                                    pageKind === kind ? onScroll : undefined
+                                  }
+                                  scrollEventThrottle={16}
+                                  overScrollMode="never"
+                                  bounces={false}
+                                  scrollEnabled={
+                                    phase !== "refreshing" && phase !== "done"
+                                  }
+                                  ListHeaderComponent={
                                     <View>
-                                      <View style={styles.post}>
-                                        <CardSlot
-                                          Template={Template}
-                                          card={{
-                                            post,
-                                            friend,
-                                            kindLabel: KIND_LABEL[post.kind],
-                                            time: formatWhen(post.createdAt),
-                                            unread:
-                                              post.createdAt >
-                                              (seen[post.appId] ?? 0),
-                                            liked: liked.has(post.id),
-                                            onOpen: () => open(post.appId),
-                                            onLike: () => toggleLike(post.id),
-                                            onReply: () => onReply(post.appId),
-                                          }}
+                                      <View style={{ height: headerSize }} />
+                                      <Animated.View style={refreshSpace}>
+                                        <PullIndicator
+                                          pull={pull}
+                                          phase={phase}
                                         />
-                                      </View>
-                                    </View>
-                                  );
-                                }}
-                                ListFooterComponent={
-                                  <View>
-                                    {(pageKind === null ||
-                                      pageKind === "user") &&
-                                    userTimeline.nextCursor ? (
-                                      <Pressable
-                                        disabled={loadingMore}
-                                        onPress={() => {
-                                          setLoadingMore(true);
-                                          void loadMoreUserPosts()
-                                            .catch((error) =>
-                                              Toast.show({
-                                                type: "error",
-                                                text1: "加载失败",
-                                                text2: error.message,
-                                              })
-                                            )
-                                            .finally(() =>
-                                              setLoadingMore(false)
-                                            );
-                                        }}
-                                        style={{
-                                          alignItems: "center",
-                                          padding: 16,
-                                        }}
-                                      >
+                                      </Animated.View>
+                                      {timelineError ? (
                                         <Text
-                                          style={{ color: colors.accentText }}
+                                          style={{
+                                            color: colors.ink3,
+                                            padding: 16,
+                                            fontSize: 12,
+                                          }}
                                         >
-                                          {loadingMore
-                                            ? "正在加载…"
-                                            : "加载更多用户动态"}
+                                          {timelineError}
                                         </Text>
-                                      </Pressable>
-                                    ) : null}
-                                    {visible.length > 0 &&
-                                    (!userTimeline.nextCursor ||
-                                      (pageKind !== null &&
-                                        pageKind !== "user")) ? (
-                                      <View style={styles.end}>
+                                      ) : null}
+                                    </View>
+                                  }
+                                  ListEmptyComponent={
+                                    <View style={styles.empty}>
+                                      <PixelAvatar size={80} />
+                                      <Text style={styles.emptyTitle}>
+                                        {pageKind === "user"
+                                          ? "还没有用户动态"
+                                          : "这里还很安静"}
+                                      </Text>
+                                      <Text style={styles.emptyBody}>
+                                        分享一个想法，或换个分类看看。
+                                      </Text>
+                                      <Pressy
+                                        accessibilityLabel="发布第一条动态"
+                                        onPress={onCompose}
+                                        style={styles.compose}
+                                      >
                                         <PixelIcon
-                                          name="spark"
-                                          size={16}
-                                          color={colors.accentText}
+                                          name="plus"
+                                          size={14}
+                                          color={colors.onAccent}
                                         />
-                                        <Text style={styles.endText}>
-                                          已浏览全部动态
+                                        <Text
+                                          style={{
+                                            color: colors.onAccent,
+                                            fontWeight: "700",
+                                          }}
+                                        >
+                                          发第一条动态
                                         </Text>
-                                      </View>
-                                    ) : null}
-                                  </View>
-                                }
-                              />
-                            </FeedListGesture>
-                          ) : null}
-                        </View>
-                      )
-                    )}
-                  </Animated.View>
+                                      </Pressy>
+                                    </View>
+                                  }
+                                  renderItem={renderPost}
+                                  ListFooterComponent={
+                                    <View>
+                                      {(pageKind === null ||
+                                        pageKind === "user") &&
+                                      userTimeline.nextCursor ? (
+                                        <Pressable
+                                          disabled={loadingMore}
+                                          onPress={() => {
+                                            setLoadingMore(true);
+                                            void loadMoreUserPosts()
+                                              .catch((error) =>
+                                                Toast.show({
+                                                  type: "error",
+                                                  text1: "加载失败",
+                                                  text2: error.message,
+                                                })
+                                              )
+                                              .finally(() =>
+                                                setLoadingMore(false)
+                                              );
+                                          }}
+                                          style={{
+                                            alignItems: "center",
+                                            padding: 16,
+                                          }}
+                                        >
+                                          <Text
+                                            style={{ color: colors.accentText }}
+                                          >
+                                            {loadingMore
+                                              ? "正在加载…"
+                                              : "加载更多用户动态"}
+                                          </Text>
+                                        </Pressable>
+                                      ) : null}
+                                      {visible.length > 0 &&
+                                      (!userTimeline.nextCursor ||
+                                        (pageKind !== null &&
+                                          pageKind !== "user")) ? (
+                                        <View style={styles.end}>
+                                          <PixelIcon
+                                            name="spark"
+                                            size={16}
+                                            color={colors.accentText}
+                                          />
+                                          <Text style={styles.endText}>
+                                            已浏览全部动态
+                                          </Text>
+                                        </View>
+                                      ) : null}
+                                    </View>
+                                  }
+                                />
+                              </FeedListGesture>
+                            ) : null}
+                          </View>
+                        )
+                      )}
+                    </PagerView>
+                  </GestureDetector>
                 </View>
               </GestureDetector>
               <Animated.View style={[styles.composeDock, composePosition]}>
@@ -690,19 +686,24 @@ export const FeedScreen = memo(function FeedScreen({
   );
 });
 function FeedListGesture({
-  active,
-  gesture,
+  pull,
+  drawer,
+  pager,
   children,
 }: {
-  active: boolean;
-  gesture: ReturnType<typeof Gesture.Native>;
+  pull: ReturnType<typeof Gesture.Pan>;
+  drawer: ReturnType<typeof Gesture.Pan>;
+  pager: ReturnType<typeof Gesture.Native>;
   children: import("react").ReactElement;
 }) {
-  return active ? (
-    <GestureDetector gesture={gesture}>{children}</GestureDetector>
-  ) : (
-    children
+  const native = useMemo(
+    () =>
+      Gesture.Native()
+        .requireExternalGestureToFail(pull, drawer)
+        .simultaneousWithExternalGesture(pager),
+    [pull, drawer, pager]
   );
+  return <GestureDetector gesture={native}>{children}</GestureDetector>;
 }
 function FeedSeparator() {
   return <View style={styles.separator} />;
@@ -791,22 +792,22 @@ const styles = themedStyleSheet((base) => {
       height: 44,
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 2,
-      borderColor: t.line,
-      marginLeft: 4,
+      borderWidth: 0,
+      marginLeft: -9,
       borderRadius: 22,
       overflow: "hidden",
     },
-    profileAvatar: { width: 34, height: 34, borderRadius: 17 },
+    profileAvatar: { width: 36, height: 36, borderRadius: 18 },
     header: {
       backgroundColor: t.canvas,
-      paddingHorizontal: 16,
+      paddingLeft: 16,
+      paddingRight: 24,
       paddingBottom: 0,
     },
     headerRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 2,
+      gap: 5,
       paddingTop: 8,
     },
     headerCopy: { flex: 1, minWidth: 0, gap: 3 },
@@ -845,7 +846,7 @@ const styles = themedStyleSheet((base) => {
       borderRadius: 0,
       backgroundColor: "transparent",
     },
-    post: { paddingVertical: 3, paddingRight: 12 },
+    post: { paddingVertical: 3, paddingRight: 24 },
     separator: { height: 0.5, marginHorizontal: 16, backgroundColor: t.line },
     empty: {
       marginHorizontal: 16,
