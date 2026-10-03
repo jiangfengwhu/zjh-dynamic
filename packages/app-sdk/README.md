@@ -72,3 +72,12 @@ getAppContext() 提供存储、文件、资源、动态、导航、剪贴板、�
 AI 使用 getAppContext().ai：listProviders() 获取模型信息，complete({ messages, providerId?, temperature?, maxTokens? }) 请求文本，openSettings() 打开宿主配置页。密钥由原生宿主保存，请求从本机发送至用户配置的服务商；不向应用暴露密钥。失败保留输入并提示，不自动重试；当前不支持流式、图片或工具调用，完整参数和结果见 SDK 类型。
 
 @zijinhua/app-sdk/creation 提供宿主授权给 Jolly 的制作服务，普通应用不能直接获得制作权限。服务按 appId 绑定 session，读取聚合进展和历史，只检查或更新目标应用。缓存用于展示，不代替写操作的实时鉴权。
+
+
+### 动态内容模板
+
+用户动态、宿主默认动态和应用的 PostFrame 共用同一渲染结构：左侧圆形头像；右侧姓名和时间、内容区、评论／点赞／分享。应用登记的动态组件使用 PostFrame，将自定义 JSX 放入 content；只有姓名行与交互栏之间的内容区支持业务自绘。content 可以包含正文、图片、状态、进度和业务控件，不再重复绘制头像、姓名时间或底部交互栏。传 null 留空，未传时仍使用默认正文；body、children 兼容既有组件。用户动态的菜单、图片预览和请求状态仍由宿主处理。
+
+```tsx
+return <PostFrame {...card} content={<MyPostContent post={card.post} />} />;
+```

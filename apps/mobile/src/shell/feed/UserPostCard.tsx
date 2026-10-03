@@ -1,13 +1,8 @@
+import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
 import { PixelText as Text } from "./PixelText";
 import { useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Pressable,
-  Share,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Alert, Pressable, Share, StyleSheet, View } from "react-native";
 import { EdgeModal } from "../../../../../packages/ui/edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";
@@ -19,7 +14,6 @@ import { requireAccount } from "../account";
 import { deleteUserPost, setPostLike, type UserPost } from "./userPosts";
 import { PostMenu } from "./PostMenu";
 import { edgeUrl } from "../evolveHost";
-import { Pressy } from "../../../../../packages/ui/chrome";
 import { ApplicationPostCard } from "./ApplicationPostCard";
 
 export function UserPostCard({
@@ -117,87 +111,74 @@ export function UserPostCard({
     </View>
   );
   return (
-    <View style={styles.row}>
-      {onAuthor ? (
-        <Pressy
-          style={styles.avatarControl}
-          accessibilityLabel={`查看${post.author.name}的主页`}
-          onPress={() => onAuthor(post.author)}
-        >
-          {avatar}
-        </Pressy>
-      ) : (
-        <View style={styles.avatarControl}>{avatar}</View>
-      )}
-      <View style={styles.content}>
-        <View style={styles.heading}>
-          <View style={styles.identity}>
-            {onAuthor ? (
-              <Pressy
-                accessibilityLabel={`查看${post.author.name}的主页`}
-                onPress={() => onAuthor?.(post.author)}
-                style={{ flexShrink: 1, minWidth: 0 }}
-              >
-                <Text style={styles.name} numberOfLines={1}>
-                  {post.author.name}
-                </Text>
-              </Pressy>
-            ) : (
-              <Text style={styles.name} numberOfLines={1}>
-                {post.author.name}
-              </Text>
-            )}
-            <Text style={styles.time} numberOfLines={1}>
-              · {time}
-            </Text>
-          </View>
+    <>
+      <FeedItemFrame
+        avatar={avatar}
+        name={post.author.name}
+        time={time}
+        onIdentity={onAuthor ? () => onAuthor(post.author) : undefined}
+        menu={
           <PostMenu
             busy={busy}
             onDelete={own ? remove : undefined}
             onCopy={copy}
             onShare={share}
           />
-        </View>
-        {post.body ? (
-          <Text
-            accessibilityRole={onOpen ? "button" : undefined}
-            accessibilityLabel={onOpen ? "打开动态详情" : undefined}
-            onPress={onOpen}
-            selectable={detail}
-            style={[styles.body, detail && styles.detailBody]}
-          >
-            {post.body}
-          </Text>
-        ) : null}
-        {post.images.length ? (
-          <View style={styles.images}>
-            {post.images.map((image) => (
-              <Pressable
-                key={image.id}
-                accessibilityLabel="查看大图"
-                onPress={() => setPreview(image.url)}
-                style={[
-                  styles.imageCell,
-                  post.images.length === 1 && styles.singleImage,
-                ]}
+        }
+        content={
+          <>
+            {post.body ? (
+              <Text
+                accessibilityRole={onOpen ? "button" : undefined}
+                accessibilityLabel={onOpen ? "打开动态详情" : undefined}
+                onPress={onOpen}
+                selectable={detail}
+                style={[styles.body, detail && styles.detailBody]}
               >
-                <AppImage
-                  source={{ uri: image.url }}
-                  resizeMode={"cover"}
-                  style={styles.image}
-                />
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-        {post.application ? (
-          <ApplicationPostCard
-            application={post.application}
-            onOpen={onApplication}
+                {post.body}
+              </Text>
+            ) : null}
+            {post.images.length ? (
+              <View style={styles.images}>
+                {post.images.map((image) => (
+                  <Pressable
+                    key={image.id}
+                    accessibilityLabel="查看大图"
+                    onPress={() => setPreview(image.url)}
+                    style={[
+                      styles.imageCell,
+                      post.images.length === 1 && styles.singleImage,
+                    ]}
+                  >
+                    <AppImage
+                      source={{ uri: image.url }}
+                      resizeMode={"cover"}
+                      style={styles.image}
+                    />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {post.application ? (
+              <ApplicationPostCard
+                application={post.application}
+                onOpen={onApplication}
+              />
+            ) : null}
+          </>
+        }
+        actions={
+          <FeedActionBar
+            liked={!!post.liked}
+            busy={liking}
+            comments={post.commentCount}
+            likes={post.likeCount}
+            onComment={onOpen}
+            onLike={() => void like()}
+            onShare={share}
           />
-        ) : null}
-        <FeedActionBar liked={!!post.liked} busy={liking} comments={post.commentCount} likes={post.likeCount} onComment={onOpen} onLike={() => void like()} onShare={share} />
-      </View>
+        }
+      />
       <EdgeModal
         visible={!!preview}
         transparent
@@ -224,23 +205,11 @@ export function UserPostCard({
           </Pressable>
         </View>
       </EdgeModal>
-    </View>
+    </>
   );
 }
 const makeStyles = (t: Theme) =>
   StyleSheet.create({
-    row: {
-      flexDirection: "row",
-      paddingHorizontal: 6,
-      paddingVertical: 7,
-      gap: 5,
-    },
-    avatarControl: {
-      width: 44,
-      height: 44,
-      alignItems: "center",
-      justifyContent: "flex-start",
-    },
     avatar: {
       width: 36,
       height: 36,
@@ -254,28 +223,6 @@ const makeStyles = (t: Theme) =>
       justifyContent: "center",
     },
     initial: { fontSize: 20, color: t.accentText },
-    content: { flex: 1, minWidth: 0, gap: 3 },
-    heading: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginTop: -3,
-      marginRight: -8,
-    },
-    identity: {
-      flex: 1,
-      minWidth: 0,
-      flexDirection: "row",
-      alignItems: "baseline",
-      gap: 3,
-    },
-    name: { flexShrink: 1, fontSize: 15, fontWeight: "700", color: t.ink1 },
-    time: {
-      flexShrink: 1,
-      fontSize: 11,
-      lineHeight: 16,
-      color: t.ink3,
-      fontFamily: t.mono,
-    },
     body: { fontSize: 15, lineHeight: 22, color: t.ink1 },
     detailBody: { fontSize: 16, lineHeight: 24 },
     images: { flexDirection: "row", flexWrap: "wrap", gap: 2, marginTop: 2 },

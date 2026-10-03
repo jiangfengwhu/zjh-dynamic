@@ -86,3 +86,5 @@ components:
 全局 RN Text / TextInput 在宿主初始化时统一使用像素字体，主题三个字体 token 一致。分类栏属于滚动显隐头部；右下角发布只显示加号。用户与应用动态共用 FeedActionBar，操作栏无边框，item 使用浅色 0.5 分割线。
 
 顶部滚动：头部偏移不得超过列表实际偏移。列表尚未滚过整个头部时不吸附隐藏，消除轻滑后的占位空白。头部不再绘制滚动态底线；分类底部不加额外 padding。
+
+统一动态骨架由 packages/ui/feed/kit/FeedItemFrame.tsx 持有。UserPostCard、PostFrame 和 PixelPostFrame 复用其头像列、姓名时间、内容插槽和操作栏位置。红框对应 PostFrame.content，仅自绘该区；头像、标题、菜单和操作栏由同一骨架定位，菜单不增加头部高度。

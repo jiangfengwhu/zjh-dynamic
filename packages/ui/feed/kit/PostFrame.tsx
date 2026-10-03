@@ -1,3 +1,4 @@
+import { FeedItemFrame, FeedItemHeading } from "./FeedItemFrame";
 import { FeedActionBar } from "./FeedActionBar";
 import { FeedText as Text, useCompactFeed } from "./FeedPresentation";
 import { memo, type ReactNode } from "react";
@@ -46,8 +47,6 @@ export function kindTone(
 
 /** 头像所在的一列，和上面那行小字的图标、下面的正文都以它为准对齐。 */
 const AVATAR = 36;
-const GUTTER = 10;
-const SIDE = 14;
 
 /** 头像。点一下去 TA 的主页。 */
 export const PostAvatar = memo(function PostAvatar({
@@ -72,19 +71,13 @@ export const PostHead = memo(function PostHead({
   time,
   unread,
 }: Pick<FeedCardProps, "friend" | "time" | "unread">) {
-  const styles = useFeedStyles();
   return (
-    <View style={styles.head}>
-      <Text style={styles.name} numberOfLines={1}>
-        {friend.name}
-      </Text>
-      <Text style={styles.time} numberOfLines={1}>
-        · {time}
-      </Text>
-      {unread ? (
-        <View style={[styles.dot, { backgroundColor: friend.accent }]} />
-      ) : null}
-    </View>
+    <FeedItemHeading
+      name={friend.name}
+      time={time}
+      unread={unread}
+      accent={friend.accent}
+    />
   );
 });
 
@@ -186,7 +179,7 @@ export function PostAttachment({
 
 /**
  * 默认的一条动态：左边头像，右边依次是名字和时间、正文、附件、操作。
- * 没有卡片外框，条与条之间以紧凑留白区分。朋友登记的卡片也交给它：
+ * 外层与用户动态共用 FeedItemFrame，条目分隔由宿主列表负责。朋友登记的卡片也交给它：
  * App 优先使用 content 自绘名字与操作栏之间的完整区域，无默认正文、底色、边框或内边距。
  * body 和 children 保留兼容；没有自定义内容时才使用默认正文。
  */
@@ -199,7 +192,7 @@ export const PostFrame = memo(function PostFrame({
   ...card
 }: FeedCardProps & {
   children?: ReactNode;
-  /** 完整内容区域，包括正文和交互控件；传 null 可以留空。 */
+  /** 名字与操作栏之间的完整自定义内容区；可含正文、媒体和业务控件，传 null 留空。 */
   content?: ReactNode;
   /** 替换正文。不传就用 post.body，传 null 则不显示正文。 */
   body?: ReactNode;
@@ -215,76 +208,33 @@ export const PostFrame = memo(function PostFrame({
       accessibilityRole="button"
       accessibilityLabel={`${card.friend.name}的动态，打开主页`}
       onPress={card.onOpen}
-      style={({ pressed }) => [
-        styles.row,
-        pressed && { backgroundColor: colors.inset },
-        style,
-      ]}
+      style={({ pressed }) => [pressed && { backgroundColor: colors.inset }]}
     >
-      <View style={styles.main}>
-        <PostAvatar friend={card.friend} onOpen={card.onOpen} />
-        <View style={styles.column}>
-          <PostHead
-            friend={card.friend}
-            time={card.time}
-            unread={card.unread}
-          />
-          {content !== undefined ? (
+      <FeedItemFrame
+        avatar={<FriendAvatar friend={card.friend} size={AVATAR} />}
+        name={card.friend.name}
+        time={card.time}
+        unread={card.unread}
+        accent={card.friend.accent}
+        onIdentity={card.onOpen}
+        style={style}
+        content={
+          content !== undefined ? (
             content
           ) : (
             <>
               {lead ? <View style={styles.lead}>{lead}</View> : null}
               {children ? <View style={styles.extra}>{children}</View> : null}
             </>
-          )}
-          <PostActions {...card} />
-        </View>
-      </View>
+          )
+        }
+        actions={<PostActions {...card} />}
+      />
     </Pressable>
   );
 });
 
 const styleFactory = (t: Theme) => ({
-  row: {
-    paddingTop: 8,
-    paddingBottom: 5,
-    paddingHorizontal: SIDE,
-  },
-  main: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: GUTTER,
-  },
-  column: {
-    flex: 1,
-    minWidth: 0,
-  },
-  head: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    minHeight: 18,
-  },
-  name: {
-    flexShrink: 1,
-    fontFamily: t.serif,
-    fontSize: 14.5,
-    lineHeight: 19,
-    fontWeight: "700",
-    color: t.ink1,
-  },
-  time: {
-    flexShrink: 1,
-    fontSize: 11,
-    lineHeight: 17,
-    fontFamily: t.mono,
-    color: t.ink3,
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-  },
   lead: {
     marginTop: 1,
   },
