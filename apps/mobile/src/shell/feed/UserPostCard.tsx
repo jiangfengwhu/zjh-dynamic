@@ -1,8 +1,9 @@
+import { PixelAlert as Alert } from "../PixelAlert";
 import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
 import { PixelText as Text } from "./PixelText";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, Share, StyleSheet, View } from "react-native";
+import { Pressable, Share, StyleSheet, View } from "react-native";
 import { EdgeModal } from "../../../../../packages/ui/edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";

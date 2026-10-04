@@ -1,6 +1,7 @@
+import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
 import { useRouteContentReady } from "./useRouteContentReady";
-import { ActivityIndicator, Alert, Image, Text, View } from "react-native";
+import { ActivityIndicator, Image, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { FormField as TextInput } from "./FormField";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";

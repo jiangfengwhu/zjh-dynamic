@@ -1,10 +1,20 @@
+import { pixelTheme } from "../pixelTheme";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View, type ViewProps } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ViewProps,
+} from "react-native";
 import { EdgeModal as Modal } from "../edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import { themedStyleSheet, useTheme } from "../theme";
 
-const DrawerContext = createContext<{ open: boolean; setOpen: (v: boolean) => void }>({
+const DrawerContext = createContext<{
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}>({
   open: false,
   setOpen: () => {},
 });
@@ -50,9 +60,17 @@ export function DrawerContent({ children }: { children: ReactNode }) {
   const { open, setOpen } = useContext(DrawerContext);
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+    <Modal
+      visible={open}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setOpen(false)}
+    >
       <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-        <Pressable style={[styles.drawer, { paddingBottom: 26 + insets.bottom }]} onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          style={[styles.drawer, { paddingBottom: 26 + insets.bottom }]}
+          onPress={(e) => e.stopPropagation()}
+        >
           <View style={styles.handle} />
           {children}
         </Pressable>
@@ -81,45 +99,50 @@ export function DrawerDescription({ children }: { children: ReactNode }) {
   return <Text style={styles.desc}>{children}</Text>;
 }
 
-const styles = themedStyleSheet(() => ({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "flex-end",
-  },
-  drawer: {
-    backgroundColor: theme.surfaceRaised,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.lineStrong,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 26,
-    gap: 12,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.lineStrong,
-    alignSelf: "center",
-    marginBottom: 4,
-  },
-  header: {
-    gap: 4,
-  },
-  footer: {
-    gap: 8,
-    marginTop: 4,
-  },
-  title: {
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  desc: {
-    color: theme.muted,
-    fontSize: 13,
-  },
-}));
+const styles = themedStyleSheet((base) => {
+  const t = pixelTheme(base);
+  return {
+    backdrop: {
+      flex: 1,
+      backgroundColor: "rgba(25,21,44,0.46)",
+      justifyContent: "flex-end",
+    },
+    drawer: {
+      backgroundColor: t.canvas,
+      borderTopLeftRadius: 12,
+      borderTopRightRadius: 12,
+      borderTopWidth: 0.5,
+      borderTopColor: t.lineStrong,
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: 26,
+      gap: 10,
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: t.accent,
+      alignSelf: "center",
+      marginBottom: 4,
+    },
+    header: {
+      gap: 4,
+    },
+    footer: {
+      gap: 8,
+      marginTop: 4,
+    },
+    title: {
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 16,
+      fontWeight: "normal",
+    },
+    desc: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 13,
+    },
+  };
+});

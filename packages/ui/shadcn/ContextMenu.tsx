@@ -1,7 +1,8 @@
+import { pixelTheme } from "../pixelTheme";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { EdgeModal as Modal } from "../edge";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import { themedStyleSheet, useTheme } from "../theme";
 
 const ContextMenuContext = createContext<{
   open: boolean;
@@ -35,7 +36,12 @@ export function ContextMenuContent({ children }: { children: ReactNode }) {
   useTheme();
   const { open, setOpen } = useContext(ContextMenuContext);
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setOpen(false)}
+    >
       <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
         <View style={styles.menu}>{children}</View>
       </Pressable>
@@ -64,7 +70,11 @@ export function ContextMenuItem({
         onSelect?.();
         setOpen(false);
       }}
-      style={[styles.item, inset && { paddingLeft: 24 }, disabled && { opacity: 0.4 }]}
+      style={[
+        styles.item,
+        inset && { paddingLeft: 24 },
+        disabled && { opacity: 0.4 },
+      ]}
     >
       <Text style={styles.itemText}>{children}</Text>
       {shortcut ? <Text style={styles.shortcut}>{shortcut}</Text> : null}
@@ -87,49 +97,55 @@ export function ContextMenuShortcut({ children }: { children: ReactNode }) {
   return <Text style={styles.shortcut}>{children}</Text>;
 }
 
-const styles = themedStyleSheet(() => ({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  menu: {
-    width: 220,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.surfaceRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.lineStrong,
-    padding: 5,
-    gap: 2,
-  },
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingVertical: 7,
-    borderRadius: theme.radius.xs,
-  },
-  itemText: {
-    color: theme.text,
-    fontSize: 13,
-  },
-  shortcut: {
-    color: theme.muted,
-    fontSize: 11,
-  },
-  label: {
-    color: theme.ink3,
-    fontSize: 11,
-    fontWeight: "600",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  sep: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.line,
-    marginVertical: 3,
-  },
-}));
+const styles = themedStyleSheet((base) => {
+  const t = pixelTheme(base);
+  return {
+    backdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    menu: {
+      width: 220,
+      borderRadius: t.radius.md,
+      backgroundColor: t.canvas,
+      borderWidth: 0.5,
+      borderColor: t.lineStrong,
+      padding: 5,
+      gap: 2,
+    },
+    item: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 8,
+      paddingVertical: 7,
+      borderRadius: t.radius.xs,
+    },
+    itemText: {
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 13,
+    },
+    shortcut: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 11,
+    },
+    label: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 11,
+      fontWeight: "normal",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    sep: {
+      height: 0.5,
+      backgroundColor: t.line,
+      marginVertical: 3,
+    },
+  };
+});

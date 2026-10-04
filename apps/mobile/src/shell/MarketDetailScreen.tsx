@@ -1,3 +1,4 @@
+import { PixelAlert as Alert } from "./PixelAlert";
 import {
   currentAccountId,
   requireAccount,
@@ -6,7 +7,7 @@ import {
 } from "./account";
 import { openApplicationWorkshop } from "./workshopNavigation";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import {
   KeyboardAwareScrollView as ScrollView,
   type KeyboardAwareScrollViewRef,

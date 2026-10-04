@@ -1,26 +1,172 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Text } from "react-native";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView, type BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
-import { PixelIcon } from "./PixelKit";
+import { Pressable, View } from "react-native";
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetView,
+  useBottomSheetTimingConfigs,
+  type BottomSheetBackdropProps,
+} from "@gorhom/bottom-sheet";
+import { ReduceMotion } from "react-native-reanimated";
+import { PixelIcon, type PixelSymbol } from "./PixelKit";
+import { PixelText as Text } from "./PixelText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Pressy } from "../../../../../packages/ui/chrome";
-import { useTheme } from "../../../../../packages/ui/theme";
+import { usePixelTheme } from "./pixelTheme";
 
-export function PostMenu({ onDelete, onCopy, onShare, busy = false }: { onDelete?: () => void; onCopy: () => void; onShare?: () => void; busy?: boolean }) {
+export function PostMenu({
+  onDelete,
+  onCopy,
+  onShare,
+  busy = false,
+}: {
+  onDelete?: () => void;
+  onCopy: () => void;
+  onShare?: () => void;
+  busy?: boolean;
+}) {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme(); const modal = useRef<BottomSheetModal>(null);
-  const backdrop = useCallback((props: BottomSheetBackdropProps) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />, []);
-  useEffect(() => () => { modal.current?.dismiss(); }, []);
-  function action(callback: () => void) { modal.current?.dismiss(); callback(); }
-  return <>
-    <Pressy accessibilityRole="button" accessibilityLabel="更多操作" disabled={busy} onPress={() => modal.current?.present()} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><PixelIcon name="more" size={21} color={colors.ink3} /></Pressy>
-    <BottomSheetModal ref={modal} enableDynamicSizing backdropComponent={backdrop} backgroundStyle={{ backgroundColor: colors.surfaceRaised }} handleIndicatorStyle={{ backgroundColor: colors.ink3 }}>
-      <BottomSheetView style={{ padding: 16, paddingBottom: 12 + insets.bottom, gap: 4 }}>
-        <Pressy accessibilityRole="button" onPress={() => action(onCopy)} style={{ paddingHorizontal: 12, paddingVertical: 10 }}><Text style={{ color: colors.ink1, fontSize: 14 }}>复制文字</Text></Pressy>
-        {onShare ? <Pressy accessibilityRole="button" onPress={() => action(onShare)} style={{ paddingHorizontal: 12, paddingVertical: 10 }}><Text style={{ color: colors.ink1, fontSize: 14 }}>分享动态</Text></Pressy> : null}
-        {onDelete ? <Pressy accessibilityRole="button" onPress={() => action(onDelete)} style={{ paddingHorizontal: 12, paddingVertical: 10 }}><Text style={{ color: colors.danger, fontSize: 14 }}>删除</Text></Pressy> : null}
-        <Pressy accessibilityRole="button" onPress={() => modal.current?.dismiss()} style={{ paddingHorizontal: 12, paddingVertical: 10 }}><Text style={{ color: colors.ink3, textAlign: "center", fontSize: 14 }}>取消</Text></Pressy>
-      </BottomSheetView>
-    </BottomSheetModal>
-  </>;
+  const { colors } = usePixelTheme();
+  const modal = useRef<BottomSheetModal>(null);
+  const pending = useRef<() => void>();
+  const animation = useBottomSheetTimingConfigs({ duration: 180 });
+  const backdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        opacity={0.46}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+  useEffect(
+    () => () => {
+      pending.current = undefined;
+      modal.current?.dismiss();
+    },
+    []
+  );
+  function action(callback: () => void) {
+    if (pending.current || busy) return;
+    pending.current = callback;
+    modal.current?.dismiss();
+  }
+  function dismissed() {
+    const callback = pending.current;
+    pending.current = undefined;
+    if (callback) requestAnimationFrame(callback);
+  }
+  function row(
+    label: string,
+    icon: PixelSymbol,
+    tone: string,
+    tint: string,
+    callback: () => void
+  ) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        disabled={busy}
+        onPress={() => action(callback)}
+        style={({ pressed }) => ({
+          minHeight: 48,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingHorizontal: 12,
+          borderRadius: 8,
+          backgroundColor: tint,
+          opacity: pressed || busy ? 0.7 : 1,
+        })}
+      >
+        <PixelIcon name={icon} size={18} color={tone} />
+        <Text style={{ color: tone, fontSize: 14 }}>{label}</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="更多操作"
+        disabled={busy}
+        onPress={() => modal.current?.present()}
+        style={{
+          width: 44,
+          height: 44,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <PixelIcon name="more" size={21} color={colors.ink3} />
+      </Pressable>
+      <BottomSheetModal
+        ref={modal}
+        enableDynamicSizing
+        backdropComponent={backdrop}
+        onDismiss={dismissed}
+        animationConfigs={animation}
+        overrideReduceMotion={ReduceMotion.Never}
+        backgroundStyle={{
+          backgroundColor: colors.canvas,
+          borderTopLeftRadius: 12,
+          borderTopRightRadius: 12,
+          borderWidth: 0.5,
+          borderColor: colors.lineStrong,
+        }}
+        handleIndicatorStyle={{
+          width: 32,
+          height: 4,
+          borderRadius: 0,
+          backgroundColor: colors.accent,
+        }}
+      >
+        <BottomSheetView
+          style={{
+            paddingHorizontal: 16,
+            paddingBottom: 12 + insets.bottom,
+            gap: 6,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              paddingBottom: 6,
+            }}
+          >
+            <PixelIcon name="feed" size={18} color={colors.orchidText} />
+            <Text style={{ color: colors.ink1, fontSize: 16 }}>动态操作</Text>
+          </View>
+          {row("复制文字", "layers", colors.cyanText, colors.cyanTint, onCopy)}
+          {onShare
+            ? row(
+                "分享动态",
+                "share",
+                colors.orchidText,
+                colors.orchidTint,
+                onShare
+              )
+            : null}
+          {onDelete
+            ? row("删除", "close", colors.redText, colors.redTint, onDelete)
+            : null}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => modal.current?.dismiss()}
+            style={{
+              minHeight: 44,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: colors.ink3, fontSize: 13 }}>取消</Text>
+          </Pressable>
+        </BottomSheetView>
+      </BottomSheetModal>
+    </>
+  );
 }

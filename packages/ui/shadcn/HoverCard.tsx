@@ -1,9 +1,13 @@
+import { pixelTheme } from "../pixelTheme";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { EdgeModal as Modal } from "../edge";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import { themedStyleSheet, useTheme } from "../theme";
 
-const HoverCardContext = createContext<{ open: boolean; setOpen: (v: boolean) => void }>({
+const HoverCardContext = createContext<{
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}>({
   open: false,
   setOpen: () => {},
 });
@@ -28,7 +32,12 @@ export function HoverCardContent({ children }: { children: ReactNode }) {
   useTheme();
   const { open, setOpen } = useContext(HoverCardContext);
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setOpen(false)}
+    >
       <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
         <View style={styles.card}>{children}</View>
       </Pressable>
@@ -36,21 +45,24 @@ export function HoverCardContent({ children }: { children: ReactNode }) {
   );
 }
 
-const styles = themedStyleSheet(() => ({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  card: {
-    width: 280,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.surfaceRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.lineStrong,
-    padding: 14,
-    gap: 6,
-  },
-}));
+const styles = themedStyleSheet((base) => {
+  const t = pixelTheme(base);
+  return {
+    backdrop: {
+      flex: 1,
+      backgroundColor: "rgba(25,21,44,0.46)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    card: {
+      width: 280,
+      borderRadius: 12,
+      backgroundColor: t.canvas,
+      borderWidth: 0.5,
+      borderColor: t.lineStrong,
+      padding: 14,
+      gap: 6,
+    },
+  };
+});

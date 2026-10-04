@@ -1,6 +1,16 @@
+import { pixelTheme, usePixelTheme } from "../pixelTheme";
 import { useEffect, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
+import { PixelIcon } from "../chrome/PixelIcon";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
+import { themedStyleSheet, useTheme } from "../theme";
 
 export type ToastItem = {
   id: string;
@@ -30,7 +40,7 @@ export const toast = Object.assign(
       toast(title, { description, variant: "destructive" }),
     warning: (title: string, description?: string) =>
       toast(title, { description, variant: "warning" }),
-  },
+  }
 );
 
 export function Toaster({ style }: { style?: StyleProp<ViewStyle> }) {
@@ -38,15 +48,22 @@ export function Toaster({ style }: { style?: StyleProp<ViewStyle> }) {
   const [items, setItems] = useState<ToastItem[]>([]);
 
   useEffect(() => {
+    const timers = new Set<ReturnType<typeof setTimeout>>();
     const handler = (next: ToastItem) => {
       setItems((prev) => [next, ...prev.slice(0, 2)]);
-      setTimeout(() => {
-        setItems((prev) => prev.filter((x) => x.id !== next.id));
-      }, 3500);
+      const timer = setTimeout(
+        () => {
+          timers.delete(timer);
+          setItems((prev) => prev.filter((x) => x.id !== next.id));
+        },
+        next.variant === "destructive" ? 6000 : 4200
+      );
+      timers.add(timer);
     };
     listeners.push(handler);
     return () => {
       listeners = listeners.filter((l) => l !== handler);
+      timers.forEach(clearTimeout);
     };
   }, []);
 
@@ -62,7 +79,9 @@ export function Toaster({ style }: { style?: StyleProp<ViewStyle> }) {
           variant={item.variant}
           actionLabel={item.actionLabel}
           onAction={item.onAction}
-          onClose={() => setItems((prev) => prev.filter((x) => x.id !== item.id))}
+          onClose={() =>
+            setItems((prev) => prev.filter((x) => x.id !== item.id))
+          }
         />
       ))}
     </View>
@@ -88,24 +107,79 @@ export function Toast({
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors } = usePixelTheme();
+  const tone =
+    variant === "success"
+      ? colors.greenText
+      : variant === "destructive"
+      ? colors.redText
+      : variant === "warning"
+      ? colors.accentText
+      : colors.cyanText;
+  const tint =
+    variant === "success"
+      ? colors.greenTint
+      : variant === "destructive"
+      ? colors.redTint
+      : variant === "warning"
+      ? colors.accentTint
+      : colors.cyanTint;
   return (
-    <View style={[styles.card, styles[variant], style]}>
+    <Animated.View
+      entering={FadeInDown.duration(160).reduceMotion(ReduceMotion.Never)}
+      accessibilityLiveRegion={
+        variant === "destructive" ? "assertive" : "polite"
+      }
+      style={[styles.card, style]}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          backgroundColor: tint,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <PixelIcon
+          name={
+            variant === "success"
+              ? "check"
+              : variant === "destructive" || variant === "warning"
+              ? "alert"
+              : "info"
+          }
+          size={18}
+          color={tone}
+        />
+      </View>
       <View style={styles.body}>
         {title ? <Text style={styles.title}>{title}</Text> : null}
         {description ? <Text style={styles.desc}>{description}</Text> : null}
         {children}
       </View>
       {actionLabel ? (
-        <Pressable onPress={onAction} style={styles.actionBtn}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={!onAction}
+          onPress={onAction}
+          style={styles.actionBtn}
+        >
           <Text style={styles.actionText}>{actionLabel}</Text>
         </Pressable>
       ) : null}
       {onClose ? (
-        <Pressable onPress={onClose} style={styles.closeBtn}>
-          <Text style={styles.closeText}>✕</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="关闭提示"
+          onPress={onClose}
+          style={styles.closeBtn}
+        >
+          <PixelIcon name="close" size={14} color={colors.ink3} />
         </Pressable>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -119,60 +193,64 @@ export function ToastDescription({ children }: { children: ReactNode }) {
   return <Text style={styles.desc}>{children}</Text>;
 }
 
-const styles = themedStyleSheet(() => ({
-  stack: {
-    gap: 8,
-  },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.surfaceRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.lineStrong,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  default: {},
-  success: {
-    borderColor: theme.green,
-  },
-  warning: {
-    borderColor: theme.orange,
-  },
-  destructive: {
-    borderColor: theme.red,
-  },
-  body: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    color: theme.text,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  desc: {
-    color: theme.muted,
-    fontSize: 12,
-  },
-  actionBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: theme.radius.xs,
-    backgroundColor: theme.inset,
-  },
-  actionText: {
-    color: theme.text,
-    fontSize: 11.5,
-    fontWeight: "600",
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  closeText: {
-    color: theme.muted,
-    fontSize: 11,
-  },
-}));
+const styles = themedStyleSheet((base) => {
+  const t = pixelTheme(base);
+  return {
+    stack: {
+      gap: 8,
+    },
+    card: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      borderRadius: 12,
+      backgroundColor: t.canvas,
+      borderWidth: 0.5,
+      borderColor: t.lineStrong,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    body: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    title: {
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 13,
+      lineHeight: 19,
+      fontWeight: "normal",
+    },
+    desc: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    actionBtn: {
+      minHeight: 44,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: t.radius.xs,
+      backgroundColor: t.inset,
+    },
+    actionText: {
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 11.5,
+      fontWeight: "normal",
+    },
+    closeBtn: {
+      width: 44,
+      minHeight: 44,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    closeText: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 11,
+    },
+  };
+});

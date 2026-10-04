@@ -1,5 +1,6 @@
+import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { useDiscardChanges, confirmDiscard } from "./useDiscardChanges";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";

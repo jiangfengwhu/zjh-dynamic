@@ -13,7 +13,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { useReducedMotion } from "react-native-reanimated";
 import { FormField as TextInput } from "../FormField";
 import { PixelIcon } from "./PixelKit";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -69,7 +68,6 @@ export function ComposePostScreen({
   onControlsChange?: (controls: ComposePostControls) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const reduceMotion = useReducedMotion();
   const { colors } = useTheme();
   const { user } = useAccount();
   const owner = useRef(cachedAccountId()).current;
@@ -565,13 +563,13 @@ export function ComposePostScreen({
       <EdgeModal
         visible={picking}
         transparent
-        animationType={reduceMotion ? "none" : "slide"}
+        animationType="slide"
         onRequestClose={() => setPicking(false)}
       >
         <View
           style={{
             flex: 1,
-            backgroundColor: "#00000066",
+            backgroundColor: "rgba(25,21,44,0.46)",
             justifyContent: "flex-end",
           }}
         >
@@ -583,19 +581,21 @@ export function ComposePostScreen({
           <View
             style={{
               backgroundColor: colors.canvas,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
+              borderTopLeftRadius: 12,
+              borderTopRightRadius: 12,
+              borderTopWidth: 0.5,
+              borderColor: colors.lineStrong,
               padding: 16,
               paddingBottom: 12 + insets.bottom,
               maxHeight: "75%",
-              gap: 12,
+              gap: 8,
             }}
           >
-            <Text
-              style={{ color: colors.ink1, fontWeight: "700", fontSize: 18 }}
-            >
-              我的已上架应用
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.orchidTint, alignItems: "center", justifyContent: "center" }}><PixelIcon name="box" size={18} color={colors.orchidText} /></View>
+              <Text style={{ flex: 1, color: colors.ink1, fontSize: 16 }}>我的已上架应用</Text>
+              <Pressy scale={1} accessibilityLabel="关闭应用选择" onPress={() => setPicking(false)} style={{ width: 44, height: 44, alignItems: "center" }}><PixelIcon name="close" size={16} color={colors.ink3} /></Pressy>
+            </View>
             <Text style={styles.counter}>仅分享应用市场里的公开版本</Text>
             <ScrollView keyboardShouldPersistTaps="handled">
               {loadingApps ? (

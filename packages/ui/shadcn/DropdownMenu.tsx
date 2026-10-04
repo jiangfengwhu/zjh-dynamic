@@ -1,9 +1,13 @@
+import { pixelTheme, usePixelTheme } from "../pixelTheme";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { EdgeModal as Modal } from "../edge";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import { themedStyleSheet, useTheme } from "../theme";
 
-const DropdownContext = createContext<{ open: boolean; setOpen: (v: boolean) => void }>({
+const DropdownContext = createContext<{
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}>({
   open: false,
   setOpen: () => {},
 });
@@ -28,7 +32,12 @@ export function DropdownMenuContent({ children }: { children: ReactNode }) {
   useTheme();
   const { open, setOpen } = useContext(DropdownContext);
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setOpen(false)}
+    >
       <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
         <View style={styles.menu}>{children}</View>
       </Pressable>
@@ -54,6 +63,7 @@ export function DropdownMenuItem({
   disabled?: boolean;
   onSelect?: () => void;
 }) {
+  const { colors } = usePixelTheme();
   const { setOpen } = useContext(DropdownContext);
   return (
     <Pressable
@@ -67,7 +77,7 @@ export function DropdownMenuItem({
       <Text
         style={[
           styles.itemText,
-          variant === "destructive" && { color: theme.redText },
+          variant === "destructive" && { color: colors.redText },
         ]}
       >
         {children}
@@ -109,59 +119,66 @@ export function DropdownMenuShortcut({ children }: { children: ReactNode }) {
   return <Text style={styles.shortcut}>{children}</Text>;
 }
 
-const styles = themedStyleSheet(() => ({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  menu: {
-    width: 220,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.surfaceRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.lineStrong,
-    padding: 5,
-    gap: 2,
-  },
-  group: {
-    gap: 2,
-  },
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
-    borderRadius: theme.radius.xs,
-  },
-  itemText: {
-    flex: 1,
-    color: theme.text,
-    fontSize: 13,
-  },
-  check: {
-    width: 14,
-    color: theme.text,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  shortcut: {
-    color: theme.muted,
-    fontSize: 11,
-  },
-  label: {
-    color: theme.ink3,
-    fontSize: 11,
-    fontWeight: "600",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  sep: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.line,
-    marginVertical: 3,
-  },
-}));
+const styles = themedStyleSheet((base) => {
+  const t = pixelTheme(base);
+  return {
+    backdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    menu: {
+      width: 220,
+      borderRadius: t.radius.md,
+      backgroundColor: t.canvas,
+      borderWidth: 0.5,
+      borderColor: t.lineStrong,
+      padding: 5,
+      gap: 2,
+    },
+    group: {
+      gap: 2,
+    },
+    item: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 7,
+      borderRadius: t.radius.xs,
+    },
+    itemText: {
+      flex: 1,
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 13,
+    },
+    check: {
+      width: 14,
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    shortcut: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 11,
+    },
+    label: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 11,
+      fontWeight: "normal",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    sep: {
+      height: 0.5,
+      backgroundColor: t.line,
+      marginVertical: 3,
+    },
+  };
+});

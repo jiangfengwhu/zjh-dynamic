@@ -1,4 +1,5 @@
-import { Alert } from "react-native";
+import { PixelAlert as Alert } from "./PixelAlert";
+
 import { useNavigation, usePreventRemove } from "@react-navigation/native";
 
 export function confirmDiscard(action: () => void) {

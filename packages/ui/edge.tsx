@@ -49,8 +49,17 @@ export function ScreenBar({ style, children, ...rest }: ViewProps) {
 }
 
 /** 弹层窗口铺满状态栏和导航栏，遮罩不用每个弹窗再设一次。 */
+let modalFeedback: (() => ReactNode) | undefined;
+/** The host supplies feedback chrome without shared UI importing host code. */
+export function setModalFeedbackRenderer(renderer: () => ReactNode) {
+  modalFeedback = renderer;
+  return () => { if (modalFeedback === renderer) modalFeedback = undefined; };
+}
 export function EdgeModal(props: ModalProps) {
-  return <Modal {...props} statusBarTranslucent navigationBarTranslucent />;
+  return <Modal {...props} statusBarTranslucent navigationBarTranslucent>
+    {props.children}
+    {props.visible ? modalFeedback?.() : null}
+  </Modal>;
 }
 
 export function useKeyboardOpen() {

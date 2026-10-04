@@ -1,8 +1,15 @@
+import { pixelTheme } from "../pixelTheme";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View, type ViewProps } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ViewProps,
+} from "react-native";
 import { EdgeModal as Modal } from "../edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import { themedStyleSheet, useTheme } from "../theme";
 
 export type SheetProps = {
   open: boolean;
@@ -48,41 +55,46 @@ export function SheetDescription({ children }: { children: ReactNode }) {
   return <Text style={styles.description}>{children}</Text>;
 }
 
-const styles = themedStyleSheet(() => ({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: theme.surfaceRaised,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.lineStrong,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 28,
-    gap: 12,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.lineStrong,
-    alignSelf: "center",
-    marginBottom: 4,
-  },
-  header: {
-    gap: 4,
-  },
-  title: {
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  description: {
-    color: theme.muted,
-    fontSize: 13,
-  },
-}));
+const styles = themedStyleSheet((base) => {
+  const t = pixelTheme(base);
+  return {
+    backdrop: {
+      flex: 1,
+      backgroundColor: "rgba(25,21,44,0.46)",
+      justifyContent: "flex-end",
+    },
+    sheet: {
+      backgroundColor: t.canvas,
+      borderTopLeftRadius: 12,
+      borderTopRightRadius: 12,
+      borderTopWidth: 0.5,
+      borderTopColor: t.lineStrong,
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: 28,
+      gap: 10,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: t.accent,
+      alignSelf: "center",
+      marginBottom: 4,
+    },
+    header: {
+      gap: 4,
+    },
+    title: {
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 16,
+      fontWeight: "normal",
+    },
+    description: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 13,
+    },
+  };
+});

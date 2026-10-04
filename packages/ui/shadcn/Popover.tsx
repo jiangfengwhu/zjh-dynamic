@@ -1,9 +1,19 @@
+import { pixelTheme } from "../pixelTheme";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { EdgeModal as Modal } from "../edge";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import { themedStyleSheet, useTheme } from "../theme";
 
-const PopoverContext = createContext<{ open: boolean; setOpen: (v: boolean) => void }>({
+const PopoverContext = createContext<{
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}>({
   open: false,
   setOpen: () => {},
 });
@@ -54,9 +64,17 @@ export function PopoverContent({
   useTheme();
   const { open, setOpen } = useContext(PopoverContext);
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setOpen(false)}
+    >
       <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-        <Pressable style={[styles.card, style]} onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          style={[styles.card, style]}
+          onPress={(e) => e.stopPropagation()}
+        >
           {children}
         </Pressable>
       </Pressable>
@@ -64,21 +82,24 @@ export function PopoverContent({
   );
 }
 
-const styles = themedStyleSheet(() => ({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  card: {
-    width: 280,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.surfaceRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.lineStrong,
-    padding: 14,
-    gap: 8,
-  },
-}));
+const styles = themedStyleSheet((base) => {
+  const t = pixelTheme(base);
+  return {
+    backdrop: {
+      flex: 1,
+      backgroundColor: "rgba(25,21,44,0.46)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    card: {
+      width: 280,
+      borderRadius: 12,
+      backgroundColor: t.canvas,
+      borderWidth: 0.5,
+      borderColor: t.lineStrong,
+      padding: 14,
+      gap: 8,
+    },
+  };
+});

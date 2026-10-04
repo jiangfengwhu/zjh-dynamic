@@ -13,6 +13,8 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "../chrome/Icon";
+import { PixelIcon } from "../chrome/PixelIcon";
+import { usePixelTheme } from "../pixelTheme";
 import { Pressy } from "../chrome/Pressy";
 import { Surface } from "../chrome/Surface";
 import { EdgeModal } from "../edge";
@@ -58,6 +60,7 @@ export function PromptBar({
   style,
 }: PromptBarProps) {
   const { colors } = useTheme();
+  const { colors: popupColors } = usePixelTheme();
   const [internalVal, setInternalVal] = useState("");
   const value = controlledValue ?? internalVal;
   const setVal = (next: string) => {
@@ -95,8 +98,9 @@ export function PromptBar({
             style={StyleSheet.absoluteFill}
             onPress={closeProviders}
           />
-          <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.menu}>
-            <Text style={styles.menuTitle}>AI Agent</Text>
+          <Surface tone="raised" radius={12} style={[styles.menu, { backgroundColor: popupColors.canvas, borderWidth: 0.5, borderColor: popupColors.lineStrong, overflow: "hidden" }]}>
+            <View style={{ height: 4, backgroundColor: popupColors.accent }} />
+            <Text style={[styles.menuTitle, { fontFamily: popupColors.mono, fontWeight: "normal", color: popupColors.ink1 }]}>AI 引擎</Text>
             <View style={[styles.menuScroll, { height: listHeight }]}>
               <FlatList
                 data={providers}
@@ -116,15 +120,15 @@ export function PromptBar({
                         onProviderChange?.(item.id);
                         closeProviders();
                       }}
-                      style={({ pressed }) => [styles.menuRow, (active || pressed) && styles.menuRowActive]}
+                      style={({ pressed }) => [styles.menuRow, (active || pressed) && { backgroundColor: popupColors.accentTint }]}
                     >
                       <View style={styles.menuCopy}>
-                        <Text style={[styles.menuRowLabel, active && styles.menuRowLabelActive]} numberOfLines={1}>
+                        <Text style={[styles.menuRowLabel, { fontFamily: popupColors.mono, fontWeight: "normal", color: active ? popupColors.accentText : popupColors.ink2 }]} numberOfLines={1}>
                           {item.name}
                         </Text>
-                        {item.hint ? <Text style={styles.menuHint}>{item.hint}</Text> : null}
+                        {item.hint ? <Text style={[styles.menuHint, { fontFamily: popupColors.mono, color: popupColors.ink3 }]}>{item.hint}</Text> : null}
                       </View>
-                      {active ? <Icon name="check" size={18} color={colors.accentText} strokeWidth={2.1} /> : null}
+                      {active ? <PixelIcon name="check" size={18} color={popupColors.accentText} /> : null}
                     </Pressable>
                   );
                 }}
@@ -292,7 +296,7 @@ const styles = themedStyleSheet((t) => ({
   backdrop: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(8, 5, 12, 0.55)",
+    backgroundColor: "rgba(25,21,44,0.46)",
   },
   menu: {
     marginHorizontal: 14,

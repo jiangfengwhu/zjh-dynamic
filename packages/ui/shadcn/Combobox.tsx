@@ -1,3 +1,5 @@
+import { pixelTheme, usePixelTheme } from "../pixelTheme";
+import { PixelIcon } from "../chrome/PixelIcon";
 import { useMemo, useState } from "react";
 import {
   Pressable,
@@ -9,7 +11,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { EdgeModal as Modal } from "../edge";
-import { theme, themedStyleSheet, useTheme } from "../theme";
+import { themedStyleSheet, useTheme } from "../theme";
 
 export type ComboboxOption = {
   value: string;
@@ -35,7 +37,7 @@ export function Combobox({
   emptyText = "No item found.",
   style,
 }: ComboboxProps) {
-  useTheme();
+  const { colors } = usePixelTheme();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const selected = options.find((o) => o.value === value);
@@ -52,17 +54,25 @@ export function Combobox({
         <Text style={[styles.triggerText, !selected && styles.placeholder]}>
           {selected ? selected.label : placeholder}
         </Text>
-        <Text style={styles.chevron}>⇕</Text>
+        <PixelIcon name="down" size={14} color={colors.ink3} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.popover} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={styles.popover}
+            onPress={(e) => e.stopPropagation()}
+          >
             <TextInput
               value={query}
               onChangeText={setQuery}
               placeholder={searchPlaceholder}
-              placeholderTextColor={theme.ink3}
+              placeholderTextColor={colors.ink3}
               style={styles.searchInput}
             />
             {filtered.length === 0 ? (
@@ -79,7 +89,15 @@ export function Combobox({
                     }}
                     style={[styles.item, isSelected && styles.itemSelected]}
                   >
-                    <Text style={styles.check}>{isSelected ? "✓" : " "}</Text>
+                    <View style={{ width: 14 }}>
+                      {isSelected ? (
+                        <PixelIcon
+                          name="check"
+                          size={14}
+                          color={colors.accentText}
+                        />
+                      ) : null}
+                    </View>
                     <Text style={styles.itemLabel}>{opt.label}</Text>
                   </Pressable>
                 );
@@ -92,76 +110,85 @@ export function Combobox({
   );
 }
 
-const styles = themedStyleSheet(() => ({
-  trigger: {
-    minHeight: 38,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.field,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.lineStrong,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  triggerText: {
-    color: theme.text,
-    fontSize: 13.5,
-  },
-  placeholder: {
-    color: theme.ink3,
-  },
-  chevron: {
-    color: theme.muted,
-    fontSize: 12,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    padding: 24,
-  },
-  popover: {
-    backgroundColor: theme.surfaceRaised,
-    borderRadius: theme.radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.lineStrong,
-    padding: 6,
-    gap: 4,
-  },
-  searchInput: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.line,
-    color: theme.text,
-    fontSize: 13,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  empty: {
-    color: theme.muted,
-    fontSize: 12.5,
-    textAlign: "center",
-    paddingVertical: 14,
-  },
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: theme.radius.sm,
-  },
-  itemSelected: {
-    backgroundColor: theme.hover,
-  },
-  check: {
-    width: 14,
-    color: theme.text,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  itemLabel: {
-    color: theme.text,
-    fontSize: 13,
-  },
-}));
+const styles = themedStyleSheet((base) => {
+  const t = pixelTheme(base);
+  return {
+    trigger: {
+      minHeight: 38,
+      paddingHorizontal: 12,
+      borderRadius: t.radius.md,
+      backgroundColor: t.field,
+      borderWidth: 0.5,
+      borderColor: t.lineStrong,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    triggerText: {
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 13.5,
+    },
+    placeholder: {
+      color: t.ink3,
+    },
+    chevron: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 12,
+    },
+    backdrop: {
+      flex: 1,
+      backgroundColor: "rgba(25,21,44,0.46)",
+      justifyContent: "center",
+      padding: 24,
+    },
+    popover: {
+      backgroundColor: t.canvas,
+      borderRadius: 12,
+      borderWidth: 0.5,
+      borderColor: t.lineStrong,
+      padding: 6,
+      gap: 4,
+    },
+    searchInput: {
+      borderBottomWidth: 0.5,
+      borderBottomColor: t.line,
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 13,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+    },
+    empty: {
+      color: t.ink3,
+      fontFamily: t.mono,
+      fontSize: 12.5,
+      textAlign: "center",
+      paddingVertical: 14,
+    },
+    item: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+      borderRadius: t.radius.sm,
+    },
+    itemSelected: {
+      backgroundColor: t.hover,
+    },
+    check: {
+      width: 14,
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    itemLabel: {
+      color: t.ink1,
+      fontFamily: t.mono,
+      fontSize: 13,
+    },
+  };
+});
