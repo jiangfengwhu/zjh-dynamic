@@ -9,7 +9,8 @@ import {
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
-import { useTheme } from "../../../../packages/ui/theme";
+import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
+import { usePixelTheme } from "./feed/pixelTheme";
 import type { UserPostDraft } from "../../../../packages/app-sdk/src/index";
 import { ComposePostScreen } from "./feed/ComposePostScreen";
 import { PixelAvatar, PixelIcon } from "./feed/PixelKit";
@@ -19,7 +20,17 @@ import { currentAccountId, useAccount } from "./account";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import type { MarketApplication } from "./market";
 
-export function PublicationScreen({
+export function PublicationScreen(
+  props: Parameters<typeof PublicationContent>[0]
+) {
+  const theme = usePixelTheme();
+  return (
+    <ThemeContext.Provider value={theme}>
+      <PublicationContent {...props} />
+    </ThemeContext.Provider>
+  );
+}
+function PublicationContent({
   onBack,
   initialApplication,
   initialDraft,
@@ -36,12 +47,12 @@ export function PublicationScreen({
   const [postOpened, setPostOpened] = useState(initialMode === "post");
   const [creating, setCreating] = useState(false);
   const tabs = (
-    <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+    <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 }}>
       <CompactTabs
         value={mode}
         options={[
-          { id: "post", label: "发动态" },
-          { id: "create", label: "制作应用" },
+          { id: "post", label: "发动态", icon: "feed" },
+          { id: "create", label: "制作应用", icon: "spark" },
         ]}
         onChange={(value) => {
           if (creating) return;
@@ -157,13 +168,26 @@ function CreateApplicationPage({
   }
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <PageHeader title="发布" onBack={busy ? undefined : onBack} />
+      <PageHeader
+        title="发布"
+        variant="pixel"
+        onBack={busy ? undefined : onBack}
+      />
       {tabs}
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 16, gap: 16 }}
       >
-        <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 12,
+            alignItems: "center",
+            padding: 14,
+            backgroundColor: colors.orchidTint,
+            borderRadius: 8,
+          }}
+        >
           <PixelAvatar size={52} />
           <View style={{ flex: 1, gap: 4 }}>
             <Text
@@ -191,10 +215,10 @@ function CreateApplicationPage({
           style={{
             minHeight: 180,
             padding: 14,
-            borderRadius: 16,
+            borderRadius: 4,
             borderWidth: 0.5,
             borderColor: colors.line,
-            backgroundColor: colors.inset,
+            backgroundColor: colors.greenTint,
             color: colors.ink1,
             fontSize: 15,
             lineHeight: 23,
@@ -211,7 +235,7 @@ function CreateApplicationPage({
           onPress={() => void create()}
           style={{
             minHeight: 48,
-            borderRadius: 24,
+            borderRadius: 4,
             backgroundColor: colors.accent,
             flexDirection: "row",
             alignItems: "center",

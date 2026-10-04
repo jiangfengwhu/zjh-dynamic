@@ -4,6 +4,7 @@ import { ScreenBar } from "../edge";
 import { themedStyleSheet, useTheme } from "../theme";
 import { Icon } from "./Icon";
 import { Pressy } from "./Pressy";
+import { PixelIcon } from "./PixelIcon";
 
 /** 返回键保持 44 点触控区域，与紧凑顶栏对齐。 */
 export function BackChip({ onPress }: { onPress: () => void }) {
@@ -27,18 +28,55 @@ export function PageHeader({
   caption,
   onBack,
   right,
+  variant = "default",
 }: {
   title: string;
   caption?: string;
   onBack?: () => void;
   right?: ReactNode;
+  variant?: "default" | "pixel";
 }) {
-  useTheme();
+  const { colors } = useTheme();
   return (
-    <ScreenBar style={styles.bar}>
-      {onBack ? <BackChip onPress={onBack} /> : null}
+    <ScreenBar
+      style={[
+        styles.bar,
+        variant === "pixel" && {
+          backgroundColor: colors.canvas,
+          borderBottomWidth: 0,
+          paddingHorizontal: 16,
+          paddingBottom: 8,
+        },
+      ]}
+    >
+      {onBack ? (
+        variant === "pixel" ? (
+          <Pressy
+            accessibilityRole="button"
+            accessibilityLabel="返回上一级"
+            onPress={onBack}
+            scale={1}
+            style={styles.back}
+          >
+            <PixelIcon name="back" size={20} color={colors.ink1} />
+          </Pressy>
+        ) : (
+          <BackChip onPress={onBack} />
+        )
+      ) : null}
       <View style={styles.titleBox}>
-        <Text accessibilityRole="header" style={styles.title} numberOfLines={1}>
+        <Text
+          accessibilityRole="header"
+          style={[
+            styles.title,
+            variant === "pixel" && {
+              fontFamily: colors.mono,
+              fontSize: 21,
+              color: colors.ink1,
+            },
+          ]}
+          numberOfLines={1}
+        >
           {title}
         </Text>
         {caption ? (

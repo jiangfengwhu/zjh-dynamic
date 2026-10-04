@@ -573,6 +573,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     <Tabs.Screen name="market">
                       {() => (
                         <MarketScreen
+                          onOpen={props.onOpenBundle}
                           onAuthor={openAuthor}
                           onDetail={(item) =>
                             shellNavigationRef.navigate("marketDetail", {
@@ -610,6 +611,11 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                           }
                           onOpen={props.onOpenBundle}
                           onCreate={() => openPublication("create")}
+                          onSharePost={(application) =>
+                            shellNavigationRef.navigate("composePost", {
+                              application,
+                            })
+                          }
                         />
                       )}
                     </Tabs.Screen>

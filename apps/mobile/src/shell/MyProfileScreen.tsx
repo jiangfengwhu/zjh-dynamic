@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
-import { useTheme } from "../../../../packages/ui/theme";
+import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
+import { usePixelTheme } from "./feed/pixelTheme";
 import { useAccount, requireAccount } from "./account";
 import { CompactTabs } from "./CompactTabs";
 import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
@@ -13,13 +14,22 @@ import { useProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
 import type { UserPost, PublicAuthor } from "./feed/userPosts";
 import type { MarketApplication } from "./market";
 
-export function MyProfileScreen({
+export function MyProfileScreen(props: Parameters<typeof MyProfileContent>[0]) {
+  const theme = usePixelTheme();
+  return (
+    <ThemeContext.Provider value={theme}>
+      <MyProfileContent {...props} />
+    </ThemeContext.Provider>
+  );
+}
+function MyProfileContent({
   onAccount,
   onPost,
   onApplication,
   onDetail,
   onOpen,
   onCreate,
+  onSharePost,
 }: {
   onAccount: () => void;
   onPost: (post: UserPost) => void;
@@ -27,10 +37,25 @@ export function MyProfileScreen({
   onDetail: (item: MarketApplication) => void;
   onOpen: (id: string) => void;
   onCreate: () => void;
+  onSharePost: (item: MarketApplication) => void;
 }) {
   const { colors } = useTheme();
   const { user } = useAccount();
   const [tab, setTab] = useState<"posts" | "works">("posts");
+  const [stats, setStats] = useState<{
+    id: string;
+    publicCount: number;
+    followers: number;
+  }>();
+  const onProfileLoaded = useCallback(
+    (profile: import("./feed/userPosts").AuthorProfile) =>
+      setStats({
+        id: profile.author.id,
+        publicCount: profile.applications.length,
+        followers: profile.followerCount ?? 0,
+      }),
+    []
+  );
   const { gesture } = useProfileDrawer();
   const author: PublicAuthor | undefined = user
     ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
@@ -39,6 +64,7 @@ export function MyProfileScreen({
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
       <PageHeader
         title="我的"
+        variant="pixel"
         right={
           <Pressy
             accessibilityRole="button"
@@ -61,7 +87,12 @@ export function MyProfileScreen({
         onPress={onAccount}
         style={{
           paddingHorizontal: 16,
-          paddingBottom: 16,
+          paddingVertical: 14,
+          marginHorizontal: 16,
+          marginTop: 8,
+          marginBottom: 16,
+          backgroundColor: colors.greenTint,
+          borderRadius: 12,
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
@@ -83,18 +114,23 @@ export function MyProfileScreen({
             {user?.name ?? "登录紫金花"}
           </Text>
           <Text style={{ color: colors.ink3, fontSize: 12 }}>
-            {user ? "编辑头像与昵称" : "记录创造，收藏自己的作品"}
+            {stats?.id === user?.id && stats
+              ? `${stats.publicCount} 份公开作品 · ${stats.followers} 位关注者`
+              : user
+              ? "我的创造与分享"
+              : "记录创造，收藏自己的作品"}
           </Text>
         </View>
+        <PixelIcon name="edit" size={16} color={colors.greenText} />
       </Pressy>
       {author ? (
         <>
-          <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
             <CompactTabs
               value={tab}
               options={[
-                { id: "posts", label: "动态" },
-                { id: "works", label: "作品" },
+                { id: "posts", label: "动态", icon: "feed" },
+                { id: "works", label: "作品", icon: "box" },
               ]}
               onChange={setTab}
             />
@@ -111,6 +147,7 @@ export function MyProfileScreen({
                 drawerGesture={gesture}
                 onPost={onPost}
                 onApplication={onApplication}
+                onProfileLoaded={onProfileLoaded}
               />
             </View>
             <View
@@ -124,6 +161,7 @@ export function MyProfileScreen({
                 onCreate={onCreate}
                 onOpen={onOpen}
                 onDetail={onDetail}
+                onSharePost={onSharePost}
               />
             </View>
           </View>

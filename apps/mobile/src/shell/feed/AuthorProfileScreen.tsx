@@ -17,10 +17,11 @@ import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { CompactTabs } from "../CompactTabs";
 import { PageHeader } from "../../../../../packages/ui/chrome";
 import { Screen } from "../../../../../packages/ui/edge";
-import { useTheme } from "../../../../../packages/ui/theme";
+import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
+import { usePixelTheme } from "./pixelTheme";
 import { useAccount, requireAccount, currentAccountId } from "../account";
 import Toast from "react-native-toast-message";
-import { ApplicationPostCard } from "./ApplicationPostCard";
+import { WorkCard } from "../WorkCard";
 import { UserPostCard } from "./UserPostCard";
 import { usePullToRefresh } from "./pullToRefresh";
 import { PullIndicator } from "./PullIndicator";
@@ -38,7 +39,17 @@ type ProfileRow =
   | { type: "post"; post: UserPost }
   | { type: "app"; app: AuthorProfile["applications"][number] };
 
-export function AuthorProfileScreen({
+export function AuthorProfileScreen(
+  props: Parameters<typeof AuthorProfileContent>[0]
+) {
+  const theme = usePixelTheme();
+  return (
+    <ThemeContext.Provider value={theme}>
+      <AuthorProfileContent {...props} />
+    </ThemeContext.Provider>
+  );
+}
+function AuthorProfileContent({
   initialAuthor,
   onBack,
   onPost,
@@ -46,6 +57,7 @@ export function AuthorProfileScreen({
   embedded = false,
   active = true,
   drawerGesture,
+  onProfileLoaded,
 }: {
   initialAuthor: PublicAuthor;
   onBack?: () => void;
@@ -54,6 +66,7 @@ export function AuthorProfileScreen({
   drawerGesture?: ReturnType<typeof Gesture.Pan>;
   onPost: (post: UserPost) => void;
   onApplication: (appId: string) => Promise<void>;
+  onProfileLoaded?: (profile: AuthorProfile) => void;
 }) {
   const { colors } = useTheme();
   const { user } = useAccount();
@@ -139,6 +152,7 @@ export function AuthorProfileScreen({
         ? await fetchAuthorPosts(initialAuthor.id, profile.nextCursor!)
         : await fetchAuthorProfile(initialAuthor.id);
       if (!alive.current || before !== revision.current) return false;
+      if (!more) onProfileLoaded?.(result as AuthorProfile);
       setProfile((previous) =>
         more
           ? {
@@ -323,8 +337,8 @@ export function AuthorProfileScreen({
           <CompactTabs
             value={tab}
             options={[
-              { id: "posts", label: "动态" },
-              { id: "apps", label: "应用" },
+              { id: "posts", label: "动态", icon: "feed" },
+              { id: "apps", label: "作品", icon: "box" },
             ]}
             onChange={(value) => {
               setTab(value);
@@ -347,7 +361,9 @@ export function AuthorProfileScreen({
   );
   return (
     <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
-      {!embedded ? <PageHeader title="作者主页" onBack={onBack} /> : null}
+      {!embedded ? (
+        <PageHeader title="作者主页" variant="pixel" onBack={onBack} />
+      ) : null}
       <GestureDetector gesture={gesture}>
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PullIndicator pull={pull} phase={phase} />
@@ -376,20 +392,23 @@ export function AuthorProfileScreen({
                 bounces={false}
                 scrollEnabled={phase !== "refreshing" && phase !== "done"}
                 ListHeaderComponent={header}
-                renderItem={({ item: row }) => {
+                renderItem={({ item: row, index }) => {
                   if (row.type === "app") {
                     const item = row.app;
                     return (
                       <View
                         style={{ paddingHorizontal: 16, paddingVertical: 6 }}
                       >
-                        <ApplicationPostCard
-                          application={{
-                            ...item.manifest,
-                            title: item.title || item.manifest.title,
-                            summary: item.summary ?? item.manifest.summary,
-                          }}
-                          onOpen={onApplication}
+                        <WorkCard
+                          title={item.title || item.manifest.title}
+                          summary={item.summary ?? item.manifest.summary}
+                          mark={item.manifest.mark}
+                          screenshot={item.screenshots?.[0]}
+                          publishedAt={item.publishedAt}
+                          authorName={author.name}
+                          visibility="public"
+                          tone={index}
+                          onOpen={() => onApplication(item.manifest.appId)}
                         />
                       </View>
                     );
@@ -423,7 +442,7 @@ export function AuthorProfileScreen({
                         color: colors.ink3,
                       }}
                     >
-                      {tab === "apps" ? "还没有公开应用" : "还没有公开动态"}
+                      {tab === "apps" ? "还没有公开作品" : "还没有公开动态"}
                     </Text>
                   ) : null
                 }

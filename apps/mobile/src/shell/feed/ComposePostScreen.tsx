@@ -38,6 +38,7 @@ import {
 import { HtmlPostContent } from "./HtmlPostContent";
 import { htmlByteLength } from "./postDraft";
 import type { UserPostDraft } from "../../../../../packages/app-sdk/src/index";
+import { pixelTheme } from "./pixelTheme";
 
 type Photo = { path: string; id?: string; url?: string };
 export function ComposePostScreen({
@@ -340,6 +341,7 @@ export function ComposePostScreen({
     <Screen style={styles.screen}>
       <PageHeader
         title={modeTabs ? "发布" : "发动态"}
+        variant="pixel"
         onBack={busy ? undefined : onBack}
         right={
           <Pressy
@@ -625,75 +627,84 @@ export function ComposePostScreen({
     </Screen>
   );
 }
-const styles = themedStyleSheet((t) => ({
-  screen: { flex: 1, backgroundColor: t.canvas },
-  fill: { flex: 1 },
-  content: { padding: 16, gap: 12, paddingBottom: 12 },
-  author: { flexDirection: "row", gap: 12, alignItems: "center" },
-  avatar: { width: 36, height: 36, borderRadius: 18 },
-  placeholder: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: t.accentTint,
-  },
-  initial: { color: t.accentText, fontSize: 20 },
-  name: { color: t.ink1, fontSize: 16, fontWeight: "600" },
-  input: {
-    minHeight: 144,
-    color: t.ink1,
-    fontSize: 15,
-    lineHeight: 22,
-    padding: 12,
-    borderRadius: t.radius.md,
-  },
-  photos: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  photo: {
-    width: "48%",
-    aspectRatio: 1,
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: t.surface,
-  },
-  image: { width: "100%", height: "100%" },
-  remove: {
-    position: "absolute",
-    right: 6,
-    top: 6,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#00000099",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  removeText: { color: "#FFFFFF", fontSize: 22 },
-  tools: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  tool: {
-    flexDirection: "row",
-    gap: 6,
-    alignItems: "center",
-    backgroundColor: t.inset,
-    borderRadius: t.radius.sm,
-    paddingHorizontal: 12,
-  },
-  draftStatus: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  add: { paddingVertical: 12 },
-  addText: { color: t.accentText, fontSize: 13, fontWeight: "600" },
-  counter: { color: t.ink3, fontSize: 11, lineHeight: 17, fontFamily: t.mono },
-  publish: {
-    backgroundColor: t.accent,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: t.radius.sm,
-    minHeight: 44,
-    minWidth: 68,
-    alignItems: "center",
-  },
-  publishText: { color: t.onAccent, fontWeight: "600", fontSize: 14 },
-  disabled: { opacity: 0.4 },
-  status: { flexDirection: "row", gap: 10, alignItems: "center" },
-}));
+const styles = themedStyleSheet((base) => {
+  const t = pixelTheme(base);
+  return {
+    screen: { flex: 1, backgroundColor: t.canvas },
+    fill: { flex: 1 },
+    content: { padding: 16, paddingTop: 8, gap: 16, paddingBottom: 24 },
+    author: { flexDirection: "row", gap: 12, alignItems: "center" },
+    avatar: { width: 36, height: 36, borderRadius: 18 },
+    placeholder: {
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: t.accentTint,
+    },
+    initial: { color: t.accentText, fontSize: 20 },
+    name: { color: t.ink1, fontSize: 16, fontWeight: "600" },
+    input: {
+      minHeight: 144,
+      color: t.ink1,
+      fontSize: 15,
+      lineHeight: 22,
+      padding: 12,
+      borderRadius: 4,
+      backgroundColor: t.greenTint,
+    },
+    photos: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+    photo: {
+      width: "48%",
+      aspectRatio: 1,
+      borderRadius: 14,
+      overflow: "hidden",
+      backgroundColor: t.surface,
+    },
+    image: { width: "100%", height: "100%" },
+    remove: {
+      position: "absolute",
+      right: 6,
+      top: 6,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: "#00000099",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    removeText: { color: "#FFFFFF", fontSize: 22 },
+    tools: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+    tool: {
+      flexDirection: "row",
+      gap: 6,
+      alignItems: "center",
+      backgroundColor: t.inset,
+      borderRadius: t.radius.sm,
+      paddingHorizontal: 12,
+    },
+    draftStatus: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    add: { paddingVertical: 12 },
+    addText: { color: t.accentText, fontSize: 13, fontWeight: "600" },
+    counter: {
+      color: t.ink3,
+      fontSize: 11,
+      lineHeight: 17,
+      fontFamily: t.mono,
+    },
+    publish: {
+      backgroundColor: t.accent,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: t.radius.sm,
+      minHeight: 44,
+      minWidth: 68,
+      alignItems: "center",
+    },
+    publishText: { color: t.onAccent, fontWeight: "600", fontSize: 14 },
+    disabled: { opacity: 0.4 },
+    status: { flexDirection: "row", gap: 10, alignItems: "center" },
+  };
+});

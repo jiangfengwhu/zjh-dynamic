@@ -1,23 +1,20 @@
-import { useAccount } from "./account";
-import { CompactTabs } from "./CompactTabs";
-import { FormField as TextInput } from "./FormField";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import {
   ActivityIndicator,
   AppState,
   FlatList,
   RefreshControl,
-  Text,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
-import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
+import { FormField } from "./FormField";
+import { useAccount } from "./account";
 import { subscribeCatalog } from "./catalog";
 import {
   installedMarket,
@@ -32,155 +29,156 @@ import {
 } from "../runtime/applications";
 import { openApplicationWorkshop } from "./workshopNavigation";
 import { restoreWorks } from "./workRecovery";
-import {
-  readMyWorks,
-  sharingLabel,
-  workActions,
-  workLabels,
-  type MyWork,
-} from "./works";
+import { readMyWorks, workLabels, type MyWork } from "./works";
+import { WorkCard } from "./WorkCard";
+import { PixelIcon } from "./feed/PixelKit";
+import { PixelText as Text } from "./feed/PixelText";
+import { usePixelTheme } from "./feed/pixelTheme";
 
+/** One collection per surface: creations on profiles, installs in the market. */
 export function MyApplicationsScreen({
   onBack,
   onCreate,
   onDetail,
   onOpen,
+  onSharePost,
   embedded = false,
   active = true,
   drawerGesture,
+  scope = "works",
 }: {
   onBack?: () => void;
   onCreate: () => void;
   onDetail: (item: MarketApplication) => void;
   onOpen: (id: string) => void;
+  onSharePost?: (item: MarketApplication) => void;
   embedded?: boolean;
   active?: boolean;
   drawerGesture?: ReturnType<typeof Gesture.Pan>;
+  scope?: "works" | "installed";
 }) {
+  const { user } = useAccount();
+  const { colors } = usePixelTheme();
+  const focused = useIsFocused() && active;
+  const focusedRef = useRef(focused);
+  focusedRef.current = focused;
+  const [works, setWorks] = useState<MyWork[]>([]);
+  const [installed, setInstalled] = useState<MarketApplication[]>([]);
+  const [owner, setOwner] = useState<string>();
+  const [updates, setUpdates] = useState<
+    Record<string, PublicApplicationUpdate>
+  >({});
+  const [updating, setUpdating] = useState("");
+  const writing = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const generation = useRef(0);
+  const reading = useRef(false);
   const listGesture = useMemo(
     () =>
       drawerGesture
         ? Gesture.Native().requireExternalGestureToFail(drawerGesture)
         : Gesture.Native(),
-    [drawerGesture]
+    [drawerGesture],
   );
-  const { user } = useAccount();
-  const { colors } = useTheme();
-  const focused = useIsFocused() && active;
-  const [tab, setTab] = useState<"works" | "installed">("works");
-  const [works, setWorks] = useState<MyWork[]>([]);
-  const [installed, setInstalled] = useState<MarketApplication[]>([]);
-  const [worksOwner, setWorksOwner] = useState<string>();
-  const [pulling, setPulling] = useState(false);
-  const [updates, setUpdates] = useState<
-    Record<string, PublicApplicationUpdate>
-  >({});
-  const [updating, setUpdating] = useState("");
-  const updatingRef = useRef(false);
-  usePreventRemove(Boolean(updating), () =>
-    Toast.show({ type: "info", text1: "正在下载应用更新，请稍候" })
+  usePreventRemove(!!updating, () =>
+    Toast.show({ type: "info", text1: "正在下载应用更新，请稍候" }),
   );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
-  const generation = useRef(0);
-  const refreshing = useRef(false);
   async function refresh(manual = false) {
-    if (refreshing.current || AppState.currentState !== "active") return;
-    setPulling(manual);
-    const current = ++generation.current;
-    refreshing.current = true;
+    if (
+      !focusedRef.current ||
+      reading.current ||
+      AppState.currentState !== "active"
+    )
+      return;
+    const before = ++generation.current;
+    reading.current = true;
     setBusy(true);
+    setPulling(manual);
     setError("");
     try {
       const [local, apps] = await Promise.all([
-        readMyWorks(),
+        scope === "works" ? readMyWorks() : Promise.resolve([]),
         installedMarket(),
       ]);
-      if (generation.current !== current) return;
+      if (before !== generation.current) return;
       setWorks(local);
       setInstalled(apps);
-      setWorksOwner(user?.id);
-      const updateCheck = publicApplicationUpdates(manual)
-        .then((result) => {
-          if (generation.current === current) setUpdates(result);
-        })
-        .catch(() => {
-          if (generation.current === current)
-            setError("更新检查未完成，保留本机应用。下拉可重试。");
-        });
-      await restoreWorks(manual, true);
-      const updated = await readMyWorks();
-      if (generation.current !== current) return;
-      setWorks(updated);
-      if (updated.some((work) => work.stale))
-        setError("部分制作状态暂未接回，显示的是本机记录。下拉可重试。");
-      await updateCheck;
+      setOwner(user?.id);
+      if (scope === "works") {
+        await restoreWorks(manual, true);
+        const next = await readMyWorks();
+        if (before !== generation.current) return;
+        setWorks(next);
+        if (next.some((work) => work.stale))
+          setError("部分制作状态暂未同步，保留本机记录。下拉可重试。");
+      } else {
+        try {
+          const result = await publicApplicationUpdates(manual);
+          if (before === generation.current) setUpdates(result);
+        } catch {
+          if (before === generation.current)
+            setError("更新检查未完成，本机应用仍可使用。下拉可重试。");
+        }
+      }
     } catch {
-      if (generation.current === current)
-        setError("暂时无法读取作品，下拉可重试");
+      if (before === generation.current)
+        setError("暂时无法读取内容，下拉可重试。");
     } finally {
-      if (generation.current === current) {
-        refreshing.current = false;
+      if (before === generation.current) {
+        reading.current = false;
         setBusy(false);
         setPulling(false);
       }
     }
   }
   useEffect(() => {
-    if (!focused) return;
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") void refresh();
-    });
-    return () => subscription.remove();
-  }, [focused, user?.id]);
-  useEffect(() => {
-    if (focused) void refresh();
-    return () => {
-      generation.current++;
-      refreshing.current = false;
-    };
-  }, [focused, user?.id]);
-  useEffect(() => {
-    if (!focused) return;
-    const timer = setInterval(() => {
-      if (
-        AppState.currentState === "active" &&
-        tab === "works" &&
-        works.some((work) =>
-          ["making", "reply", "load", "blocked"].includes(work.stage)
-        ) &&
-        !refreshing.current
-      )
+    if (focused) {
+      const idle = requestIdleCallback(() => {
         void refresh();
-    }, 30000);
-    return () => clearInterval(timer);
-  }, [focused, user?.id, tab, works]);
+      });
+      return () => {
+        cancelIdleCallback(idle);
+        generation.current++;
+        reading.current = false;
+      };
+    }
+  }, [focused, user?.id, scope]);
   useEffect(() => {
+    if (!focused) return;
     const reload = () => {
-      if (focused) void refresh();
+      void refresh();
     };
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state === "active") reload();
+    });
     const offCatalog = subscribeCatalog(reload);
     const offSharing = subscribePackageValue("shell.market.changed", reload);
-    const offWorkspaces = applicationContext("jolly").storage.subscribe(
+    const offWorks = applicationContext("jolly").storage.subscribe(
       "workspaces",
-      reload
+      reload,
     );
+    const timer = setInterval(() => {
+      if (
+        scope === "works" &&
+        works.some((work) =>
+          ["making", "reply", "load", "blocked"].includes(work.stage),
+        )
+      )
+        reload();
+    }, 30000);
     return () => {
+      appState.remove();
       offCatalog();
       offSharing();
-      offWorkspaces();
+      offWorks();
+      clearInterval(timer);
     };
-  }, [focused, user?.id]);
+  }, [focused, user?.id, scope, works]);
   async function workshop(work: MyWork) {
-    try {
-      await openApplicationWorkshop(work.appId, work.title, false, false);
-    } catch (cause) {
-      const message =
-        cause instanceof Error ? cause.message : "工坊暂时无法打开，请重试";
-      setError(message);
-      Toast.show({ type: "error", text1: "工坊未能打开", text2: message });
-    }
+    await openApplicationWorkshop(work.appId, work.title, false, false);
   }
   function detail(work: MyWork) {
     if (work.manifest)
@@ -188,242 +186,356 @@ export function MyApplicationsScreen({
         manifest: work.manifest,
         title: work.title,
         authorId: user?.id ?? null,
-        authorName: user?.name ?? "社区创作者",
+        authorName: user?.name ?? "创作者",
         authorAvatarUrl: user?.avatarUrl,
         originalAppId: null,
         owned: true,
       });
   }
-  async function updateApplication(item: MarketApplication) {
-    if (updatingRef.current) return;
-    updatingRef.current = true;
+  async function update(item: MarketApplication) {
+    if (writing.current) return;
+    writing.current = true;
     setUpdating(item.manifest.appId);
-    setError("");
     try {
-      // Re-read the public pointer when the user acts; cached badges are only hints.
       const published = await fetchPublicMarketApplication(item.manifest.appId);
       validateApplication(published.manifest);
       await installMarketApplication(published);
       Toast.show({ type: "success", text1: "应用已更新，本机数据保留" });
       void refresh(true);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "应用更新失败，请重试";
-      setError(message);
-      Toast.show({ type: "error", text1: message });
+    } catch (cause) {
+      Toast.show({
+        type: "error",
+        text1: "更新未完成",
+        text2: cause instanceof Error ? cause.message : "请重试",
+      });
     } finally {
-      updatingRef.current = false;
+      writing.current = false;
       setUpdating("");
     }
   }
   async function installedDetail(item: MarketApplication) {
-    if (updatingRef.current) return;
+    if (writing.current) return;
     if (item.owned || updates[item.manifest.appId]?.status === "private") {
       onDetail(item);
       return;
     }
-    const request = generation.current;
+    const before = generation.current;
     try {
-      const published = await fetchPublicMarketApplication(item.manifest.appId);
-      if (generation.current === request) onDetail(published);
+      const latest = await fetchPublicMarketApplication(item.manifest.appId);
+      if (before === generation.current) onDetail(latest);
     } catch {
-      if (generation.current === request) onDetail(item);
+      if (before === generation.current) onDetail(item);
     }
   }
   const term = query.trim().toLowerCase();
   const visibleWorks =
-    worksOwner === user?.id
+    owner === user?.id
       ? works.filter((work) =>
-          `${work.title} ${work.wish}`.toLowerCase().includes(term)
+          `${work.title} ${work.wish}`.toLowerCase().includes(term),
         )
       : [];
-  const workIds = new Set(works.map((work) => work.appId));
-  const installedIds = new Set(installed.map((item) => item.manifest.appId));
   const visibleApps =
-    worksOwner === user?.id
-      ? installed.filter(
-          (item) =>
-            !workIds.has(item.manifest.appId) &&
-            `${item.manifest.title} ${item.manifest.summary}`
-              .toLowerCase()
-              .includes(term)
+    owner === user?.id
+      ? installed.filter((item) =>
+          `${item.manifest.title} ${item.manifest.summary}`
+            .toLowerCase()
+            .includes(term),
         )
       : [];
+  const installedIds = new Set(installed.map((item) => item.manifest.appId));
+  const publicCount = visibleWorks.filter(
+    (work) => work.sharing?.shared,
+  ).length;
+  type Row =
+    { type: "work"; work: MyWork } | { type: "app"; app: MarketApplication };
   const Root = embedded ? View : Screen;
+  const actionStyle = {
+    minHeight: 44,
+    justifyContent: "center" as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+  };
   return (
-    <Root style={styles.screen}>
+    <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
       {!embedded ? (
         <PageHeader
-          title="我的作品与应用"
-          caption="创作进度、分享与安装管理"
+          variant="pixel"
+          title={scope === "works" ? "我的作品" : "我安装的"}
           onBack={onBack}
-          right={
-            tab === "works" ? (
-              <Pressy
-                accessibilityLabel="创作新作品"
-                onPress={onCreate}
-                style={styles.create}
-              >
-                <Text style={styles.createText}>新建</Text>
-              </Pressy>
-            ) : undefined
-          }
         />
       ) : null}
-      <View style={styles.tabs}>
-        <CompactTabs
-          value={tab}
-          onChange={setTab}
-          options={[
-            { id: "works", label: "我创作的" },
-            { id: "installed", label: "我安装的" },
-          ]}
-        />
-      </View>
       <GestureDetector gesture={listGesture}>
-        <FlatList<
-          | { type: "work"; work: MyWork }
-          | { type: "app"; app: MarketApplication }
-        >
+        <FlatList<Row>
           data={
-            tab === "works"
+            scope === "works"
               ? visibleWorks.map((work) => ({ type: "work" as const, work }))
               : visibleApps.map((app) => ({ type: "app" as const, app }))
           }
           keyExtractor={(row) =>
             row.type === "work" ? row.work.appId : row.app.manifest.appId
           }
-          initialNumToRender={8}
+          initialNumToRender={6}
           windowSize={7}
+          showsVerticalScrollIndicator={false}
           removeClippedSubviews={false}
-          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: 24,
+          }}
           refreshControl={
             <RefreshControl
               refreshing={pulling}
               onRefresh={() => void refresh(true)}
-              tintColor={colors.accent}
+              tintColor={colors.accentText}
             />
           }
-          keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
-            <View style={{ gap: 12 }}>
-              <TextInput
-                accessibilityLabel="搜索我的作品与应用"
-                value={query}
-                onChangeText={setQuery}
-                placeholder="搜索名称或心愿"
-                placeholderTextColor={colors.ink3}
-                style={styles.search}
-              />
-              <Text style={styles.caption}>
-                {tab === "works"
-                  ? `${visibleWorks.length} 份作品`
-                  : `${visibleApps.length} 个应用`}
-              </Text>
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              {busy && !works.length && !installed.length ? (
-                <ActivityIndicator color={colors.accent} />
+            <View style={{ gap: 10, paddingBottom: 16 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={{ fontSize: 14, color: colors.ink1 }}>
+                    {scope === "works"
+                      ? `${visibleWorks.length} 份创造 · ${publicCount} 份公开`
+                      : `${visibleApps.length} 个已安装应用`}
+                  </Text>
+                  <Text style={{ color: colors.ink3, fontSize: 11 }}>
+                    {scope === "works"
+                      ? "公开作品会展示在你的社交主页"
+                      : "打开、更新和管理本机应用"}
+                  </Text>
+                </View>
+                {scope === "works" ? (
+                  <Pressy
+                    accessibilityRole="button"
+                    accessibilityLabel="制作新作品"
+                    onPress={onCreate}
+                    scale={1}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 4,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: colors.accent,
+                    }}
+                  >
+                    <PixelIcon name="plus" size={18} color={colors.onAccent} />
+                  </Pressy>
+                ) : null}
+              </View>
+              {(scope === "installed" ? installed.length : works.length) > 4 ||
+              query ? (
+                <FormField
+                  accessibilityLabel={
+                    scope === "works" ? "搜索我的作品" : "搜索已安装应用"
+                  }
+                  placeholder={
+                    scope === "works" ? "搜索作品" : "搜索已安装应用"
+                  }
+                  placeholderTextColor={colors.ink3}
+                  value={query}
+                  onChangeText={setQuery}
+                  style={{
+                    minHeight: 44,
+                    paddingHorizontal: 12,
+                    backgroundColor: colors.surfaceRaised,
+                    color: colors.ink1,
+                    borderRadius: 4,
+                    fontSize: 13,
+                  }}
+                />
+              ) : null}
+              {error ? (
+                <Pressy onPress={() => void refresh(true)}>
+                  <Text style={{ color: colors.redText, fontSize: 12 }}>
+                    {error} 点击重试
+                  </Text>
+                </Pressy>
+              ) : null}
+              {busy &&
+              !(scope === "works" ? works.length : installed.length) ? (
+                <ActivityIndicator color={colors.accentText} />
               ) : null}
             </View>
           }
-          renderItem={({ item: row }) => {
-            if (row.type === "work") {
-              const work = row.work;
+          renderItem={({ item, index }) => {
+            if (item.type === "work") {
+              const work = item.work;
+              const published = work.sharing?.shared;
+              const visual = published?.manifest ?? work.manifest;
               return (
-                <View key={`work:${work.appId}`} style={styles.card}>
-                  <View style={styles.line}>
-                    <Text
-                      style={[styles.name, { flex: 1, minWidth: 0 }]}
-                      numberOfLines={2}
-                    >
-                      {work.title}
-                    </Text>
-                    <Text style={styles.badge} numberOfLines={2}>
-                      {workLabels[work.stage]}
-                    </Text>
-                  </View>
-                  {work.wish ? (
-                    <Text style={styles.copy} numberOfLines={2}>
-                      {work.wish}
-                    </Text>
-                  ) : null}
-                  <Text style={styles.caption}>
-                    {sharingLabel(work)}
-                    {work.stale ? " · 状态待刷新" : ""}
-                  </Text>
-                  <View style={styles.actions}>
-                    <Pressy
-                      onPress={() =>
-                        work.stage === "ready" && work.manifest
-                          ? detail(work)
-                          : void workshop(work)
-                      }
-                    >
-                      <Text style={styles.link}>{workActions[work.stage]}</Text>
-                    </Pressy>
-                    {work.manifest && work.stage !== "ready" ? (
-                      <Pressy onPress={() => detail(work)}>
-                        <Text style={styles.secondary}>作品详情与分享</Text>
+                <WorkCard
+                  title={published?.title || visual?.title || work.title}
+                  summary={published?.summary || visual?.summary || work.wish}
+                  mark={visual?.mark}
+                  screenshot={published?.screenshots?.[0]}
+                  publishedAt={published?.publishedAt}
+                  visibility={published ? "public" : "private"}
+                  status={
+                    workLabels[work.stage] + (work.stale ? " · 待同步" : "")
+                  }
+                  authorName={user?.name}
+                  tone={index}
+                  onOpen={() => (work.manifest ? detail(work) : workshop(work))}
+                  actions={
+                    <>
+                      <Pressy
+                        onPress={() => {
+                          void workshop(work).catch((cause) =>
+                            Toast.show({
+                              type: "error",
+                              text1: "工坊未能打开",
+                              text2: cause.message,
+                            }),
+                          );
+                        }}
+                        style={actionStyle}
+                      >
+                        <PixelIcon
+                          name="edit"
+                          size={14}
+                          color={colors.orchidText}
+                        />
+                        <Text
+                          style={{ color: colors.orchidText, fontSize: 12 }}
+                        >
+                          {["making", "reply"].includes(work.stage)
+                            ? "查看制作"
+                            : "继续制作"}
+                        </Text>
                       </Pressy>
-                    ) : null}
-                    {installedIds.has(work.appId) ? (
-                      <Pressy onPress={() => onOpen(work.appId)}>
-                        <Text style={styles.secondary}>打开作品</Text>
-                      </Pressy>
-                    ) : null}
-                  </View>
-                </View>
+                      {published && onSharePost ? (
+                        <Pressy
+                          onPress={() => onSharePost(published)}
+                          style={actionStyle}
+                        >
+                          <PixelIcon
+                            name="share"
+                            size={14}
+                            color={colors.redText}
+                          />
+                          <Text style={{ color: colors.redText, fontSize: 12 }}>
+                            分享到动态
+                          </Text>
+                        </Pressy>
+                      ) : work.manifest ? (
+                        <Pressy
+                          onPress={() => detail(work)}
+                          style={actionStyle}
+                        >
+                          <Text
+                            style={{ color: colors.greenText, fontSize: 12 }}
+                          >
+                            详情与公开
+                          </Text>
+                        </Pressy>
+                      ) : null}
+                      {installedIds.has(work.appId) ? (
+                        <Pressy
+                          onPress={() => onOpen(work.appId)}
+                          style={actionStyle}
+                        >
+                          <Text style={{ color: colors.ink3, fontSize: 12 }}>
+                            打开
+                          </Text>
+                        </Pressy>
+                      ) : null}
+                    </>
+                  }
+                />
               );
             }
-            const item = row.app;
+            const app = item.app;
+            const updateState = updates[app.manifest.appId];
             return (
               <View
-                key={`installed:${item.manifest.appId}`}
-                style={styles.card}
+                style={{
+                  paddingVertical: 14,
+                  borderBottomWidth: 0.5,
+                  borderBottomColor: colors.line,
+                  gap: 8,
+                }}
               >
-                <View style={styles.line}>
-                  <Text
-                    style={[styles.name, { flex: 1, minWidth: 0 }]}
-                    numberOfLines={2}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 8,
+                      backgroundColor: colors.orchidTint,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
                   >
-                    {item.manifest.title}
-                  </Text>
-                  {updates[item.manifest.appId]?.status === "update" ? (
-                    <Text style={styles.badge}>有新版</Text>
-                  ) : null}
-                </View>
-                <Text style={styles.copy} numberOfLines={2}>
-                  {item.manifest.summary}
-                </Text>
-                <Text style={styles.caption}>
-                  {updates[item.manifest.appId]?.message ||
-                    (updates[item.manifest.appId]?.status === "current"
-                      ? "已是当前公开版本"
-                      : "更新只使用作者公开发布的版本")}
-                </Text>
-                <View style={styles.actions}>
-                  <Pressy
-                    disabled={Boolean(updating)}
-                    onPress={() => onOpen(item.manifest.appId)}
-                  >
-                    <Text style={styles.link}>打开应用</Text>
-                  </Pressy>
-                  {updates[item.manifest.appId]?.status === "update" ? (
-                    <Pressy
-                      disabled={Boolean(updating)}
-                      onPress={() => void updateApplication(item)}
+                    <Text style={{ fontSize: 24 }}>{app.manifest.mark}</Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text
+                      numberOfLines={1}
+                      style={{ color: colors.ink1, fontSize: 16 }}
                     >
-                      <Text style={styles.link}>
-                        {updating === item.manifest.appId
-                          ? "正在下载更新…"
-                          : "更新应用"}
+                      {app.manifest.title}
+                    </Text>
+                    <Text
+                      numberOfLines={2}
+                      style={{ color: colors.ink3, fontSize: 12 }}
+                    >
+                      {app.manifest.summary}
+                    </Text>
+                  </View>
+                </View>
+                {updateState?.status === "update" ? (
+                  <Text style={{ color: colors.greenText, fontSize: 11 }}>
+                    有新的公开版本
+                  </Text>
+                ) : null}
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 18 }}
+                >
+                  <Pressy
+                    disabled={!!updating}
+                    onPress={() => onOpen(app.manifest.appId)}
+                    style={actionStyle}
+                  >
+                    <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+                      打开应用
+                    </Text>
+                  </Pressy>
+                  {updateState?.status === "update" ? (
+                    <Pressy
+                      disabled={!!updating}
+                      onPress={() => void update(app)}
+                      style={actionStyle}
+                    >
+                      <Text style={{ color: colors.greenText, fontSize: 13 }}>
+                        {updating === app.manifest.appId ? "正在更新…" : "更新"}
                       </Text>
                     </Pressy>
                   ) : null}
                   <Pressy
-                    disabled={Boolean(updating)}
-                    onPress={() => void installedDetail(item)}
+                    disabled={!!updating}
+                    onPress={() => void installedDetail(app)}
+                    style={actionStyle}
                   >
-                    <Text style={styles.secondary}>详情与卸载</Text>
+                    <Text style={{ color: colors.ink3, fontSize: 13 }}>
+                      详情与卸载
+                    </Text>
                   </Pressy>
                 </View>
               </View>
@@ -431,13 +543,25 @@ export function MyApplicationsScreen({
           }}
           ListEmptyComponent={
             !busy && !error ? (
-              <Text style={styles.caption}>
-                {term
-                  ? "没有找到匹配的作品与应用"
-                  : tab === "works"
-                  ? "还没有创作作品，从一个小心愿开始吧。"
-                  : "还没有安装市场应用，去应用市场看看吧。"}
-              </Text>
+              <View
+                style={{ paddingVertical: 24, gap: 12, alignItems: "center" }}
+              >
+                <PixelIcon name="box" size={32} color={colors.orchidText} />
+                <Text style={{ color: colors.ink3, fontSize: 13 }}>
+                  {term
+                    ? "没有找到匹配的内容"
+                    : scope === "works"
+                      ? "从一个想法开始，做出你的第一份作品"
+                      : "还没有安装应用，去发现喜欢的作品吧"}
+                </Text>
+                {scope === "works" && !term ? (
+                  <Pressy onPress={onCreate} style={actionStyle}>
+                    <Text style={{ color: colors.accentText }}>
+                      制作第一份作品
+                    </Text>
+                  </Pressy>
+                ) : null}
+              </View>
             ) : null
           }
         />
@@ -445,64 +569,3 @@ export function MyApplicationsScreen({
     </Root>
   );
 }
-const styles = themedStyleSheet((t) => ({
-  screen: { flex: 1, backgroundColor: t.canvas },
-  create: {
-    backgroundColor: t.accent,
-    paddingHorizontal: 12,
-    borderRadius: t.radius.sm,
-  },
-  createText: { color: t.onAccent, fontWeight: "700", fontSize: 13 },
-  header: {
-    paddingHorizontal: 12,
-    paddingVertical: 2,
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-    borderBottomWidth: 0.5,
-    borderBottomColor: t.line,
-  },
-  title: { color: t.ink1, fontFamily: t.serif, fontSize: 19 },
-  caption: { color: t.ink3, fontSize: 12, lineHeight: 18 },
-  tabs: { paddingHorizontal: 16, paddingTop: 12 },
-  tab: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14 },
-  content: { padding: 16, gap: 8, paddingBottom: 16 },
-  search: {
-    color: t.ink1,
-    backgroundColor: t.inset,
-    minHeight: 44,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: t.radius.sm,
-    borderWidth: 0.5,
-    borderColor: t.lineStrong,
-    fontSize: 14,
-  },
-  card: {
-    paddingVertical: 10,
-    gap: 4,
-    borderBottomWidth: 0.5,
-    borderBottomColor: t.line,
-  },
-  line: { flexDirection: "row", alignItems: "center", gap: 12 },
-  name: { color: t.ink1, fontSize: 15, fontWeight: "600" },
-  copy: { color: t.ink2, fontSize: 13, lineHeight: 20 },
-  badge: {
-    maxWidth: "35%",
-    color: t.accentText,
-    fontSize: 11,
-    backgroundColor: t.accentTint,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: t.radius.xs,
-  },
-  actions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    alignItems: "center",
-  },
-  link: { color: t.accentText, fontSize: 14, paddingVertical: 5 },
-  secondary: { color: t.ink3, fontSize: 13, paddingVertical: 5 },
-  error: { color: t.orangeText, fontSize: 13, lineHeight: 20 },
-}));

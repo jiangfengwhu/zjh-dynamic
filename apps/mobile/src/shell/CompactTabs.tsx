@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -7,24 +8,28 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
-import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
+import { PixelText } from "./feed/PixelText";
+import { PixelIcon, type PixelSymbol } from "./feed/PixelKit";
+import { usePixelTheme } from "./feed/pixelTheme";
 
-/** Equal-width sections with a short, predictable selection transition. */
+/** A shared pixel-cut switch: one UI-thread selection surface, no nested pill. */
 export function CompactTabs<T extends string>({
   value,
   options,
   onChange,
+  tone = "sun",
 }: {
   value: T;
-  options: readonly { id: T; label: string }[];
+  options: readonly { id: T; label: string; icon?: PixelSymbol }[];
   onChange: (value: T) => void;
+  tone?: "sun" | "mint" | "berry" | "violet";
 }) {
-  const { colors } = useTheme();
+  const { colors } = usePixelTheme();
   const [width, setWidth] = useState(0);
   const slot = options.length ? width / options.length : 0;
   const index = Math.max(
     0,
-    options.findIndex((item) => item.id === value)
+    options.findIndex((item) => item.id === value),
   );
   const x = useSharedValue(0);
   useEffect(() => {
@@ -36,64 +41,90 @@ export function CompactTabs<T extends string>({
   const motion = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value }],
   }));
+  const fill =
+    tone === "mint"
+      ? colors.green
+      : tone === "berry"
+        ? colors.red
+        : tone === "violet"
+          ? colors.orchid
+          : colors.accent;
   return (
-    <View style={styles.container}>
-      <View
-        style={styles.track}
-        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      >
-        {slot > 0 ? (
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.thumb, { width: slot }, motion]}
-          />
-        ) : null}
-        {options.map((item) => (
-          <Pressy
-            key={item.id}
-            accessibilityRole="tab"
-            accessibilityLabel={item.label}
-            accessibilityState={{ selected: item.id === value }}
-            onPress={() => onChange(item.id)}
-            style={styles.option}
+    <View
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+      style={{
+        flexDirection: "row",
+        height: 48,
+        backgroundColor: colors.surfaceRaised,
+        borderRadius: 4,
+      }}
+    >
+      {slot > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              left: 3,
+              top: 3,
+              bottom: 3,
+              width: slot - 6,
+            },
+            motion,
+          ]}
+        >
+          <Svg
+            width="100%"
+            height="100%"
+            viewBox={`0 0 ${slot - 6} 42`}
+            preserveAspectRatio="none"
           >
-            <Text
-              style={[
-                styles.label,
-                item.id === value && { color: colors.ink1, fontWeight: "700" },
-              ]}
-            >
-              {item.label}
-            </Text>
-          </Pressy>
-        ))}
-      </View>
+            <Path
+              d={`M4 0H${slot - 10}V4H${slot - 6}V38H${slot - 10}V42H4V38H0V4H4Z`}
+              fill={fill}
+            />
+          </Svg>
+        </Animated.View>
+      ) : null}
+      {options.map((item) => (
+        <Pressy
+          key={item.id}
+          scale={1}
+          accessibilityRole="tab"
+          accessibilityLabel={item.label}
+          accessibilityState={{ selected: item.id === value }}
+          onPress={() => onChange(item.id)}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 44,
+            paddingHorizontal: 8,
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "row",
+            gap: 8,
+          }}
+        >
+          {item.icon ? (
+            <PixelIcon
+              name={item.icon}
+              size={16}
+              color={item.id === value ? colors.onAccent : colors.ink3}
+            />
+          ) : null}
+          <PixelText
+            style={{
+              color: item.id === value ? colors.onAccent : colors.ink3,
+              fontSize: 14,
+              lineHeight: 20,
+              fontWeight: item.id === value ? "700" : "500",
+              textAlign: "center",
+            }}
+          >
+            {item.label}
+          </PixelText>
+        </Pressy>
+      ))}
     </View>
   );
 }
-const styles = themedStyleSheet((t) => ({
-  container: {
-    padding: 4,
-    borderRadius: t.radius.md,
-    backgroundColor: t.inset,
-  },
-  track: { flexDirection: "row" },
-  thumb: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: t.surfaceRaised,
-    borderRadius: t.radius.sm,
-    borderWidth: 0.5,
-    borderColor: t.lineStrong,
-  },
-  option: {
-    flex: 1,
-    minWidth: 0,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  label: { color: t.ink3, fontSize: 13, lineHeight: 18, textAlign: "center" },
-}));

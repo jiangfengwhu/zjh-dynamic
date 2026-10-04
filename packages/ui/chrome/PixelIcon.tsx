@@ -1,6 +1,7 @@
 import Svg, { Path } from "react-native-svg";
 
 export type PixelSymbol =
+  | "search"
   | "plus"
   | "bell"
   | "heart"
@@ -31,6 +32,8 @@ export type PixelSymbol =
   | "sun"
   | "moon";
 const paths: Record<PixelSymbol, string> = {
+  search:
+    "M3 1h7v2h2v7h-2v2H3v-2H1V3h2zM3 3v7h7V3zM10 10h2v2h2v2h2v2h-3v-2h-2v-2H9z",
   heartOutline:
     "M2 3h4v2h4V3h4v2h2v5h-2v2h-2v2h-2v2H6v-2H4v-2H2v-2H0V5h2zM2 5v5h2v2h2v2h4v-2h2v-2h2V5h-2v2H4V5z",
   share: "M9 1h2v2h2v2h2v2h-2v2h-2v2H9V8H6v2H4v3h10v2H2V8h2V6h5z",
