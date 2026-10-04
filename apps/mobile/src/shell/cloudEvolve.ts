@@ -156,6 +156,8 @@ async function runCloudEvolve(options: {
   shouldPause?: () => boolean;
   submitOnly?: boolean;
   expectedOwnerId?: string;
+  continueSession?: boolean;
+  submissionId?: string;
 }): Promise<CloudOutcome> {
   if (!await requireAccount()) throw new Error("请先登录后再创作");
   options.onStatus("正在提交到 Jules");
@@ -164,17 +166,18 @@ async function runCloudEvolve(options: {
   const existing = await loadJulesSession(!!options.submitOnly);
   if (options.expectedOwnerId && await currentAccountId() !== options.expectedOwnerId)
     throw new Error("账号已改变，请重新提交");
-  if (existing && options.submitOnly) {
+  if (existing && options.submitOnly && !options.continueSession) {
     options.onRunId(existing);
     return "waiting";
   }
-  if (existing && (await sessionAcceptsMessage(existing))) {
-    options.onRunId(existing);
+  if (existing && (options.continueSession || await sessionAcceptsMessage(existing))) {
     options.onStatus("正在继续这个应用的会话");
     const continuedAt = Date.now();
-    const sent = await jules("POST", `/v1alpha/${existing}:sendMessage`, JSON.stringify({ prompt }));
+    const sent = await jules("POST", `/v1alpha/${existing}:sendMessage`, JSON.stringify({ prompt }), options.submissionId);
     if (sent.status >= 200 && sent.status < 300) {
+      options.onRunId(existing);
       console.log("jules continue", existing);
+      if (options.submitOnly) return "waiting";
       return waitSession(existing, "", options, true, continuedAt);
     }
     throw new Error(julesError(sent));
@@ -447,7 +450,7 @@ function stateLabel(state: string): string {
   return "线上定制进行中";
 }
 
-async function jules(method: string, path: string, body?: string): Promise<JulesResult> {
+async function jules(method: string, path: string, body?: string, submissionId?: string): Promise<JulesResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
@@ -460,7 +463,7 @@ async function jules(method: string, path: string, body?: string): Promise<Jules
     const response = await accountFetch(`${edgeUrl}/v1/jules`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ appId, originalAppId: workspace?.originalAppId ?? originalAppId, originalReleaseId: workspace?.originalReleaseId, requestId, method, path, body: body ?? "", approvalToken: await readShellValue(APPROVAL_STORAGE), buildId: (require("./build-identity.json") as { buildId: string }).buildId }),
+      body: JSON.stringify({ appId, originalAppId: workspace?.originalAppId ?? originalAppId, originalReleaseId: workspace?.originalReleaseId, requestId: submissionId ?? requestId, method, path, body: body ?? "", approvalToken: await readShellValue(APPROVAL_STORAGE), buildId: (require("./build-identity.json") as { buildId: string }).buildId }),
       signal: controller.signal,
     }, method !== "GET");
     const result = { status: response.status, body: await response.text() };

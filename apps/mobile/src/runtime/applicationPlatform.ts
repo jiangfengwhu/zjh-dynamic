@@ -6,7 +6,9 @@ import { loadSharing } from "../shell/market";
 import { currentAccountId } from "../shell/account";
 import { shellNavigationRef } from "../shell/navigation";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
-import { openCreationRequest } from "../shell/workshopNavigation";
+import { openCreationComposer } from "../shell/creationComposer";
+import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
+import { runningApplication } from "./applications";
 
 const modules: Record<string, () => unknown> = {
   "react-native-enriched-markdown": () => require("react-native-enriched-markdown"),
@@ -60,7 +62,18 @@ const modules: Record<string, () => unknown> = {
 export function installApplicationPlatform() {
   const target = globalThis as typeof globalThis & { __zijinhuaApplications?: unknown };
   if (target.__zijinhuaApplications) return;
-  setApplicationCreationNavigation((appId, prompt) => { void openCreationRequest(appId, prompt).catch(() => {}); });
+  setApplicationCreationNavigation((appId, prompt) => {
+    if (appId === "jolly") {
+      const context = applicationContext("jolly");
+      const target = prompt !== undefined ? context.storage.get("workshopTarget") : undefined;
+      let workspace: { title: string; originalAppId?: string } | undefined;
+      try { workspace = JSON.parse(context.storage.get("workspaces") || "[]").find((item: { appId: string }) => item.appId === target); } catch {}
+      openCreationComposer(target && workspace ? { appId: target, title: workspace.title, originalAppId: workspace.originalAppId, fork: false, prompt } : undefined);
+    } else {
+      const manifest = runningApplication(appId);
+      if (manifest) openCreationComposer({ appId, title: manifest.title, releaseId: manifest.releaseId, prompt });
+    }
+  });
   target.__zijinhuaApplications = Object.freeze({
     require: (name: string, appId: string) => {
       if (name === "@zijinhua/app-sdk") return bindApplicationSdk(appId);
@@ -68,7 +81,14 @@ export function installApplicationPlatform() {
         // Engineering API selection only: shared JS has no trustworthy caller appId.
         // Server ownership and per-round authorization protect creation operations.
         if (appId !== "jolly") throw new Error("当前应用未获得制作能力");
-        return { getCreationService: (targetAppId: string, originalAppId?: string) => ({ ...creationService(targetAppId, originalAppId), checkPackageUpdates: async () => (await checkApplicationUpdates(targetAppId)).filter(item => item.id === targetAppId),
+        return { getCreationService: (targetAppId: string, originalAppId?: string) => ({ ...creationService(targetAppId, originalAppId),
+          // Old companion versions also enter the canonical composer rather than submit.
+          runCloudEvolve: async (options: { requirement: string }) => {
+            const manifest = runningApplication(targetAppId);
+            openCreationComposer({ appId: targetAppId, title: manifest?.title || targetAppId, originalAppId, fork: false, prompt: options.requirement });
+            return "waiting" as const;
+          },
+          checkPackageUpdates: async () => (await checkApplicationUpdates(targetAppId)).filter(item => item.id === targetAppId),
           applyPackageUpdates: () => applyApplicationUpdate(targetAppId),
           openPublication: async () => {
             const owner = await currentAccountId();

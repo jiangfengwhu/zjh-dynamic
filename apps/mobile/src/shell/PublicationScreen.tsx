@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Keyboard,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Keyboard, Text, View } from "react-native";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
@@ -34,17 +29,22 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { currentAccountId, useAccount } from "./account";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import type { MarketApplication } from "./market";
+import { CreationImages, useCreationImages } from "./CreationImages";
+import type { CreationInput, CreationIntent } from "./creationComposer";
+import { usePreventRemove } from "@react-navigation/native";
 
 const CREATION_INPUT_HEIGHT = 224;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 export function PublicationScreen(
-  props: Parameters<typeof PublicationContent>[0],
+  props: Parameters<typeof PublicationContent>[0]
 ) {
   const theme = usePixelTheme();
   return (
     <ThemeContext.Provider value={theme}>
-      <ScreenEdge bottom={false}><PublicationContent {...props} /></ScreenEdge>
+      <ScreenEdge bottom={false}>
+        <PublicationContent {...props} />
+      </ScreenEdge>
     </ThemeContext.Provider>
   );
 }
@@ -53,13 +53,17 @@ function PublicationContent({
   initialApplication,
   initialDraft,
   initialMode = "post",
+  creation,
   onCreate,
+  onCreated,
 }: {
   onBack: () => void;
   initialApplication?: MarketApplication;
   initialDraft?: UserPostDraft;
   initialMode?: "post" | "create";
-  onCreate: (prompt: string) => Promise<boolean>;
+  creation?: CreationIntent;
+  onCreate: (input: CreationInput) => Promise<boolean>;
+  onCreated?: () => void;
 }) {
   const [mode, setMode] = useState(initialMode);
   const { colors } = useTheme();
@@ -75,16 +79,19 @@ function PublicationContent({
       "worklet";
       position.value = event.position + event.offset;
     },
-    ["onPageScroll"],
+    ["onPageScroll"]
   );
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
     (event) => {
       "worklet";
       runOnJS(selectMode)(event.position === 0 ? "post" : "create");
     },
-    ["onPageSelected"],
+    ["onPageSelected"]
   );
   const [creating, setCreating] = useState(false);
+  usePreventRemove(creating, () =>
+    Toast.show({ type: "info", text1: "正在提交制作，请稍候" })
+  );
   const tabs = (
     <View style={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 6 }}>
       <CompactTabs
@@ -107,7 +114,7 @@ function PublicationContent({
       <PageHeader
         title="发布"
         variant="pixel"
-        onBack={postControls?.busy ? undefined : onBack}
+        onBack={postControls?.busy || creating ? undefined : onBack}
       />
       {tabs}
       <AnimatedPagerView
@@ -131,8 +138,11 @@ function PublicationContent({
         </View>
         <View key="create" collapsable={false} style={{ flex: 1 }}>
           <CreateApplicationPage
+            key={creation?.appId ?? "new"}
+            intent={creation}
             active={mode === "create"}
             onCreate={onCreate}
+            onCreated={onCreated}
             busy={creating}
             setBusy={setCreating}
           />
@@ -147,15 +157,22 @@ function CreateApplicationPage({
   busy,
   setBusy,
   onCreate,
+  onCreated,
+  intent,
 }: {
   active: boolean;
   busy: boolean;
   setBusy: (busy: boolean) => void;
-  onCreate: (prompt: string) => Promise<boolean>;
+  intent?: CreationIntent;
+  onCreate: (input: CreationInput) => Promise<boolean>;
+  onCreated?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { user } = useAccount();
+  const scope = `${intent?.appId ?? "new"}.${intent?.fork ? "remix" : "edit"}`;
+  const images = useCreationImages(user?.id, scope);
+  const [submitStatus, setSubmitStatus] = useState("");
   const [prompt, setPrompt] = useState("");
   const [ready, setReady] = useState(false);
   const [polishing, setPolishing] = useState(false);
@@ -204,7 +221,7 @@ function CreateApplicationPage({
         setPolishError(
           cause instanceof Error
             ? cause.message
-            : "润色暂未完成，请重试；原文已保留",
+            : "润色暂未完成，请重试；原文已保留"
         );
     } finally {
       if (alive.current && id === polishRevision.current) setPolishing(false);
@@ -213,7 +230,9 @@ function CreateApplicationPage({
   const acting = useRef(false);
   const typed = useRef(false);
   const alive = useRef(true);
-  const draftKey = `creation.draft.${user?.id ?? "guest"}`;
+  const draftKey = `creation.draft.${user?.id ?? "guest"}${
+    intent ? `.${scope}` : ""
+  }`;
   const loadedKey = useRef("");
   const latestDraft = useRef({ key: draftKey, text: prompt, loaded: false });
   latestDraft.current = {
@@ -231,7 +250,7 @@ function CreateApplicationPage({
       alive.current = false;
       polishRevision.current++;
     },
-    [],
+    []
   );
   useEffect(() => {
     let active = true;
@@ -243,7 +262,7 @@ function CreateApplicationPage({
       .then((value) => {
         if (active) {
           loadedKey.current = draftKey;
-          if (!typed.current) setPrompt(value || "");
+          if (!typed.current) setPrompt(intent?.prompt || value || "");
           setReady(true);
         }
       })
@@ -269,21 +288,37 @@ function CreateApplicationPage({
     return () => clearTimeout(timer);
   }, [ready, draftKey, prompt]);
   async function create() {
-    if (acting.current || !ready || !prompt.trim() || !user) return;
+    if (
+      acting.current ||
+      images.picking ||
+      !images.ready ||
+      !ready ||
+      !prompt.trim() ||
+      !user
+    )
+      return;
     persistDraft();
     polishRevision.current++;
     setPolishing(false);
     acting.current = true;
     setBusy(true);
+    setSubmitStatus("正在准备制作…");
     const owner = user.id;
     const submittedText = prompt.trim();
     try {
       if ((await currentAccountId()) !== owner)
         throw new Error("账号已改变，请重新打开发布页");
       Keyboard.dismiss();
-      if (!(await onCreate(submittedText)))
+      const uploaded = await images.upload((status) => {
+        if (alive.current) setSubmitStatus(status);
+      });
+      if ((await currentAccountId()) !== owner)
+        throw new Error("账号已改变，请重新打开制作页");
+      setSubmitStatus("正在提交需求…");
+      if (!(await onCreate({ prompt: submittedText, images: uploaded })))
         throw new Error("需求未能提交，草稿已保留");
       if ((await currentAccountId()) === owner) {
+        images.clear();
         if ((await readShellValue(draftKey))?.trim() === submittedText)
           writeShellValue(draftKey, "");
         if (alive.current) {
@@ -291,6 +326,10 @@ function CreateApplicationPage({
           setBeforePolish(undefined);
         }
       }
+      setBusy(false);
+      requestAnimationFrame(() => {
+        if (alive.current) onCreated?.();
+      });
     } catch (cause) {
       if (alive.current)
         Toast.show({
@@ -305,179 +344,209 @@ function CreateApplicationPage({
   }
   return (
     <KeyboardAwareScrollView
-        // Reserve the multiline field and action even with the caret on its first line.
-        bottomOffset={CREATION_INPUT_HEIGHT + 64}
-        style={{ flex: 1 }}
-        nestedScrollEnabled
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 16 + insets.bottom }}
+      // Reserve the multiline field and action even with the caret on its first line.
+      bottomOffset={CREATION_INPUT_HEIGHT + 64}
+      style={{ flex: 1 }}
+      nestedScrollEnabled
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
+        padding: 16,
+        gap: 16,
+        paddingBottom: 16 + insets.bottom,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 12,
+          alignItems: "center",
+          padding: 14,
+          backgroundColor: colors.orchidTint,
+          borderRadius: 8,
+        }}
       >
-        <View
-          style={{
-            flexDirection: "row",
-            gap: 12,
-            alignItems: "center",
-            padding: 14,
-            backgroundColor: colors.orchidTint,
-            borderRadius: 8,
-          }}
-        >
-          <PixelAvatar size={44} />
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text
-              style={{ color: colors.ink1, fontSize: 18, fontWeight: "700" }}
-            >
-              把想法做成应用
-            </Text>
-            <Text style={{ color: colors.ink3, fontSize: 13 }}>
-              写下想法，Jolly 帮你做出第一版。
-            </Text>
-          </View>
+        <PixelAvatar size={44} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ color: colors.ink1, fontSize: 18, fontWeight: "700" }}>
+            {intent
+              ? intent.fork
+                ? "基于应用再创作"
+                : "让作品更进一步"
+              : "把想法做成应用"}
+          </Text>
+          <Text style={{ color: colors.ink3, fontSize: 13 }}>
+            {intent
+              ? `「${intent.title}」${
+                  intent.fork ? " · 创建自己的新作品" : " · 继续修改这个作品"
+                }`
+              : "写下想法，Jolly 帮你做出第一版。"}
+          </Text>
         </View>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Text style={{ color: colors.ink1, fontSize: 14 }}>你的想法</Text>
-          <Pressy
-            scale={1}
-            accessibilityRole="button"
-            accessibilityLabel={polishing ? "取消润色" : "AI 润色需求"}
-            disabled={busy || !ready || !prompt.trim() || !user}
-            onPress={() => {
-              if (polishing) {
-                polishRevision.current++;
-                setPolishing(false);
-              } else void polish();
-            }}
-            style={{
-              minHeight: 44,
-              paddingHorizontal: 10,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            {polishing ? (
-              <ActivityIndicator size="small" color={colors.orchidText} />
-            ) : (
-              <PixelIcon name="spark" size={16} color={colors.orchidText} />
-            )}
-            <Text style={{ color: colors.orchidText, fontSize: 13 }}>
-              {polishing ? "取消润色" : "AI 润色"}
-            </Text>
-          </Pressy>
-        </View>
-        <FormField
-          accessibilityLabel="应用制作需求"
-          multiline
-          scrollEnabled
-          editable={!busy}
-          maxLength={8000}
-          value={prompt}
-          onChangeText={changePrompt}
-          onBlur={persistDraft}
-          placeholder="例如：做一个每天记录心情的小应用，有日历和像素花园…"
-          placeholderTextColor={colors.ink3}
-          style={{
-            height: CREATION_INPUT_HEIGHT,
-            padding: 14,
-            borderRadius: 4,
-            borderWidth: 0.5,
-            borderColor: colors.line,
-            backgroundColor: colors.greenTint,
-            color: colors.ink1,
-            fontSize: 15,
-            lineHeight: 23,
-            textAlignVertical: "top",
-          }}
-        />
+      </View>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Text style={{ color: colors.ink1, fontSize: 14 }}>你的想法</Text>
         <Pressy
+          scale={1}
           accessibilityRole="button"
-          accessibilityLabel="提交需求并开始制作"
+          accessibilityLabel={polishing ? "取消润色" : "AI 润色需求"}
           disabled={busy || !ready || !prompt.trim() || !user}
-          onPress={() => void create()}
+          onPress={() => {
+            if (polishing) {
+              polishRevision.current++;
+              setPolishing(false);
+            } else void polish();
+          }}
           style={{
-            minHeight: 48,
-            borderRadius: 4,
-            backgroundColor: colors.accent,
+            minHeight: 44,
+            paddingHorizontal: 10,
             flexDirection: "row",
             alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            opacity: busy || !ready || !prompt.trim() || !user ? 0.5 : 1,
+            gap: 6,
           }}
         >
-          {busy ? (
-            <ActivityIndicator color={colors.onAccent} />
+          {polishing ? (
+            <ActivityIndicator size="small" color={colors.orchidText} />
           ) : (
-            <PixelIcon name="spark" size={20} color={colors.onAccent} />
+            <PixelIcon name="spark" size={16} color={colors.orchidText} />
           )}
-          <Text
-            style={{ color: colors.onAccent, fontSize: 15, fontWeight: "700" }}
-          >
-            {busy ? "正在提交需求…" : "进入制作"}
+          <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+            {polishing ? "取消润色" : "AI 润色"}
           </Text>
         </Pressy>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
+      </View>
+      <FormField
+        accessibilityLabel="应用制作需求"
+        multiline
+        scrollEnabled
+        editable={!busy}
+        maxLength={8000}
+        value={prompt}
+        onChangeText={changePrompt}
+        onBlur={persistDraft}
+        placeholder={
+          intent
+            ? "希望哪里改变？描述目标效果，也可以添加问题截图…"
+            : "例如：做一个每天记录心情的小应用，有日历和像素花园…"
+        }
+        placeholderTextColor={colors.ink3}
+        style={{
+          height: CREATION_INPUT_HEIGHT,
+          padding: 14,
+          borderRadius: 4,
+          borderWidth: 0.5,
+          borderColor: colors.line,
+          backgroundColor: colors.greenTint,
+          color: colors.ink1,
+          fontSize: 15,
+          lineHeight: 23,
+          textAlignVertical: "top",
+        }}
+      />
+      <CreationImages images={images} disabled={busy} />
+      <Pressy
+        accessibilityRole="button"
+        accessibilityLabel="提交需求并开始制作"
+        disabled={
+          busy ||
+          images.picking ||
+          !images.ready ||
+          !ready ||
+          !prompt.trim() ||
+          !user
+        }
+        onPress={() => void create()}
+        style={{
+          minHeight: 48,
+          borderRadius: 4,
+          backgroundColor: colors.accent,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          opacity:
+            busy ||
+            images.picking ||
+            !images.ready ||
+            !ready ||
+            !prompt.trim() ||
+            !user
+              ? 0.5
+              : 1,
+        }}
+      >
+        {busy ? (
+          <ActivityIndicator color={colors.onAccent} />
+        ) : (
+          <PixelIcon name="spark" size={20} color={colors.onAccent} />
+        )}
+        <Text
+          style={{ color: colors.onAccent, fontSize: 15, fontWeight: "700" }}
         >
-          <Text style={{ flex: 1, color: colors.ink3, fontSize: 12 }}>
-            {polishing
-              ? "正在润色，你仍可编辑或直接开始制作"
-              : "输入内容自动保存，AI 润色可选"}
-          </Text>
-          <Text style={{ color: colors.ink3, fontSize: 11 }}>
-            {prompt.length}/8000
-          </Text>
-        </View>
-        {beforePolish !== undefined ? (
-          <Pressy
-            scale={1}
-            accessibilityRole="button"
-            disabled={busy}
-            onPress={() => {
-              changePrompt(beforePolish);
-              setBeforePolish(undefined);
-            }}
-            style={{ minHeight: 44, justifyContent: "center" }}
-          >
-            <Text style={{ color: colors.orchidText, fontSize: 13 }}>
-              回退原文
-            </Text>
-          </Pressy>
-        ) : null}
-        {polishError ? (
-          <View style={{ gap: 4 }}>
-            <Text style={{ color: colors.redText, fontSize: 12 }}>
-              {polishError}
-            </Text>
-            {/配置|引擎/.test(polishError) ? (
-              <Pressy
-                accessibilityRole="button"
-                onPress={() => applicationContext("jolly").ai.openSettings()}
-                style={{ minHeight: 44, justifyContent: "center" }}
-              >
-                <Text style={{ color: colors.orchidText, fontSize: 13 }}>
-                  配置 AI 引擎
-                </Text>
-              </Pressy>
-            ) : null}
-          </View>
-        ) : null}
-
-        <Text style={{ color: colors.ink3, fontSize: 12 }}>
-          点击后直接开始制作，完成或失败都会收到站内通知。
+          {busy ? submitStatus : "进入制作"}
         </Text>
+      </Pressy>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <Text style={{ flex: 1, color: colors.ink3, fontSize: 12 }}>
+          {polishing
+            ? "正在润色，你仍可编辑或直接开始制作"
+            : "输入内容自动保存，AI 润色可选"}
+        </Text>
+        <Text style={{ color: colors.ink3, fontSize: 11 }}>
+          {prompt.length}/8000
+        </Text>
+      </View>
+      {beforePolish !== undefined ? (
+        <Pressy
+          scale={1}
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => {
+            changePrompt(beforePolish);
+            setBeforePolish(undefined);
+          }}
+          style={{ minHeight: 44, justifyContent: "center" }}
+        >
+          <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+            回退原文
+          </Text>
+        </Pressy>
+      ) : null}
+      {polishError ? (
+        <View style={{ gap: 4 }}>
+          <Text style={{ color: colors.redText, fontSize: 12 }}>
+            {polishError}
+          </Text>
+          {/配置|引擎/.test(polishError) ? (
+            <Pressy
+              accessibilityRole="button"
+              onPress={() => applicationContext("jolly").ai.openSettings()}
+              style={{ minHeight: 44, justifyContent: "center" }}
+            >
+              <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+                配置 AI 引擎
+              </Text>
+            </Pressy>
+          ) : null}
+        </View>
+      ) : null}
+
+      <Text style={{ color: colors.ink3, fontSize: 12 }}>
+        点击后需求和参考图会交给制作服务，直接开始制作；完成或失败都会收到站内通知。
+      </Text>
     </KeyboardAwareScrollView>
   );
 }

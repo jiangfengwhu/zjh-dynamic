@@ -5,7 +5,7 @@ import {
   useAccount,
   uploadMarketScreenshot,
 } from "./account";
-import { openApplicationWorkshop } from "./workshopNavigation";
+import { openCreationComposer } from "./creationComposer";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import {
@@ -92,7 +92,7 @@ function MarketDetailContent({
   onSharePost,
   onAuthor,
 }: {
-  onModify: (manifest: ApplicationManifest, ownerId: string) => void;
+  onModify: (manifest: ApplicationManifest, ownerId: string, fork: boolean) => void;
   onAuthor: (author: {
     id: string;
     name: string;
@@ -161,7 +161,7 @@ function MarketDetailContent({
         (installed ? runningApplication(app.appId) : undefined) ??
         (owner ? sharing?.application : undefined) ??
         app;
-      onModify(manifest, ownerId);
+      onModify(manifest, ownerId, !owner);
     } catch (e) {
       Toast.show({
         type: "error",
@@ -597,18 +597,7 @@ function MarketDetailContent({
     displayed.bundle.bytes +
     displayed.assets.reduce((total, asset) => total + asset.bytes, 0);
   function continueCreation() {
-    void requireAccount().then((allowed) => {
-      if (allowed)
-        void openApplicationWorkshop(
-          app.appId,
-          app.title,
-          !owner,
-          !owner,
-          app.releaseId
-        ).catch((cause) =>
-          setError(cause instanceof Error ? cause.message : "工坊未能打开")
-        );
-    });
+    openCreationComposer({ appId: app.appId, title: app.title, releaseId: app.releaseId, fork: !owner });
   }
   const summary = (shared?.summary ?? item.summary ?? app.summary ?? "").trim();
   const publicationStatus = (

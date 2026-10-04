@@ -1,4 +1,4 @@
-import { openApplicationWorkshop } from "./src/shell/workshopNavigation";
+import { openCreationComposer } from "./src/shell/creationComposer";
 import { reportApplicationFailure } from "./src/runtime/applications";
 import {
   Component,
@@ -317,13 +317,7 @@ function ShellApp() {
   /** 在动态里对某位朋友说一句：去工坊，用 TA 的名字起个头，接着写想要的变化。 */
   function replyToFriend(id: string) {
     const title = bundles.find((item) => item.id === id)?.title ?? id;
-    void openApplicationWorkshop(id, title).catch((error) =>
-      Toast.show({
-        type: "error",
-        text1: "工坊未能打开",
-        text2: error instanceof Error ? error.message : "请重试",
-      })
-    );
+    openCreationComposer({ appId: id, title });
   }
 
   async function changeMode(next: ThemeMode) {

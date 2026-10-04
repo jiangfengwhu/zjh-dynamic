@@ -2,7 +2,7 @@ const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import type { ApplicationManifest } from "../runtime/applications";
-import { ApplicationFeedbackScreen } from "./ApplicationFeedbackScreen";
+import { openCreationComposer, type CreationIntent } from "./creationComposer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Screen,
@@ -94,7 +94,6 @@ export type RootParamList = {
   info: undefined;
   appearance: undefined;
   bundle: { id: string };
-  applicationFeedback: { manifest: ApplicationManifest; ownerId: string };
   marketDetail: { item: MarketApplication };
   marketPublication: { item: MarketApplication };
   myApps: undefined;
@@ -104,6 +103,7 @@ export type RootParamList = {
         application?: MarketApplication;
         draft?: UserPostDraft;
         mode?: "post" | "create";
+        creation?: CreationIntent;
       }
     | undefined;
   postDetail: {
@@ -641,10 +641,13 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 item={route.params.item}
                 onBack={goBack}
                 onOpen={props.onOpenBundle}
-                onModify={(manifest, ownerId) =>
-                  shellNavigationRef.navigate("applicationFeedback", {
-                    manifest,
+                onModify={(manifest, ownerId, fork) =>
+                  openCreationComposer({
+                    appId: manifest.appId,
+                    title: manifest.title,
+                    releaseId: manifest.releaseId,
                     ownerId,
+                    fork,
                   })
                 }
                 onSharePost={(application) =>
@@ -666,10 +669,13 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 onBack={goBack}
                 onOpen={props.onOpenBundle}
                 onAuthor={openAuthor}
-                onModify={(manifest, ownerId) =>
-                  shellNavigationRef.navigate("applicationFeedback", {
-                    manifest,
+                onModify={(manifest, ownerId, fork) =>
+                  openCreationComposer({
+                    appId: manifest.appId,
+                    title: manifest.title,
+                    releaseId: manifest.releaseId,
                     ownerId,
+                    fork,
                   })
                 }
                 onSharePost={(application) =>
@@ -700,16 +706,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               />
             )}
           </Stack.Screen>
-          <Stack.Screen name="applicationFeedback">
-            {({ route }) => (
-              <ApplicationFeedbackScreen
-                key={`${route.params.ownerId}.${route.params.manifest.appId}.${route.params.manifest.releaseId}`}
-                manifest={route.params.manifest}
-                ownerId={route.params.ownerId}
-                onBack={goBack}
-              />
-            )}
-          </Stack.Screen>
           <Stack.Screen
             name="account"
             options={{ animation: "slide_from_right", animationDuration: 220 }}
@@ -720,24 +716,30 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             {({ route }) => (
               <PublicationScreen
                 onBack={goBack}
-                onCreate={async (prompt) => {
-                  const origin = shellNavigationRef.getCurrentRoute()?.key;
-                  await submitCreationPrompt(prompt);
-                  if (shellNavigationRef.getCurrentRoute()?.key !== origin)
-                    return true;
-                  try {
-                    if (!(await openShellBundle(bootstrap.defaultApplication)))
-                      throw new Error("制作已提交，可在我的作品中查看进度");
-                  } catch {
-                    Toast.show({
-                      type: "success",
-                      text1: "已开始制作",
-                      text2: "可在我的作品中查看进度",
-                    });
-                  }
+                onCreate={async (input) => {
+                  await submitCreationPrompt(input, route.params?.creation);
                   return true;
                 }}
+                onCreated={() => {
+                  if (shellNavigationRef.getCurrentRoute()?.key !== route.key)
+                    return;
+                  void (async () => {
+                    try {
+                      if (
+                        !(await openShellBundle(bootstrap.defaultApplication))
+                      )
+                        throw new Error("制作已提交，可在我的作品中查看进度");
+                    } catch {
+                      Toast.show({
+                        type: "success",
+                        text1: "已开始制作",
+                        text2: "可在我的作品中查看进度",
+                      });
+                    }
+                  })();
+                }}
                 initialMode={route.params?.mode}
+                creation={route.params?.creation}
                 initialApplication={route.params?.application}
                 initialDraft={route.params?.draft}
               />

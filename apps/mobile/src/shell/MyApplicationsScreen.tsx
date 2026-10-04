@@ -26,6 +26,7 @@ import {
   type PublicApplicationUpdate,
 } from "../runtime/applications";
 import { openApplicationWorkshop } from "./workshopNavigation";
+import { openCreationComposer } from "./creationComposer";
 import { restoreWorks } from "./workRecovery";
 import { readMyWorks, workLabels, type MyWork } from "./works";
 import { WorkCard } from "./WorkCard";
@@ -187,6 +188,10 @@ export function MyApplicationsScreen({
     };
   }, [focused, user?.id, scope, works]);
   async function workshop(work: MyWork) {
+    if (work.stage !== "making") {
+      openCreationComposer({ appId: work.appId, title: work.title, ownerId: user?.id, fork: false });
+      return;
+    }
     await openApplicationWorkshop(work.appId, work.title, false, false);
   }
   function detail(work: MyWork, publication = false) {

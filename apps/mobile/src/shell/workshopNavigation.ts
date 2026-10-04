@@ -12,12 +12,18 @@ import { edgeUrl } from "./evolveHost";
 import NativePluginHost from "../NativePluginHost";
 import { writeShellValue } from "./shellStorage";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
+import { openCreationComposer } from "./creationComposer";
 export async function openCreationRequest(
   appId: string,
   prompt?: string,
   navigate = true,
   expectedOwnerId?: string
 ) {
+  if (navigate) {
+    const manifest = runningApplication(appId);
+    openCreationComposer(appId === bootstrap.defaultApplication ? undefined : { appId, title: manifest?.title || appId, releaseId: manifest?.releaseId, ownerId: expectedOwnerId, prompt });
+    return;
+  }
   if (!(await requireAccount())) return;
   if (expectedOwnerId && await currentAccountId() !== expectedOwnerId)
     throw new Error("账号已改变，请重新提交");
