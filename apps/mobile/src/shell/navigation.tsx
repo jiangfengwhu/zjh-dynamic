@@ -88,7 +88,10 @@ export type TabParamList = {
   mine: undefined;
 };
 
+import JollyProgressScreen from "./jolly/ProgressScreen";
+
 export type RootParamList = {
+  workshopProgress: { appId?: string; title?: string; ownerId: string };
   tabs: NavigatorScreenParams<TabParamList> | undefined;
   providers: undefined;
   info: undefined;
@@ -217,6 +220,14 @@ export async function openPublicMarketApplication(appId: string) {
 
 export async function openShellBundle(id: string) {
   if (!shellNavigationRef.isReady()) return false;
+  if (id === bootstrap.defaultApplication) {
+    const ownerId = await currentAccountId();
+    if (!ownerId) return false;
+    const appId =
+      applicationContext(id).storage.get("workshopTarget") || undefined;
+    shellNavigationRef.navigate("workshopProgress", { appId, ownerId });
+    return true;
+  }
   const request = ++openingRequest;
   const origin = shellNavigationRef.getCurrentRoute()?.key;
   const isCurrent = () =>
@@ -712,21 +723,39 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           >
             {() => <AccountScreen onBack={goBack} />}
           </Stack.Screen>
+          <Stack.Screen name="workshopProgress">
+            {({ route }) => (
+              <JollyProgressScreen
+                key={`${route.params.ownerId}.${route.params.appId}`}
+                appId={route.params.appId}
+                title={route.params.title}
+                scope={route.params.ownerId}
+                onBack={goBack}
+              />
+            )}
+          </Stack.Screen>
           <Stack.Screen name="composePost">
             {({ route }) => (
               <PublicationScreen
                 onBack={goBack}
                 onCreate={async (input) => {
-                  await submitCreationPrompt(input, route.params?.creation);
-                  return true;
+                  return await submitCreationPrompt(
+                    input,
+                    route.params?.creation
+                  );
                 }}
-                onCreated={() => {
+                onCreated={(appId) => {
                   if (shellNavigationRef.getCurrentRoute()?.key !== route.key)
                     return;
                   void (async () => {
                     try {
                       if (
-                        !(await openShellBundle(bootstrap.defaultApplication))
+                        !(await openApplicationWorkshop(
+                          appId,
+                          "这次制作",
+                          false,
+                          false
+                        ))
                       )
                         throw new Error("制作已提交，可在我的作品中查看进度");
                     } catch {

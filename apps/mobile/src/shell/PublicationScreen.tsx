@@ -62,8 +62,8 @@ function PublicationContent({
   initialDraft?: UserPostDraft;
   initialMode?: "post" | "create";
   creation?: CreationIntent;
-  onCreate: (input: CreationInput) => Promise<boolean>;
-  onCreated?: () => void;
+  onCreate: (input: CreationInput) => Promise<string>;
+  onCreated?: (appId: string) => void;
 }) {
   const [mode, setMode] = useState(initialMode);
   const { colors } = useTheme();
@@ -164,8 +164,8 @@ function CreateApplicationPage({
   busy: boolean;
   setBusy: (busy: boolean) => void;
   intent?: CreationIntent;
-  onCreate: (input: CreationInput) => Promise<boolean>;
-  onCreated?: () => void;
+  onCreate: (input: CreationInput) => Promise<string>;
+  onCreated?: (appId: string) => void;
 }) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -315,8 +315,15 @@ function CreateApplicationPage({
       if ((await currentAccountId()) !== owner)
         throw new Error("账号已改变，请重新打开制作页");
       setSubmitStatus("正在提交需求…");
-      if (!(await onCreate({ prompt: submittedText, images: uploaded })))
-        throw new Error("需求未能提交，草稿已保留");
+      const createdAppId = await onCreate({
+        prompt: submittedText,
+        images: uploaded,
+      });
+      if (!createdAppId) throw new Error("需求未能提交，草稿已保留");
+      if ((await currentAccountId()) !== owner) {
+        setBusy(false);
+        return;
+      }
       if ((await currentAccountId()) === owner) {
         images.clear();
         if ((await readShellValue(draftKey))?.trim() === submittedText)
@@ -328,7 +335,7 @@ function CreateApplicationPage({
       }
       setBusy(false);
       requestAnimationFrame(() => {
-        if (alive.current) onCreated?.();
+        if (alive.current) onCreated?.(createdAppId);
       });
     } catch (cause) {
       if (alive.current)
@@ -363,8 +370,13 @@ function CreateApplicationPage({
           justifyContent: "space-between",
         }}
       >
-        <Text numberOfLines={1} style={{ flex: 1, color: colors.ink1, fontSize: 14 }}>
-          {intent ? `${intent.fork ? "Remix" : "修改"} · ${intent.title}` : "你的想法"}
+        <Text
+          numberOfLines={1}
+          style={{ flex: 1, color: colors.ink1, fontSize: 14 }}
+        >
+          {intent
+            ? `${intent.fork ? "Remix" : "修改"} · ${intent.title}`
+            : "你的想法"}
         </Text>
         <Pressy
           scale={1}

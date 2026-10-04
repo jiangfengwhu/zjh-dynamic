@@ -47,7 +47,11 @@ export const marketCategories = [
   { id: "creative", label: "创意" },
   { id: "other", label: "其他" },
 ];
-export const marketDiscoveryCategories = [marketCategories[0], { id: "official", label: "官方" }, ...marketCategories.slice(1)];
+export const marketDiscoveryCategories = [
+  marketCategories[0],
+  { id: "official", label: "官方" },
+  ...marketCategories.slice(1),
+];
 export type MarketPage = {
   applications: MarketApplication[];
   nextCursor?: string;
@@ -94,10 +98,12 @@ export async function readMarketView(
       const view = {
         ...value,
         at: 0,
-        applications: value.applications.map((item: MarketApplication) => ({
-          ...item,
-          latest: false,
-        })),
+        applications: value.applications
+          .filter((item: MarketApplication) => item.manifest.appId !== "jolly")
+          .map((item: MarketApplication) => ({
+            ...item,
+            latest: false,
+          })),
       };
       views.set(key, view);
       return view;
@@ -128,7 +134,9 @@ export async function fetchMarketPage(
   const data = (await response.json()) as MarketPage;
   if (!Array.isArray(data.applications)) throw new Error("市场数据暂时不可用");
   return {
-    applications: data.applications.map((item) => ({ ...item, latest: true })),
+    applications: data.applications
+      .filter((item) => item.manifest.appId !== "jolly")
+      .map((item) => ({ ...item, latest: true })),
     nextCursor: data.nextCursor,
   };
 }
@@ -176,6 +184,7 @@ export async function fetchMarket(
   if (!Array.isArray(data.applications))
     throw new Error("应用市场数据暂时不可用");
   const items = data.applications
+    .filter((item) => item.manifest?.appId !== "jolly")
     .filter((item) => /^[a-z][a-z0-9-]{0,63}$/.test(item.manifest?.appId))
     .map((item) => ({ ...item, latest: true }));
   if (!authorId) writeShellValue(CACHE, JSON.stringify(items));

@@ -2,6 +2,8 @@
 
 维护 @zijinhua/app-sdk、RN 宿主、运行时适配、加载器和打包发布工具。应用源码与模板在 [zjh-plugin](https://github.com/jiangfengwhu/zjh-plugin)，不在本仓库新增应用业务。
 
+Jolly 制作进度属于宿主功能，随主包发布并使用原生路由，不再作为默认安装应用。制作任务继续沿用账号隔离的 jolly 数据命名空间；插件仓库用于用户作品及后续官方应用。
+
 | 目录 | 职责 |
 | --- | --- |
 | packages/app-sdk | SDK 公共 API、平台契约与共享库清单 |

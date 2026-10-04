@@ -4,7 +4,9 @@ const CATALOG_KEY = "shell.bundles.v1";
 const listeners = new Set<(entries: CatalogEntry[]) => void>();
 export function subscribeCatalog(listener: (entries: CatalogEntry[]) => void) {
   listeners.add(listener);
-  return () => { listeners.delete(listener); };
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 export type CatalogEntry = {
@@ -35,14 +37,20 @@ export async function loadCatalog(): Promise<CatalogEntry[]> {
     const raw = await readShellValue(CATALOG_KEY);
     if (!raw) return [];
     const file = JSON.parse(raw) as CatalogFile;
-    return Array.isArray(file.entries) ? file.entries : [];
+    return Array.isArray(file.entries)
+      ? file.entries.filter((entry) => entry.id !== "jolly")
+      : [];
   } catch (error) {
-    console.log("bundle catalog unreadable", error instanceof Error ? error.message : error);
+    console.log(
+      "bundle catalog unreadable",
+      error instanceof Error ? error.message : error
+    );
     return [];
   }
 }
 
 export async function saveCatalog(entries: CatalogEntry[]) {
+  entries = entries.filter((entry) => entry.id !== "jolly");
   const file: CatalogFile = { entries };
   writeShellValue(CATALOG_KEY, JSON.stringify(file));
   for (const listener of listeners) listener(entries);

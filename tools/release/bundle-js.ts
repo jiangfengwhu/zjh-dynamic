@@ -12,6 +12,7 @@ import {
   fetchRemoteRelease,
   fetchRemoteVendorMap,
   publishRelease,
+  publishBundleObjects,
 } from "./publish-bundle.js";
 import { sameContent, sealRelease, sha256Hex, type BundleRelease, type ReleasePlugin, type ReleaseSource, type ReleaseVendor } from "./release-set.js";
 
@@ -107,6 +108,17 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
 
 
   const plugins = options.publish ? await resolvePlugins(repoRoot, remote) : { records: remote?.plugins ?? [], built: [] };
+  // Host media uses immutable URLs and ships independently of application plugins.
+  const hostMedia = path.join(mobileDir, "assets", "jolly");
+  const media = JSON.parse(await readFile(path.join(hostMedia, "manifest.json"), "utf8")) as Record<string, string>;
+  for (const [name, hash] of Object.entries(media)) {
+    const file = path.join(hostMedia, `${name}.mp4`);
+    if (!/^[a-z_]+$/.test(name) || sha256Hex(await readFile(file)) !== hash) throw new Error("宿主动画资源与源码清单不一致");
+    if (options.publish) {
+      const existing = await fetch(`${bundleCdnBase()}/v1/app/${hash}`, { method: "HEAD" });
+      if (!existing.ok) await publishBundleObjects([{ key: `v1/app/${hash}`, file, contentType: "video/mp4", cacheControl: "public,max-age=31536000,immutable" }]);
+    }
+  }
   const release = sealRelease({ applications: applicationContract, runtimeVersion: runtime, vendor, app, plugins: plugins.records, source });
   console.log(`release ready id=${release.id} vendor=${vendor.sha256.slice(0, 12)} app=${app.sha256.slice(0, 12)} plugins=${release.plugins.length} summary=${summary.slice(0, 80)}`);
   if (!options.publish) {
