@@ -10,8 +10,6 @@ import {
   useKeyboardOpen,
 } from "../../../../packages/ui/edge";
 import {
-  useIsFocused,
-  useRoute,
   NavigationContainer,
   DefaultTheme,
   createNavigationContainerRef,
@@ -275,16 +273,21 @@ function BundlePage({ id, render }: {
   </AsyncRouteScreen>;
 }
 
-function ApplicationLinkResult({ appId, item }: { appId: string; item: MarketApplication | null }) {
-  const focused = useIsFocused();
-  const route = useRoute();
-  useEffect(() => {
-    if (!focused) return;
-    shellNavigationRef.dispatch({ source: route.key, type: "REPLACE", payload: item
-      ? { name: "marketDetail", params: { item } }
-      : { name: "bundle", params: { id: appId } } });
-  }, [appId, item, focused, route.key]);
-  return null;
+function MarketDetailPage({ item, onOpen }: {
+  item: MarketApplication;
+  onOpen: (id: string) => Promise<boolean>;
+}) {
+  return <MarketDetailScreen
+    item={item}
+    onBack={goBack}
+    onOpen={onOpen}
+    onModify={(manifest, ownerId, fork) => openCreationComposer({
+      appId: manifest.appId, title: manifest.title, releaseId: manifest.releaseId, ownerId, fork,
+    })}
+    onSharePost={application => shellNavigationRef.navigate("composePost", { application })}
+    onAuthor={openAuthor}
+    onPublication={() => shellNavigationRef.navigate("marketPublication", { item })}
+  />;
 }
 
 function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
@@ -589,9 +592,17 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             )}
           </Stack.Screen>
           <Stack.Screen name="applicationLink">
-            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="应用详情" onBack={goBack}
-              load={async () => await isApplicationInstalled(route.params.appId) ? null : fetchPublicMarketApplication(route.params.appId)}>
-              {item => <ApplicationLinkResult appId={route.params.appId} item={item} />}
+            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack}
+              load={async () => {
+                if (await isApplicationInstalled(route.params.appId)) {
+                  await openFeature(route.params.appId);
+                  return null;
+                }
+                return fetchPublicMarketApplication(route.params.appId);
+              }}>
+              {item => item
+                ? <MarketDetailPage item={item} onOpen={props.onOpenBundle} />
+                : <BundlePage id={route.params.appId} render={props.renderBundle} />}
             </AsyncRouteScreen>}
           </Stack.Screen>
           <Stack.Screen name="noticePost">
@@ -602,31 +613,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             </AsyncRouteScreen>}
           </Stack.Screen>
           <Stack.Screen name="marketDetail">
-            {({ route }) => (
-              <MarketDetailScreen
-                item={route.params.item}
-                onBack={goBack}
-                onOpen={props.onOpenBundle}
-                onModify={(manifest, ownerId, fork) =>
-                  openCreationComposer({
-                    appId: manifest.appId,
-                    title: manifest.title,
-                    releaseId: manifest.releaseId,
-                    ownerId,
-                    fork,
-                  })
-                }
-                onSharePost={(application) =>
-                  shellNavigationRef.navigate("composePost", { application })
-                }
-                onAuthor={openAuthor}
-                onPublication={() =>
-                  shellNavigationRef.navigate("marketPublication", {
-                    item: route.params.item,
-                  })
-                }
-              />
-            )}
+            {({ route }) => <MarketDetailPage item={route.params.item} onOpen={props.onOpenBundle} />}
           </Stack.Screen>
           <Stack.Screen name="marketPublication">
             {({ route }) => (
