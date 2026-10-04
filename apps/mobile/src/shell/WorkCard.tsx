@@ -16,7 +16,7 @@ export const WorkCard = memo(function WorkCard({
   visibility,
   status,
   authorName,
-  publishedAt,
+  authorAvatarUrl,
   tone = 0,
   onOpen,
   actions,
@@ -28,7 +28,7 @@ export const WorkCard = memo(function WorkCard({
   visibility: "public" | "private";
   status?: string;
   authorName?: string;
-  publishedAt?: number;
+  authorAvatarUrl?: string | null;
   tone?: number;
   onOpen: () => void | Promise<unknown>;
   actions?: import("react").ReactNode;
@@ -75,7 +75,7 @@ export const WorkCard = memo(function WorkCard({
         borderWidth: 0.5,
         borderColor: colors.line,
         overflow: "hidden",
-        marginBottom: 14,
+        marginBottom: 6,
       }}
     >
       <Pressy
@@ -89,7 +89,7 @@ export const WorkCard = memo(function WorkCard({
       >
         <View
           style={{
-            height: screenshot ? 150 : 92,
+            height: screenshot ? 128 : 72,
             backgroundColor: tint,
             alignItems: "center",
             justifyContent: "center",
@@ -108,21 +108,6 @@ export const WorkCard = memo(function WorkCard({
           ) : (
             <PixelIcon name="box" size={38} color={accent} />
           )}
-          <View
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              left: 12,
-              top: 12,
-              flexDirection: "row",
-              gap: 4,
-            }}
-          >
-            <View style={{ width: 6, height: 6, backgroundColor: accent }} />
-            <View
-              style={{ width: 6, height: 6, backgroundColor: colors.accent }}
-            />
-          </View>
           {busy ? (
             <ActivityIndicator
               style={{ position: "absolute", right: 14, bottom: 14 }}
@@ -130,7 +115,14 @@ export const WorkCard = memo(function WorkCard({
             />
           ) : null}
         </View>
-        <View style={{ padding: 14, gap: 8 }}>
+        <View
+          style={{
+            paddingHorizontal: 12,
+            paddingTop: 10,
+            paddingBottom: 4,
+            gap: 5,
+          }}
+        >
           <View
             style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}
           >
@@ -139,79 +131,81 @@ export const WorkCard = memo(function WorkCard({
               style={{
                 flex: 1,
                 color: colors.ink1,
-                fontSize: 18,
-                lineHeight: 24,
+                fontSize: 16,
+                lineHeight: 22,
                 fontWeight: "700",
               }}
             >
               {title}
             </Text>
-            <PixelIcon name="arrow" size={16} color={accent} />
           </View>
           {summary ? (
             <Text
               numberOfLines={2}
-              style={{ color: colors.ink2, fontSize: 13, lineHeight: 20 }}
+              style={{ color: colors.ink2, fontSize: 12, lineHeight: 18 }}
             >
               {summary}
             </Text>
           ) : null}
+        </View>
+      </Pressy>
+      <View
+        style={{
+          paddingLeft: 12,
+          paddingRight: 6,
+          paddingBottom: 4,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        <Pressy
+          scale={1}
+          accessibilityLabel={`查看作品 ${title}`}
+          onPress={() => void open()}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            gap: 6,
+          }}
+        >
+          {authorAvatarUrl ? (
+            <AppImage
+              source={{ uri: authorAvatarUrl }}
+              style={{ width: 22, height: 22, borderRadius: 11 }}
+            />
+          ) : (
+            <PixelIcon name="mine" size={18} color={colors.ink3} />
+          )}
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <Text
+              numberOfLines={1}
+              style={{ color: colors.ink3, fontSize: 11 }}
+            >
+              {authorName || "创作者"}
+            </Text>
+            {status ? (
+              <Text numberOfLines={1} style={{ color: accent, fontSize: 10 }}>
+                {status}
+              </Text>
+            ) : null}
+          </View>
+        </Pressy>
+        {actions ? (
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
-              gap: 7,
-              flexWrap: "wrap",
+              flexShrink: 0,
             }}
           >
-            <View
-              style={{
-                width: 5,
-                height: 5,
-                backgroundColor:
-                  visibility === "public" ? colors.green : colors.orchid,
-              }}
-            />
-            <Text
-              style={{
-                color: visibility === "public" ? colors.greenText : colors.ink3,
-                fontSize: 11,
-              }}
-            >
-              {visibility === "public" ? "公开作品" : "仅自己可见"}
-            </Text>
-            {status ? (
-              <Text style={{ color: accent, fontSize: 11 }}>{status}</Text>
-            ) : null}
-            {publishedAt ? (
-              <Text style={{ color: colors.ink3, fontSize: 11 }}>
-                {new Date(publishedAt).toLocaleDateString()}
-              </Text>
-            ) : null}
-            {authorName ? (
-              <Text
-                numberOfLines={1}
-                style={{ color: colors.ink3, fontSize: 11, maxWidth: "45%" }}
-              >
-                {authorName}
-              </Text>
-            ) : null}
+            {actions}
           </View>
-        </View>
-      </Pressy>
-      {actions ? (
-        <View
-          style={{
-            paddingHorizontal: 14,
-            paddingBottom: 8,
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 14,
-          }}
-        >
-          {actions}
-        </View>
-      ) : null}
+        ) : null}
+      </View>
     </View>
   );
 });

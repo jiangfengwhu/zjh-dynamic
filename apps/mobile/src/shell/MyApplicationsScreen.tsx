@@ -250,9 +250,6 @@ export function MyApplicationsScreen({
         )
       : [];
   const installedIds = new Set(installed.map((item) => item.manifest.appId));
-  const publicCount = visibleWorks.filter(
-    (work) => work.sharing?.shared
-  ).length;
   type Row =
     | { type: "work"; work: MyWork }
     | { type: "app"; app: MarketApplication };
@@ -311,46 +308,12 @@ export function MyApplicationsScreen({
             refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"
           }
           ListHeaderComponent={
-            <View style={{ gap: 8, paddingBottom: scope === "works" ? 16 : 6 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                }}
-              >
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={{ fontSize: 14, color: colors.ink1 }}>
-                    {scope === "works"
-                      ? `${visibleWorks.length} 份创造 · ${publicCount} 份公开`
-                      : `${visibleApps.length} 个已安装应用`}
-                  </Text>
-                  {scope === "works" ? (
-                    <Text style={{ color: colors.ink3, fontSize: 11 }}>
-                      公开作品会展示在你的社交主页
-                    </Text>
-                  ) : null}
-                </View>
-                {scope === "works" ? (
-                  <Pressy
-                    accessibilityRole="button"
-                    accessibilityLabel="制作新作品"
-                    onPress={onCreate}
-                    scale={1}
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 4,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: colors.accent,
-                    }}
-                  >
-                    <PixelIcon name="plus" size={18} color={colors.onAccent} />
-                  </Pressy>
-                ) : null}
-              </View>
+            <View style={{ gap: 8, paddingBottom: 8 }}>
+              {scope === "installed" ? (
+                <Text style={{ fontSize: 12, color: colors.ink3 }}>
+                  {visibleApps.length} 个已安装应用
+                </Text>
+              ) : null}
               {searchQuery === undefined &&
               ((scope === "installed" ? installed.length : works.length) > 4 ||
                 query) ? (
@@ -398,75 +361,74 @@ export function MyApplicationsScreen({
                   summary={published?.summary || visual?.summary || work.wish}
                   mark={visual?.mark}
                   screenshot={published?.screenshots?.[0]}
-                  publishedAt={published?.publishedAt}
                   visibility={published ? "public" : "private"}
                   status={
                     workLabels[work.stage] + (work.stale ? " · 待同步" : "")
                   }
                   authorName={user?.name}
+                  authorAvatarUrl={user?.avatarUrl}
                   tone={index}
                   onOpen={() => (work.manifest ? detail(work) : workshop(work))}
                   actions={
                     <>
                       <Pressy
+                        accessibilityLabel={
+                          ["making", "reply"].includes(work.stage)
+                            ? "查看制作进度"
+                            : "继续制作"
+                        }
                         onPress={() => {
                           void workshop(work).catch((cause) =>
                             Toast.show({
                               type: "error",
                               text1: "工坊未能打开",
-                              text2: cause.message,
+                              text2:
+                                cause instanceof Error
+                                  ? cause.message
+                                  : "请重试",
                             })
                           );
                         }}
-                        style={actionStyle}
+                        style={{ width: 44, height: 44, alignItems: "center" }}
                       >
                         <PixelIcon
                           name="edit"
-                          size={14}
+                          size={18}
                           color={colors.orchidText}
                         />
-                        <Text
-                          style={{ color: colors.orchidText, fontSize: 12 }}
-                        >
-                          {["making", "reply"].includes(work.stage)
-                            ? "查看制作"
-                            : "继续制作"}
-                        </Text>
                       </Pressy>
                       {published && onSharePost ? (
                         <Pressy
+                          accessibilityLabel="分享作品到动态"
                           onPress={() => onSharePost(published)}
-                          style={actionStyle}
+                          style={{
+                            width: 44,
+                            height: 44,
+                            alignItems: "center",
+                          }}
                         >
                           <PixelIcon
                             name="share"
-                            size={14}
+                            size={18}
                             color={colors.redText}
                           />
-                          <Text style={{ color: colors.redText, fontSize: 12 }}>
-                            分享到动态
-                          </Text>
-                        </Pressy>
-                      ) : work.manifest ? (
-                        <Pressy
-                          onPress={() => detail(work)}
-                          style={actionStyle}
-                        >
-                          <Text
-                            style={{ color: colors.greenText, fontSize: 12 }}
-                          >
-                            详情与公开
-                          </Text>
                         </Pressy>
                       ) : null}
                       {installedIds.has(work.appId) ? (
                         <Pressy
+                          accessibilityLabel={`打开${work.title}`}
                           onPress={() => onOpen(work.appId)}
-                          style={actionStyle}
+                          style={{
+                            width: 44,
+                            height: 44,
+                            alignItems: "center",
+                          }}
                         >
-                          <Text style={{ color: colors.ink3, fontSize: 12 }}>
-                            打开
-                          </Text>
+                          <PixelIcon
+                            name="box"
+                            size={18}
+                            color={colors.greenText}
+                          />
                         </Pressy>
                       ) : null}
                     </>

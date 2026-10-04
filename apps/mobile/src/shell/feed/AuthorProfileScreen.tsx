@@ -395,15 +395,15 @@ function AuthorProfileContent({
                     const item = row.app;
                     return (
                       <View
-                        style={{ paddingHorizontal: 16, paddingVertical: 6 }}
+                        style={{ paddingHorizontal: 16, paddingVertical: 0 }}
                       >
                         <WorkCard
                           title={item.title || item.manifest.title}
                           summary={item.summary ?? item.manifest.summary}
                           mark={item.manifest.mark}
                           screenshot={item.screenshots?.[0]}
-                          publishedAt={item.publishedAt}
                           authorName={author.name}
+                          authorAvatarUrl={author.avatarUrl}
                           visibility="public"
                           tone={index}
                           onOpen={() => onApplication(item.manifest.appId)}

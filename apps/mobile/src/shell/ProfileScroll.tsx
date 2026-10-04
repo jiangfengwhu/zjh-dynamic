@@ -43,9 +43,12 @@ export function useProfileScroll<T>(
     "worklet";
     if (enabled && moving.value && active.value === key && !paging.value) {
       const next = Math.max(0, raw);
-      collapsed.value = Math.max(
-        0,
-        Math.min(PROFILE_RANGE, collapsed.value + next - offset.value)
+      // Returning upward consumes body scroll first; identity expands only
+      // after reaching the header range, including a gesture crossing its edge.
+      collapsed.value = Math.min(
+        PROFILE_RANGE,
+        next,
+        collapsed.value + Math.max(0, next - offset.value)
       );
       offset.value = next;
       body.value = Math.max(0, next - collapsed.value);
@@ -79,9 +82,10 @@ export function useProfileScroll<T>(
         if (!moving.value) return;
         // Only vertical user movement changes identity size. Pager selection,
         // measurement and scrollTo acknowledgements never change it.
-        collapsed.value = Math.max(
-          0,
-          Math.min(PROFILE_RANGE, collapsed.value + delta)
+        collapsed.value = Math.min(
+          PROFILE_RANGE,
+          next,
+          collapsed.value + Math.max(0, delta)
         );
         body.value = Math.max(0, next - collapsed.value);
       },
