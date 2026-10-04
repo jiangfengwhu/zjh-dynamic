@@ -99,9 +99,10 @@ export function useProgress(
     setChecking(true);
     const operation = (async () => {
       try {
-        const run = await service.loadJulesRun();
+        let run = await service.loadJulesRun();
         const currentSession =
           run?.session || (await service.loadJulesSession());
+        if (!run) run = await service.loadJulesRun();
         if (!valid()) return;
         wish.current = run?.prompt || readJollyRun(appId).wish;
         setSnapshot((previous) =>
@@ -120,12 +121,12 @@ export function useProgress(
         const detail = await service.readWorkshopDetail(currentSession);
         if (!valid()) return;
         const latest = await service.loadJulesRun();
+        if (!valid()) return;
         if (
-          !valid() ||
           latest?.submissionId !== run?.submissionId ||
           latest?.startedAt !== run?.startedAt
         )
-          return;
+          throw new Error("制作轮次已更新，正在同步最新进度");
         if (!detail) throw new Error("暂时无法读取制作进度，请重试");
         setSnapshot({
           session: currentSession,
