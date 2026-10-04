@@ -1,5 +1,6 @@
+import { LoadingSkeleton } from "./LoadingSkeleton";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Keyboard, Text, View } from "react-native";
+import { Keyboard, Text, View } from "react-native";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
@@ -339,6 +340,11 @@ function CreateApplicationPage({
         return;
       }
       if ((await currentAccountId()) === owner) {
+        Toast.show({
+          type: "success",
+          text1: intent ? "修改需求已提交" : "制作需求已提交",
+          text2: "Jolly 已收到，完成或失败都会通知你",
+        });
         images.clear();
         if ((await readShellValue(draftKey))?.trim() === submittedText)
           writeShellValue(draftKey, "");
@@ -413,7 +419,7 @@ function CreateApplicationPage({
             }}
           >
             {polishing ? (
-              <ActivityIndicator size="small" color={colors.orchidText} />
+              <LoadingSkeleton size="small" color={colors.orchidText} />
             ) : (
               <PixelIcon name="spark" size={16} color={colors.orchidText} />
             )}
@@ -508,7 +514,7 @@ function CreateApplicationPage({
         }}
       >
         {busy ? (
-          <ActivityIndicator color={colors.onAccent} />
+          <LoadingSkeleton color={colors.onAccent} />
         ) : (
           <PixelIcon name="spark" size={20} color={colors.onAccent} />
         )}

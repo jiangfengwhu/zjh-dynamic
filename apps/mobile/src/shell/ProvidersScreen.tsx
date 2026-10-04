@@ -1,6 +1,7 @@
+import { LoadingSkeleton } from "./LoadingSkeleton";
 import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { useDiscardChanges, confirmDiscard } from "./useDiscardChanges";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
@@ -237,7 +238,7 @@ export function ProvidersScreen({ onBack }: Props) {
           ) : null}
 
           <Pressy disabled={busy} accessibilityRole="button" onPress={() => void save()} style={styles.save}>
-            {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.saveLabel}>{draft.id ? "保存修改" : "保存配置"}</Text>}
+            {busy ? <LoadingSkeleton color={colors.onAccent} /> : <Text style={styles.saveLabel}>{draft.id ? "保存修改" : "保存配置"}</Text>}
           </Pressy>
         </Surface>
         </> : <Text style={styles.meta}>平台和应用共用这些配置；点击引擎编辑，右上角添加。</Text>}

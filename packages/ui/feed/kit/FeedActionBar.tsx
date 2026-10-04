@@ -1,4 +1,5 @@
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
+import { Spinner } from "../../shadcn/Spinner";
 import { useEffect, useRef } from "react";
 import Animated, {
   cancelAnimation,
@@ -190,7 +191,7 @@ function LikeGlyph({ liked, busy }: { liked: boolean; busy: boolean }) {
         />
       </Animated.View>
       {busy ? (
-        <ActivityIndicator
+        <Spinner
           style={{ position: "absolute" }}
           size="small"
           color={colors.accentText}

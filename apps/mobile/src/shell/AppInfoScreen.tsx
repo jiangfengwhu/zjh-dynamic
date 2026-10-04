@@ -1,5 +1,6 @@
+import { LoadingSkeleton } from "./LoadingSkeleton";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
@@ -61,7 +62,7 @@ export function AppInfoScreen({ onBack }: Props) {
       <PageHeader title="应用信息" caption="本机正在使用的包" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Surface style={styles.version}><Text accessibilityRole="header" style={styles.brand}>紫金花</Text><View style={styles.metrics}><View style={styles.metric}><Text style={styles.empty}>平台版本</Text><Text style={styles.metricValue}>{sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>界面版本</Text><Text selectable style={styles.metricValue}>{buildId.slice(0, 8)}</Text></View></View><View style={styles.storage}><Text style={styles.empty}>本机安装文件</Text><Text style={styles.metricValue}>{formatBytes(total)}</Text></View></Surface>
-        {loading ? <ActivityIndicator color={colors.accent} /> : null}
+        {loading ? <LoadingSkeleton color={colors.accent} /> : null}
         {error ? <Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)}><Text style={styles.error}>{error} · 重试</Text></Pressy> : null}
         <Text style={styles.empty}>页面运行包负责界面，原生扩展提供手机能力。下方体积为本机安装文件大小。</Text>
         <Pressy accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(value => !value)}><Text style={styles.total}>{details ? "收起技术详情" : "查看技术详情"}</Text></Pressy>

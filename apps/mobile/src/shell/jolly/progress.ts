@@ -19,6 +19,8 @@ export type ProgressState =
   | "blocked";
 export type ProgressSnapshot = {
   session: string;
+  submissionId?: string;
+  startedAt?: number;
   detail: WorkshopDetail;
   at: number;
 };
@@ -102,6 +104,13 @@ export function useProgress(
           run?.session || (await service.loadJulesSession());
         if (!valid()) return;
         wish.current = run?.prompt || readJollyRun(appId).wish;
+        setSnapshot((previous) =>
+          previous &&
+          (previous.submissionId !== run?.submissionId ||
+            previous.startedAt !== run?.startedAt)
+            ? undefined
+            : previous
+        );
         if (!currentSession) {
           setSnapshot(undefined);
           setLoaded(true);
@@ -110,8 +119,21 @@ export function useProgress(
         }
         const detail = await service.readWorkshopDetail(currentSession);
         if (!valid()) return;
+        const latest = await service.loadJulesRun();
+        if (
+          !valid() ||
+          latest?.submissionId !== run?.submissionId ||
+          latest?.startedAt !== run?.startedAt
+        )
+          return;
         if (!detail) throw new Error("暂时无法读取制作进度，请重试");
-        setSnapshot({ session: currentSession, detail, at: Date.now() });
+        setSnapshot({
+          session: currentSession,
+          submissionId: run?.submissionId,
+          startedAt: run?.startedAt,
+          detail,
+          at: Date.now(),
+        });
         setLoaded(true);
         setError("");
       } catch (cause) {
@@ -140,10 +162,10 @@ export function useProgress(
     return () => cancelIdleCallback(task);
   }, [active, service, refresh]);
   useEffect(() => {
-    if (!active || !snapshot) return;
-    const state = progressState(snapshot.detail);
+    if (!active || (!snapshot && !error)) return;
+    const state = snapshot ? progressState(snapshot.detail) : "queued";
     if (
-      !snapshot.detail.stale &&
+      !snapshot?.detail.stale &&
       !error &&
       !["queued", "making", "packing"].includes(state)
     )
@@ -173,6 +195,8 @@ export function useProgress(
           !alive.current ||
           !activeRef.current ||
           run?.session !== snapshot.session ||
+          run?.submissionId !== snapshot.submissionId ||
+          run?.startedAt !== snapshot.startedAt ||
           (context.storage.get("__accountScope") || "guest") !== scope
         )
           return;

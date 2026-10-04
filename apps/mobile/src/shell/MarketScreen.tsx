@@ -1,11 +1,6 @@
+import { LoadingSkeleton } from "./LoadingSkeleton";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  ScrollView,
-  TextInput,
-  View,
-} from "react-native";
+import { FlatList, ScrollView, TextInput, View } from "react-native";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
@@ -598,7 +593,7 @@ function MarketDiscovery({
           }
           ListFooterComponent={
             busy && view.applications.length ? (
-              <ActivityIndicator style={{ margin: 16 }} color={colors.accent} />
+              <LoadingSkeleton style={{ margin: 16 }} color={colors.accent} />
             ) : view.nextCursor ? (
               <Pressy onPress={() => void load()}>
                 <Text style={styles.empty}>加载更多</Text>
@@ -711,7 +706,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
         ]}
       >
         {busy ? (
-          <ActivityIndicator size="small" color={colors.cyanText} />
+          <LoadingSkeleton size="small" color={colors.cyanText} />
         ) : (
           <PixelIcon
             name={installed ? "check" : "arrow"}

@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "./LoadingSkeleton";
 import { PixelAlert as Alert } from "./PixelAlert";
 import {
   currentAccountId,
@@ -7,7 +8,7 @@ import {
 } from "./account";
 import { openCreationComposer } from "./creationComposer";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import {
   KeyboardAwareScrollView as ScrollView,
   type KeyboardAwareScrollViewRef,
@@ -92,7 +93,11 @@ function MarketDetailContent({
   onSharePost,
   onAuthor,
 }: {
-  onModify: (manifest: ApplicationManifest, ownerId: string, fork: boolean) => void;
+  onModify: (
+    manifest: ApplicationManifest,
+    ownerId: string,
+    fork: boolean
+  ) => void;
   onAuthor: (author: {
     id: string;
     name: string;
@@ -597,7 +602,12 @@ function MarketDetailContent({
     displayed.bundle.bytes +
     displayed.assets.reduce((total, asset) => total + asset.bytes, 0);
   function continueCreation() {
-    openCreationComposer({ appId: app.appId, title: app.title, releaseId: app.releaseId, fork: !owner });
+    openCreationComposer({
+      appId: app.appId,
+      title: app.title,
+      releaseId: app.releaseId,
+      fork: !owner,
+    });
   }
   const summary = (shared?.summary ?? item.summary ?? app.summary ?? "").trim();
   const publicationStatus = (
@@ -703,7 +713,7 @@ function MarketDetailContent({
   const publicationFallback = (
     <View style={styles.note}>
       {!ownershipReady || (owner && !shareNotice) ? (
-        <ActivityIndicator color={colors.orchidText} />
+        <LoadingSkeleton color={colors.orchidText} />
       ) : (
         <PixelIcon name="mine" size={20} color={colors.orchidText} />
       )}
@@ -943,7 +953,7 @@ function MarketDetailContent({
                   </View>
                   {uploadStatus ? (
                     <View style={styles.note}>
-                      <ActivityIndicator color={colors.orchidText} />
+                      <LoadingSkeleton color={colors.orchidText} />
                       <Text
                         accessibilityLiveRegion="polite"
                         style={styles.caption}
@@ -1182,7 +1192,7 @@ function MarketDetailContent({
                   style={[styles.primary, { flex: 1 }]}
                 >
                   {busy ? (
-                    <ActivityIndicator color={colors.onAccent} />
+                    <LoadingSkeleton color={colors.onAccent} />
                   ) : (
                     <PixelIcon name="check" size={18} color={colors.onAccent} />
                   )}
@@ -1234,7 +1244,7 @@ function MarketDetailContent({
                     style={[styles.primary, { flex: 1 }]}
                   >
                     {busy ? (
-                      <ActivityIndicator color={colors.onAccent} />
+                      <LoadingSkeleton color={colors.onAccent} />
                     ) : (
                       <PixelIcon name="box" size={18} color={colors.onAccent} />
                     )}

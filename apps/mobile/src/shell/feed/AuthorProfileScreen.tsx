@@ -1,8 +1,8 @@
+import { LoadingSkeleton } from "../LoadingSkeleton";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouteContentReady } from "../useRouteContentReady";
 import { useIsFocused } from "@react-navigation/native";
 import {
-  ActivityIndicator,
   Pressable,
   Text,
   View,
@@ -459,7 +459,7 @@ function AuthorProfileContent({
                 ListFooterComponent={
                   <View style={{ padding: 16 }}>
                     {contentReady && busy && !loaded ? (
-                      <ActivityIndicator color={colors.accent} />
+                      <LoadingSkeleton color={colors.accent} />
                     ) : tab === "posts" && profile.nextCursor ? (
                       <Pressable
                         disabled={busy}
@@ -467,7 +467,7 @@ function AuthorProfileContent({
                         style={{ padding: 14 }}
                       >
                         {busy ? (
-                          <ActivityIndicator color={colors.accent} />
+                          <LoadingSkeleton color={colors.accent} />
                         ) : (
                           <Text
                             style={{

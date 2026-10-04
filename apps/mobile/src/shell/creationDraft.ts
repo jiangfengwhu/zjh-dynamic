@@ -167,14 +167,19 @@ export async function submitCreationPrompt(
       onTrace: () => {},
       shouldStop: () => false,
       onRunId: (session) => {
-        service.saveJulesRun({ session, prompt: text, startedAt: Date.now() });
+        service.saveJulesRun({
+          session,
+          prompt: text,
+          startedAt: Date.now(),
+          submissionId,
+        });
         context.storage.set(
           `run:${target}`,
           JSON.stringify({
             phase: "making",
             stage: "making",
             wish: body,
-            status: "已提交，正在制作",
+            status: "已提交，等待开始",
             steps: [],
             at: Date.now(),
           })

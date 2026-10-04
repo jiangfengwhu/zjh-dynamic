@@ -1,3 +1,4 @@
+import { PageSkeleton } from "./src/shell/LoadingSkeleton";
 import { openCreationComposer } from "./src/shell/creationComposer";
 import { reportApplicationFailure } from "./src/runtime/applications";
 import {
@@ -8,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ActivityIndicator, StatusBar, Text, View } from "react-native";
+import { StatusBar, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -393,7 +394,7 @@ function ShellApp() {
             >
               紫金花
             </Text>
-            <ActivityIndicator color={palettes[mode].accentText} />
+            <PageSkeleton rows={3} />
             <Text style={{ color: palettes[mode].ink3, fontSize: 12 }}>
               正在打开应用空间…
             </Text>
@@ -527,7 +528,7 @@ function FeatureHost({
         </>
       ) : opened.id === id && loadingVisible ? (
         <>
-          <ActivityIndicator color={theme.accentText} />
+          <PageSkeleton rows={3} />
           <Text style={styles.stateHint}>正在加载应用…</Text>
         </>
       ) : null}

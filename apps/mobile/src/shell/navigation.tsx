@@ -160,8 +160,18 @@ function NotificationsTab({
 }: {
   onOpen: (notice: Notice) => Promise<boolean>;
 }) {
-  const { gesture } = useProfileDrawer();
-  return <NotificationsScreen drawerGesture={gesture} onOpen={onOpen} />;
+  const { gesture, notificationActive, notificationPosition } =
+    useProfileDrawer();
+  return (
+    <NotificationsScreen
+      drawerGesture={gesture}
+      drawerPaging={{
+        active: notificationActive,
+        position: notificationPosition,
+      }}
+      onOpen={onOpen}
+    />
+  );
 }
 
 const Stack = createNativeStackNavigator<RootParamList>();

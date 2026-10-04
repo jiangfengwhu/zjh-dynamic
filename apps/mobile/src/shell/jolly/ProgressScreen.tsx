@@ -1,13 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
+import { useEffect, useState } from "react";
 import { cachedAccountId, subscribeAccountIdentity } from "../account";
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import {
   Screen,
   ScreenBar,
@@ -444,23 +438,6 @@ function RefreshButton({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
-  const spin = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!busy || !active) {
-      spin.setValue(0);
-      return;
-    }
-    const animation = Animated.loop(
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [busy, active, spin]);
   return (
     <Pressable
       accessibilityRole="button"
@@ -476,20 +453,11 @@ function RefreshButton({
         opacity: disabled ? 0.35 : 1,
       }}
     >
-      <Animated.View
-        style={{
-          transform: [
-            {
-              rotate: spin.interpolate({
-                inputRange: [0, 1],
-                outputRange: ["0deg", "360deg"],
-              }),
-            },
-          ],
-        }}
-      >
+      {busy && active ? (
+        <LoadingSkeleton color={colors.cyanText} />
+      ) : (
         <PixelIcon name="refresh" size={18} color={colors.cyanText} />
-      </Animated.View>
+      )}
     </Pressable>
   );
 }
@@ -508,11 +476,13 @@ function LoadingPanel({ failed }: { failed: boolean }) {
       {failed ? (
         <PixelIcon name="alert" size={24} color={colors.redText} />
       ) : (
-        <ActivityIndicator color={colors.cyanText} />
+        <PageSkeleton rows={2} />
       )}
-      <Text style={{ fontSize: 14, color: colors.ink2 }}>
-        {failed ? "加载失败，请重试" : "加载中…"}
-      </Text>
+      {failed ? (
+        <Text style={{ fontSize: 14, color: colors.ink2 }}>
+          加载失败，请重试
+        </Text>
+      ) : null}
     </View>
   );
 }

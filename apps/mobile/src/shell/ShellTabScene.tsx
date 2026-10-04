@@ -1,5 +1,6 @@
+import { PageSkeleton } from "./LoadingSkeleton";
 import { startTransition, useEffect, useState, type ReactNode } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useTheme } from "../../../../packages/ui/theme";
 
@@ -25,12 +26,11 @@ export function ShellTabScene({ children }: { children: ReactNode }) {
     <View
       style={{
         flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
+        padding: 16,
         backgroundColor: colors.canvas,
       }}
     >
-      <ActivityIndicator color={colors.accentText} />
+      <PageSkeleton rows={4} />
     </View>
   );
 }

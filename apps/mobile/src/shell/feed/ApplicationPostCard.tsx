@@ -1,6 +1,7 @@
+import { LoadingSkeleton } from "../LoadingSkeleton";
 import { PixelText as Text } from "./PixelText";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { PixelIcon } from "./PixelKit";
 import Toast from "react-native-toast-message";
 import { Pressy } from "../../../../../packages/ui/chrome";
@@ -121,7 +122,7 @@ export function ApplicationPostCard({
       </View>
       {!preview ? (
         busy ? (
-          <ActivityIndicator size="small" color={colors.accent} />
+          <LoadingSkeleton size="small" color={colors.accent} />
         ) : (
           <PixelIcon name="arrow" size={18} color={colors.ink3} />
         )

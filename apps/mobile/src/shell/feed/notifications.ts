@@ -96,11 +96,18 @@ export function syncNotificationCount(): Promise<void> {
   syncing = next;
   return next;
 }
-export async function readNotifications(cursor?: string) {
+export type NoticeCategory = "creation" | "interaction";
+export async function readNotifications(
+  cursor?: string,
+  category?: NoticeCategory
+) {
   identity(await currentAccountId());
   const before = revision;
   const result = await request<NoticePage>(
-    `/v1/notifications${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`
+    `/v1/notifications?${new URLSearchParams({
+      ...(cursor ? { cursor } : {}),
+      ...(category ? { category } : {}),
+    })}`
   );
   if (before === revision) emit(result.unreadCount);
   return result;

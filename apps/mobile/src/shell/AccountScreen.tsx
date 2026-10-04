@@ -1,7 +1,8 @@
+import { LoadingSkeleton } from "./LoadingSkeleton";
 import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
 import { useRouteContentReady } from "./useRouteContentReady";
-import { ActivityIndicator, Image, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { FormField as TextInput } from "./FormField";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
@@ -71,7 +72,7 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
       {storageError ? <Text accessibilityRole="alert" style={styles.hint}>无法读取手机安全存储，请重新登录。</Text> : null}
       {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
     </ScrollView>
-    {busy ? <View pointerEvents="none" style={{ position: "absolute", left: 24, right: 24, bottom: 24, padding: 16, backgroundColor: colors.surfaceRaised, flexDirection: "row", gap: 12, borderRadius: 16 }}><ActivityIndicator color={colors.accent} /><Text style={{ color: colors.ink1 }}>{uploadStatus || "正在处理，请稍候…"}</Text></View> : null}
+    {busy ? <View pointerEvents="none" style={{ position: "absolute", left: 24, right: 24, bottom: 24, padding: 16, backgroundColor: colors.surfaceRaised, flexDirection: "row", gap: 12, borderRadius: 16 }}><LoadingSkeleton color={colors.accent} /><Text style={{ color: colors.ink1 }}>{uploadStatus || "正在处理，请稍候…"}</Text></View> : null}
   </Screen>;
 }
 const styles = themedStyleSheet(t => ({

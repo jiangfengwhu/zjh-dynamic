@@ -1,5 +1,8 @@
+import { PageSkeleton, LoadingSkeleton } from "./LoadingSkeleton";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, AppState, View } from "react-native";
+import { PixelAlert } from "./PixelAlert";
+import NativePluginHost from "../NativePluginHost";
+import { AppState, View } from "react-native";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { usePullToRefresh } from "./feed/pullToRefresh";
 import { PullRefreshSurface } from "./feed/PullRefreshSurface";
@@ -13,6 +16,7 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { FormField } from "./FormField";
 import { useAccount } from "./account";
+import { writeShellValue, removeShellValue } from "./shellStorage";
 import { subscribeCatalog } from "./catalog";
 import {
   installedMarket,
@@ -234,7 +238,36 @@ export function MyApplicationsScreen({
             ? "新版已下载，下次启动生效"
             : "应用已更新，本机数据保留",
       });
-      void refresh(true);
+      if (status === "pending")
+        PixelAlert.alert(
+          "应用已更新，重新加载？",
+          "新版已下载，本机数据保留。当前加载器需要重新加载整个 App 才能替换已运行的版本，其他页面会退出。",
+          [
+            { text: "稍后", style: "cancel" },
+            {
+              text: "重新加载",
+              onPress: () => {
+                writeShellValue(
+                  "application.openAfterReload",
+                  published.manifest.appId
+                );
+                void NativePluginHost.call(
+                  "shell",
+                  "reloadApplications",
+                  "{}"
+                ).catch(() => {
+                  removeShellValue("application.openAfterReload");
+                  Toast.show({
+                    type: "error",
+                    text1: "重新加载失败，新版已保留",
+                  });
+                });
+              },
+            },
+          ],
+          { cancelable: true }
+        );
+      requestIdleCallback(() => void refresh(true));
     } catch (cause) {
       Toast.show({
         type: "error",
@@ -372,7 +405,7 @@ export function MyApplicationsScreen({
               ) : null}
               {busy &&
               !(scope === "works" ? works.length : installed.length) ? (
-                <ActivityIndicator color={colors.accentText} />
+                <PageSkeleton rows={3} />
               ) : null}
             </View>
           }
@@ -415,8 +448,10 @@ export function MyApplicationsScreen({
                       ) : null}
                       <Pressy
                         accessibilityLabel={
-                          ["making", "reply"].includes(work.stage)
+                          work.stage === "making"
                             ? "查看制作进度"
+                            : work.stage === "reply"
+                            ? "回复并继续制作"
                             : "继续制作"
                         }
                         onPress={() => {
@@ -589,7 +624,7 @@ export function MyApplicationsScreen({
                       }}
                     >
                       {updating === app.manifest.appId ? (
-                        <ActivityIndicator
+                        <LoadingSkeleton
                           size="small"
                           color={colors.greenText}
                         />

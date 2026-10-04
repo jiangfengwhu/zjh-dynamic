@@ -1,4 +1,5 @@
 import { PixelText as Text } from "./PixelText";
+import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
 import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
@@ -94,6 +95,10 @@ export const FeedScreen = memo(function FeedScreen({
   const followingTimeline = useUserPosts("following");
   const shortcuts = useInstalledShortcuts();
   const [loadingMore, setLoadingMore] = useState(false);
+  const [timelineLoading, setTimelineLoading] = useState({
+    recommended: true,
+    following: true,
+  });
   const [timelineErrors, setTimelineErrors] = useState({
     recommended: "",
     following: "",
@@ -137,10 +142,15 @@ export const FeedScreen = memo(function FeedScreen({
     useCallback(() => {
       if (kind === "installed") return;
       const task = requestIdleCallback(() => {
-        void refreshUserPosts(kind).then(
-          () => setTimelineError(kind, ""),
-          () => setTimelineError(kind, "用户动态暂时未能同步，下拉可重试")
-        );
+        setTimelineLoading((previous) => ({ ...previous, [kind]: true }));
+        void refreshUserPosts(kind)
+          .then(
+            () => setTimelineError(kind, ""),
+            () => setTimelineError(kind, "用户动态暂时未能同步，下拉可重试")
+          )
+          .finally(() =>
+            setTimelineLoading((previous) => ({ ...previous, [kind]: false }))
+          );
       });
       return () => cancelIdleCallback(task);
     }, [kind, setTimelineError])
@@ -431,55 +441,64 @@ export const FeedScreen = memo(function FeedScreen({
                                     </View>
                                   }
                                   ListEmptyComponent={
-                                    <View style={styles.empty}>
-                                      <PixelAvatar size={80} />
-                                      <Text style={styles.emptyTitle}>
-                                        {pageKind === "following"
-                                          ? user
-                                            ? "还没有关注动态"
-                                            : "登录后查看关注动态"
-                                          : "这里还很安静"}
-                                      </Text>
-                                      <Text style={styles.emptyBody}>
-                                        {pageKind === "following"
-                                          ? user
-                                            ? "点击动态作者头像，进入主页关注。"
-                                            : "关注喜欢的创作者，不错过新的分享。"
-                                          : "分享一个想法，记录你的创造。"}
-                                      </Text>
-                                      <Pressy
-                                        accessibilityLabel="发布第一条动态"
-                                        onPress={
-                                          pageKind === "following"
-                                            ? user
-                                              ? () =>
-                                                  selectCategory("recommended")
-                                              : () => {
-                                                  void requireAccount();
-                                                }
-                                            : onCompose
-                                        }
-                                        style={styles.compose}
-                                      >
-                                        <PixelIcon
-                                          name="plus"
-                                          size={14}
-                                          color={colors.onAccent}
-                                        />
-                                        <Text
-                                          style={{
-                                            color: colors.onAccent,
-                                            fontWeight: "700",
-                                          }}
-                                        >
+                                    timelineLoading[pageKind] &&
+                                    (pageKind !== "following" || user) ? (
+                                      <View style={{ padding: 16 }}>
+                                        <PageSkeleton rows={4} />
+                                      </View>
+                                    ) : (
+                                      <View style={styles.empty}>
+                                        <PixelAvatar size={80} />
+                                        <Text style={styles.emptyTitle}>
                                           {pageKind === "following"
                                             ? user
-                                              ? "去发现创作者"
-                                              : "登录"
-                                            : "发第一条动态"}
+                                              ? "还没有关注动态"
+                                              : "登录后查看关注动态"
+                                            : "这里还很安静"}
                                         </Text>
-                                      </Pressy>
-                                    </View>
+                                        <Text style={styles.emptyBody}>
+                                          {pageKind === "following"
+                                            ? user
+                                              ? "点击动态作者头像，进入主页关注。"
+                                              : "关注喜欢的创作者，不错过新的分享。"
+                                            : "分享一个想法，记录你的创造。"}
+                                        </Text>
+                                        <Pressy
+                                          accessibilityLabel="发布第一条动态"
+                                          onPress={
+                                            pageKind === "following"
+                                              ? user
+                                                ? () =>
+                                                    selectCategory(
+                                                      "recommended"
+                                                    )
+                                                : () => {
+                                                    void requireAccount();
+                                                  }
+                                              : onCompose
+                                          }
+                                          style={styles.compose}
+                                        >
+                                          <PixelIcon
+                                            name="plus"
+                                            size={14}
+                                            color={colors.onAccent}
+                                          />
+                                          <Text
+                                            style={{
+                                              color: colors.onAccent,
+                                              fontWeight: "700",
+                                            }}
+                                          >
+                                            {pageKind === "following"
+                                              ? user
+                                                ? "去发现创作者"
+                                                : "登录"
+                                              : "发第一条动态"}
+                                          </Text>
+                                        </Pressy>
+                                      </View>
+                                    )
                                   }
                                   renderItem={renderPost}
                                   ListFooterComponent={
@@ -506,13 +525,19 @@ export const FeedScreen = memo(function FeedScreen({
                                             padding: 16,
                                           }}
                                         >
-                                          <Text
-                                            style={{ color: colors.accentText }}
-                                          >
-                                            {loadingMore
-                                              ? "正在加载…"
-                                              : "加载更多动态"}
-                                          </Text>
+                                          {loadingMore ? (
+                                            <LoadingSkeleton
+                                              color={colors.accentText}
+                                            />
+                                          ) : (
+                                            <Text
+                                              style={{
+                                                color: colors.accentText,
+                                              }}
+                                            >
+                                              加载更多动态
+                                            </Text>
+                                          )}
                                         </Pressable>
                                       ) : null}
                                       {visible.length > 0 &&
