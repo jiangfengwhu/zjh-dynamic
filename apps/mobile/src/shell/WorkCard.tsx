@@ -12,7 +12,6 @@ export const WorkCard = memo(function WorkCard({
   title,
   summary,
   mark,
-  screenshot,
   visibility,
   status,
   authorName,
@@ -24,7 +23,6 @@ export const WorkCard = memo(function WorkCard({
   title: string;
   summary: string;
   mark?: string;
-  screenshot?: string;
   visibility: "public" | "private";
   status?: string;
   authorName?: string;
@@ -89,47 +87,40 @@ export const WorkCard = memo(function WorkCard({
       >
         <View
           style={{
-            height: screenshot ? 128 : 72,
-            backgroundColor: tint,
+            flexDirection: "row",
             alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-          }}
-        >
-          {screenshot ? (
-            <AppImage
-              source={{ uri: screenshot }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="contain"
-              accessibilityLabel={`${title}的应用截图`}
-            />
-          ) : mark ? (
-            <Text style={{ color: accent, fontSize: 38 }}>{mark}</Text>
-          ) : (
-            <PixelIcon name="box" size={38} color={accent} />
-          )}
-          {busy ? (
-            <ActivityIndicator
-              style={{ position: "absolute", right: 14, bottom: 14 }}
-              color={accent}
-            />
-          ) : null}
-        </View>
-        <View
-          style={{
             paddingHorizontal: 12,
-            paddingTop: 10,
+            paddingTop: 12,
             paddingBottom: 4,
-            gap: 5,
+            gap: 10,
           }}
         >
           <View
-            style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              backgroundColor: tint,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
+            {mark ? (
+              <Text style={{ color: accent, fontSize: 26 }}>{mark}</Text>
+            ) : (
+              <PixelIcon name="box" size={26} color={accent} />
+            )}
+            {busy ? (
+              <ActivityIndicator
+                color={accent}
+                style={{ position: "absolute", bottom: 0, right: 0 }}
+              />
+            ) : null}
+          </View>
+          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
             <Text
               numberOfLines={2}
               style={{
-                flex: 1,
                 color: colors.ink1,
                 fontSize: 16,
                 lineHeight: 22,
@@ -138,15 +129,15 @@ export const WorkCard = memo(function WorkCard({
             >
               {title}
             </Text>
+            {summary ? (
+              <Text
+                numberOfLines={2}
+                style={{ color: colors.ink2, fontSize: 12, lineHeight: 18 }}
+              >
+                {summary}
+              </Text>
+            ) : null}
           </View>
-          {summary ? (
-            <Text
-              numberOfLines={2}
-              style={{ color: colors.ink2, fontSize: 12, lineHeight: 18 }}
-            >
-              {summary}
-            </Text>
-          ) : null}
         </View>
       </Pressy>
       <View

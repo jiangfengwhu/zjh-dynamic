@@ -401,7 +401,6 @@ function AuthorProfileContent({
                           title={item.title || item.manifest.title}
                           summary={item.summary ?? item.manifest.summary}
                           mark={item.manifest.mark}
-                          screenshot={item.screenshots?.[0]}
                           authorName={author.name}
                           authorAvatarUrl={author.avatarUrl}
                           visibility="public"

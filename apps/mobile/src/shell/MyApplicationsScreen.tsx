@@ -360,7 +360,6 @@ export function MyApplicationsScreen({
                   title={published?.title || visual?.title || work.title}
                   summary={published?.summary || visual?.summary || work.wish}
                   mark={visual?.mark}
-                  screenshot={published?.screenshots?.[0]}
                   visibility={published ? "public" : "private"}
                   status={
                     workLabels[work.stage] + (work.stale ? " · 待同步" : "")
