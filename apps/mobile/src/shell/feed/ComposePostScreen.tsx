@@ -1,4 +1,10 @@
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -40,17 +46,27 @@ import { htmlByteLength } from "./postDraft";
 import type { UserPostDraft } from "../../../../../packages/app-sdk/src/index";
 import { pixelTheme } from "./pixelTheme";
 
+export type ComposePostControls = {
+  canPublish: boolean;
+  busy: boolean;
+  submit: () => void;
+};
+
 type Photo = { path: string; id?: string; url?: string };
 export function ComposePostScreen({
   onBack,
   initialApplication,
   initialDraft,
   modeTabs,
+  embedded = false,
+  onControlsChange,
 }: {
   onBack: () => void;
   initialApplication?: MarketApplication;
   initialDraft?: UserPostDraft;
   modeTabs?: import("react").ReactNode;
+  embedded?: boolean;
+  onControlsChange?: (controls: ComposePostControls) => void;
 }) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
@@ -63,14 +79,14 @@ export function ComposePostScreen({
         ? `我发布了《${
             initialApplication.title || initialApplication.manifest.title
           }》，欢迎来体验。`
-        : "")
+        : ""),
   );
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [busy, setBusy] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [status, setStatus] = useState("");
   const [application, setApplication] = useState<MarketApplication | undefined>(
-    initialApplication
+    initialApplication,
   );
   const [picking, setPicking] = useState(false);
   const [loadingApps, setLoadingApps] = useState(false);
@@ -95,7 +111,7 @@ export function ComposePostScreen({
   const files = useRef(new Set<string>());
   const revision = useRef(0);
   const request = useRef<{ signature: string; id: string } | undefined>(
-    undefined
+    undefined,
   );
   const count = Array.from(text).length;
   const canPublish =
@@ -109,8 +125,16 @@ export function ComposePostScreen({
     !busy &&
     !choosing &&
     !picking;
+  const publishRef = useRef(publish);
+  publishRef.current = publish;
+  const submit = useCallback(() => {
+    void publishRef.current();
+  }, []);
+  useEffect(() => {
+    onControlsChange?.({ canPublish, busy, submit });
+  }, [canPublish, busy, submit, onControlsChange]);
   usePreventRemove(busy, () =>
-    Toast.show({ type: "info", text1: "正在发布，请稍候" })
+    Toast.show({ type: "info", text1: "正在发布，请稍候" }),
   );
   useEffect(() => {
     if (published && !busy) onBack();
@@ -122,7 +146,7 @@ export function ComposePostScreen({
         if (value && !initialDraft) {
           const draft = JSON.parse(value);
           const restored = await existingDraftImages<Photo>(
-            Array.isArray(draft.photos) ? draft.photos : []
+            Array.isArray(draft.photos) ? draft.photos : [],
           );
           if (
             alive.current &&
@@ -133,7 +157,7 @@ export function ComposePostScreen({
             setApplication(
               draft.application?.authorId === owner
                 ? draft.application
-                : initialApplication
+                : initialApplication,
             );
             setPhotos(restored);
             setHtml(typeof draft.html === "string" ? draft.html : "");
@@ -158,7 +182,7 @@ export function ComposePostScreen({
     if (draftReady && owner && !published)
       writeShellValue(
         draftKey,
-        JSON.stringify({ body: text, application, photos, html, htmlMode })
+        JSON.stringify({ body: text, application, photos, html, htmlMode }),
       );
   }, [
     draftReady,
@@ -175,7 +199,7 @@ export function ComposePostScreen({
     if (owner && draftReady)
       writeShellValue(
         draftKey,
-        JSON.stringify({ body, application: selected, photos, html, htmlMode })
+        JSON.stringify({ body, application: selected, photos, html, htmlMode }),
       );
   }
   function change(value: string) {
@@ -202,7 +226,7 @@ export function ComposePostScreen({
     } catch (error) {
       if (alive.current)
         setAppsError(
-          error instanceof Error ? error.message : "应用列表暂时不可用"
+          error instanceof Error ? error.message : "应用列表暂时不可用",
         );
     } finally {
       if (alive.current) setLoadingApps(false);
@@ -311,7 +335,7 @@ export function ComposePostScreen({
         uploaded.map((photo) => photo.id!),
         request.current!.id,
         attached,
-        content
+        content,
       );
       writeShellValue(draftKey, "");
       for (const photo of uploaded) void removeDraftImage(photo.path);
@@ -337,29 +361,32 @@ export function ComposePostScreen({
       }
     }
   }
+  const Root = embedded ? View : Screen;
   return (
-    <Screen style={styles.screen}>
-      <PageHeader
-        title={modeTabs ? "发布" : "发动态"}
-        variant="pixel"
-        onBack={busy ? undefined : onBack}
-        right={
-          <Pressy
-            accessibilityRole="button"
-            accessibilityLabel="发布动态"
-            accessibilityState={{ disabled: !canPublish }}
-            disabled={!canPublish}
-            onPress={() => void publish()}
-            style={[styles.publish, !canPublish && styles.disabled]}
-          >
-            {busy ? (
-              <ActivityIndicator size="small" color={colors.onAccent} />
-            ) : (
-              <Text style={styles.publishText}>发布</Text>
-            )}
-          </Pressy>
-        }
-      />
+    <Root style={styles.screen}>
+      {!embedded ? (
+        <PageHeader
+          title={modeTabs ? "发布" : "发动态"}
+          variant="pixel"
+          onBack={busy ? undefined : onBack}
+          right={
+            <Pressy
+              accessibilityRole="button"
+              accessibilityLabel="发布动态"
+              accessibilityState={{ disabled: !canPublish }}
+              disabled={!canPublish}
+              onPress={() => void publish()}
+              style={[styles.publish, !canPublish && styles.disabled]}
+            >
+              {busy ? (
+                <ActivityIndicator size="small" color={colors.onAccent} />
+              ) : (
+                <Text style={styles.publishText}>发布</Text>
+              )}
+            </Pressy>
+          }
+        />
+      ) : null}
       {modeTabs}
       <KeyboardAvoidingView style={styles.fill} behavior="padding">
         <ScrollView
@@ -624,7 +651,7 @@ export function ComposePostScreen({
           </View>
         </View>
       </EdgeModal>
-    </Screen>
+    </Root>
   );
 }
 const styles = themedStyleSheet((base) => {

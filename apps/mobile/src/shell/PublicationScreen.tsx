@@ -6,13 +6,26 @@ import {
   Text,
   View,
 } from "react-native";
+import PagerView, {
+  type PagerViewOnPageScrollEvent,
+  type PagerViewOnPageSelectedEvent,
+} from "react-native-pager-view";
+import Animated, {
+  runOnJS,
+  useEvent,
+  useSharedValue,
+} from "react-native-reanimated";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 import { usePixelTheme } from "./feed/pixelTheme";
 import type { UserPostDraft } from "../../../../packages/app-sdk/src/index";
-import { ComposePostScreen } from "./feed/ComposePostScreen";
+import {
+  type ComposePostControls,
+  ComposePostScreen,
+} from "./feed/ComposePostScreen";
 import { PixelAvatar, PixelIcon } from "./feed/PixelKit";
 import { CompactTabs } from "./CompactTabs";
 import { FormField } from "./FormField";
@@ -21,6 +34,8 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { currentAccountId, useAccount } from "./account";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import type { MarketApplication } from "./market";
+
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 export function PublicationScreen(
   props: Parameters<typeof PublicationContent>[0],
@@ -46,62 +61,126 @@ function PublicationContent({
   onCreate: (prompt: string) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState(initialMode);
-  const [postOpened, setPostOpened] = useState(initialMode === "post");
+  const { colors } = useTheme();
+  const pager = useRef<PagerView>(null);
+  const position = useSharedValue(initialMode === "post" ? 0 : 1);
+  const [postControls, setPostControls] = useState<ComposePostControls>();
+  const selectMode = (next: "post" | "create") => {
+    Keyboard.dismiss();
+    setMode(next);
+  };
+  const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
+    (event) => {
+      "worklet";
+      position.value = event.position + event.offset;
+    },
+    ["onPageScroll"],
+  );
+  const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
+    (event) => {
+      "worklet";
+      runOnJS(selectMode)(event.position === 0 ? "post" : "create");
+    },
+    ["onPageSelected"],
+  );
   const [creating, setCreating] = useState(false);
   const tabs = (
     <View style={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 6 }}>
       <CompactTabs
+        position={position}
         value={mode}
         options={[
           { id: "post", label: "发动态", icon: "feed" },
           { id: "create", label: "制作应用", icon: "spark" },
         ]}
         onChange={(value) => {
-          if (creating) return;
+          if (creating || postControls?.busy) return;
           Keyboard.dismiss();
-          setMode(value);
-          if (value === "post") setPostOpened(true);
+          pager.current?.setPage(value === "post" ? 0 : 1);
         }}
       />
     </View>
   );
   return (
-    <View style={{ flex: 1 }}>
-      {postOpened ? (
-        <View style={{ flex: 1, display: mode === "post" ? "flex" : "none" }}>
+    <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
+      <PageHeader
+        title="发布"
+        variant="pixel"
+        onBack={postControls?.busy ? undefined : onBack}
+        right={
+          mode === "post" ? (
+            <Pressy
+              accessibilityRole="button"
+              accessibilityLabel="发布动态"
+              disabled={!postControls?.canPublish}
+              onPress={() => postControls?.submit()}
+              style={{
+                minHeight: 44,
+                paddingHorizontal: 14,
+                borderRadius: 4,
+                backgroundColor: colors.accent,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: postControls?.canPublish ? 1 : 0.5,
+              }}
+            >
+              {postControls?.busy ? (
+                <ActivityIndicator size="small" color={colors.onAccent} />
+              ) : (
+                <Text
+                  style={{
+                    color: colors.onAccent,
+                    fontSize: 13,
+                    fontWeight: "700",
+                  }}
+                >
+                  发布
+                </Text>
+              )}
+            </Pressy>
+          ) : undefined
+        }
+      />
+      {tabs}
+      <AnimatedPagerView
+        ref={pager}
+        style={{ flex: 1 }}
+        initialPage={initialMode === "post" ? 0 : 1}
+        offscreenPageLimit={1}
+        overScrollMode="never"
+        scrollEnabled={!creating && !postControls?.busy}
+        onPageScroll={onPageScroll}
+        onPageSelected={onPageSelected}
+      >
+        <View key="post" collapsable={false} style={{ flex: 1 }}>
           <ComposePostScreen
+            embedded
+            onControlsChange={setPostControls}
             onBack={onBack}
             initialApplication={initialApplication}
             initialDraft={initialDraft}
-            modeTabs={tabs}
           />
         </View>
-      ) : null}
-      <View style={{ flex: 1, display: mode === "create" ? "flex" : "none" }}>
-        <CreateApplicationPage
-          active={mode === "create"}
-          onCreate={onCreate}
-          onBack={onBack}
-          tabs={tabs}
-          busy={creating}
-          setBusy={setCreating}
-        />
-      </View>
-    </View>
+        <View key="create" collapsable={false} style={{ flex: 1 }}>
+          <CreateApplicationPage
+            active={mode === "create"}
+            onCreate={onCreate}
+            busy={creating}
+            setBusy={setCreating}
+          />
+        </View>
+      </AnimatedPagerView>
+    </Screen>
   );
 }
 
 function CreateApplicationPage({
   active,
-  onBack,
-  tabs,
   busy,
   setBusy,
   onCreate,
 }: {
   active: boolean;
-  onBack: () => void;
-  tabs: import("react").ReactNode;
   busy: boolean;
   setBusy: (busy: boolean) => void;
   onCreate: (prompt: string) => Promise<boolean>;
@@ -111,7 +190,6 @@ function CreateApplicationPage({
   const [prompt, setPrompt] = useState("");
   const [ready, setReady] = useState(false);
   const [polishing, setPolishing] = useState(false);
-  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [polishError, setPolishError] = useState("");
   const [beforePolish, setBeforePolish] = useState<string>();
   const polishRevision = useRef(0);
@@ -119,26 +197,27 @@ function CreateApplicationPage({
     typed.current = true;
     polishRevision.current++;
     setPolishing(false);
-    setSuggestion(null);
     setPolishError("");
-    setBeforePolish(undefined);
     setPrompt(value);
   }
   useEffect(() => {
     polishRevision.current++;
     setPolishing(false);
-    setSuggestion(null);
+    setPolishError("");
+  }, [active]);
+  useEffect(() => {
+    polishRevision.current++;
+    setPolishing(false);
     setPolishError("");
     setBeforePolish(undefined);
-  }, [user?.id, active]);
+  }, [user?.id]);
   async function polish() {
     if (busy || polishing || !ready || !prompt.trim()) return;
-    const source = prompt.trim();
+    const source = prompt;
     const owner = user?.id;
     const id = ++polishRevision.current;
     setPolishing(true);
     setPolishError("");
-    setSuggestion(null);
     try {
       const result = await polishCreationPrompt(source);
       const currentOwner = await currentAccountId();
@@ -148,7 +227,9 @@ function CreateApplicationPage({
         currentOwner !== owner
       )
         return;
-      setSuggestion(result);
+      typed.current = true;
+      setBeforePolish(source);
+      setPrompt(result);
     } catch (cause) {
       if (alive.current && id === polishRevision.current)
         setPolishError(
@@ -165,8 +246,19 @@ function CreateApplicationPage({
   const alive = useRef(true);
   const draftKey = `creation.draft.${user?.id ?? "guest"}`;
   const loadedKey = useRef("");
+  const latestDraft = useRef({ key: draftKey, text: prompt, loaded: false });
+  latestDraft.current = {
+    key: draftKey,
+    text: prompt,
+    loaded: ready && loadedKey.current === draftKey,
+  };
+  function persistDraft() {
+    const draft = latestDraft.current;
+    if (draft.loaded) writeShellValue(draft.key, draft.text);
+  }
   useEffect(
     () => () => {
+      persistDraft();
       alive.current = false;
       polishRevision.current++;
     },
@@ -201,11 +293,15 @@ function CreateApplicationPage({
     };
   }, [draftKey]);
   useEffect(() => {
-    if (ready && loadedKey.current === draftKey)
-      writeShellValue(draftKey, prompt);
+    if (!ready || loadedKey.current !== draftKey) return;
+    const timer = setTimeout(() => {
+      if (loadedKey.current === draftKey) writeShellValue(draftKey, prompt);
+    }, 180);
+    return () => clearTimeout(timer);
   }, [ready, draftKey, prompt]);
   async function create() {
     if (acting.current || !ready || !prompt.trim() || !user) return;
+    persistDraft();
     polishRevision.current++;
     setPolishing(false);
     acting.current = true;
@@ -221,7 +317,10 @@ function CreateApplicationPage({
       if ((await currentAccountId()) === owner) {
         if ((await readShellValue(draftKey))?.trim() === submittedText)
           writeShellValue(draftKey, "");
-        if (alive.current) changePrompt("");
+        if (alive.current) {
+          changePrompt("");
+          setBeforePolish(undefined);
+        }
       }
     } catch (cause) {
       if (alive.current)
@@ -236,10 +335,9 @@ function CreateApplicationPage({
     }
   }
   return (
-    <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <PageHeader title="发布" variant="pixel" onBack={onBack} />
-      {tabs}
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <ScrollView
+        nestedScrollEnabled
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 16, gap: 16 }}
@@ -306,14 +404,16 @@ function CreateApplicationPage({
         <FormField
           accessibilityLabel="应用制作需求"
           multiline
+          scrollEnabled
           editable={!busy}
           maxLength={8000}
           value={prompt}
           onChangeText={changePrompt}
+          onBlur={persistDraft}
           placeholder="例如：做一个每天记录心情的小应用，有日历和像素花园…"
           placeholderTextColor={colors.ink3}
           style={{
-            minHeight: 180,
+            height: 224,
             padding: 14,
             borderRadius: 4,
             borderWidth: 0.5,
@@ -347,11 +447,14 @@ function CreateApplicationPage({
             scale={1}
             accessibilityRole="button"
             disabled={busy}
-            onPress={() => changePrompt(beforePolish)}
+            onPress={() => {
+              changePrompt(beforePolish);
+              setBeforePolish(undefined);
+            }}
             style={{ minHeight: 44, justifyContent: "center" }}
           >
             <Text style={{ color: colors.orchidText, fontSize: 13 }}>
-              撤回润色，恢复原文
+              回退原文
             </Text>
           </Pressy>
         ) : null}
@@ -373,93 +476,6 @@ function CreateApplicationPage({
             ) : null}
           </View>
         ) : null}
-        {suggestion !== null ? (
-          <View
-            style={{
-              padding: 14,
-              gap: 10,
-              backgroundColor: colors.orchidTint,
-              borderRadius: 8,
-            }}
-          >
-            <Text
-              style={{
-                color: colors.orchidText,
-                fontSize: 14,
-                fontWeight: "700",
-              }}
-            >
-              润色建议
-            </Text>
-            <FormField
-              multiline
-              editable={!busy}
-              value={suggestion}
-              onChangeText={setSuggestion}
-              maxLength={8000}
-              accessibilityLabel="编辑润色建议"
-              style={{
-                minHeight: 140,
-                color: colors.ink1,
-                fontSize: 14,
-                lineHeight: 22,
-                textAlignVertical: "top",
-                padding: 10,
-                backgroundColor: colors.surface,
-                borderRadius: 4,
-              }}
-            />
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: 16,
-              }}
-            >
-              <Pressy
-                scale={1}
-                disabled={busy}
-                onPress={() => setSuggestion(null)}
-                style={{ minHeight: 44, justifyContent: "center" }}
-              >
-                <Text style={{ color: colors.ink3, fontSize: 13 }}>
-                  保留原文
-                </Text>
-              </Pressy>
-              <Pressy
-                scale={1}
-                disabled={busy || !suggestion.trim()}
-                onPress={() => {
-                  const original = prompt;
-                  changePrompt(suggestion);
-                  setBeforePolish(original);
-                }}
-                style={{
-                  minHeight: 44,
-                  paddingHorizontal: 12,
-                  backgroundColor: colors.surface,
-                  borderRadius: 4,
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ color: colors.orchidText, fontSize: 13 }}>
-                  使用润色
-                </Text>
-              </Pressy>
-            </View>
-          </View>
-        ) : null}
-      </ScrollView>
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingTop: 8,
-          paddingBottom: 12,
-          gap: 8,
-          backgroundColor: colors.canvas,
-        }}
-      >
         <Pressy
           accessibilityRole="button"
           accessibilityLabel="提交需求并开始制作"
@@ -490,7 +506,7 @@ function CreateApplicationPage({
         <Text style={{ color: colors.ink3, fontSize: 12 }}>
           点击后直接开始制作，完成或失败都会收到站内通知。
         </Text>
-      </View>
-    </Screen>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
