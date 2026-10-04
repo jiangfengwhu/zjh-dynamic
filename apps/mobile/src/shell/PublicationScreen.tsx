@@ -20,7 +20,7 @@ import {
   type ComposePostControls,
   ComposePostScreen,
 } from "./feed/ComposePostScreen";
-import { PixelAvatar, PixelIcon } from "./feed/PixelKit";
+import { PixelIcon } from "./feed/PixelKit";
 import { CompactTabs } from "./CompactTabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FormField } from "./FormField";
@@ -359,39 +359,13 @@ function CreateApplicationPage({
       <View
         style={{
           flexDirection: "row",
-          gap: 12,
-          alignItems: "center",
-          padding: 14,
-          backgroundColor: colors.orchidTint,
-          borderRadius: 8,
-        }}
-      >
-        <PixelAvatar size={44} />
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={{ color: colors.ink1, fontSize: 18, fontWeight: "700" }}>
-            {intent
-              ? intent.fork
-                ? "基于应用再创作"
-                : "让作品更进一步"
-              : "把想法做成应用"}
-          </Text>
-          <Text style={{ color: colors.ink3, fontSize: 13 }}>
-            {intent
-              ? `「${intent.title}」${
-                  intent.fork ? " · 创建自己的新作品" : " · 继续修改这个作品"
-                }`
-              : "写下想法，Jolly 帮你做出第一版。"}
-          </Text>
-        </View>
-      </View>
-      <View
-        style={{
-          flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
-        <Text style={{ color: colors.ink1, fontSize: 14 }}>你的想法</Text>
+        <Text numberOfLines={1} style={{ flex: 1, color: colors.ink1, fontSize: 14 }}>
+          {intent ? `${intent.fork ? "Remix" : "修改"} · ${intent.title}` : "你的想法"}
+        </Text>
         <Pressy
           scale={1}
           accessibilityRole="button"
