@@ -1,7 +1,7 @@
 import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
 import { PixelText as Text } from "./PixelText";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, Share, StyleSheet, View } from "react-native";
 import { EdgeModal } from "../../../../../packages/ui/edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,8 +10,8 @@ import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Clipboard from "@react-native-clipboard/clipboard";
 import Toast from "react-native-toast-message";
 import { useTheme, type Theme } from "../../../../../packages/ui/theme";
-import { requireAccount } from "../account";
-import { deleteUserPost, setPostLike, type UserPost } from "./userPosts";
+import { cachedAccountId, requireAccount } from "../account";
+import { deleteUserPost, togglePostLike, type UserPost } from "./userPosts";
 import { PostMenu } from "./PostMenu";
 import { edgeUrl } from "../evolveHost";
 import { HtmlPostContent } from "./HtmlPostContent";
@@ -44,7 +44,9 @@ export function UserPostCard({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [liking, setLiking] = useState(false);
+  const likeRevision = useRef(0);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const acting = useRef(false);
   const url = `${edgeUrl}/posts/${post.id}`;
   function remove() {
@@ -70,24 +72,25 @@ export function UserPostCard({
     ]);
   }
   async function like() {
-    if (acting.current) return;
-    acting.current = true;
-    setLiking(true);
-    try {
-      if (await requireAccount()) {
-        const updated = await setPostLike(post.id, !post.liked);
-        onUpdated?.(updated);
-      }
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: "点赞未完成",
+    // Only the login prompt is gated; network requests never disable the heart.
+    if (!cachedAccountId()) {
+      if (acting.current) return;
+      acting.current = true;
+      try { if (!await requireAccount() || !alive.current) return; }
+      finally { acting.current = false; }
+    }
+    const owner = cachedAccountId();
+    const revision = ++likeRevision.current;
+    const result = togglePostLike(post);
+    onUpdated?.(result.post);
+    void result.settled.then(({ post: updated, error }) => {
+      if (!alive.current || revision !== likeRevision.current || owner !== cachedAccountId()) return;
+      onUpdated?.(updated);
+      if (error) Toast.show({
+        type: "error", text1: "点赞未同步，已恢复",
         text2: error instanceof Error ? error.message : "请稍后重试",
       });
-    } finally {
-      acting.current = false;
-      setLiking(false);
-    }
+    });
   }
   function share() {
     void Share.share({
@@ -187,7 +190,6 @@ export function UserPostCard({
           actions={
             <FeedActionBar
               liked={!!post.liked}
-              busy={liking}
               comments={post.commentCount}
               likes={post.likeCount}
               onComment={onOpen}

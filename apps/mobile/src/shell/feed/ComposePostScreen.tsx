@@ -369,22 +369,7 @@ export function ComposePostScreen({
           title={modeTabs ? "发布" : "发动态"}
           variant="pixel"
           onBack={busy ? undefined : onBack}
-          right={
-            <Pressy
-              accessibilityRole="button"
-              accessibilityLabel="发布动态"
-              accessibilityState={{ disabled: !canPublish }}
-              disabled={!canPublish}
-              onPress={() => void publish()}
-              style={[styles.publish, !canPublish && styles.disabled]}
-            >
-              {busy ? (
-                <ActivityIndicator size="small" color={colors.onAccent} />
-              ) : (
-                <Text style={styles.publishText}>发布</Text>
-              )}
-            </Pressy>
-          }
+
         />
       ) : null}
       {modeTabs}
@@ -557,6 +542,16 @@ export function ComposePostScreen({
               </Pressable>
             </View>
           ) : null}
+          <Pressy
+            accessibilityRole="button"
+            accessibilityLabel="发布动态"
+            accessibilityState={{ disabled: !canPublish, busy }}
+            disabled={!canPublish}
+            onPress={() => void publish()}
+            style={[styles.publish, !canPublish && styles.disabled]}
+          >
+            {busy ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={styles.publishText}>发布动态</Text>}
+          </Pressy>
           {busy ? (
             <View style={styles.status}>
               <ActivityIndicator size="small" color={colors.accent} />
@@ -726,8 +721,10 @@ const styles = themedStyleSheet((base) => {
       paddingHorizontal: 14,
       paddingVertical: 10,
       borderRadius: t.radius.sm,
-      minHeight: 44,
+      minHeight: 48,
       minWidth: 68,
+      justifyContent: "center",
+      marginTop: 8,
       alignItems: "center",
     },
     publishText: { color: t.onAccent, fontWeight: "600", fontSize: 14 },

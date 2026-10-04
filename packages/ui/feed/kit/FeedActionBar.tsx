@@ -97,7 +97,7 @@ export function FeedActionBar({
   );
 }
 
-/** Animate a confirmed like, never a failed request or an initial restored state. */
+/** Animate the immediate like response, never an initial restored state. */
 function LikeGlyph({ liked, busy }: { liked: boolean; busy: boolean }) {
   const { colors } = useTheme();
   const previous = useRef(liked);

@@ -68,6 +68,21 @@ type Page = {
   reactionOwnerId?: string;
   unreadCount?: number;
 };
+type LikeSettlement = { post: UserPost; error?: unknown };
+type PendingLike = {
+  owner: string;
+  confirmed: UserPost;
+  desired: boolean;
+  optimistic: UserPost;
+  settled: Promise<LikeSettlement>;
+};
+const pendingLikes = new Map<string, PendingLike>();
+function withPendingLike(post: UserPost): UserPost {
+  const pending = pendingLikes.get(post.id);
+  return pending && pending.owner === cachedAccountId()
+    ? { ...post, liked: pending.optimistic.liked, likeCount: pending.optimistic.likeCount }
+    : post;
+}
 let value: Page = { posts: [], nextCursor: null };
 let initialization: Promise<void> | undefined;
 let initialized = false;
@@ -76,7 +91,7 @@ let refreshing: Promise<void> | undefined;
 let paging: Promise<void> | undefined;
 const listeners = new Set<(page: Page) => void>();
 function save(next: Page) {
-  value = { ...next, reactionOwnerId: cachedAccountId() };
+  value = { ...next, posts: next.posts.map(withPendingLike), reactionOwnerId: cachedAccountId() };
   writeShellValue("social.timeline.v1", JSON.stringify(value));
   listeners.forEach((listener) => listener(value));
 }
@@ -91,7 +106,7 @@ async function initialize() {
         if (before === revision && Array.isArray(cached?.posts)) {
           value = {
             ...cached,
-            posts: cached.posts.map((post: UserPost) => ({
+            posts: cached.posts.map((post: UserPost) => withPendingLike({
               ...post,
               liked: cached.reactionOwnerId === owner && !!post.liked,
             })),
@@ -111,8 +126,8 @@ let followingRefresh: Promise<void> | undefined;
 let followingPaging: Promise<void> | undefined;
 const followingListeners = new Set<(page: Page) => void>();
 function saveFollowing(page: Page) {
-  followingPage = page;
-  followingListeners.forEach((listener) => listener(page));
+  followingPage = { ...page, posts: page.posts.map(withPendingLike) };
+  followingListeners.forEach((listener) => listener(followingPage));
 }
 export async function setAuthorFollow(id: string, following: boolean) {
   const result = await readSocial<{
@@ -349,12 +364,57 @@ export async function fetchPostDetail(
     }`
   );
 }
-export async function setPostLike(id: string, liked: boolean) {
-  const result = await readSocial<{ post: UserPost }>(`/v1/posts/${id}/like`, {
-    method: liked ? "POST" : "DELETE",
+// Every tap updates the UI first. A single worker per post serializes requests,
+// keeping the newest intent visible even when an older response arrives.
+export function togglePostLike(post: UserPost) {
+  const owner = cachedAccountId();
+  if (!owner) throw new Error("请先登录");
+  let pending = pendingLikes.get(post.id);
+  const starting = pending?.owner !== owner;
+  if (pending?.owner === owner) {
+    pending.desired = !pending.desired;
+  } else {
+    pending = {
+      owner, confirmed: post, desired: !post.liked, optimistic: post,
+      settled: Promise.resolve({ post }),
+    };
+    pendingLikes.set(post.id, pending);
+  }
+  const entry = pending;
+  const current = () => value.posts.find(item => item.id === post.id)
+    ?? followingPage.posts.find(item => item.id === post.id) ?? entry.optimistic;
+  const project = () => ({
+    ...current(), liked: entry.desired,
+    likeCount: Math.max(0, (entry.confirmed.likeCount ?? 0)
+      + Number(entry.desired) - Number(!!entry.confirmed.liked)),
   });
-  updateUserPost(result.post);
-  return result.post;
+  entry.optimistic = project();
+  updateUserPost(entry.optimistic);
+  if (starting) entry.settled = (async (): Promise<LikeSettlement> => {
+    try {
+      while (!!entry.confirmed.liked !== entry.desired) {
+        const wanted = entry.desired;
+        const result = await readSocial<{ post: UserPost }>(`/v1/posts/${post.id}/like`, {
+          method: wanted ? "POST" : "DELETE",
+        });
+        if (cachedAccountId() !== owner || pendingLikes.get(post.id) !== entry)
+          return { post: entry.optimistic };
+        entry.confirmed = result.post;
+        entry.optimistic = project();
+        updateUserPost(entry.optimistic);
+      }
+      pendingLikes.delete(post.id);
+      return { post: entry.optimistic };
+    } catch (error) {
+      if (cachedAccountId() !== owner || pendingLikes.get(post.id) !== entry)
+        return { post: entry.optimistic };
+      const rollback = { ...current(), liked: !!entry.confirmed.liked, likeCount: entry.confirmed.likeCount };
+      pendingLikes.delete(post.id);
+      updateUserPost(rollback);
+      return { post: rollback, error };
+    }
+  })();
+  return { post: entry.optimistic, settled: entry.settled };
 }
 export async function publishPostComment(
   id: string,
@@ -382,6 +442,7 @@ export async function deletePostComment(id: string, commentId: string) {
   return result;
 }
 subscribeAccountIdentity(() => {
+  pendingLikes.clear();
   followingRevision++;
   saveFollowing({ posts: [], nextCursor: null });
   void Promise.resolve(followingRefresh)

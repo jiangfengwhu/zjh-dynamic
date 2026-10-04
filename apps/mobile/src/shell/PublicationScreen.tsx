@@ -107,39 +107,7 @@ function PublicationContent({
         title="发布"
         variant="pixel"
         onBack={postControls?.busy ? undefined : onBack}
-        right={
-          mode === "post" ? (
-            <Pressy
-              accessibilityRole="button"
-              accessibilityLabel="发布动态"
-              disabled={!postControls?.canPublish}
-              onPress={() => postControls?.submit()}
-              style={{
-                minHeight: 44,
-                paddingHorizontal: 14,
-                borderRadius: 4,
-                backgroundColor: colors.accent,
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: postControls?.canPublish ? 1 : 0.5,
-              }}
-            >
-              {postControls?.busy ? (
-                <ActivityIndicator size="small" color={colors.onAccent} />
-              ) : (
-                <Text
-                  style={{
-                    color: colors.onAccent,
-                    fontSize: 13,
-                    fontWeight: "700",
-                  }}
-                >
-                  发布
-                </Text>
-              )}
-            </Pressy>
-          ) : undefined
-        }
+
       />
       {tabs}
       <AnimatedPagerView

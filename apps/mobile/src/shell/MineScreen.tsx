@@ -22,6 +22,7 @@ type Props = {
   onClose?: () => void;
   mode: ThemeMode;
   onAccount: () => void;
+  onProfile?: () => void;
   onProviders: () => void;
   onInfo: () => void;
   onCheckUpdates: () => Promise<boolean>;
@@ -33,6 +34,7 @@ export const MineScreen = memo(function MineScreen({
   onClose,
   mode,
   onAccount,
+  onProfile,
   onProviders,
   onInfo,
   onCheckUpdates,
@@ -82,8 +84,8 @@ export const MineScreen = memo(function MineScreen({
           entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
         >
           <Pressy
-            accessibilityLabel={user ? "编辑个人资料" : "邮箱登录"}
-            onPress={onAccount}
+            accessibilityLabel={user ? "查看我的主页" : "邮箱登录"}
+            onPress={user ? onProfile : onAccount}
             style={styles.profile}
           >
             {user?.avatarUrl ? (
@@ -99,11 +101,9 @@ export const MineScreen = memo(function MineScreen({
               <Text numberOfLines={2} style={styles.profileName}>
                 {user?.name ?? "登录紫金花"}
               </Text>
-              <Text style={styles.profileHint}>
-                {user ? "编辑头像与昵称" : "邮箱验证码登录，开始创作"}
-              </Text>
+              {!user ? <Text style={styles.profileHint}>邮箱验证码登录，开始创作</Text> : null}
             </View>
-            <Icon name="chevron" size={18} color={colors.ink3} />
+            <Icon name="chevron" size={15} color={colors.ink3} />
           </Pressy>
         </Animated.View>
         <View style={styles.shortcuts}>
@@ -261,6 +261,7 @@ const styles = themedStyleSheet((t) => ({
     alignItems: "center",
     gap: 12,
     paddingVertical: 12,
+    paddingHorizontal: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: t.line,
   },
