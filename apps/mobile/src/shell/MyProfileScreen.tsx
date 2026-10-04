@@ -12,6 +12,7 @@ import Animated, {
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
+  type PageScrollStateChangedNativeEvent,
 } from "react-native-pager-view";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useFocusEffect } from "@react-navigation/native";
@@ -70,18 +71,22 @@ function MyProfileContent({
         publicCount: profile.applications.length,
         followers: profile.followerCount ?? 0,
       }),
-    [],
+    []
   );
   const { width: windowWidth } = useWindowDimensions();
   const headerWidth = useSharedValue(windowWidth);
   const titleWidth = useSharedValue(76);
   const pager = useRef<PagerView>(null);
   const collapsed = useSharedValue(0);
+  const paging = useSharedValue(false);
   const active = useSharedValue("posts");
   const [viewport, setViewport] = useState(0);
   useEffect(() => {
     collapsed.value = 0;
   }, [user?.id, collapsed]);
+  const identityMask = useAnimatedStyle(() => ({
+    height: Math.max(0, PROFILE_RANGE - collapsed.value),
+  }));
   const identityMotion = useAnimatedStyle(() => ({
     opacity: 1 - collapsed.value / PROFILE_RANGE,
     transform: [{ translateY: -collapsed.value }],
@@ -123,18 +128,18 @@ function MyProfileContent({
           profileActive.value = false;
         })();
       };
-    }, [profileActive, user?.id]),
+    }, [profileActive, user?.id])
   );
   const nativeGesture = useMemo(
     () => Gesture.Native().requireExternalGestureToFail(gesture),
-    [gesture],
+    [gesture]
   );
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
     (event) => {
       "worklet";
       profilePosition.value = event.position + event.offset;
     },
-    ["onPageScroll"],
+    ["onPageScroll"]
   );
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
     (event) => {
@@ -143,9 +148,18 @@ function MyProfileContent({
       active.value = value;
       runOnJS(setTab)(value);
     },
-    ["onPageSelected"],
+    ["onPageSelected"]
+  );
+  const onPageScrollStateChanged = useEvent<PageScrollStateChangedNativeEvent>(
+    (event) => {
+      "worklet";
+      paging.value = event.pageScrollState !== "idle";
+    },
+    ["onPageScrollStateChanged"]
   );
   function selectTab(value: "posts" | "works") {
+    if (value === tab) return;
+    paging.value = true;
     pager.current?.setPage(value === "posts" ? 0 : 1);
   }
   const author: PublicAuthor | undefined = user
@@ -234,8 +248,22 @@ function MyProfileContent({
           onLayout={(event) => setViewport(event.nativeEvent.layout.height)}
         >
           <ProfileScrollContext.Provider
-            value={{ active, collapsed, viewport }}
+            value={{ active, collapsed, paging, viewport }}
           >
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 11,
+                  backgroundColor: colors.canvas,
+                },
+                identityMask,
+              ]}
+            />
             <Animated.View
               style={[
                 {
@@ -278,8 +306,8 @@ function MyProfileContent({
                     {stats?.id === user?.id && stats
                       ? `${stats.publicCount} 份公开作品 · ${stats.followers} 位关注者`
                       : user
-                        ? "我的创造与分享"
-                        : "记录创造，收藏自己的作品"}
+                      ? "我的创造与分享"
+                      : "记录创造，收藏自己的作品"}
                   </Text>
                 </View>
               </View>
@@ -321,6 +349,7 @@ function MyProfileContent({
                     overScrollMode="never"
                     onPageScroll={onPageScroll}
                     onPageSelected={onPageSelected}
+                    onPageScrollStateChanged={onPageScrollStateChanged}
                   >
                     <View key="posts" collapsable={false} style={{ flex: 1 }}>
                       <AuthorProfileScreen

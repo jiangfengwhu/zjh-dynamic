@@ -565,23 +565,7 @@ export function MyApplicationsScreen({
                       </Text>
                     </View>
                   </Pressy>
-                  <Pressy
-                    accessibilityLabel={`打开${app.manifest.title}`}
-                    onPress={() => onOpen(app.manifest.appId)}
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 12,
-                      alignItems: "center",
-                      backgroundColor: colors.greenTint,
-                    }}
-                  >
-                    <PixelIcon
-                      name="arrow"
-                      size={18}
-                      color={colors.greenText}
-                    />
-                  </Pressy>
+
                   <Pressy
                     disabled={!!updating}
                     accessibilityLabel={`${app.manifest.title}详情与卸载`}
