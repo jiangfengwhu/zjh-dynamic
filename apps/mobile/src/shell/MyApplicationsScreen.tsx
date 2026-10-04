@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
-  FlatList,
   RefreshControl,
   View,
 } from "react-native";
+import Animated from "react-native-reanimated";
+import { useProfileScroll } from "./ProfileScroll";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
@@ -57,6 +58,7 @@ export function MyApplicationsScreen({
   drawerGesture?: ReturnType<typeof Gesture.Pan>;
   scope?: "works" | "installed";
 }) {
+  const profileScroll = useProfileScroll<Row>("works");
   const { user } = useAccount();
   const { colors } = usePixelTheme();
   const focused = useIsFocused() && active;
@@ -266,7 +268,12 @@ export function MyApplicationsScreen({
         />
       ) : null}
       <GestureDetector gesture={listGesture}>
-        <FlatList<Row>
+        <Animated.FlatList<Row>
+          ref={profileScroll.ref}
+          onScroll={profileScroll.onScroll}
+          onLayout={profileScroll.onLayout}
+          onContentSizeChange={profileScroll.onContentSizeChange}
+          scrollEventThrottle={16}
           data={
             scope === "works"
               ? visibleWorks.map((work) => ({ type: "work" as const, work }))
@@ -280,13 +287,17 @@ export function MyApplicationsScreen({
           showsVerticalScrollIndicator={false}
           removeClippedSubviews={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 8,
-            paddingBottom: 24,
-          }}
+          contentContainerStyle={[
+            {
+              paddingHorizontal: 16,
+              paddingTop: 8,
+              paddingBottom: 24,
+            },
+            profileScroll.contentStyle,
+          ]}
           refreshControl={
             <RefreshControl
+              progressViewOffset={profileScroll.refreshOffset}
               refreshing={pulling}
               onRefresh={() => void refresh(true)}
               tintColor={colors.accentText}

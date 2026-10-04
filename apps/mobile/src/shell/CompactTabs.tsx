@@ -54,8 +54,11 @@ export function CompactTabs<T extends string>({
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       style={{
         flexDirection: "row",
-        height: 48,
-        backgroundColor: colors.surfaceRaised,
+        alignSelf: "flex-start",
+        width: Math.min(options.length * 112, 336),
+        maxWidth: "100%",
+        height: 44,
+        backgroundColor: "transparent",
         borderRadius: 4,
       }}
     >
@@ -65,10 +68,10 @@ export function CompactTabs<T extends string>({
           style={[
             {
               position: "absolute",
-              left: 3,
-              top: 3,
-              bottom: 3,
-              width: slot - 6,
+              left: 0,
+              top: 5,
+              bottom: 5,
+              width: slot,
             },
             motion,
           ]}
@@ -76,11 +79,11 @@ export function CompactTabs<T extends string>({
           <Svg
             width="100%"
             height="100%"
-            viewBox={`0 0 ${slot - 6} 42`}
+            viewBox={`0 0 ${slot} 34`}
             preserveAspectRatio="none"
           >
             <Path
-              d={`M4 0H${slot - 10}V4H${slot - 6}V38H${slot - 10}V42H4V38H0V4H4Z`}
+              d={`M3 0H${slot - 3}V3H${slot}V31H${slot - 3}V34H3V31H0V3H3Z`}
               fill={fill}
             />
           </Svg>
@@ -102,20 +105,20 @@ export function CompactTabs<T extends string>({
             alignItems: "center",
             justifyContent: "center",
             flexDirection: "row",
-            gap: 8,
+            gap: 6,
           }}
         >
           {item.icon ? (
             <PixelIcon
               name={item.icon}
-              size={16}
+              size={14}
               color={item.id === value ? colors.onAccent : colors.ink3}
             />
           ) : null}
           <PixelText
             style={{
               color: item.id === value ? colors.onAccent : colors.ink3,
-              fontSize: 14,
+              fontSize: 13,
               lineHeight: 20,
               fontWeight: item.id === value ? "700" : "500",
               textAlign: "center",

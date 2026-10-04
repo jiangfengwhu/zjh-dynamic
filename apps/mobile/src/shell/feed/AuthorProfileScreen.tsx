@@ -2,18 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   Text,
   View,
 } from "react-native";
 import Animated, {
-  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
+import { useProfileScroll } from "../ProfileScroll";
 import { CompactTabs } from "../CompactTabs";
 import { PageHeader } from "../../../../../packages/ui/chrome";
 import { Screen } from "../../../../../packages/ui/edge";
@@ -40,7 +39,7 @@ type ProfileRow =
   | { type: "app"; app: AuthorProfile["applications"][number] };
 
 export function AuthorProfileScreen(
-  props: Parameters<typeof AuthorProfileContent>[0]
+  props: Parameters<typeof AuthorProfileContent>[0],
 ) {
   const theme = usePixelTheme();
   return (
@@ -101,7 +100,7 @@ function AuthorProfileContent({
       setFollowBusy(true);
       const result = await setAuthorFollow(
         initialAuthor.id,
-        !profile.following
+        !profile.following,
       );
       if (!alive.current || (await currentAccountId()) !== owner) return;
       revision.current++;
@@ -119,11 +118,9 @@ function AuthorProfileContent({
       if (alive.current) setFollowBusy(false);
     }
   }
-  const list = useRef<FlatList<ProfileRow>>(null);
   const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
-  });
+  const profileScroll = useProfileScroll<ProfileRow>("posts", scrollY);
+  const list = profileScroll.ref;
   const { pull, phase, gesture, scrollGesture } = usePullToRefresh({
     scrollY,
     onRefresh: () => load(),
@@ -133,7 +130,7 @@ function AuthorProfileContent({
       drawerGesture
         ? Gesture.Native().requireExternalGestureToFail(gesture, drawerGesture)
         : scrollGesture,
-    [gesture, drawerGesture, scrollGesture]
+    [gesture, drawerGesture, scrollGesture],
   );
   const lift = useAnimatedStyle(() => ({
     transform: [{ translateY: pull.value }],
@@ -160,12 +157,12 @@ function AuthorProfileContent({
               posts: [
                 ...previous.posts,
                 ...result.posts.filter(
-                  (item) => !previous.posts.some((old) => old.id === item.id)
+                  (item) => !previous.posts.some((old) => old.id === item.id),
                 ),
               ],
               nextCursor: result.nextCursor,
             }
-          : (result as AuthorProfile)
+          : (result as AuthorProfile),
       );
       setLoaded(true);
       setError("");
@@ -189,7 +186,7 @@ function AuthorProfileContent({
     () => () => {
       alive.current = false;
     },
-    []
+    [],
   );
   useEffect(() => {
     revision.current++;
@@ -283,10 +280,10 @@ function AuthorProfileContent({
                   {loaded
                     ? `${profile.applications.length} 个公开应用`
                     : error
-                    ? "主页暂未同步"
-                    : busy
-                    ? "正在加载…"
-                    : "作者主页"}
+                      ? "主页暂未同步"
+                      : busy
+                        ? "正在加载…"
+                        : "作者主页"}
                 </Text>
               </View>
             </View>
@@ -322,8 +319,8 @@ function AuthorProfileContent({
                   {followBusy
                     ? "处理中…"
                     : profile.following
-                    ? "已关注"
-                    : "+ 关注"}
+                      ? "已关注"
+                      : "+ 关注"}
                 </Text>
               </Pressable>
             ) : null}
@@ -386,7 +383,11 @@ function AuthorProfileContent({
                   row.type === "post" ? row.post.id : row.app.manifest.appId
                 }
                 removeClippedSubviews={false}
-                onScroll={onScroll}
+                onScroll={profileScroll.onScroll}
+                onLayout={profileScroll.onLayout}
+                onContentSizeChange={profileScroll.onContentSizeChange}
+                contentContainerStyle={profileScroll.contentStyle}
+                showsVerticalScrollIndicator={false}
                 scrollEventThrottle={16}
                 overScrollMode="never"
                 bounces={false}
