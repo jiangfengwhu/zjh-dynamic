@@ -15,9 +15,12 @@ const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export async function openCreationRequest(
   appId: string,
   prompt?: string,
-  navigate = true
+  navigate = true,
+  expectedOwnerId?: string
 ) {
   if (!(await requireAccount())) return;
+  if (expectedOwnerId && await currentAccountId() !== expectedOwnerId)
+    throw new Error("账号已改变，请重新提交");
   const context = applicationContext(bootstrap.defaultApplication);
   if (appId === bootstrap.defaultApplication) {
     const target = `app-${Date.now().toString(36)}-${Math.random()

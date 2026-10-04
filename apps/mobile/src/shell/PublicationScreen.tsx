@@ -16,6 +16,8 @@ import { ComposePostScreen } from "./feed/ComposePostScreen";
 import { PixelAvatar, PixelIcon } from "./feed/PixelKit";
 import { CompactTabs } from "./CompactTabs";
 import { FormField } from "./FormField";
+import { polishCreationPrompt } from "./creationDraft";
+import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { currentAccountId, useAccount } from "./account";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import type { MarketApplication } from "./market";
@@ -77,6 +79,7 @@ function PublicationContent({
       ) : null}
       <View style={{ flex: 1, display: mode === "create" ? "flex" : "none" }}>
         <CreateApplicationPage
+          active={mode === "create"}
           onCreate={onCreate}
           onBack={onBack}
           tabs={tabs}
@@ -89,12 +92,14 @@ function PublicationContent({
 }
 
 function CreateApplicationPage({
+  active,
   onBack,
   tabs,
   busy,
   setBusy,
   onCreate,
 }: {
+  active: boolean;
   onBack: () => void;
   tabs: import("react").ReactNode;
   busy: boolean;
@@ -105,30 +110,85 @@ function CreateApplicationPage({
   const { user } = useAccount();
   const [prompt, setPrompt] = useState("");
   const [ready, setReady] = useState(false);
+  const [polishing, setPolishing] = useState(false);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [polishError, setPolishError] = useState("");
+  const [beforePolish, setBeforePolish] = useState<string>();
+  const polishRevision = useRef(0);
+  function changePrompt(value: string) {
+    typed.current = true;
+    polishRevision.current++;
+    setPolishing(false);
+    setSuggestion(null);
+    setPolishError("");
+    setBeforePolish(undefined);
+    setPrompt(value);
+  }
+  useEffect(() => {
+    polishRevision.current++;
+    setPolishing(false);
+    setSuggestion(null);
+    setPolishError("");
+    setBeforePolish(undefined);
+  }, [user?.id, active]);
+  async function polish() {
+    if (busy || polishing || !ready || !prompt.trim()) return;
+    const source = prompt.trim();
+    const owner = user?.id;
+    const id = ++polishRevision.current;
+    setPolishing(true);
+    setPolishError("");
+    setSuggestion(null);
+    try {
+      const result = await polishCreationPrompt(source);
+      const currentOwner = await currentAccountId();
+      if (
+        !alive.current ||
+        id !== polishRevision.current ||
+        currentOwner !== owner
+      )
+        return;
+      setSuggestion(result);
+    } catch (cause) {
+      if (alive.current && id === polishRevision.current)
+        setPolishError(
+          cause instanceof Error
+            ? cause.message
+            : "润色暂未完成，请重试；原文已保留",
+        );
+    } finally {
+      if (alive.current && id === polishRevision.current) setPolishing(false);
+    }
+  }
   const acting = useRef(false);
   const typed = useRef(false);
   const alive = useRef(true);
   const draftKey = `creation.draft.${user?.id ?? "guest"}`;
+  const loadedKey = useRef("");
   useEffect(
     () => () => {
       alive.current = false;
+      polishRevision.current++;
     },
     [],
   );
   useEffect(() => {
     let active = true;
+    loadedKey.current = "";
     typed.current = false;
     setReady(false);
     setPrompt("");
     void readShellValue(draftKey)
       .then((value) => {
         if (active) {
+          loadedKey.current = draftKey;
           if (!typed.current) setPrompt(value || "");
           setReady(true);
         }
       })
       .catch(() => {
         if (active) {
+          loadedKey.current = draftKey;
           setReady(true);
           Toast.show({
             type: "error",
@@ -141,24 +201,33 @@ function CreateApplicationPage({
     };
   }, [draftKey]);
   useEffect(() => {
-    if (ready) writeShellValue(draftKey, prompt);
+    if (ready && loadedKey.current === draftKey)
+      writeShellValue(draftKey, prompt);
   }, [ready, draftKey, prompt]);
   async function create() {
-    if (acting.current || !prompt.trim() || !user) return;
+    if (acting.current || !ready || !prompt.trim() || !user) return;
+    polishRevision.current++;
+    setPolishing(false);
     acting.current = true;
     setBusy(true);
     const owner = user.id;
+    const submittedText = prompt.trim();
     try {
       if ((await currentAccountId()) !== owner)
         throw new Error("账号已改变，请重新打开发布页");
       Keyboard.dismiss();
-      if (!(await onCreate(prompt.trim())))
-        throw new Error("工坊未能打开，需求草稿已保留");
+      if (!(await onCreate(submittedText)))
+        throw new Error("需求未能提交，草稿已保留");
+      if ((await currentAccountId()) === owner) {
+        if ((await readShellValue(draftKey))?.trim() === submittedText)
+          writeShellValue(draftKey, "");
+        if (alive.current) changePrompt("");
+      }
     } catch (cause) {
       if (alive.current)
         Toast.show({
           type: "error",
-          text1: "工坊未能打开",
+          text1: "制作未能开始",
           text2: cause instanceof Error ? cause.message : "请重试",
         });
     } finally {
@@ -168,13 +237,10 @@ function CreateApplicationPage({
   }
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <PageHeader
-        title="发布"
-        variant="pixel"
-        onBack={busy ? undefined : onBack}
-      />
+      <PageHeader title="发布" variant="pixel" onBack={onBack} />
       {tabs}
       <ScrollView
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 16, gap: 16 }}
       >
@@ -188,17 +254,54 @@ function CreateApplicationPage({
             borderRadius: 8,
           }}
         >
-          <PixelAvatar size={52} />
+          <PixelAvatar size={44} />
           <View style={{ flex: 1, gap: 4 }}>
             <Text
-              style={{ color: colors.ink1, fontSize: 20, fontWeight: "700" }}
+              style={{ color: colors.ink1, fontSize: 18, fontWeight: "700" }}
             >
               把想法做成应用
             </Text>
             <Text style={{ color: colors.ink3, fontSize: 13 }}>
-              告诉 Jolly 你想解决的一件小事。
+              写下想法，Jolly 帮你做出第一版。
             </Text>
           </View>
+        </View>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Text style={{ color: colors.ink1, fontSize: 14 }}>你的想法</Text>
+          <Pressy
+            scale={1}
+            accessibilityRole="button"
+            accessibilityLabel={polishing ? "取消润色" : "AI 润色需求"}
+            disabled={busy || !ready || !prompt.trim() || !user}
+            onPress={() => {
+              if (polishing) {
+                polishRevision.current++;
+                setPolishing(false);
+              } else void polish();
+            }}
+            style={{
+              minHeight: 44,
+              paddingHorizontal: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {polishing ? (
+              <ActivityIndicator size="small" color={colors.orchidText} />
+            ) : (
+              <PixelIcon name="spark" size={16} color={colors.orchidText} />
+            )}
+            <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+              {polishing ? "取消润色" : "AI 润色"}
+            </Text>
+          </Pressy>
         </View>
         <FormField
           accessibilityLabel="应用制作需求"
@@ -206,10 +309,7 @@ function CreateApplicationPage({
           editable={!busy}
           maxLength={8000}
           value={prompt}
-          onChangeText={(value) => {
-            typed.current = true;
-            setPrompt(value);
-          }}
+          onChangeText={changePrompt}
           placeholder="例如：做一个每天记录心情的小应用，有日历和像素花园…"
           placeholderTextColor={colors.ink3}
           style={{
@@ -225,13 +325,145 @@ function CreateApplicationPage({
             textAlignVertical: "top",
           }}
         />
-        <Text style={{ color: colors.ink3, fontSize: 12 }}>
-          描述用途、想要的界面和关键功能；草稿会自动保存。
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <Text style={{ flex: 1, color: colors.ink3, fontSize: 12 }}>
+            {polishing
+              ? "正在润色，你仍可编辑或直接开始制作"
+              : "输入内容自动保存，AI 润色可选"}
+          </Text>
+          <Text style={{ color: colors.ink3, fontSize: 11 }}>
+            {prompt.length}/8000
+          </Text>
+        </View>
+        {beforePolish !== undefined ? (
+          <Pressy
+            scale={1}
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={() => changePrompt(beforePolish)}
+            style={{ minHeight: 44, justifyContent: "center" }}
+          >
+            <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+              撤回润色，恢复原文
+            </Text>
+          </Pressy>
+        ) : null}
+        {polishError ? (
+          <View style={{ gap: 4 }}>
+            <Text style={{ color: colors.redText, fontSize: 12 }}>
+              {polishError}
+            </Text>
+            {/配置|引擎/.test(polishError) ? (
+              <Pressy
+                accessibilityRole="button"
+                onPress={() => applicationContext("jolly").ai.openSettings()}
+                style={{ minHeight: 44, justifyContent: "center" }}
+              >
+                <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+                  配置 AI 引擎
+                </Text>
+              </Pressy>
+            ) : null}
+          </View>
+        ) : null}
+        {suggestion !== null ? (
+          <View
+            style={{
+              padding: 14,
+              gap: 10,
+              backgroundColor: colors.orchidTint,
+              borderRadius: 8,
+            }}
+          >
+            <Text
+              style={{
+                color: colors.orchidText,
+                fontSize: 14,
+                fontWeight: "700",
+              }}
+            >
+              润色建议
+            </Text>
+            <FormField
+              multiline
+              editable={!busy}
+              value={suggestion}
+              onChangeText={setSuggestion}
+              maxLength={8000}
+              accessibilityLabel="编辑润色建议"
+              style={{
+                minHeight: 140,
+                color: colors.ink1,
+                fontSize: 14,
+                lineHeight: 22,
+                textAlignVertical: "top",
+                padding: 10,
+                backgroundColor: colors.surface,
+                borderRadius: 4,
+              }}
+            />
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                gap: 16,
+              }}
+            >
+              <Pressy
+                scale={1}
+                disabled={busy}
+                onPress={() => setSuggestion(null)}
+                style={{ minHeight: 44, justifyContent: "center" }}
+              >
+                <Text style={{ color: colors.ink3, fontSize: 13 }}>
+                  保留原文
+                </Text>
+              </Pressy>
+              <Pressy
+                scale={1}
+                disabled={busy || !suggestion.trim()}
+                onPress={() => {
+                  const original = prompt;
+                  changePrompt(suggestion);
+                  setBeforePolish(original);
+                }}
+                style={{
+                  minHeight: 44,
+                  paddingHorizontal: 12,
+                  backgroundColor: colors.surface,
+                  borderRadius: 4,
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+                  使用润色
+                </Text>
+              </Pressy>
+            </View>
+          </View>
+        ) : null}
+      </ScrollView>
+      <View
+        style={{
+          paddingHorizontal: 16,
+          paddingTop: 8,
+          paddingBottom: 12,
+          gap: 8,
+          backgroundColor: colors.canvas,
+        }}
+      >
         <Pressy
           accessibilityRole="button"
-          accessibilityLabel="进入 Jolly 制作工坊"
-          disabled={busy || !ready || !prompt.trim()}
+          accessibilityLabel="提交需求并开始制作"
+          disabled={busy || !ready || !prompt.trim() || !user}
           onPress={() => void create()}
           style={{
             minHeight: 48,
@@ -241,7 +473,7 @@ function CreateApplicationPage({
             alignItems: "center",
             justifyContent: "center",
             gap: 8,
-            opacity: busy || !ready || !prompt.trim() ? 0.5 : 1,
+            opacity: busy || !ready || !prompt.trim() || !user ? 0.5 : 1,
           }}
         >
           {busy ? (
@@ -252,13 +484,13 @@ function CreateApplicationPage({
           <Text
             style={{ color: colors.onAccent, fontSize: 15, fontWeight: "700" }}
           >
-            {busy ? "正在准备工坊…" : "进入制作"}
+            {busy ? "正在提交需求…" : "进入制作"}
           </Text>
         </Pressy>
         <Text style={{ color: colors.ink3, fontSize: 12 }}>
-          在工坊中确认并开始制作，完成或失败都会收到站内通知。
+          点击后直接开始制作，完成或失败都会收到站内通知。
         </Text>
-      </ScrollView>
+      </View>
     </Screen>
   );
 }

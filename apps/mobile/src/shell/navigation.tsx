@@ -63,10 +63,8 @@ import { openFeature } from "../../../../packages/features/src/registry";
 import Toast from "react-native-toast-message";
 import { PublicationScreen } from "./PublicationScreen";
 import { MyProfileScreen } from "./MyProfileScreen";
-import {
-  openApplicationWorkshop,
-  openCreationRequest,
-} from "./workshopNavigation";
+import { submitCreationPrompt } from "./creationDraft";
+import { openApplicationWorkshop } from "./workshopNavigation";
 import { PostDetailScreen } from "./feed/PostDetailScreen";
 import type { UserPost } from "./feed/userPosts";
 import type { UserPostDraft } from "../../../../packages/app-sdk/src/index";
@@ -126,7 +124,7 @@ async function openNotice(notice: Notice) {
       notice.appId,
       notice.postPreview,
       false,
-      false
+      false,
     );
     return true;
   }
@@ -134,7 +132,7 @@ async function openNotice(notice: Notice) {
   const detail = await fetchPostDetail(
     notice.postId,
     undefined,
-    notice.commentId
+    notice.commentId,
   );
   if (
     !shellNavigationRef.isReady() ||
@@ -280,7 +278,7 @@ function handleShellRequest(raw: string | undefined) {
     console.log(
       "shell request",
       request.action,
-      request.tab ?? request.id ?? ""
+      request.tab ?? request.id ?? "",
     );
     if (request.action === "account") shellNavigationRef.navigate("account");
     else if (request.action === "providers")
@@ -299,7 +297,7 @@ function handleShellRequest(raw: string | undefined) {
   } catch (error) {
     console.log(
       "shell request unreadable",
-      error instanceof Error ? error.message : error
+      error instanceof Error ? error.message : error,
     );
   }
 }
@@ -322,7 +320,7 @@ function BundlePage({
     () => () => {
       mountedBundles.delete(id);
     },
-    [id]
+    [id],
   );
   const Page = id === bootstrap.defaultApplication ? View : Screen;
   return (
@@ -346,7 +344,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
         { translateY: active === "feed" ? hidden.value * tabHeight.value : 0 },
       ],
     }),
-    [active]
+    [active],
   );
   return (
     <Animated.View
@@ -397,7 +395,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
   const reduceMotion = useReducedMotion();
   const installedIds = useMemo(
     () => props.listed.map((item) => item.id),
-    [props.listed]
+    [props.listed],
   );
   const previous = useRef({ label: "", depth: 1 });
   const colors = palettes[props.mode];
@@ -415,7 +413,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
 
   useEffect(
     () => subscribePackageValue(SHELL_NAV_REQUEST, handleShellRequest),
-    []
+    [],
   );
   useEffect(() => {
     setApplicationPostHandlers(shareApplicationPost, async (_appId, draft) => {
@@ -459,7 +457,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         onReady={() => {
           void (async () => {
             const rollback = await readShellValue(
-              "application.rollback.notice"
+              "application.rollback.notice",
             );
             removeShellValue("application.rollback.notice");
             if (rollback)
@@ -469,7 +467,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 text2: rollback,
               });
             const workshop = await readShellValue(
-              "application.workshopAfterReload"
+              "application.workshopAfterReload",
             );
             removeShellValue("application.workshopAfterReload");
             if (workshop) {
@@ -480,7 +478,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   /^[a-z][a-z0-9-]{0,63}$/.test(request.target)
                 ) {
                   const context = applicationContext(
-                    bootstrap.defaultApplication
+                    bootstrap.defaultApplication,
                   );
                   context.storage.set("workshopTarget", request.target);
                   context.storage.set("openWorkshop", String(Date.now()));
@@ -584,7 +582,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             void requireAccount().then((allowed) => {
                               if (allowed)
                                 applicationContext(
-                                  bootstrap.defaultApplication
+                                  bootstrap.defaultApplication,
                                 ).navigation.create();
                             });
                           }}
@@ -656,7 +654,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   void requireAccount().then((allowed) => {
                     if (allowed)
                       applicationContext(
-                        bootstrap.defaultApplication
+                        bootstrap.defaultApplication,
                       ).navigation.create();
                   });
                 }}
@@ -684,15 +682,21 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <PublicationScreen
                 onBack={goBack}
                 onCreate={async (prompt) => {
-                  const target = await openCreationRequest(
-                    bootstrap.defaultApplication,
-                    prompt,
-                    false
-                  );
-                  return (
-                    !!target &&
-                    (await openShellBundle(bootstrap.defaultApplication))
-                  );
+                  const origin = shellNavigationRef.getCurrentRoute()?.key;
+                  await submitCreationPrompt(prompt);
+                  if (shellNavigationRef.getCurrentRoute()?.key !== origin)
+                    return true;
+                  try {
+                    if (!(await openShellBundle(bootstrap.defaultApplication)))
+                      throw new Error("制作已提交，可在我的作品中查看进度");
+                  } catch {
+                    Toast.show({
+                      type: "success",
+                      text1: "已开始制作",
+                      text2: "可在我的作品中查看进度",
+                    });
+                  }
+                  return true;
                 }}
                 initialMode={route.params?.mode}
                 initialApplication={route.params?.application}

@@ -145,12 +145,20 @@ async function runCloudEvolve(options: {
   onRunId: (session: string) => void;
   shouldStop: () => boolean;
   shouldPause?: () => boolean;
+  submitOnly?: boolean;
+  expectedOwnerId?: string;
 }): Promise<CloudOutcome> {
   if (!await requireAccount()) throw new Error("请先登录后再创作");
   options.onStatus("正在提交到 Jules");
   const prompt = options.requirement.trim();
   if (!prompt) throw new Error("请描述想做什么");
   const existing = await loadJulesSession();
+  if (options.expectedOwnerId && await currentAccountId() !== options.expectedOwnerId)
+    throw new Error("账号已改变，请重新提交");
+  if (existing && options.submitOnly) {
+    options.onRunId(existing);
+    return "waiting";
+  }
   if (existing && (await sessionAcceptsMessage(existing))) {
     options.onRunId(existing);
     options.onStatus("正在继续这个应用的会话");
@@ -164,6 +172,9 @@ async function runCloudEvolve(options: {
   }
   if (existing) throw new Error("这个应用的 session 暂时不能继续，请停止后再重试");
   const startedAt = Date.now();
+  const submittingOwner = await currentAccountId();
+  if (options.expectedOwnerId && submittingOwner !== options.expectedOwnerId)
+    throw new Error("账号已改变，请重新提交");
   const created = await jules(
     "POST",
     "/v1alpha/sessions",
@@ -181,12 +192,15 @@ async function runCloudEvolve(options: {
   );
   if (created.status < 200 || created.status >= 300) throw new Error(julesError(created));
   const session = JSON.parse(created.body) as JulesSession;
+  if (!submittingOwner || await currentAccountId() !== submittingOwner)
+    throw new Error("账号已改变，请回到原账号查看制作结果");
   const name = session.name ?? "";
   if (!name.startsWith("sessions/")) throw new Error("Jules 没有返回会话");
   writeShellValue(SESSION_STORAGE, name);
   if (session.ownerId) writeShellValue(`shell.jules.apps.${appId}.owner`, session.ownerId);
   if (session.approvalToken) writeShellValue(APPROVAL_STORAGE, session.approvalToken);
   options.onRunId(name);
+  if (options.submitOnly) return "waiting";
   console.log("jules session", name);
   if (options.shouldStop()) {
     return "cancelled";
