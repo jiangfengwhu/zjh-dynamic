@@ -63,7 +63,11 @@ export function MarketPublicationScreen(
   const theme = usePixelTheme();
   return (
     <ThemeContext.Provider value={theme}>
-      <MarketDetailContent {...props} publication />
+      <MarketDetailContent
+        key={props.item.manifest.appId}
+        {...props}
+        publication
+      />
     </ThemeContext.Provider>
   );
 }
@@ -73,7 +77,7 @@ export function MarketDetailScreen(
   const theme = usePixelTheme();
   return (
     <ThemeContext.Provider value={theme}>
-      <MarketDetailContent {...props} />
+      <MarketDetailContent key={props.item.manifest.appId} {...props} />
     </ThemeContext.Provider>
   );
 }
@@ -121,8 +125,11 @@ function MarketDetailContent({
   const [sharingAttempt, setSharingAttempt] = useState(0);
   const [draftOwner, setDraftOwner] = useState<string>();
   const draftKey = `market.edit-draft.${draftOwner}.${app.appId}`;
-  const [editMode, setEditMode] = useState<"edit" | "share" | null>(null);
-  const [selectedRelease, setSelectedRelease] = useState("");
+  const [publishLatest, setPublishLatest] = useState(false);
+  const [baseline, setBaseline] = useState("");
+  const initializedOwner = useRef<string>();
+  const pendingDraft = useRef<{ key: string; value: string }>();
+  const draftTimer = useRef<ReturnType<typeof setTimeout>>();
   const [shareTitle, setShareTitle] = useState(item.title || app.title);
   const [shareSummary, setShareSummary] = useState(item.summary || app.summary);
   const [shareCategory, setShareCategory] = useState(item.category || "other");
@@ -216,7 +223,8 @@ function MarketDetailContent({
       setOwnershipReady(true);
       if (!owned) {
         setSharing(undefined);
-        setEditMode(null);
+        setDraftOwner(undefined);
+        initializedOwner.current = undefined;
         return;
       }
       const cached = await cachedSharing(app.appId);
@@ -224,6 +232,81 @@ function MarketDetailContent({
       try {
         const state = await loadSharing(app.appId);
         if (live) {
+          if (publication && initializedOwner.current !== accountId) {
+            let draft: {
+              title?: string;
+              summary?: string;
+              category?: string;
+              screenshots?: string[];
+              publishLatest?: boolean;
+              releaseId?: string;
+            } | null = null;
+            try {
+              draft = JSON.parse(
+                (await readShellValue(
+                  `market.edit-draft.${accountId}.${app.appId}`
+                )) || "null"
+              );
+            } catch {
+              /* Start from the market information. */
+            }
+            if (!live) return;
+            const fields = {
+              title:
+                state.shared?.title ||
+                state.application?.title ||
+                item.title ||
+                app.title,
+              summary:
+                state.shared?.summary ??
+                state.application?.summary ??
+                item.summary ??
+                app.summary,
+              category: state.shared?.category || item.category || "other",
+              screenshots: state.shared?.screenshots || item.screenshots || [],
+            };
+            setBaseline(JSON.stringify(fields));
+            setShareTitle(
+              typeof draft?.title === "string"
+                ? draft.title.slice(0, 60)
+                : fields.title
+            );
+            setShareSummary(
+              typeof draft?.summary === "string"
+                ? draft.summary.slice(0, 300)
+                : fields.summary
+            );
+            setShareCategory(
+              marketCategories.some(
+                (category) => category.id && category.id === draft?.category
+              )
+                ? draft!.category!
+                : fields.category
+            );
+            setScreenshots(
+              Array.isArray(draft?.screenshots)
+                ? draft.screenshots
+                    .filter(
+                      (url) =>
+                        typeof url === "string" && url.startsWith("https://")
+                    )
+                    .slice(0, 6)
+                : fields.screenshots
+            );
+            setPublishLatest(
+              !state.shared ||
+                Boolean(
+                  state.application &&
+                    state.shared.manifest.releaseId !==
+                      state.application.releaseId &&
+                    draft?.publishLatest &&
+                    draft.releaseId === state.application.releaseId
+                )
+            );
+            initializedOwner.current = accountId;
+            setDraftOwner(accountId);
+          }
+          if (!live) return;
           setSharing(state);
           setSharingReady(true);
           setShareNotice("");
@@ -244,83 +327,62 @@ function MarketDetailContent({
       live = false;
       cancelIdleCallback(idle);
     };
-  }, [app.appId, focused, user?.id, sharingAttempt]);
-  useEffect(() => {
-    if (editMode && draftOwner === user?.id)
-      writeShellValue(
-        draftKey,
-        JSON.stringify({
-          mode: editMode,
-          releaseId: selectedRelease,
-          title: shareTitle,
-          summary: shareSummary,
-          category: shareCategory,
-          screenshots,
-        })
-      );
-  }, [
-    editMode,
-    draftOwner,
-    user?.id,
-    selectedRelease,
-    shareTitle,
-    shareSummary,
-    shareCategory,
+  }, [app.appId, focused, user?.id, sharingAttempt, publication]);
+  const formValue = JSON.stringify({
+    title: shareTitle,
+    summary: shareSummary,
+    category: shareCategory,
     screenshots,
-  ]);
+  });
+  const formDirty = formValue !== baseline;
+  const formReady = publication && owner && draftOwner === user?.id;
   useEffect(() => {
-    if (draftOwner !== user?.id) setEditMode(null);
-  }, [draftOwner, user?.id]);
-  async function begin(mode: "edit" | "share") {
-    const ownerId = user?.id;
-    if (!ownerId) return;
-    setDraftOwner(ownerId);
-    setShareTitle(
-      sharing?.shared?.title ||
-        sharing?.application?.title ||
-        item.title ||
-        app.title
-    );
-    setShareSummary(
-      sharing?.shared?.summary ??
-        sharing?.application?.summary ??
-        item.summary ??
-        app.summary
-    );
-    setSelectedRelease(sharing?.application?.releaseId || "");
-    setShareCategory(sharing?.shared?.category || item.category || "other");
-    setScreenshots(sharing?.shared?.screenshots || item.screenshots || []);
-    setShareNotice("");
-    try {
-      const cached = JSON.parse(
-        (await readShellValue(`market.edit-draft.${ownerId}.${app.appId}`)) ||
-          "null"
-      );
-      if (!alive.current || (await currentAccountId()) !== ownerId) return;
-      if (
-        cached?.mode === mode &&
-        (mode === "edit" ||
-          cached.releaseId === sharing?.application?.releaseId)
-      ) {
-        if (typeof cached.title === "string") setShareTitle(cached.title);
-        if (typeof cached.summary === "string") setShareSummary(cached.summary);
-        if (marketCategories.some((item) => item.id === cached.category))
-          setShareCategory(cached.category);
-        if (Array.isArray(cached.screenshots))
-          setScreenshots(
-            cached.screenshots
-              .filter(
-                (url: unknown) =>
-                  typeof url === "string" && url.startsWith("https://")
-              )
-              .slice(0, 6)
-          );
-      }
-    } catch {
-      /* Use the current published fields when a draft is invalid. */
+    if (!formReady || !sharingReady) return;
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    if (!formDirty && publishLatest === !sharing?.shared) {
+      pendingDraft.current = undefined;
+      removeShellValue(draftKey);
+      return;
     }
-    if (alive.current && (await currentAccountId()) === ownerId)
-      setEditMode(mode);
+    const snapshot = {
+      key: draftKey,
+      value: JSON.stringify({
+        ...JSON.parse(formValue),
+        publishLatest,
+        releaseId: sharing?.application?.releaseId,
+      }),
+    };
+    pendingDraft.current = snapshot;
+    draftTimer.current = setTimeout(
+      () => writeShellValue(snapshot.key, snapshot.value),
+      180
+    );
+    return () => {
+      if (draftTimer.current) clearTimeout(draftTimer.current);
+    };
+  }, [
+    formReady,
+    sharingReady,
+    formValue,
+    formDirty,
+    publishLatest,
+    sharing?.shared,
+    sharing?.application?.releaseId,
+    draftKey,
+  ]);
+  useEffect(
+    () => () => {
+      if (draftTimer.current) clearTimeout(draftTimer.current);
+      const snapshot = pendingDraft.current;
+      if (snapshot) writeShellValue(snapshot.key, snapshot.value);
+      pendingDraft.current = undefined;
+    },
+    [app.appId, user?.id]
+  );
+  function discardSavedDraft() {
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    pendingDraft.current = undefined;
+    removeShellValue(draftKey);
   }
   async function chooseScreenshots() {
     if (mutation.current || screenshots.length >= 6) return;
@@ -376,13 +438,16 @@ function MarketDetailContent({
     }
   }
   async function save() {
-    if (mutation.current || !sharingReady || !editMode) return;
+    if (mutation.current || !sharingReady || !formReady || !shareTitle.trim())
+      return;
+    const mode = sharing?.shared && !publishLatest ? "edit" : "share";
+    if (mode === "share" && !sharing?.application) return;
     mutation.current = true;
     setBusy(true);
     setError("");
     try {
       const state =
-        editMode === "edit"
+        mode === "edit"
           ? await editMarketApplication(
               app.appId,
               shareTitle,
@@ -392,7 +457,7 @@ function MarketDetailContent({
             )
           : await shareMarketApplication(
               app.appId,
-              selectedRelease,
+              sharing!.application!.releaseId,
               shareTitle,
               shareSummary,
               shareCategory,
@@ -400,13 +465,14 @@ function MarketDetailContent({
             );
       Toast.show({
         type: "success",
-        text1: editMode === "edit" ? "市场信息已保存" : "作品已上架",
+        text1: mode === "edit" ? "市场信息已保存" : "作品已上架",
       });
-      removeShellValue(draftKey);
+      discardSavedDraft();
+      setBaseline(formValue);
       setSharing(state);
-      setEditMode(null);
+      setPublishLatest(false);
       setShareNotice(
-        editMode === "edit"
+        mode === "edit"
           ? "分享信息已保存，公开版本保持不变。"
           : "已将选定版本分享到应用市场。"
       );
@@ -427,8 +493,9 @@ function MarketDetailContent({
     void withdrawMarketApplication(app.appId)
       .then((state) => {
         setSharing(state);
-        setEditMode(null);
-        setShareNotice("已撤回分享，作品仍保留在我的作品中。");
+        setPublishLatest(true);
+        setBaseline("");
+        setShareNotice("已撤回上架，填写的信息仍保留，可以再次公开。");
       })
       .catch((e) => setError(e instanceof Error ? e.message : "撤回未完成"))
       .finally(() => {
@@ -542,130 +609,125 @@ function MarketDetailContent({
         );
     });
   }
-  function closeEditor() {
-    if (!busy) setEditMode(null);
-  }
   const summary = (shared?.summary ?? item.summary ?? app.summary ?? "").trim();
-  const management = owner ? (
-    <View style={styles.management}>
+  const publicationStatus = (
+    <View
+      style={[
+        styles.publicationStatus,
+        { backgroundColor: shared ? colors.greenTint : colors.orchidTint },
+      ]}
+    >
       <View style={styles.line}>
         <View
           style={{
-            flexDirection: "row",
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: colors.surface,
             alignItems: "center",
-            gap: 8,
+            justifyContent: "center",
           }}
         >
-          <PixelIcon name="box" size={18} color={colors.greenText} />
-          <Text style={styles.subtitle}>公开到应用市场</Text>
+          <Text style={{ fontSize: 24, color: app.accent }}>{app.mark}</Text>
         </View>
-        <Text
-          style={[
-            styles.tag,
-            {
-              backgroundColor: shared ? colors.greenTint : colors.orchidTint,
-              color: shared ? colors.greenText : colors.orchidText,
-            },
-          ]}
-        >
-          {!sharingReady ? "待同步" : shared ? "已上架" : "仅自己可见"}
-        </Text>
+        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+          <Text numberOfLines={1} style={styles.subtitle}>
+            {app.title}
+          </Text>
+          <Text
+            style={[
+              styles.caption,
+              { color: shared ? colors.greenText : colors.orchidText },
+            ]}
+          >
+            {shared
+              ? "已公开 · 大家可以在市场找到它"
+              : sharing?.application
+              ? "未公开 · 完成介绍后即可上架"
+              : "未公开 · 完成制作后即可上架"}
+          </Text>
+        </View>
+        <PixelIcon
+          name={shared ? "check" : "send"}
+          size={20}
+          color={shared ? colors.greenText : colors.orchidText}
+        />
       </View>
-      {!sharingReady && !shareNotice ? (
-        <View style={styles.note}>
-          <ActivityIndicator color={colors.greenText} />
-          <Text style={styles.caption}>正在读取作品状态…</Text>
-        </View>
-      ) : (
-        <Text style={styles.copy}>
-          {shared
-            ? hasNewVersion
-              ? "制作已有新版，市场仍展示上次公开的版本。"
-              : "大家可以在市场找到这份作品。"
-            : "上架后，其他人就能安装和体验你的作品。"}
-        </Text>
-      )}
-      {shared ? (
-        <View style={styles.versionLine}>
+      <View style={styles.versionLine}>
+        {shared ? (
           <Text style={styles.caption}>
-            公开版本 {versionName(shared.manifest)}
+            市场 v{versionName(shared.manifest)}
           </Text>
-          <Text style={styles.caption}>制作版本 {versionName(latest)}</Text>
+        ) : null}
+        {sharing?.application ? (
+          <Text style={styles.caption}>制作 v{versionName(latest)}</Text>
+        ) : null}
+      </View>
+      {shared && hasNewVersion ? (
+        <View style={styles.versionChoices}>
+          {[
+            { value: false, label: "保留市场版本" },
+            { value: true, label: "发布制作新版" },
+          ].map((option) => (
+            <Pressy
+              key={String(option.value)}
+              disabled={busy || !sharingReady}
+              accessibilityState={{ selected: publishLatest === option.value }}
+              onPress={() => setPublishLatest(option.value)}
+              style={[
+                styles.versionChoice,
+                {
+                  backgroundColor:
+                    publishLatest === option.value
+                      ? colors.accent
+                      : colors.surface,
+                },
+              ]}
+            >
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 11,
+                  color:
+                    publishLatest === option.value
+                      ? colors.onAccent
+                      : colors.ink2,
+                }}
+              >
+                {option.label}
+              </Text>
+              {publishLatest === option.value ? (
+                <PixelIcon name="check" size={12} color={colors.onAccent} />
+              ) : null}
+            </Pressy>
+          ))}
         </View>
       ) : null}
-      {shareNotice ? (
-        <Text accessibilityLiveRegion="polite" style={styles.caption}>
-          {shareNotice}
-        </Text>
-      ) : null}
-      {!sharingReady && shareNotice ? (
-        <Pressy
-          disabled={busy}
-          onPress={() => setSharingAttempt((value) => value + 1)}
-          style={styles.retry}
-        >
-          <PixelIcon name="refresh" size={16} color={colors.greenText} />
-          <Text style={{ color: colors.greenText, fontSize: 12 }}>
-            重新读取状态
-          </Text>
-        </Pressy>
-      ) : null}
-      {sharing?.application && (!shared || hasNewVersion) ? (
-        <Pressy
-          disabled={busy || !canManage}
-          onPress={() => void begin("share")}
-          style={styles.marketPrimary}
-        >
-          <PixelIcon name="box" size={18} color={colors.onAccent} />
-          <Text style={styles.primaryText}>
-            {shared ? "上架制作新版" : "上架作品"}
-          </Text>
-        </Pressy>
-      ) : null}
-      {shared ? (
-        <View style={styles.managementActions}>
-          <Pressy
-            disabled={busy || !canManage}
-            onPress={() => void begin("edit")}
-            style={styles.managementAction}
-          >
-            <PixelIcon name="edit" size={16} color={colors.orchidText} />
-            <Text style={{ color: colors.orchidText, fontSize: 12 }}>
-              编辑市场信息
-            </Text>
-          </Pressy>
-          <Pressy
-            disabled={busy || !canManage}
-            onPress={withdraw}
-            style={styles.managementAction}
-          >
-            <PixelIcon name="close" size={16} color={colors.redText} />
-            <Text style={{ color: colors.redText, fontSize: 12 }}>
-              撤回上架
-            </Text>
-          </Pressy>
-        </View>
-      ) : null}
-      {sharingReady && !sharing?.application ? (
-        <Text style={styles.caption}>作品完成制作后即可上架。</Text>
-      ) : null}
+      <Text style={styles.caption}>
+        {shared && !publishLatest
+          ? "保存介绍不会替换市场中的应用版本。"
+          : "本次公开制作版本，之后制作的新版需要再次发布。"}
+      </Text>
     </View>
-  ) : (
+  );
+  const publicationFallback = (
     <View style={styles.note}>
-      {!ownershipReady ? (
+      {!ownershipReady || (owner && !shareNotice) ? (
         <ActivityIndicator color={colors.orchidText} />
       ) : (
         <PixelIcon name="mine" size={20} color={colors.orchidText} />
       )}
-      <Text style={styles.copy}>
+      <Text style={[styles.copy, { flex: 1 }]}>
         {!ownershipReady
           ? "正在读取作者权限…"
-          : shareNotice || "仅作品作者可管理公开状态。"}
+          : shareNotice ||
+            (owner ? "正在准备市场信息…" : "仅作品作者可管理公开状态。")}
       </Text>
-      {ownershipReady && shareNotice ? (
+      {shareNotice ? (
         <Pressy
+          disabled={busy}
           onPress={() => setSharingAttempt((value) => value + 1)}
-          accessibilityLabel="重新读取作者权限"
+          accessibilityLabel="重新读取市场信息"
         >
           <PixelIcon name="refresh" size={18} color={colors.orchidText} />
         </Pressy>
@@ -698,19 +760,31 @@ function MarketDetailContent({
         <PageHeader
           variant="pixel"
           title={
-            editMode
-              ? editMode === "edit"
-                ? "编辑市场信息"
-                : "上架作品"
-              : publication
+            publication
               ? "公开到应用市场"
               : ownsSurface
               ? "作品详情"
               : "应用详情"
           }
-          onBack={editMode ? closeEditor : onBack}
+          onBack={onBack}
           right={
-            !publication && !editMode && owner && onPublication ? (
+            publication && owner && shared ? (
+              <Pressy
+                disabled={busy || !sharingReady}
+                onPress={withdraw}
+                accessibilityLabel="撤回上架"
+                scale={1}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  backgroundColor: colors.redTint,
+                }}
+              >
+                <PixelIcon name="close" size={18} color={colors.redText} />
+              </Pressy>
+            ) : !publication && owner && onPublication ? (
               <Pressy
                 accessibilityLabel="公开到应用市场"
                 onPress={onPublication}
@@ -724,189 +798,183 @@ function MarketDetailContent({
         />
         <KeyboardViewport backgroundColor={colors.canvas}>
           <ScrollView
-            key={editMode ? "editor" : "detail"}
             ref={scroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             bottomOffset={24}
             contentContainerStyle={styles.content}
           >
-            {editMode ? (
-              <>
-                <View
-                  style={[styles.note, { backgroundColor: colors.orchidTint }]}
-                >
-                  <PixelIcon name="box" size={18} color={colors.orchidText} />
-                  <Text
-                    style={[
-                      styles.caption,
-                      { flex: 1, color: colors.orchidText },
-                    ]}
-                  >
-                    {editMode === "edit"
-                      ? "修改名称、介绍和截图，当前公开版本保持不变。"
-                      : "选择怎样介绍你的作品。上架后，所有人都能在市场找到它。"}
-                  </Text>
-                </View>
-                <View style={styles.fieldGroup}>
-                  <View style={styles.line}>
-                    <Text style={styles.subtitle}>作品名称</Text>
-                    <Text style={styles.caption}>{shareTitle.length}/60</Text>
+            {publication ? (
+              formReady ? (
+                <>
+                  {publicationStatus}
+                  <View style={styles.fieldGroup}>
+                    <View style={styles.line}>
+                      <Text style={styles.subtitle}>作品名称</Text>
+                      <Text style={styles.caption}>{shareTitle.length}/60</Text>
+                    </View>
+                    <TextInput
+                      accessibilityLabel="作品名称"
+                      editable={!busy}
+                      value={shareTitle}
+                      onChangeText={setShareTitle}
+                      maxLength={60}
+                      placeholder="给作品起个名字"
+                      placeholderTextColor={colors.ink3}
+                      style={styles.input}
+                    />
                   </View>
-                  <TextInput
-                    accessibilityLabel="作品名称"
-                    editable={!busy}
-                    value={shareTitle}
-                    onChangeText={setShareTitle}
-                    maxLength={60}
-                    placeholder="给作品起个名字"
-                    placeholderTextColor={colors.ink3}
-                    style={styles.input}
-                  />
-                </View>
-                <View style={styles.fieldGroup}>
-                  <View style={styles.line}>
-                    <Text style={styles.subtitle}>作品介绍</Text>
-                    <Text style={styles.caption}>
-                      {shareSummary.length}/300
-                    </Text>
+                  <View style={styles.fieldGroup}>
+                    <View style={styles.line}>
+                      <Text style={styles.subtitle}>作品介绍</Text>
+                      <Text style={styles.caption}>
+                        {shareSummary.length}/300
+                      </Text>
+                    </View>
+                    <TextInput
+                      accessibilityLabel="作品介绍"
+                      editable={!busy}
+                      value={shareSummary}
+                      onChangeText={setShareSummary}
+                      multiline
+                      scrollEnabled
+                      maxLength={300}
+                      placeholder="它能帮大家做什么？"
+                      placeholderTextColor={colors.ink3}
+                      style={[
+                        styles.input,
+                        { height: 104, textAlignVertical: "top" },
+                      ]}
+                    />
                   </View>
-                  <TextInput
-                    accessibilityLabel="作品介绍"
-                    editable={!busy}
-                    value={shareSummary}
-                    onChangeText={setShareSummary}
-                    multiline
-                    scrollEnabled
-                    maxLength={300}
-                    placeholder="它能帮大家做什么？"
-                    placeholderTextColor={colors.ink3}
-                    style={[
-                      styles.input,
-                      { height: 120, textAlignVertical: "top" },
-                    ]}
-                  />
-                </View>
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.subtitle}>分类</Text>
-                  <View style={styles.categories}>
-                    {marketCategories
-                      .filter((category) => category.id)
-                      .map((category) => (
-                        <Pressy
-                          key={category.id}
-                          disabled={busy}
-                          accessibilityState={{
-                            selected: shareCategory === category.id,
-                          }}
-                          onPress={() => setShareCategory(category.id)}
-                          style={[
-                            styles.chip,
-                            {
-                              backgroundColor:
-                                shareCategory === category.id
-                                  ? colors.accent
-                                  : colors.surface,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={{
-                              color:
-                                shareCategory === category.id
-                                  ? colors.onAccent
-                                  : colors.ink2,
-                              fontSize: 12,
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.subtitle}>分类</Text>
+                    <View style={styles.categories}>
+                      {marketCategories
+                        .filter((category) => category.id)
+                        .map((category) => (
+                          <Pressy
+                            key={category.id}
+                            disabled={busy}
+                            accessibilityState={{
+                              selected: shareCategory === category.id,
                             }}
+                            onPress={() => setShareCategory(category.id)}
+                            style={[
+                              styles.chip,
+                              {
+                                backgroundColor:
+                                  shareCategory === category.id
+                                    ? colors.accent
+                                    : colors.surface,
+                              },
+                            ]}
                           >
-                            {category.label}
-                          </Text>
-                        </Pressy>
+                            <Text
+                              style={{
+                                color:
+                                  shareCategory === category.id
+                                    ? colors.onAccent
+                                    : colors.ink2,
+                                fontSize: 12,
+                              }}
+                            >
+                              {category.label}
+                            </Text>
+                          </Pressy>
+                        ))}
+                    </View>
+                  </View>
+                  <View style={styles.fieldGroup}>
+                    <View style={styles.line}>
+                      <Text style={styles.subtitle}>真实截图 · 可选</Text>
+                      <Text style={styles.caption}>{screenshots.length}/6</Text>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      keyboardShouldPersistTaps="handled"
+                      contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
+                    >
+                      {screenshots.map((url, index) => (
+                        <View key={url} style={styles.editShot}>
+                          <Pressy
+                            scale={1}
+                            onPress={() => setPreview(url)}
+                            accessibilityLabel={`预览截图 ${index + 1}`}
+                          >
+                            <AppImage
+                              source={{ uri: url }}
+                              style={styles.editImage}
+                              resizeMode="contain"
+                            />
+                          </Pressy>
+                          <Pressy
+                            disabled={busy}
+                            onPress={() =>
+                              setScreenshots((previous) =>
+                                previous.filter((value) => value !== url)
+                              )
+                            }
+                            accessibilityLabel={`移除截图 ${index + 1}`}
+                            style={styles.removeShot}
+                          >
+                            <PixelIcon
+                              name="close"
+                              size={16}
+                              color={colors.redText}
+                            />
+                          </Pressy>
+                        </View>
                       ))}
-                  </View>
-                </View>
-                <View style={styles.fieldGroup}>
-                  <View style={styles.line}>
-                    <Text style={styles.subtitle}>真实截图 · 可选</Text>
-                    <Text style={styles.caption}>{screenshots.length}/6</Text>
-                  </View>
-                  <View style={styles.categories}>
-                    {screenshots.map((url, index) => (
-                      <View key={url} style={styles.editShot}>
-                        <Pressy
-                          scale={1}
-                          onPress={() => setPreview(url)}
-                          accessibilityLabel={`预览截图 ${index + 1}`}
-                        >
-                          <AppImage
-                            source={{ uri: url }}
-                            style={styles.editImage}
-                            resizeMode="contain"
-                          />
-                        </Pressy>
+                      {screenshots.length < 6 ? (
                         <Pressy
                           disabled={busy}
-                          onPress={() =>
-                            setScreenshots((previous) =>
-                              previous.filter((value) => value !== url)
-                            )
-                          }
-                          accessibilityLabel={`移除截图 ${index + 1}`}
-                          style={styles.removeShot}
+                          onPress={() => void chooseScreenshots()}
+                          accessibilityLabel="添加截图"
+                          style={styles.addShot}
                         >
                           <PixelIcon
-                            name="close"
-                            size={16}
-                            color={colors.redText}
+                            name="photo"
+                            size={24}
+                            color={colors.orchidText}
                           />
+                          <Text
+                            style={{ color: colors.orchidText, fontSize: 11 }}
+                          >
+                            添加截图
+                          </Text>
                         </Pressy>
-                      </View>
-                    ))}
-                    {screenshots.length < 6 ? (
-                      <Pressy
-                        disabled={busy}
-                        onPress={() => void chooseScreenshots()}
-                        accessibilityLabel="添加截图"
-                        style={styles.addShot}
-                      >
-                        <PixelIcon
-                          name="photo"
-                          size={24}
-                          color={colors.orchidText}
-                        />
-                        <Text
-                          style={{ color: colors.orchidText, fontSize: 11 }}
-                        >
-                          添加截图
-                        </Text>
-                      </Pressy>
-                    ) : null}
+                      ) : null}
+                    </ScrollView>
+                    <Text style={styles.caption}>
+                      上传真实的使用画面，第一张用于市场预览。
+                    </Text>
                   </View>
-                  <Text style={styles.caption}>
-                    上传真实的使用画面，第一张用于市场预览。
-                  </Text>
-                </View>
-                {uploadStatus ? (
-                  <View style={styles.note}>
-                    <ActivityIndicator color={colors.orchidText} />
+                  {uploadStatus ? (
+                    <View style={styles.note}>
+                      <ActivityIndicator color={colors.orchidText} />
+                      <Text
+                        accessibilityLiveRegion="polite"
+                        style={styles.caption}
+                      >
+                        {uploadStatus}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {shareNotice ? (
                     <Text
                       accessibilityLiveRegion="polite"
                       style={styles.caption}
                     >
-                      {uploadStatus}
+                      {shareNotice}
                     </Text>
-                  </View>
-                ) : null}
-                <Text style={styles.caption}>
-                  {editMode === "edit"
-                    ? "草稿会自动保留，返回后可以继续编辑。"
-                    : `上架制作版本 ${versionName(
-                        latest
-                      )}。之后制作的新版不会自动公开。`}
-                </Text>
-              </>
-            ) : publication ? (
-              management
+                  ) : null}
+                  {!sharingReady ? publicationFallback : null}
+                </>
+              ) : (
+                publicationFallback
+              )
             ) : (
               <>
                 <View style={styles.hero}>
@@ -1106,11 +1174,20 @@ function MarketDetailContent({
               </View>
             ) : null}
           </ScrollView>
-          {!publication || editMode ? (
+          {!publication || formReady ? (
             <View style={styles.dock}>
-              {editMode ? (
+              {publication ? (
                 <Pressy
-                  disabled={busy || !canManage || !shareTitle.trim()}
+                  disabled={
+                    busy ||
+                    !canManage ||
+                    !shareTitle.trim() ||
+                    (!shared && !sharing?.application) ||
+                    (Boolean(shared) &&
+                      publishLatest &&
+                      !sharing?.application) ||
+                    (Boolean(shared) && !publishLatest && !formDirty)
+                  }
                   onPress={() => void save()}
                   style={[styles.primary, { flex: 1 }]}
                 >
@@ -1124,9 +1201,15 @@ function MarketDetailContent({
                       ? uploadStatus
                         ? "正在上传截图…"
                         : "正在保存…"
-                      : editMode === "edit"
-                      ? "保存信息"
-                      : "发布到市场"}
+                      : !shared && !sharing?.application
+                      ? "完成制作后可公开"
+                      : !shared
+                      ? "公开到应用市场"
+                      : publishLatest
+                      ? "发布新版并保存信息"
+                      : formDirty
+                      ? "保存市场信息"
+                      : "信息已保存"}
                   </Text>
                 </Pressy>
               ) : (
@@ -1316,32 +1399,27 @@ const styles = themedStyleSheet((base) => {
       justifyContent: "space-between",
       gap: 8,
     },
-    management: {
-      backgroundColor: t.surface,
+    publicationStatus: {
+      borderRadius: 12,
+      padding: 10,
+      gap: 6,
       borderWidth: 0.5,
       borderColor: t.line,
-      borderRadius: 14,
-      padding: 12,
-      gap: 12,
     },
     versionLine: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-    managementActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    managementAction: {
+    versionChoices: { flexDirection: "row", gap: 6 },
+    versionChoice: {
+      flex: 1,
+      minWidth: 0,
       minHeight: 44,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    marketPrimary: {
-      minHeight: 44,
-      borderRadius: 10,
-      backgroundColor: t.accent,
+      paddingHorizontal: 8,
+      borderRadius: 8,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 8,
+      gap: 4,
     },
-    fieldGroup: { gap: 8 },
+    fieldGroup: { gap: 6, paddingTop: 4 },
     input: {
       color: t.ink1,
       backgroundColor: t.surface,
@@ -1356,7 +1434,7 @@ const styles = themedStyleSheet((base) => {
     chip: {
       minHeight: 44,
       borderRadius: 10,
-      paddingHorizontal: 14,
+      paddingHorizontal: 10,
       alignItems: "center",
     },
     editShot: { width: 88, position: "relative" },
