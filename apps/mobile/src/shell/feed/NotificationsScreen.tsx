@@ -11,7 +11,7 @@ import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { Screen } from "../../../../../packages/ui/edge";
-import { useTheme } from "../../../../../packages/ui/theme";
+import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
 import { currentAccountId, requireAccount, useAccount } from "../account";
 import { readShellValue, writeShellValue } from "../shellStorage";
 import {
@@ -22,10 +22,15 @@ import {
   type Notice,
   type NoticePage,
 } from "./notifications";
+import { usePixelTheme } from "./pixelTheme";
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
 
-export function NotificationsScreen({
+export function NotificationsScreen(props: Parameters<typeof NotificationsContent>[0]) {
+  const theme = usePixelTheme();
+  return <ThemeContext.Provider value={theme}><NotificationsContent {...props} /></ThemeContext.Provider>;
+}
+function NotificationsContent({
   onBack,
   onOpen,
   drawerGesture,
@@ -219,6 +224,7 @@ export function NotificationsScreen({
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
       <PageHeader
         title="通知"
+        variant="pixel"
         onBack={onBack}
         right={
           <Pressy

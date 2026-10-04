@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput as NativeTextInput, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
-import Animated, { useAnimatedStyle, useReducedMotion } from "react-native-reanimated";
+import { useReducedMotion } from "react-native-reanimated";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Clipboard from "@react-native-clipboard/clipboard";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
+import { KeyboardViewport } from "../KeyboardViewport";
 import { useNavigation, usePreventRemove, type ParamListBase } from "@react-navigation/native";
 import { readShellValue, writeShellValue, removeShellValue } from "../shellStorage";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -20,9 +19,6 @@ import { PostMenu } from "./PostMenu";
 
 const when = (at: number) => new Date(at).toLocaleString();
 export function PostDetailScreen({ initialPost, initialCommentId, initialDetail, onBack, onApplication, onAuthor }: { initialPost: UserPost; initialCommentId?: string; initialDetail?: PostDetail; onBack: () => void; onApplication: (appId: string) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {
-  const insets = useSafeAreaInsets();
-  const { progress } = useReanimatedKeyboardAnimation();
-  const composerInsets = useAnimatedStyle(() => ({ paddingBottom: 12 + insets.bottom * (1 - Math.max(0, Math.min(1, progress.value))) }));
   const { colors } = useTheme(); const { user } = useAccount(); const timeline = useUserPosts();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const reduceMotion = useReducedMotion();
@@ -98,7 +94,7 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
   }
   return <ScreenEdge bottom={false}><Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
     <PageHeader variant="pixel" title="动态" onBack={onBack} />
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+    <KeyboardViewport>
       <FlatList ref={list} data={comments} keyExtractor={item => item.id} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" refreshing={refreshing} onRefresh={() => void load(false, true)} onContentSizeChange={() => { if (initialCommentId && loaded.current && headerHeight.current && !jumped.current) { jumped.current = true; requestAnimationFrame(() => { if (!input.current?.isFocused()) list.current?.scrollToOffset({ offset: headerHeight.current, animated: false }); }); } }}
         ListHeaderComponent={<View onLayout={event => { headerHeight.current = event.nativeEvent.layout.height; }}><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} onAuthor={onAuthor} onUpdated={updated} /><Text style={{ paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, fontWeight: "700", color: colors.ink1, backgroundColor: colors.inset }}>评论 · {post.commentCount ?? 0}</Text>{initialCommentId ? <Text style={{ paddingHorizontal: 16, paddingBottom: 12, color: colors.ink3, fontSize: 12 }}>从提醒中的评论开始显示</Text> : null}</View>}
         ListEmptyComponent={<View style={{ padding: 16 }}>{loading ? <ActivityIndicator color={colors.accent} /> : !error ? <Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text> : null}</View>}
@@ -111,12 +107,12 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
             <Pressable accessibilityLabel={`回复${item.author.name}`} onPress={() => { if (!writing.current) { setReply(item); input.current?.focus(); } }} style={{ alignSelf: "flex-start", paddingVertical: 10, paddingRight: 12 }}><Text style={{ color: colors.ink3, fontSize: 13 }}>回复</Text></Pressable>
           </View></View>}
         ListFooterComponent={<View style={{ padding: 16 }}>{error ? <Pressable onPress={() => void load()}><Text style={{ color: colors.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressable> : null}{cursor ? <Pressable disabled={loading} onPress={() => void load(true)} style={{ padding: 12 }}>{loading ? <ActivityIndicator color={colors.accent} /> : <Text style={{ color: colors.accentText, textAlign: "center" }}>查看更多评论</Text>}</Pressable> : null}</View>} />
-      <Animated.View style={[{ padding: 12, backgroundColor: colors.surface, borderTopWidth: 0.5, borderTopColor: colors.line, gap: 8 }, composerInsets]}>
+      <View style={{ padding: 12, backgroundColor: colors.surface, borderTopWidth: 0.5, borderTopColor: colors.line, gap: 8 }}>
         {reply ? <Pressable disabled={sending} onPress={() => setReply(null)}><Text style={{ color: colors.accentText }}>回复 {reply.author.name} · 取消</Text></Pressable> : null}
         <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}><TextInput ref={input} onFocus={() => { jumped.current = true; }} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="写下你的评论…" placeholderTextColor={colors.ink3} style={{ flex: 1, color: colors.ink1, fontSize: 15, maxHeight: 120, minHeight: 42, padding: 10, backgroundColor: colors.field, borderRadius: colors.radius.sm }} />
           <Pressy accessibilityRole="button" accessibilityLabel="发送评论" disabled={!draftReady || sending || !!deleting || !text.trim() || count > 1000} onPress={() => void send()} style={{ backgroundColor: colors.accent, borderRadius: colors.radius.sm, minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, opacity: !text.trim() || count > 1000 || !!deleting ? 0.4 : 1 }}>{sending ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontWeight: "700" }}>发送</Text>}</Pressy></View>
         {count > 800 ? <Text style={{ color: count > 1000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 12 }}>{count}/1000</Text> : null}
-      </Animated.View>
-    </KeyboardAvoidingView>
+      </View>
+    </KeyboardViewport>
   </Screen></ScreenEdge>;
 }

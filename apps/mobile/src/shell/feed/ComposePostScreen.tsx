@@ -19,11 +19,11 @@ import { PixelIcon } from "./PixelKit";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { MediaPicker as ImagePicker } from "../../../../../packages/ui/media/MediaPicker";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardViewport } from "../KeyboardViewport";
 import { usePreventRemove } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
-import { EdgeModal, Screen } from "../../../../../packages/ui/edge";
+import { EdgeModal, Screen, ScreenEdge } from "../../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../../packages/ui/theme";
 import {
   cachedAccountId,
@@ -363,17 +363,16 @@ export function ComposePostScreen({
   }
   const Root = embedded ? View : Screen;
   return (
-    <Root style={styles.screen}>
+    <ScreenEdge bottom={false}><Root style={styles.screen}>
       {!embedded ? (
         <PageHeader
           title={modeTabs ? "发布" : "发动态"}
           variant="pixel"
           onBack={busy ? undefined : onBack}
-
         />
       ) : null}
       {modeTabs}
-      <KeyboardAvoidingView style={styles.fill} behavior="padding">
+      <KeyboardViewport>
         <ScrollView
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
@@ -407,13 +406,13 @@ export function ComposePostScreen({
           />
           {htmlMode ? (
             <View style={{ gap: 8 }}>
-              <View style={styles.draftStatus}>
+              <View style={styles.htmlHeader}>
                 <Text style={styles.name}>HTML 内容</Text>
                 <Pressy
                   accessibilityLabel={previewing ? "编辑 HTML" : "预览 HTML"}
                   disabled={busy}
                   onPress={() => setPreviewing((value) => !value)}
-                  style={styles.add}
+                  style={styles.htmlAction}
                 >
                   <Text style={styles.addText}>
                     {previewing ? "编辑" : "预览"}
@@ -542,6 +541,15 @@ export function ComposePostScreen({
               </Pressable>
             </View>
           ) : null}
+
+          {busy ? (
+            <View style={styles.status}>
+              <ActivityIndicator size="small" color={colors.accent} />
+              <Text style={styles.counter}>{status || "准备发布…"}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
+        <View style={styles.publishDock}>
           <Pressy
             accessibilityRole="button"
             accessibilityLabel="发布动态"
@@ -552,14 +560,8 @@ export function ComposePostScreen({
           >
             {busy ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={styles.publishText}>发布动态</Text>}
           </Pressy>
-          {busy ? (
-            <View style={styles.status}>
-              <ActivityIndicator size="small" color={colors.accent} />
-              <Text style={styles.counter}>{status || "准备发布…"}</Text>
-            </View>
-          ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </KeyboardViewport>
       <EdgeModal
         visible={picking}
         transparent
@@ -646,7 +648,7 @@ export function ComposePostScreen({
           </View>
         </View>
       </EdgeModal>
-    </Root>
+    </Root></ScreenEdge>
   );
 }
 const styles = themedStyleSheet((base) => {
@@ -654,7 +656,10 @@ const styles = themedStyleSheet((base) => {
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     fill: { flex: 1 },
-    content: { padding: 16, paddingTop: 8, gap: 16, paddingBottom: 24 },
+    content: { padding: 16, paddingTop: 8, gap: 16, paddingBottom: 16 },
+    htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+    htmlAction: { minHeight: 44, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
+    publishDock: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: t.canvas },
     author: { flexDirection: "row", gap: 12, alignItems: "center" },
     avatar: { width: 36, height: 36, borderRadius: 18 },
     placeholder: {
@@ -724,7 +729,6 @@ const styles = themedStyleSheet((base) => {
       minHeight: 48,
       minWidth: 68,
       justifyContent: "center",
-      marginTop: 8,
       alignItems: "center",
     },
     publishText: { color: t.onAccent, fontWeight: "600", fontSize: 14 },

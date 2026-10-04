@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
-  ScrollView,
   Text,
   View,
 } from "react-native";
@@ -15,10 +14,10 @@ import Animated, {
   useEvent,
   useSharedValue,
 } from "react-native-reanimated";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
-import { Screen } from "../../../../packages/ui/edge";
+import { Screen, ScreenEdge } from "../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 import { usePixelTheme } from "./feed/pixelTheme";
 import type { UserPostDraft } from "../../../../packages/app-sdk/src/index";
@@ -28,6 +27,7 @@ import {
 } from "./feed/ComposePostScreen";
 import { PixelAvatar, PixelIcon } from "./feed/PixelKit";
 import { CompactTabs } from "./CompactTabs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FormField } from "./FormField";
 import { polishCreationPrompt } from "./creationDraft";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
@@ -35,6 +35,7 @@ import { currentAccountId, useAccount } from "./account";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import type { MarketApplication } from "./market";
 
+const CREATION_INPUT_HEIGHT = 224;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 export function PublicationScreen(
@@ -43,7 +44,7 @@ export function PublicationScreen(
   const theme = usePixelTheme();
   return (
     <ThemeContext.Provider value={theme}>
-      <PublicationContent {...props} />
+      <ScreenEdge bottom={false}><PublicationContent {...props} /></ScreenEdge>
     </ThemeContext.Provider>
   );
 }
@@ -107,7 +108,6 @@ function PublicationContent({
         title="发布"
         variant="pixel"
         onBack={postControls?.busy ? undefined : onBack}
-
       />
       {tabs}
       <AnimatedPagerView
@@ -153,6 +153,7 @@ function CreateApplicationPage({
   setBusy: (busy: boolean) => void;
   onCreate: (prompt: string) => Promise<boolean>;
 }) {
+  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { user } = useAccount();
   const [prompt, setPrompt] = useState("");
@@ -303,12 +304,14 @@ function CreateApplicationPage({
     }
   }
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-      <ScrollView
+    <KeyboardAwareScrollView
+        // Reserve the multiline field and action even with the caret on its first line.
+        bottomOffset={CREATION_INPUT_HEIGHT + 64}
+        style={{ flex: 1 }}
         nestedScrollEnabled
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 16, gap: 16 }}
+        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 16 + insets.bottom }}
       >
         <View
           style={{
@@ -381,7 +384,7 @@ function CreateApplicationPage({
           placeholder="例如：做一个每天记录心情的小应用，有日历和像素花园…"
           placeholderTextColor={colors.ink3}
           style={{
-            height: 224,
+            height: CREATION_INPUT_HEIGHT,
             padding: 14,
             borderRadius: 4,
             borderWidth: 0.5,
@@ -393,6 +396,33 @@ function CreateApplicationPage({
             textAlignVertical: "top",
           }}
         />
+        <Pressy
+          accessibilityRole="button"
+          accessibilityLabel="提交需求并开始制作"
+          disabled={busy || !ready || !prompt.trim() || !user}
+          onPress={() => void create()}
+          style={{
+            minHeight: 48,
+            borderRadius: 4,
+            backgroundColor: colors.accent,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            opacity: busy || !ready || !prompt.trim() || !user ? 0.5 : 1,
+          }}
+        >
+          {busy ? (
+            <ActivityIndicator color={colors.onAccent} />
+          ) : (
+            <PixelIcon name="spark" size={20} color={colors.onAccent} />
+          )}
+          <Text
+            style={{ color: colors.onAccent, fontSize: 15, fontWeight: "700" }}
+          >
+            {busy ? "正在提交需求…" : "进入制作"}
+          </Text>
+        </Pressy>
         <View
           style={{
             flexDirection: "row",
@@ -444,37 +474,10 @@ function CreateApplicationPage({
             ) : null}
           </View>
         ) : null}
-        <Pressy
-          accessibilityRole="button"
-          accessibilityLabel="提交需求并开始制作"
-          disabled={busy || !ready || !prompt.trim() || !user}
-          onPress={() => void create()}
-          style={{
-            minHeight: 48,
-            borderRadius: 4,
-            backgroundColor: colors.accent,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            opacity: busy || !ready || !prompt.trim() || !user ? 0.5 : 1,
-          }}
-        >
-          {busy ? (
-            <ActivityIndicator color={colors.onAccent} />
-          ) : (
-            <PixelIcon name="spark" size={20} color={colors.onAccent} />
-          )}
-          <Text
-            style={{ color: colors.onAccent, fontSize: 15, fontWeight: "700" }}
-          >
-            {busy ? "正在提交需求…" : "进入制作"}
-          </Text>
-        </Pressy>
+
         <Text style={{ color: colors.ink3, fontSize: 12 }}>
           点击后直接开始制作，完成或失败都会收到站内通知。
         </Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
