@@ -65,10 +65,13 @@ function PublicationContent({
   onCreate: (input: CreationInput) => Promise<string>;
   onCreated?: (appId: string) => void;
 }) {
-  const [mode, setMode] = useState(initialMode);
+  const lockedCreation = Boolean(creation);
+  const [mode, setMode] = useState(lockedCreation ? "create" : initialMode);
   const { colors } = useTheme();
   const pager = useRef<PagerView>(null);
-  const position = useSharedValue(initialMode === "post" ? 0 : 1);
+  const position = useSharedValue(
+    !lockedCreation && initialMode === "post" ? 0 : 1
+  );
   const [postControls, setPostControls] = useState<ComposePostControls>();
   const selectMode = (next: "post" | "create") => {
     Keyboard.dismiss();
@@ -92,6 +95,17 @@ function PublicationContent({
   usePreventRemove(creating, () =>
     Toast.show({ type: "info", text1: "正在提交制作，请稍候" })
   );
+  const creationPage = (
+    <CreateApplicationPage
+      key={creation?.appId ?? "new"}
+      intent={creation}
+      active={lockedCreation || mode === "create"}
+      onCreate={onCreate}
+      onCreated={onCreated}
+      busy={creating}
+      setBusy={setCreating}
+    />
+  );
   const tabs = (
     <View style={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 6 }}>
       <CompactTabs
@@ -112,42 +126,42 @@ function PublicationContent({
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
       <PageHeader
-        title="发布"
+        title={
+          lockedCreation ? (creation?.fork ? "Remix" : "修改应用") : "发布"
+        }
         variant="pixel"
         onBack={postControls?.busy || creating ? undefined : onBack}
       />
-      {tabs}
-      <AnimatedPagerView
-        ref={pager}
-        style={{ flex: 1 }}
-        initialPage={initialMode === "post" ? 0 : 1}
-        offscreenPageLimit={1}
-        overScrollMode="never"
-        scrollEnabled={!creating && !postControls?.busy}
-        onPageScroll={onPageScroll}
-        onPageSelected={onPageSelected}
-      >
-        <View key="post" collapsable={false} style={{ flex: 1 }}>
-          <ComposePostScreen
-            embedded
-            onControlsChange={setPostControls}
-            onBack={onBack}
-            initialApplication={initialApplication}
-            initialDraft={initialDraft}
-          />
-        </View>
-        <View key="create" collapsable={false} style={{ flex: 1 }}>
-          <CreateApplicationPage
-            key={creation?.appId ?? "new"}
-            intent={creation}
-            active={mode === "create"}
-            onCreate={onCreate}
-            onCreated={onCreated}
-            busy={creating}
-            setBusy={setCreating}
-          />
-        </View>
-      </AnimatedPagerView>
+      {lockedCreation ? (
+        creationPage
+      ) : (
+        <>
+          {tabs}
+          <AnimatedPagerView
+            ref={pager}
+            style={{ flex: 1 }}
+            initialPage={initialMode === "post" ? 0 : 1}
+            offscreenPageLimit={1}
+            overScrollMode="never"
+            scrollEnabled={!creating && !postControls?.busy}
+            onPageScroll={onPageScroll}
+            onPageSelected={onPageSelected}
+          >
+            <View key="post" collapsable={false} style={{ flex: 1 }}>
+              <ComposePostScreen
+                embedded
+                onControlsChange={setPostControls}
+                onBack={onBack}
+                initialApplication={initialApplication}
+                initialDraft={initialDraft}
+              />
+            </View>
+            <View key="create" collapsable={false} style={{ flex: 1 }}>
+              {creationPage}
+            </View>
+          </AnimatedPagerView>
+        </>
+      )}
     </Screen>
   );
 }
@@ -378,34 +392,60 @@ function CreateApplicationPage({
             ? `${intent.fork ? "Remix" : "修改"} · ${intent.title}`
             : "你的想法"}
         </Text>
-        <Pressy
-          scale={1}
-          accessibilityRole="button"
-          accessibilityLabel={polishing ? "取消润色" : "AI 润色需求"}
-          disabled={busy || !ready || !prompt.trim() || !user}
-          onPress={() => {
-            if (polishing) {
-              polishRevision.current++;
-              setPolishing(false);
-            } else void polish();
-          }}
-          style={{
-            minHeight: 44,
-            paddingHorizontal: 10,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {polishing ? (
-            <ActivityIndicator size="small" color={colors.orchidText} />
-          ) : (
-            <PixelIcon name="spark" size={16} color={colors.orchidText} />
-          )}
-          <Text style={{ color: colors.orchidText, fontSize: 13 }}>
-            {polishing ? "取消润色" : "AI 润色"}
-          </Text>
-        </Pressy>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Pressy
+            scale={1}
+            accessibilityRole="button"
+            accessibilityLabel={polishing ? "取消润色" : "AI 润色需求"}
+            disabled={busy || !ready || !prompt.trim() || !user}
+            onPress={() => {
+              if (polishing) {
+                polishRevision.current++;
+                setPolishing(false);
+              } else void polish();
+            }}
+            style={{
+              minHeight: 44,
+              paddingHorizontal: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {polishing ? (
+              <ActivityIndicator size="small" color={colors.orchidText} />
+            ) : (
+              <PixelIcon name="spark" size={16} color={colors.orchidText} />
+            )}
+            <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+              {polishing ? "取消润色" : "AI 润色"}
+            </Text>
+          </Pressy>
+          {beforePolish !== undefined ? (
+            <Pressy
+              scale={1}
+              accessibilityRole="button"
+              accessibilityLabel="回退到润色前的原文"
+              disabled={busy}
+              onPress={() => {
+                changePrompt(beforePolish);
+                setBeforePolish(undefined);
+              }}
+              style={{
+                minHeight: 44,
+                paddingHorizontal: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <PixelIcon name="back" size={14} color={colors.cyanText} />
+              <Text style={{ color: colors.cyanText, fontSize: 12 }}>
+                回退原文
+              </Text>
+            </Pressy>
+          ) : null}
+        </View>
       </View>
       <FormField
         accessibilityLabel="应用制作需求"
@@ -495,22 +535,6 @@ function CreateApplicationPage({
           {prompt.length}/8000
         </Text>
       </View>
-      {beforePolish !== undefined ? (
-        <Pressy
-          scale={1}
-          accessibilityRole="button"
-          disabled={busy}
-          onPress={() => {
-            changePrompt(beforePolish);
-            setBeforePolish(undefined);
-          }}
-          style={{ minHeight: 44, justifyContent: "center" }}
-        >
-          <Text style={{ color: colors.orchidText, fontSize: 13 }}>
-            回退原文
-          </Text>
-        </Pressy>
-      ) : null}
       {polishError ? (
         <View style={{ gap: 4 }}>
           <Text style={{ color: colors.redText, fontSize: 12 }}>

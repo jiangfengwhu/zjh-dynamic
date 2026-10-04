@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, InteractionManager } from "react-native";
+import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useRouteContentReady } from "../useRouteContentReady";
 import { applicationContext } from "../../../../../packages/app-sdk/src/runtime";
@@ -168,10 +168,10 @@ export function useProgress(
 
   useEffect(() => {
     if (!active || !service) return;
-    const task = InteractionManager.runAfterInteractions(() => {
+    const task = requestIdleCallback(() => {
       void refresh();
     });
-    return () => task.cancel();
+    return () => cancelIdleCallback(task);
   }, [active, service, refresh]);
   useEffect(() => {
     if (!active || !snapshot) return;
@@ -182,23 +182,30 @@ export function useProgress(
       !["queued", "making", "packing"].includes(state)
     )
       return;
+    let pending: ReturnType<typeof requestIdleCallback> | undefined;
     const timer = setInterval(() => {
       if (!activeRef.current) return;
-      InteractionManager.runAfterInteractions(() => {
+      if (pending !== undefined) return;
+      pending = requestIdleCallback(() => {
+        pending = undefined;
         void refresh();
       });
     }, 10000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      if (pending !== undefined) cancelIdleCallback(pending);
+    };
   }, [active, snapshot, error, refresh]);
   useEffect(() => {
-    if (!appId || !snapshot || !verified) return;
+    if (!active || !appId || !snapshot || !verified) return;
     let cancelled = false;
-    const task = InteractionManager.runAfterInteractions(() => {
+    const task = requestIdleCallback(() => {
       void (async () => {
         const run = await service?.loadJulesRun();
         if (
           cancelled ||
           !alive.current ||
+          !activeRef.current ||
           run?.session !== snapshot.session ||
           (context.storage.get("__accountScope") || "guest") !== scope
         )
@@ -234,9 +241,9 @@ export function useProgress(
     });
     return () => {
       cancelled = true;
-      task.cancel();
+      cancelIdleCallback(task);
     };
-  }, [appId, snapshot, verified, key, scope, service]);
+  }, [active, appId, snapshot, verified, key, scope, service]);
   return {
     snapshot,
     checking,
