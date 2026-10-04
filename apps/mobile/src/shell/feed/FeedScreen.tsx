@@ -46,7 +46,8 @@ import Toast from "react-native-toast-message";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import { requireAccount } from "../account";
-import { pixelAssets } from "./pixelAssets";
+import { useInstalledShortcuts } from "./useInstalledShortcuts";
+import { marketDefinition, type MarketApplication } from "../market";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const FEED_PAGE_INSET = 16;
@@ -91,6 +92,7 @@ export const FeedScreen = memo(function FeedScreen({
   );
   const userTimeline = useUserPosts();
   const followingTimeline = useUserPosts("following");
+  const shortcuts = useInstalledShortcuts();
   const [loadingMore, setLoadingMore] = useState(false);
   const [timelineErrors, setTimelineErrors] = useState({
     recommended: "",
@@ -113,9 +115,9 @@ export const FeedScreen = memo(function FeedScreen({
   const scrollY = useSharedValue(0);
   const selectedKey = kind;
   const activeCategory = useSharedValue(selectedKey);
-  const headerHeight = useSharedValue(144);
+  const headerHeight = useSharedValue(insets.top + 52);
   const hiddenHeader = useSharedValue(0);
-  const [headerSize, setHeaderSize] = useState(144);
+  const [headerSize, setHeaderSize] = useState(insets.top + 52);
   const [viewportSize, setViewportSize] = useState(0);
   const headerMotion = useAnimatedStyle(() => ({
     transform: [{ translateY: -hiddenHeader.value }],
@@ -133,6 +135,7 @@ export const FeedScreen = memo(function FeedScreen({
 
   useFocusEffect(
     useCallback(() => {
+      if (kind === "installed") return;
       const task = requestIdleCallback(() => {
         void refreshUserPosts(kind).then(
           () => setTimelineError(kind, ""),
@@ -146,6 +149,7 @@ export const FeedScreen = memo(function FeedScreen({
   const { pull, phase, gesture } = usePullToRefresh({
     scrollY,
     onRefresh: async () => {
+      if (kind === "installed") return shortcuts.refresh();
       try {
         await refreshUserPosts(kind);
         setTimelineError(kind, "");
@@ -167,7 +171,7 @@ export const FeedScreen = memo(function FeedScreen({
     [userTimeline.posts]
   );
   const pages = useMemo(
-    () => ["recommended", "following"] as FeedCategory[],
+    () => ["installed", "recommended", "following"] as FeedCategory[],
     []
   );
   const pageRows = useMemo(
@@ -244,22 +248,12 @@ export const FeedScreen = memo(function FeedScreen({
                         <PixelAvatar size={36} />
                       )}
                     </Pressy>
-                    <View pointerEvents="none" style={styles.centerLogo}>
-                      <AppImage
-                        source={{
-                          uri: `data:image/png;base64,${pixelAssets.logo.base64}`,
-                        }}
-                        accessibilityLabel="紫金花"
-                        style={{ width: 44, height: 44 }}
-                        resizeMode="contain"
-                      />
-                    </View>
+                    <FeedCategoryTabs
+                      selected={kind}
+                      position={pager.pagePosition}
+                      onSelect={selectCategory}
+                    />
                   </View>
-                  <FeedCategoryTabs
-                    selected={kind}
-                    position={pager.pagePosition}
-                    onSelect={selectCategory}
-                  />
                 </View>
               </Animated.View>
 
@@ -268,7 +262,7 @@ export const FeedScreen = memo(function FeedScreen({
                   <GestureDetector gesture={pager.nativeGesture}>
                     <AnimatedPagerView
                       ref={pager.ref}
-                      initialPage={0}
+                      initialPage={pager.index}
                       style={styles.scroll}
                       layoutDirection="ltr"
                       offscreenPageLimit={1}
@@ -278,6 +272,98 @@ export const FeedScreen = memo(function FeedScreen({
                       onPageScroll={pager.onPageScroll}
                       onPageScrollStateChanged={pager.onPageScrollStateChanged}
                     >
+                      <View
+                        key="installed"
+                        collapsable={false}
+                        style={{ width: "100%", height: "100%" }}
+                      >
+                        <FeedListGesture
+                          pull={gesture}
+                          drawer={pager.gesture}
+                          pager={pager.nativeGesture}
+                        >
+                          <FeedScrollSurface
+                            categoryKey="installed"
+                            activeCategory={activeCategory}
+                            hiddenHeader={hiddenHeader}
+                            headerHeight={headerHeight}
+                            chromeHidden={chromeTarget}
+                            bottomTravel={bottomTravel}
+                            scrollY={scrollY}
+                            data={shortcuts.items}
+                            numColumns={3}
+                            columnWrapperStyle={{ gap: 8 }}
+                            keyExtractor={(item) => item.manifest.appId}
+                            initialNumToRender={12}
+                            maxToRenderPerBatch={9}
+                            windowSize={5}
+                            style={styles.scroll}
+                            contentContainerStyle={[
+                              styles.content,
+                              bottomSpace,
+                              { minHeight: viewportSize + headerSize },
+                            ]}
+                            showsVerticalScrollIndicator={false}
+                            scrollEventThrottle={16}
+                            overScrollMode="never"
+                            bounces={false}
+                            scrollEnabled={
+                              phase !== "refreshing" && phase !== "done"
+                            }
+                            ListHeaderComponent={
+                              <View>
+                                <View style={{ height: headerSize }} />
+                                <Animated.View style={refreshSpace}>
+                                  <PullIndicator pull={pull} phase={phase} />
+                                </Animated.View>
+                                {shortcuts.error ? (
+                                  <Pressy
+                                    onPress={() => void shortcuts.refresh()}
+                                  >
+                                    <Text
+                                      style={{
+                                        color: colors.redText,
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      {shortcuts.error}
+                                    </Text>
+                                  </Pressy>
+                                ) : null}
+                              </View>
+                            }
+                            renderItem={({ item, index }) => (
+                              <InstalledAppShortcut
+                                app={item}
+                                tone={index}
+                                onOpen={onApplication}
+                              />
+                            )}
+                            ListEmptyComponent={
+                              <View
+                                style={{
+                                  padding: 24,
+                                  alignItems: "center",
+                                  gap: 12,
+                                }}
+                              >
+                                <PixelIcon
+                                  name="box"
+                                  size={32}
+                                  color={colors.orchidText}
+                                />
+                                <Text
+                                  style={{ color: colors.ink3, fontSize: 13 }}
+                                >
+                                  {shortcuts.loaded
+                                    ? "还没有安装应用，去应用市场发现作品吧"
+                                    : "正在读取我的应用…"}
+                                </Text>
+                              </View>
+                            }
+                          />
+                        </FeedListGesture>
+                      </View>
                       {pageRows.map(
                         ({ category: pageKind, items: visible, page }) => (
                           <View
@@ -461,7 +547,6 @@ export const FeedScreen = memo(function FeedScreen({
     </ThemeContext.Provider>
   );
 });
-type FeedTimelineItem = { type: "user"; post: UserPost };
 const UserTimelineItem = memo(function UserTimelineItem({
   post: original,
   author,
@@ -496,8 +581,84 @@ const UserTimelineItem = memo(function UserTimelineItem({
     </View>
   );
 });
+const InstalledAppShortcut = memo(function InstalledAppShortcut({
+  app,
+  tone,
+  onOpen,
+}: {
+  app: MarketApplication;
+  tone: number;
+  onOpen: FeedProps["onApplication"];
+}) {
+  const { colors } = usePixelTheme();
+  const Avatar = marketDefinition(app)?.avatar;
+  const open = () => {
+    void onOpen(app.manifest.appId).catch((cause) =>
+      Toast.show({
+        type: "error",
+        text1: "应用未能打开",
+        text2: cause instanceof Error ? cause.message : "请重试",
+      })
+    );
+  };
+  return (
+    <Pressy
+      scale={1}
+      accessibilityLabel={`打开${app.manifest.title}`}
+      onPress={open}
+      style={{
+        flex: 1,
+        maxWidth: "33.333%",
+        minWidth: 0,
+        alignItems: "center",
+        paddingVertical: 14,
+        gap: 7,
+      }}
+    >
+      <View
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 16,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: [
+            colors.orchidTint,
+            colors.greenTint,
+            colors.redTint,
+            colors.cyanTint,
+          ][tone % 4],
+          overflow: "hidden",
+        }}
+      >
+        {Avatar ? (
+          <Avatar size={48} />
+        ) : (
+          <Text style={{ fontSize: 28, color: app.manifest.accent }}>
+            {app.manifest.mark}
+          </Text>
+        )}
+      </View>
+      <Text
+        numberOfLines={2}
+        style={{
+          color: colors.ink1,
+          fontSize: 13,
+          lineHeight: 18,
+          textAlign: "center",
+          minHeight: 36,
+        }}
+      >
+        {app.manifest.title}
+      </Text>
+    </Pressy>
+  );
+});
 /** Lists share only the header range. Body offsets stay on their native list. */
-const FeedScrollSurface = memo(function FeedScrollSurface({
+const FeedScrollSurface = memo(
+  FeedScrollSurfaceImpl
+) as typeof FeedScrollSurfaceImpl;
+function FeedScrollSurfaceImpl<Item>({
   categoryKey,
   activeCategory,
   hiddenHeader,
@@ -506,7 +667,7 @@ const FeedScrollSurface = memo(function FeedScrollSurface({
   bottomTravel,
   scrollY,
   ...props
-}: AnimatedProps<FlatListProps<FeedTimelineItem>> & {
+}: AnimatedProps<FlatListProps<Item>> & {
   categoryKey: string;
   activeCategory: SharedValue<string>;
   hiddenHeader: SharedValue<number>;
@@ -515,7 +676,7 @@ const FeedScrollSurface = memo(function FeedScrollSurface({
   bottomTravel: SharedValue<number>;
   scrollY: SharedValue<number>;
 }) {
-  const ref = useAnimatedRef<FlatList<FeedTimelineItem>>();
+  const ref = useAnimatedRef<FlatList<Item>>();
   const ready = useSharedValue(false);
   const offset = useSharedValue(0);
   const dragging = useSharedValue(false);
@@ -617,7 +778,7 @@ const FeedScrollSurface = memo(function FeedScrollSurface({
       }}
     />
   );
-});
+}
 
 function FeedListGesture({
   pull,
@@ -699,16 +860,9 @@ const styles = themedStyleSheet((base) => {
     headerRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 5,
-      paddingTop: 8,
-    },
-    centerLogo: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      top: 8,
-      height: 44,
-      alignItems: "center",
+      gap: 8,
+      paddingTop: 4,
+      paddingBottom: 4,
     },
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },

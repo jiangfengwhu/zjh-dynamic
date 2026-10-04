@@ -6,14 +6,23 @@ import {
   TextInput,
   View,
 } from "react-native";
-import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelectedEvent } from "react-native-pager-view";
+import PagerView, {
+  type PagerViewOnPageScrollEvent,
+  type PagerViewOnPageSelectedEvent,
+} from "react-native-pager-view";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { PixelText as Text } from "./feed/PixelText";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
-import Animated, { useAnimatedScrollHandler, useSharedValue, runOnJS, runOnUI, useEvent } from "react-native-reanimated";
-import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
-import { Screen } from "../../../../packages/ui/edge";
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+  runOnJS,
+  runOnUI,
+  useEvent,
+} from "react-native-reanimated";
+import { Pressy } from "../../../../packages/ui/chrome";
+import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import {
   ThemeContext,
   themedStyleSheet,
@@ -65,42 +74,106 @@ export function MarketScreen(props: MarketProps) {
 }
 function MarketContent(props: MarketProps) {
   const { colors } = useTheme();
+  const [discoveryQuery, setDiscoveryQuery] = useState("");
+  const [installedQuery, setInstalledQuery] = useState("");
+  const queryEdited = useRef(false);
   const [section, setSection] = useState<"discover" | "installed">("discover");
   const { gesture, marketActive, marketPosition } = useProfileDrawer();
   const pager = useRef<PagerView>(null);
-  useFocusEffect(useCallback(() => {
-    runOnUI(() => { "worklet"; marketActive.value = true; })();
-    return () => { runOnUI(() => { "worklet"; marketActive.value = false; })(); };
-  }, [marketActive]));
-  const native = useMemo(() => Gesture.Native().requireExternalGestureToFail(gesture), [gesture]);
-  const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(event => {
-    "worklet"; marketPosition.value = event.position + event.offset;
-  }, ["onPageScroll"]);
-  const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(event => {
-    "worklet"; runOnJS(setSection)(event.position === 0 ? "discover" : "installed");
-  }, ["onPageSelected"]);
+  useFocusEffect(
+    useCallback(() => {
+      runOnUI(() => {
+        "worklet";
+        marketActive.value = true;
+      })();
+      return () => {
+        runOnUI(() => {
+          "worklet";
+          marketActive.value = false;
+        })();
+      };
+    }, [marketActive])
+  );
+  const native = useMemo(
+    () => Gesture.Native().requireExternalGestureToFail(gesture),
+    [gesture]
+  );
+  const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
+    (event) => {
+      "worklet";
+      marketPosition.value = event.position + event.offset;
+    },
+    ["onPageScroll"]
+  );
+  const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
+    (event) => {
+      "worklet";
+      runOnJS(setSection)(event.position === 0 ? "discover" : "installed");
+    },
+    ["onPageSelected"]
+  );
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <PageHeader
-        variant="pixel"
-        title="应用市场"
-        onBack={props.onBack}
-        right={
+      <ScreenBar
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingHorizontal: 16,
+          paddingTop: 6,
+          paddingBottom: 6,
+          backgroundColor: colors.canvas,
+        }}
+      >
+        {props.onBack ? (
           <Pressy
-            accessibilityRole="button"
-            accessibilityLabel="制作新应用"
-            onPress={props.onCreate}
-            style={{
-              width: 44,
-              height: 44,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            accessibilityLabel="返回"
+            onPress={props.onBack}
+            style={{ width: 44 }}
           >
-            <PixelIcon name="plus" size={20} color={colors.accentText} />
+            <PixelIcon name="back" size={20} color={colors.ink1} />
           </Pressy>
-        }
-      />
+        ) : null}
+        <Text
+          accessibilityRole="header"
+          style={{ fontSize: 18, color: colors.ink1 }}
+        >
+          应用市场
+        </Text>
+        <View style={[styles.searchBox, { flex: 1, minWidth: 0 }]}>
+          <PixelIcon name="search" size={15} color={colors.ink3} />
+          <TextInput
+            accessibilityLabel={
+              section === "discover" ? "搜索应用或用途" : "搜索已安装应用"
+            }
+            placeholder={section === "discover" ? "搜索应用" : "搜索已安装"}
+            placeholderTextColor={colors.ink3}
+            maxLength={80}
+            value={section === "discover" ? discoveryQuery : installedQuery}
+            onChangeText={(value) => {
+              if (section === "discover") {
+                queryEdited.current = true;
+                setDiscoveryQuery(value);
+              } else setInstalledQuery(value);
+            }}
+            style={[styles.search, { fontSize: 13 }]}
+          />
+          {(section === "discover" ? discoveryQuery : installedQuery) ? (
+            <Pressy
+              accessibilityLabel="清空搜索"
+              onPress={() => {
+                if (section === "discover") {
+                  queryEdited.current = true;
+                  setDiscoveryQuery("");
+                } else setInstalledQuery("");
+              }}
+              style={styles.clear}
+            >
+              <PixelIcon name="close" size={14} color={colors.ink3} />
+            </Pressy>
+          ) : null}
+        </View>
+      </ScreenBar>
       <View style={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 6 }}>
         <CompactTabs
           tone="mint"
@@ -110,26 +183,42 @@ function MarketContent(props: MarketProps) {
             { id: "discover", label: "发现作品", icon: "spark" },
             { id: "installed", label: "我安装的", icon: "box" },
           ]}
-          onChange={value => pager.current?.setPage(value === "discover" ? 0 : 1)}
+          onChange={(value) =>
+            pager.current?.setPage(value === "discover" ? 0 : 1)
+          }
         />
       </View>
       <GestureDetector gesture={native}>
-      <AnimatedPagerView ref={pager} style={{ flex: 1 }} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected}>
-      <View key="discover" collapsable={false} style={{ flex: 1 }}>
-        <MarketDiscovery {...props} active={section === "discover"} />
-      </View>
-      <View key="installed" collapsable={false} style={{ flex: 1 }}>
-        <MyApplicationsScreen
-          scope="installed"
-          embedded
-          active={section === "installed"}
-          drawerGesture={gesture}
-          onCreate={props.onCreate}
-          onOpen={props.onOpen}
-          onDetail={props.onDetail}
-        />
-      </View>
-      </AnimatedPagerView>
+        <AnimatedPagerView
+          ref={pager}
+          style={{ flex: 1 }}
+          offscreenPageLimit={1}
+          overScrollMode="never"
+          onPageScroll={onPageScroll}
+          onPageSelected={onPageSelected}
+        >
+          <View key="discover" collapsable={false} style={{ flex: 1 }}>
+            <MarketDiscovery
+              {...props}
+              active={section === "discover"}
+              query={discoveryQuery}
+              onQueryChange={setDiscoveryQuery}
+              queryEdited={queryEdited}
+            />
+          </View>
+          <View key="installed" collapsable={false} style={{ flex: 1 }}>
+            <MyApplicationsScreen
+              scope="installed"
+              searchQuery={installedQuery}
+              embedded
+              active={section === "installed"}
+              drawerGesture={gesture}
+              onCreate={props.onCreate}
+              onOpen={props.onOpen}
+              onDetail={props.onDetail}
+            />
+          </View>
+        </AnimatedPagerView>
       </GestureDetector>
     </Screen>
   );
@@ -138,11 +227,22 @@ function MarketDiscovery({
   onDetail,
   onAuthor,
   active,
-}: MarketProps & { active: boolean }) {
+  query,
+  onQueryChange,
+  queryEdited,
+}: MarketProps & {
+  active: boolean;
+  query: string;
+  onQueryChange: (query: string) => void;
+  queryEdited: { current: boolean };
+}) {
   const { gesture: drawerGesture } = useProfileDrawer();
   const scrollY = useSharedValue(0);
   const lastSave = useSharedValue(0);
-  const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => load(true, true) });
+  const refreshPull = usePullToRefresh({
+    scrollY,
+    onRefresh: () => load(true, true),
+  });
   const rememberOffset = (offset: number) => {
     if (restoreOffset.current === undefined && current.current.key === key) {
       const next = { ...current.current.view, offset };
@@ -150,7 +250,7 @@ function MarketDiscovery({
       rememberMarketView(key, next, false);
     }
   };
-  const trackScroll = useAnimatedScrollHandler(event => {
+  const trackScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = Math.max(0, event.contentOffset.y);
     const now = Date.now();
     if (now - lastSave.value >= 200) {
@@ -162,8 +262,6 @@ function MarketDiscovery({
   const focused = useIsFocused() && active;
   const [view, setView] = useState<MarketView>(empty);
   const [installed, setInstalled] = useState<string[]>([]);
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [busy, setBusy] = useState(false);
@@ -186,10 +284,12 @@ function MarketDiscovery({
       if (live && !edited.current && raw) {
         try {
           const saved = JSON.parse(raw);
-          if (marketDiscoveryCategories.some((item) => item.id === saved.category))
+          if (
+            marketDiscoveryCategories.some((item) => item.id === saved.category)
+          )
             setCategory(saved.category);
-          if (typeof saved.query === "string") {
-            setQuery(saved.query);
+          if (!queryEdited.current && typeof saved.query === "string") {
+            onQueryChange(saved.query);
             setSearch(saved.query);
           }
         } catch {}
@@ -210,7 +310,8 @@ function MarketDiscovery({
     rememberMarketView(target, next);
   }
   async function load(reset = false, manual = false) {
-    if (loading.current || (!reset && !current.current.view.nextCursor)) return false;
+    if (loading.current || (!reset && !current.current.view.nextCursor))
+      return false;
     const token = generation.current;
     loading.current = true;
     setBusy(true);
@@ -222,11 +323,11 @@ function MarketDiscovery({
       const page = await fetchMarketPage(
         category,
         search,
-        reset ? undefined : before.nextCursor,
+        reset ? undefined : before.nextCursor
       );
       if (token !== generation.current) return;
       const known = new Set(
-        before.applications.map((item) => item.manifest.appId),
+        before.applications.map((item) => item.manifest.appId)
       );
       apply({
         applications: reset
@@ -234,7 +335,7 @@ function MarketDiscovery({
           : [
               ...before.applications,
               ...page.applications.filter(
-                (item) => !known.has(item.manifest.appId),
+                (item) => !known.has(item.manifest.appId)
               ),
             ],
         nextCursor: page.nextCursor,
@@ -265,7 +366,7 @@ function MarketDiscovery({
     setError("");
     writeShellValue(
       "market.filters",
-      JSON.stringify({ category, query: search }),
+      JSON.stringify({ category, query: search })
     );
     if (current.current.key !== key) {
       current.current = { key, view: empty };
@@ -299,208 +400,225 @@ function MarketDiscovery({
           void load(true);
         }
       }),
-    [focused, key],
+    [focused, key]
   );
   useEffect(() => {
     const update = (entries: Awaited<ReturnType<typeof loadCatalog>>) =>
       setInstalled(
         entries
           .filter((entry) => !entry.trashedAt && !entry.purged)
-          .map((entry) => entry.id),
+          .map((entry) => entry.id)
       );
     void loadCatalog().then(update);
     return subscribeCatalog(update);
   }, []);
-  const open = useCallback(async (item: MarketApplication) => {
-    if (opening.current) return;
-    opening.current = true;
-    setOpeningId(item.manifest.appId);
-    const token = generation.current;
-    try {
-      const fresh = await fetchPublicMarketApplication(item.manifest.appId);
-      if (token === generation.current) onDetail(fresh);
-    } catch (e) {
-      if (token === generation.current) {
-        retryDetail.current = item;
-        setError(e instanceof Error ? e.message : "详情加载失败");
+  const open = useCallback(
+    async (item: MarketApplication) => {
+      if (opening.current) return;
+      opening.current = true;
+      setOpeningId(item.manifest.appId);
+      const token = generation.current;
+      try {
+        const fresh = await fetchPublicMarketApplication(item.manifest.appId);
+        if (token === generation.current) onDetail(fresh);
+      } catch (e) {
+        if (token === generation.current) {
+          retryDetail.current = item;
+          setError(e instanceof Error ? e.message : "详情加载失败");
+        }
+      } finally {
+        opening.current = false;
+        setOpeningId(undefined);
       }
-    } finally {
-      opening.current = false;
-      setOpeningId(undefined);
-    }
-  }, [onDetail]);
+    },
+    [onDetail]
+  );
   const installedIds = useMemo(() => new Set(installed), [installed]);
   return (
     <View style={[styles.screen, { backgroundColor: colors.canvas }]}>
-          <View style={styles.discovery}>
-            <View
+      <View style={styles.discovery}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 6, paddingRight: 16 }}
+        >
+          {marketDiscoveryCategories.map((item) => (
+            <Pressy
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityState={{ selected: category === item.id }}
+              onPress={() => {
+                edited.current = true;
+                setCategory(item.id);
+              }}
               style={[
-                styles.searchBox,
-                searchFocused && { borderColor: colors.accentText },
+                styles.chip,
+                category === item.id && {
+                  backgroundColor:
+                    item.id === "official" ? colors.orchid : colors.accent,
+                },
               ]}
             >
-              <PixelIcon name="search" size={17} color={colors.ink3} />
-              <TextInput
-                accessibilityLabel="搜索应用或用途"
-                placeholder="搜索应用或用途"
-                placeholderTextColor={colors.ink3}
-                value={query}
-                maxLength={80}
-                onChangeText={(value) => {
-                  edited.current = true;
-                  setQuery(value);
+              <Text
+                style={{
+                  color: category === item.id ? colors.onAccent : colors.ink2,
                 }}
-                selectionColor={colors.accentText}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                style={styles.search}
-              />
-              {query ? (
+              >
+                {item.label}
+              </Text>
+            </Pressy>
+          ))}
+        </ScrollView>
+      </View>
+      <PullRefreshSurface refresh={refreshPull} drawerGesture={drawerGesture}>
+        <Animated.FlatList
+          ref={list}
+          data={view.applications}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          keyExtractor={(item) => item.manifest.appId}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          removeClippedSubviews={false}
+          onContentSizeChange={(_, height) => {
+            if (
+              restoreOffset.current !== undefined &&
+              height > restoreOffset.current
+            ) {
+              list.current?.scrollToOffset({
+                offset: restoreOffset.current,
+                animated: false,
+              });
+              restoreOffset.current = undefined;
+            }
+          }}
+          onScroll={trackScroll}
+          scrollEventThrottle={16}
+          bounces={false}
+          overScrollMode="never"
+          scrollEnabled={
+            refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"
+          }
+          onEndReached={() => {
+            if (!error) void load();
+          }}
+          onEndReachedThreshold={0.4}
+          ListHeaderComponent={
+            <View>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>
+                  {search
+                    ? "搜索结果"
+                    : category
+                    ? marketDiscoveryCategories.find(
+                        (item) => item.id === category
+                      )?.label
+                    : "最新发布"}
+                </Text>
+                <Text style={styles.caption}>
+                  {view.applications.length
+                    ? `${view.applications.length}${
+                        view.nextCursor ? "+" : ""
+                      } 个应用`
+                    : ""}
+                </Text>
+              </View>
+              {error ? (
                 <Pressy
-                  accessibilityLabel="清空搜索"
                   onPress={() => {
-                    edited.current = true;
-                    setQuery("");
+                    const failed = retryDetail.current;
+                    if (failed) void open(failed);
+                    else void load(true);
                   }}
-                  style={styles.clear}
                 >
-                  <PixelIcon name="close" size={16} color={colors.ink3} />
+                  <Text style={styles.error}>{error} · 点此重试</Text>
                 </Pressy>
               ) : null}
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 6, paddingRight: 16 }}
-            >
-              {marketDiscoveryCategories.map((item) => (
-                <Pressy
-                  key={item.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: category === item.id }}
-                  onPress={() => {
-                    edited.current = true;
-                    setCategory(item.id);
-                  }}
-                  style={[
-                    styles.chip,
-                    category === item.id && {
-                      backgroundColor: item.id === "official" ? colors.orchid : colors.accent,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      color:
-                        category === item.id ? colors.onAccent : colors.ink2,
-                    }}
-                  >
-                    {item.label}
-                  </Text>
-                </Pressy>
-              ))}
-            </ScrollView>
-          </View>
-      <PullRefreshSurface refresh={refreshPull} drawerGesture={drawerGesture}>
-      <Animated.FlatList
-        ref={list}
-        data={view.applications}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={7}
-        keyExtractor={(item) => item.manifest.appId}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        removeClippedSubviews={false}
-        onContentSizeChange={(_, height) => {
-          if (
-            restoreOffset.current !== undefined &&
-            height > restoreOffset.current
-          ) {
-            list.current?.scrollToOffset({
-              offset: restoreOffset.current,
-              animated: false,
-            });
-            restoreOffset.current = undefined;
           }
-        }}
-        onScroll={trackScroll}
-        scrollEventThrottle={16}
-        bounces={false}
-        overScrollMode="never"
-        scrollEnabled={refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"}
-        onEndReached={() => {
-          if (!error) void load();
-        }}
-        onEndReachedThreshold={0.4}
-        ListHeaderComponent={
-          <View>
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>
-                {search
-                  ? "搜索结果"
-                  : category
-                    ? marketDiscoveryCategories.find((item) => item.id === category)
-                        ?.label
-                    : "最新发布"}
+          renderItem={({ item }) => (
+            <MarketApplicationRow
+              item={item}
+              installed={installedIds.has(item.manifest.appId)}
+              busy={openingId === item.manifest.appId}
+              onOpen={open}
+              onAuthor={onAuthor}
+            />
+          )}
+          ListEmptyComponent={
+            view.applications.length || error ? null : busy ||
+              !ready ||
+              !view.at ? (
+              <View accessibilityLabel="正在加载应用" style={{ gap: 1 }}>
+                {[0, 1, 2, 3, 4].map((id) => (
+                  <View
+                    key={id}
+                    style={[styles.row, { flexDirection: "row", gap: 12 }]}
+                  >
+                    <View
+                      style={[styles.mark, { backgroundColor: colors.inset }]}
+                    />
+                    <View style={{ flex: 1, gap: 9 }}>
+                      <View
+                        style={{
+                          width: "55%",
+                          height: 16,
+                          backgroundColor: colors.inset,
+                          borderRadius: 4,
+                        }}
+                      />
+                      <View
+                        style={{
+                          height: 12,
+                          backgroundColor: colors.inset,
+                          borderRadius: 4,
+                        }}
+                      />
+                      <View
+                        style={{
+                          width: "35%",
+                          height: 10,
+                          backgroundColor: colors.inset,
+                          borderRadius: 4,
+                        }}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.empty}>
+                {search || category
+                  ? "没有找到匹配的应用，换个分类或关键词试试"
+                  : "还没有公开的应用，来发布第一份作品吧"}
               </Text>
-              <Text style={styles.caption}>
-                {view.applications.length
-                  ? `${view.applications.length}${
-                      view.nextCursor ? "+" : ""
-                    } 个应用`
-                  : ""}
-              </Text>
-            </View>
-            {error ? (
-              <Pressy
-                onPress={() => {
-                  const failed = retryDetail.current;
-                  if (failed) void open(failed);
-                  else void load(true);
-                }}
-              >
-                <Text style={styles.error}>{error} · 点此重试</Text>
+            )
+          }
+          ListFooterComponent={
+            busy && view.applications.length ? (
+              <ActivityIndicator style={{ margin: 16 }} color={colors.accent} />
+            ) : view.nextCursor ? (
+              <Pressy onPress={() => void load()}>
+                <Text style={styles.empty}>加载更多</Text>
               </Pressy>
-            ) : null}
-          </View>
-        }
-        renderItem={({ item }) => <MarketApplicationRow
-          item={item}
-          installed={installedIds.has(item.manifest.appId)}
-          busy={openingId === item.manifest.appId}
-          onOpen={open}
-          onAuthor={onAuthor}
-        />}
-        ListEmptyComponent={
-          view.applications.length || error ? null : busy || !ready || !view.at ? (
-            <View accessibilityLabel="正在加载应用" style={{ gap: 1 }}>{[0, 1, 2, 3, 4].map(id => <View key={id} style={[styles.row, { flexDirection: "row", gap: 12 }]}><View style={[styles.mark, { backgroundColor: colors.inset }]} /><View style={{ flex: 1, gap: 9 }}><View style={{ width: "55%", height: 16, backgroundColor: colors.inset, borderRadius: 4 }} /><View style={{ height: 12, backgroundColor: colors.inset, borderRadius: 4 }} /><View style={{ width: "35%", height: 10, backgroundColor: colors.inset, borderRadius: 4 }} /></View></View>)}</View>
-          ) : (
-            <Text style={styles.empty}>
-              {search || category
-                ? "没有找到匹配的应用，换个分类或关键词试试"
-                : "还没有公开的应用，来发布第一份作品吧"}
-            </Text>
-          )
-        }
-        ListFooterComponent={
-          busy && view.applications.length ? (
-            <ActivityIndicator style={{ margin: 16 }} color={colors.accent} />
-          ) : view.nextCursor ? (
-            <Pressy onPress={() => void load()}>
-              <Text style={styles.empty}>加载更多</Text>
-            </Pressy>
-          ) : view.applications.length ? (
-            <Text style={styles.empty}>已浏览全部应用</Text>
-          ) : null
-        }
-      />
+            ) : view.applications.length ? (
+              <Text style={styles.empty}>已浏览全部应用</Text>
+            ) : null
+          }
+        />
       </PullRefreshSurface>
     </View>
   );
 }
-const MarketApplicationRow = memo(function MarketApplicationRow({ item, installed, busy, onOpen, onAuthor }: {
+const MarketApplicationRow = memo(function MarketApplicationRow({
+  item,
+  installed,
+  busy,
+  onOpen,
+  onAuthor,
+}: {
   item: MarketApplication;
   installed: boolean;
   busy: boolean;
@@ -510,34 +628,108 @@ const MarketApplicationRow = memo(function MarketApplicationRow({ item, installe
   const { colors } = useTheme();
   const app = item.manifest;
   const Avatar = marketDefinition(item)?.avatar;
-  const category = marketCategories.find(category => category.id === (item.category || "other"))?.label;
-  const tint = item.authorOfficial ? colors.orchidTint : item.category === "creative" ? colors.redTint : item.category === "productivity" ? colors.cyanTint : colors.greenTint;
-  return <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.title || app.title}${installed ? "，已安装" : ""}`} onPress={() => void onOpen(item)} scale={1} style={styles.row}>
-    <View style={[styles.mark, { backgroundColor: tint }]}>
-      {Avatar ? <Avatar size={44} /> : <Text style={{ fontSize: 24, color: app.accent }}>{app.mark}</Text>}
-    </View>
-    <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1}>{item.title || app.title}</Text>
-        {item.authorOfficial ? <Text style={styles.official}>官方</Text> : null}
+  const category = marketCategories.find(
+    (category) => category.id === (item.category || "other")
+  )?.label;
+  const tint = item.authorOfficial
+    ? colors.orchidTint
+    : item.category === "creative"
+    ? colors.redTint
+    : item.category === "productivity"
+    ? colors.cyanTint
+    : colors.greenTint;
+  return (
+    <Pressy
+      accessibilityRole="button"
+      accessibilityLabel={`查看${item.title || app.title}${
+        installed ? "，已安装" : ""
+      }`}
+      onPress={() => void onOpen(item)}
+      scale={1}
+      style={styles.row}
+    >
+      <View style={[styles.mark, { backgroundColor: tint }]}>
+        {Avatar ? (
+          <Avatar size={44} />
+        ) : (
+          <Text style={{ fontSize: 24, color: app.accent }}>{app.mark}</Text>
+        )}
       </View>
-      <Text style={styles.summary} numberOfLines={1}>{item.summary || app.summary || "查看应用详情"}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Pressy disabled={!item.authorId} hitSlop={{ top: 8, bottom: 8 }} accessibilityRole="button" accessibilityLabel={`查看${item.authorName || "创作者"}的主页`} onPress={event => {
-          event.stopPropagation();
-          if (item.authorId) onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial });
-        }} style={{ flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1, minHeight: 28 }}>
-          {item.authorAvatarUrl ? <AppImage source={{ uri: item.authorAvatarUrl }} style={{ width: 16, height: 16, borderRadius: 8 }} /> : null}
-          <Text numberOfLines={1} style={[styles.caption, { flexShrink: 1 }]}>{item.authorName || "社区创作者"}</Text>
-        </Pressy>
-        <Text style={styles.category}>{category}</Text>
+      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1}>
+            {item.title || app.title}
+          </Text>
+          {item.authorOfficial ? (
+            <Text style={styles.official}>官方</Text>
+          ) : null}
+        </View>
+        <Text style={styles.summary} numberOfLines={1}>
+          {item.summary || app.summary || "查看应用详情"}
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Pressy
+            disabled={!item.authorId}
+            hitSlop={{ top: 8, bottom: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`查看${item.authorName || "创作者"}的主页`}
+            onPress={(event) => {
+              event.stopPropagation();
+              if (item.authorId)
+                onAuthor({
+                  id: item.authorId,
+                  name: item.authorName,
+                  avatarUrl: item.authorAvatarUrl ?? null,
+                  official: item.authorOfficial,
+                });
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              flexShrink: 1,
+              minHeight: 28,
+            }}
+          >
+            {item.authorAvatarUrl ? (
+              <AppImage
+                source={{ uri: item.authorAvatarUrl }}
+                style={{ width: 16, height: 16, borderRadius: 8 }}
+              />
+            ) : null}
+            <Text numberOfLines={1} style={[styles.caption, { flexShrink: 1 }]}>
+              {item.authorName || "社区创作者"}
+            </Text>
+          </Pressy>
+          <Text style={styles.category}>{category}</Text>
+        </View>
       </View>
-    </View>
-    <View style={[styles.openMark, { backgroundColor: installed ? colors.greenTint : colors.cyanTint }]}>
-      {busy ? <ActivityIndicator size="small" color={colors.cyanText} /> : <PixelIcon name={installed ? "check" : "arrow"} size={16} color={installed ? colors.greenText : colors.cyanText} />}
-      <Text style={{ fontSize: 10, color: installed ? colors.greenText : colors.cyanText }}>{installed ? "已安装" : "查看"}</Text>
-    </View>
-  </Pressy>;
+      <View
+        style={[
+          styles.openMark,
+          { backgroundColor: installed ? colors.greenTint : colors.cyanTint },
+        ]}
+      >
+        {busy ? (
+          <ActivityIndicator size="small" color={colors.cyanText} />
+        ) : (
+          <PixelIcon
+            name={installed ? "check" : "arrow"}
+            size={16}
+            color={installed ? colors.greenText : colors.cyanText}
+          />
+        )}
+        <Text
+          style={{
+            fontSize: 10,
+            color: installed ? colors.greenText : colors.cyanText,
+          }}
+        >
+          {installed ? "已安装" : "查看"}
+        </Text>
+      </View>
+    </Pressy>
+  );
 });
 const styles = themedStyleSheet((base) => {
   const t = pixelTheme(base);
@@ -545,7 +737,12 @@ const styles = themedStyleSheet((base) => {
     screen: { flex: 1, backgroundColor: t.canvas },
     caption: { fontSize: 11, lineHeight: 16, color: t.ink3 },
     content: { paddingHorizontal: 16, paddingBottom: 16 },
-    discovery: { gap: 8, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+    discovery: {
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingTop: 4,
+      paddingBottom: 8,
+    },
     searchBox: {
       flexDirection: "row",
       alignItems: "center",
@@ -610,7 +807,14 @@ const styles = themedStyleSheet((base) => {
       overflow: "hidden",
     },
     category: { color: t.ink3, fontSize: 10, lineHeight: 14 },
-    openMark: { width: 42, minHeight: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", gap: 3 },
+    openMark: {
+      width: 42,
+      minHeight: 42,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 3,
+    },
     error: { color: t.redText, fontSize: 13, lineHeight: 20 },
     empty: { color: t.ink3, textAlign: "center", paddingVertical: 20 },
   };

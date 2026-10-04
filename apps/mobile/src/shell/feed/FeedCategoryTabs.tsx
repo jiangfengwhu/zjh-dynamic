@@ -8,7 +8,7 @@ import { PixelText } from "./PixelText";
 import { usePixelTheme } from "./pixelTheme";
 import type { FeedCategory } from "./useFeedPager";
 
-const categories = ["recommended", "following"] as const;
+const categories = ["installed", "recommended", "following"] as const;
 export function FeedCategoryTabs({
   selected,
   position,
@@ -22,15 +22,15 @@ export function FeedCategoryTabs({
   const [width, setWidth] = useState(0);
   const indicator = useAnimatedStyle(() => ({
     transform: [
-      { translateX: (Math.max(0, Math.min(1, position.value)) * width) / 2 },
+      { translateX: (Math.max(0, Math.min(2, position.value)) * width) / 3 },
     ],
   }));
   return (
     <View
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      style={{ height: 44, flexDirection: "row" }}
+      style={{ flex: 1, height: 44, flexDirection: "row" }}
     >
-      {categories.map((category, index) => (
+      {categories.map((category) => (
         <Pressable
           key={category}
           accessibilityRole="tab"
@@ -41,11 +41,15 @@ export function FeedCategoryTabs({
           <PixelText
             style={{
               color: selected === category ? colors.ink1 : colors.ink3,
-              fontSize: 15,
+              fontSize: 13,
               fontWeight: "700",
             }}
           >
-            {index === 0 ? "为你推荐" : "正在关注"}
+            {category === "installed"
+              ? "我的应用"
+              : category === "recommended"
+              ? "为你推荐"
+              : "正在关注"}
           </PixelText>
         </Pressable>
       ))}
@@ -56,7 +60,7 @@ export function FeedCategoryTabs({
             position: "absolute",
             bottom: 0,
             left: 0,
-            width: width / 2,
+            width: width / 3,
             alignItems: "center",
           },
           indicator,

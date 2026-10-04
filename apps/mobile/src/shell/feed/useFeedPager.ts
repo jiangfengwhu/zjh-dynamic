@@ -8,9 +8,9 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Gesture } from "react-native-gesture-handler";
 import { runOnJS, runOnUI, useEvent } from "react-native-reanimated";
 import { useProfileDrawer } from "../ProfileDrawer";
-export type FeedCategory = "recommended" | "following";
+export type FeedCategory = "installed" | "recommended" | "following";
 
-/** Native paging owns both directions; only Recommended defers right swipes to the drawer. */
+/** Native paging owns both directions; only the first page defers right swipes to the drawer. */
 export function useFeedPager({
   categories,
   selected,
@@ -23,22 +23,25 @@ export function useFeedPager({
   const drawer = useProfileDrawer();
   const ref = useRef<PagerView>(null);
   const { feedActive, feedPage, feedPosition, feedIdle } = drawer;
+  const index = Math.max(0, categories.indexOf(selected));
+  const current = useRef(index);
   useFocusEffect(
     useCallback(() => {
-      runOnUI(() => {
+      runOnUI((page: number) => {
         "worklet";
         feedActive.value = true;
-      })();
+        feedPage.value = page;
+        feedPosition.value = page;
+        feedIdle.value = true;
+      })(current.current);
       return () => {
         runOnUI(() => {
           "worklet";
           feedActive.value = false;
         })();
       };
-    }, [feedActive])
+    }, [feedActive, feedPage, feedPosition, feedIdle])
   );
-  const current = useRef(0);
-  const index = Math.max(0, categories.indexOf(selected));
   const pagePosition = feedPosition;
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
     (event) => {
@@ -52,7 +55,9 @@ export function useFeedPager({
     },
     ["onPageScroll"]
   );
-  const [mounted, setMounted] = useState(() => new Set(categories.slice(0, 2)));
+  const [mounted, setMounted] = useState(
+    () => new Set(categories.slice(Math.max(0, index - 1), index + 2))
+  );
   useEffect(() => {
     if (current.current === index) return;
     const distance = Math.abs(current.current - index);

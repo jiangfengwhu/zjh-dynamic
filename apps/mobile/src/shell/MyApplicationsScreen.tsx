@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  AppState,
-  View,
-} from "react-native";
+import { ActivityIndicator, AppState, View } from "react-native";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { usePullToRefresh } from "./feed/pullToRefresh";
 import { PullRefreshSurface } from "./feed/PullRefreshSurface";
@@ -33,6 +29,7 @@ import { openApplicationWorkshop } from "./workshopNavigation";
 import { restoreWorks } from "./workRecovery";
 import { readMyWorks, workLabels, type MyWork } from "./works";
 import { WorkCard } from "./WorkCard";
+import { marketDefinition } from "./market";
 import { PixelIcon } from "./feed/PixelKit";
 import { PixelText as Text } from "./feed/PixelText";
 import { usePixelTheme } from "./feed/pixelTheme";
@@ -48,6 +45,7 @@ export function MyApplicationsScreen({
   active = true,
   drawerGesture,
   scope = "works",
+  searchQuery,
 }: {
   onBack?: () => void;
   onCreate: () => void;
@@ -58,10 +56,14 @@ export function MyApplicationsScreen({
   active?: boolean;
   drawerGesture?: ReturnType<typeof Gesture.Pan>;
   scope?: "works" | "installed";
+  searchQuery?: string;
 }) {
   const scrollY = useSharedValue(0);
   const profileScroll = useProfileScroll<Row>("works", scrollY);
-  const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => refresh(true) });
+  const refreshPull = usePullToRefresh({
+    scrollY,
+    onRefresh: () => refresh(true),
+  });
   const { user } = useAccount();
   const { colors } = usePixelTheme();
   const focused = useIsFocused() && active;
@@ -78,11 +80,12 @@ export function MyApplicationsScreen({
   const [busy, setBusy] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
+  const [localQuery, setQuery] = useState("");
+  const query = searchQuery ?? localQuery;
   const generation = useRef(0);
   const reading = useRef(false);
   usePreventRemove(!!updating, () =>
-    Toast.show({ type: "info", text1: "正在下载应用更新，请稍候" }),
+    Toast.show({ type: "info", text1: "正在下载应用更新，请稍候" })
   );
   async function refresh(manual = false) {
     if (
@@ -162,13 +165,13 @@ export function MyApplicationsScreen({
     const offSharing = subscribePackageValue("shell.market.changed", reload);
     const offWorks = applicationContext("jolly").storage.subscribe(
       "workspaces",
-      reload,
+      reload
     );
     const timer = setInterval(() => {
       if (
         scope === "works" &&
         works.some((work) =>
-          ["making", "reply", "load", "blocked"].includes(work.stage),
+          ["making", "reply", "load", "blocked"].includes(work.stage)
         )
       )
         reload();
@@ -235,7 +238,7 @@ export function MyApplicationsScreen({
   const visibleWorks =
     owner === user?.id
       ? works.filter((work) =>
-          `${work.title} ${work.wish}`.toLowerCase().includes(term),
+          `${work.title} ${work.wish}`.toLowerCase().includes(term)
         )
       : [];
   const visibleApps =
@@ -243,15 +246,16 @@ export function MyApplicationsScreen({
       ? installed.filter((item) =>
           `${item.manifest.title} ${item.manifest.summary}`
             .toLowerCase()
-            .includes(term),
+            .includes(term)
         )
       : [];
   const installedIds = new Set(installed.map((item) => item.manifest.appId));
   const publicCount = visibleWorks.filter(
-    (work) => work.sharing?.shared,
+    (work) => work.sharing?.shared
   ).length;
   type Row =
-    { type: "work"; work: MyWork } | { type: "app"; app: MarketApplication };
+    | { type: "work"; work: MyWork }
+    | { type: "app"; app: MarketApplication };
   const Root = embedded ? View : Screen;
   const actionStyle = {
     minHeight: 44,
@@ -269,7 +273,11 @@ export function MyApplicationsScreen({
           onBack={onBack}
         />
       ) : null}
-      <PullRefreshSurface refresh={refreshPull} drawerGesture={drawerGesture} top={profileScroll.refreshOffset}>
+      <PullRefreshSurface
+        refresh={refreshPull}
+        drawerGesture={drawerGesture}
+        top={profileScroll.refreshOffset}
+      >
         <Animated.FlatList<Row>
           ref={profileScroll.ref}
           onScroll={profileScroll.onScroll}
@@ -299,9 +307,11 @@ export function MyApplicationsScreen({
           ]}
           bounces={false}
           overScrollMode="never"
-          scrollEnabled={refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"}
+          scrollEnabled={
+            refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"
+          }
           ListHeaderComponent={
-            <View style={{ gap: 10, paddingBottom: 16 }}>
+            <View style={{ gap: 8, paddingBottom: scope === "works" ? 16 : 6 }}>
               <View
                 style={{
                   flexDirection: "row",
@@ -316,11 +326,11 @@ export function MyApplicationsScreen({
                       ? `${visibleWorks.length} 份创造 · ${publicCount} 份公开`
                       : `${visibleApps.length} 个已安装应用`}
                   </Text>
-                  <Text style={{ color: colors.ink3, fontSize: 11 }}>
-                    {scope === "works"
-                      ? "公开作品会展示在你的社交主页"
-                      : "打开、更新和管理本机应用"}
-                  </Text>
+                  {scope === "works" ? (
+                    <Text style={{ color: colors.ink3, fontSize: 11 }}>
+                      公开作品会展示在你的社交主页
+                    </Text>
+                  ) : null}
                 </View>
                 {scope === "works" ? (
                   <Pressy
@@ -341,8 +351,9 @@ export function MyApplicationsScreen({
                   </Pressy>
                 ) : null}
               </View>
-              {(scope === "installed" ? installed.length : works.length) > 4 ||
-              query ? (
+              {searchQuery === undefined &&
+              ((scope === "installed" ? installed.length : works.length) > 4 ||
+                query) ? (
                 <FormField
                   accessibilityLabel={
                     scope === "works" ? "搜索我的作品" : "搜索已安装应用"
@@ -404,7 +415,7 @@ export function MyApplicationsScreen({
                               type: "error",
                               text1: "工坊未能打开",
                               text2: cause.message,
-                            }),
+                            })
                           );
                         }}
                         style={actionStyle}
@@ -465,87 +476,141 @@ export function MyApplicationsScreen({
             }
             const app = item.app;
             const updateState = updates[app.manifest.appId];
+            const Avatar = marketDefinition(app)?.avatar;
             return (
               <View
                 style={{
-                  paddingVertical: 14,
+                  paddingVertical: 10,
                   borderBottomWidth: 0.5,
                   borderBottomColor: colors.line,
-                  gap: 8,
+                  gap: 6,
                 }}
               >
                 <View
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: 12,
+                    gap: 10,
                   }}
                 >
-                  <View
+                  <Pressy
+                    accessibilityLabel={`打开${app.manifest.title}`}
+                    onPress={() => onOpen(app.manifest.appId)}
+                    scale={1}
                     style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 8,
-                      backgroundColor: colors.orchidTint,
+                      flex: 1,
+                      minWidth: 0,
+                      flexDirection: "row",
+                      gap: 10,
                       alignItems: "center",
-                      justifyContent: "center",
+                      justifyContent: "flex-start",
                     }}
                   >
-                    <Text style={{ fontSize: 24 }}>{app.manifest.mark}</Text>
-                  </View>
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text
-                      numberOfLines={1}
-                      style={{ color: colors.ink1, fontSize: 16 }}
+                    <View
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 12,
+                        backgroundColor: colors.orchidTint,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                      }}
                     >
-                      {app.manifest.title}
-                    </Text>
-                    <Text
-                      numberOfLines={2}
-                      style={{ color: colors.ink3, fontSize: 12 }}
-                    >
-                      {app.manifest.summary}
-                    </Text>
-                  </View>
+                      {Avatar ? (
+                        <Avatar size={44} />
+                      ) : (
+                        <Text
+                          style={{ fontSize: 24, color: app.manifest.accent }}
+                        >
+                          {app.manifest.mark}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          color: colors.ink1,
+                          fontSize: 16,
+                          lineHeight: 21,
+                        }}
+                      >
+                        {app.manifest.title}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          color: colors.ink3,
+                          fontSize: 12,
+                          lineHeight: 17,
+                        }}
+                      >
+                        {app.manifest.summary || "点击打开应用"}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          color:
+                            updateState?.status === "update"
+                              ? colors.greenText
+                              : colors.ink3,
+                          fontSize: 10,
+                        }}
+                      >
+                        {updateState?.status === "update"
+                          ? "有新版本"
+                          : "已安装"}
+                        {app.authorName ? ` · ${app.authorName}` : ""}
+                      </Text>
+                    </View>
+                  </Pressy>
+                  <Pressy
+                    accessibilityLabel={`打开${app.manifest.title}`}
+                    onPress={() => onOpen(app.manifest.appId)}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      alignItems: "center",
+                      backgroundColor: colors.greenTint,
+                    }}
+                  >
+                    <PixelIcon
+                      name="arrow"
+                      size={18}
+                      color={colors.greenText}
+                    />
+                  </Pressy>
+                  <Pressy
+                    disabled={!!updating}
+                    accessibilityLabel={`${app.manifest.title}详情与卸载`}
+                    onPress={() => void installedDetail(app)}
+                    style={{ width: 44, height: 44, alignItems: "center" }}
+                  >
+                    <PixelIcon name="more" size={18} color={colors.ink3} />
+                  </Pressy>
                 </View>
                 {updateState?.status === "update" ? (
-                  <Text style={{ color: colors.greenText, fontSize: 11 }}>
-                    有新的公开版本
-                  </Text>
+                  <Pressy
+                    disabled={!!updating}
+                    onPress={() => void update(app)}
+                    style={{
+                      alignSelf: "flex-start",
+                      marginLeft: 58,
+                      minHeight: 32,
+                      paddingHorizontal: 10,
+                      borderRadius: 8,
+                      backgroundColor: colors.greenTint,
+                    }}
+                  >
+                    <Text style={{ color: colors.greenText, fontSize: 12 }}>
+                      {updating === app.manifest.appId
+                        ? "正在更新…"
+                        : "更新应用"}
+                    </Text>
+                  </Pressy>
                 ) : null}
-                <View
-                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 18 }}
-                >
-                  <Pressy
-                    disabled={!!updating}
-                    onPress={() => onOpen(app.manifest.appId)}
-                    style={actionStyle}
-                  >
-                    <Text style={{ color: colors.orchidText, fontSize: 13 }}>
-                      打开应用
-                    </Text>
-                  </Pressy>
-                  {updateState?.status === "update" ? (
-                    <Pressy
-                      disabled={!!updating}
-                      onPress={() => void update(app)}
-                      style={actionStyle}
-                    >
-                      <Text style={{ color: colors.greenText, fontSize: 13 }}>
-                        {updating === app.manifest.appId ? "正在更新…" : "更新"}
-                      </Text>
-                    </Pressy>
-                  ) : null}
-                  <Pressy
-                    disabled={!!updating}
-                    onPress={() => void installedDetail(app)}
-                    style={actionStyle}
-                  >
-                    <Text style={{ color: colors.ink3, fontSize: 13 }}>
-                      详情与卸载
-                    </Text>
-                  </Pressy>
-                </View>
               </View>
             );
           }}
@@ -559,8 +624,8 @@ export function MyApplicationsScreen({
                   {term
                     ? "没有找到匹配的内容"
                     : scope === "works"
-                      ? "从一个想法开始，做出你的第一份作品"
-                      : "还没有安装应用，去发现喜欢的作品吧"}
+                    ? "从一个想法开始，做出你的第一份作品"
+                    : "还没有安装应用，去发现喜欢的作品吧"}
                 </Text>
                 {scope === "works" && !term ? (
                   <Pressy onPress={onCreate} style={actionStyle}>
