@@ -65,7 +65,7 @@ import {
 } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { AsyncRouteScreen } from "./AsyncRouteScreen";
-import { openFeature } from "../../../../packages/features/src/registry";
+import { cachedFeature, openFeature } from "../../../../packages/features/src/registry";
 import Toast from "react-native-toast-message";
 import { PublicationScreen } from "./PublicationScreen";
 import { MyProfileScreen } from "./MyProfileScreen";
@@ -183,8 +183,12 @@ function openPublication(mode: "post" | "create" = "post") {
   else void requireAccount().then(allowed => { if (allowed) open(); });
 }
 export async function openPublicMarketApplication(appId: string) {
-  if (shellNavigationRef.isReady())
-    shellNavigationRef.navigate("applicationLink", { appId });
+  if (!shellNavigationRef.isReady()) return;
+  if (cachedFeature(appId)) {
+    shellNavigationRef.navigate("bundle", { id: appId });
+    return;
+  }
+  shellNavigationRef.navigate("applicationLink", { appId });
 }
 
 export async function openShellBundle(id: string) {
@@ -261,6 +265,11 @@ function BundlePage({ id, render }: {
   id: string;
   render: (id: string, onBack: () => void) => ReactNode;
 }) {
+  // The runtime cache already enforces account access and quarantines failed packages.
+  // Reopening an evaluated package must not replay the entrance loading state.
+  const cachedOnEntry = useRef(Boolean(cachedFeature(id))).current;
+  if (cachedOnEntry && cachedFeature(id))
+    return <View style={styles.feature}>{render(id, goBack)}</View>;
   return <AsyncRouteScreen title="打开应用" onBack={goBack} load={() => openFeature(id)}>
     {() => <View style={styles.feature}>{render(id, goBack)}</View>}
   </AsyncRouteScreen>;

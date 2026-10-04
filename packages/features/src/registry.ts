@@ -64,6 +64,8 @@ export function cachedFeature(id: string): FeatureComponent | undefined {
 }
 
 export async function openFeature(id: string): Promise<FeatureComponent> {
+  const cached = cachedFeature(id);
+  if (cached) return cached;
 
   const definition = bundles.find((item) => item.id === id);
   if (!definition) throw new Error(`这个应用还没登记：${id}`);
