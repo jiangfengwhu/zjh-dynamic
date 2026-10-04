@@ -55,7 +55,18 @@ import { PixelText as Text } from "./feed/PixelText";
 import { PixelIcon } from "./feed/PixelKit";
 import { pixelTheme, usePixelTheme } from "./feed/pixelTheme";
 import { KeyboardViewport } from "./KeyboardViewport";
+import { useRouteContentReady } from "./useRouteContentReady";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
+export function MarketPublicationScreen(
+  props: Parameters<typeof MarketDetailContent>[0]
+) {
+  const theme = usePixelTheme();
+  return (
+    <ThemeContext.Provider value={theme}>
+      <MarketDetailContent {...props} publication />
+    </ThemeContext.Provider>
+  );
+}
 export function MarketDetailScreen(
   props: Parameters<typeof MarketDetailContent>[0]
 ) {
@@ -68,7 +79,8 @@ export function MarketDetailScreen(
 }
 function MarketDetailContent({
   item,
-  publish,
+  publication = false,
+  onPublication,
   onBack,
   onOpen,
   onModify,
@@ -82,7 +94,8 @@ function MarketDetailContent({
     avatarUrl: string | null;
     official?: boolean;
   }) => void;
-  publish?: boolean;
+  publication?: boolean;
+  onPublication?: () => void;
   item: MarketApplication;
   onBack: () => void;
   onOpen: (id: string) => void;
@@ -92,7 +105,8 @@ function MarketDetailContent({
   const { user } = useAccount();
   const { colors } = useTheme();
   const app = item.manifest;
-  const focused = useIsFocused();
+  const contentReady = useRouteContentReady();
+  const focused = useIsFocused() && contentReady;
   const [installed, setInstalled] = useState(false);
   const [release, setRelease] = useState("");
   const [busy, setBusy] = useState(false);
@@ -127,7 +141,6 @@ function MarketDetailContent({
   );
   const scroll = useRef<KeyboardAwareScrollViewRef>(null);
   const mutation = useRef(false);
-  const publicationOpened = useRef(false);
   async function modify() {
     if (mutation.current) return;
     mutation.current = true;
@@ -152,18 +165,7 @@ function MarketDetailContent({
     }
   }
   useEffect(() => {
-    if (
-      publish &&
-      owner &&
-      sharingReady &&
-      sharing?.application &&
-      !publicationOpened.current
-    ) {
-      publicationOpened.current = true;
-      begin("share");
-    }
-  }, [publish, owner, sharingReady, sharing]);
-  useEffect(() => {
+    if (!contentReady) return;
     let live = true;
     const update = async (entries: Awaited<ReturnType<typeof loadCatalog>>) => {
       const raw =
@@ -197,7 +199,7 @@ function MarketDetailContent({
       live = false;
       off();
     };
-  }, [app.appId]);
+  }, [app.appId, contentReady]);
   useEffect(() => {
     if (!focused) return;
     let live = true;
@@ -543,6 +545,133 @@ function MarketDetailContent({
   function closeEditor() {
     if (!busy) setEditMode(null);
   }
+  const summary = (shared?.summary ?? item.summary ?? app.summary ?? "").trim();
+  const management = owner ? (
+    <View style={styles.management}>
+      <View style={styles.line}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <PixelIcon name="box" size={18} color={colors.greenText} />
+          <Text style={styles.subtitle}>公开到应用市场</Text>
+        </View>
+        <Text
+          style={[
+            styles.tag,
+            {
+              backgroundColor: shared ? colors.greenTint : colors.orchidTint,
+              color: shared ? colors.greenText : colors.orchidText,
+            },
+          ]}
+        >
+          {!sharingReady ? "待同步" : shared ? "已上架" : "仅自己可见"}
+        </Text>
+      </View>
+      {!sharingReady && !shareNotice ? (
+        <View style={styles.note}>
+          <ActivityIndicator color={colors.greenText} />
+          <Text style={styles.caption}>正在读取作品状态…</Text>
+        </View>
+      ) : (
+        <Text style={styles.copy}>
+          {shared
+            ? hasNewVersion
+              ? "制作已有新版，市场仍展示上次公开的版本。"
+              : "大家可以在市场找到这份作品。"
+            : "上架后，其他人就能安装和体验你的作品。"}
+        </Text>
+      )}
+      {shared ? (
+        <View style={styles.versionLine}>
+          <Text style={styles.caption}>
+            公开版本 {versionName(shared.manifest)}
+          </Text>
+          <Text style={styles.caption}>制作版本 {versionName(latest)}</Text>
+        </View>
+      ) : null}
+      {shareNotice ? (
+        <Text accessibilityLiveRegion="polite" style={styles.caption}>
+          {shareNotice}
+        </Text>
+      ) : null}
+      {!sharingReady && shareNotice ? (
+        <Pressy
+          disabled={busy}
+          onPress={() => setSharingAttempt((value) => value + 1)}
+          style={styles.retry}
+        >
+          <PixelIcon name="refresh" size={16} color={colors.greenText} />
+          <Text style={{ color: colors.greenText, fontSize: 12 }}>
+            重新读取状态
+          </Text>
+        </Pressy>
+      ) : null}
+      {sharing?.application && (!shared || hasNewVersion) ? (
+        <Pressy
+          disabled={busy || !canManage}
+          onPress={() => void begin("share")}
+          style={styles.marketPrimary}
+        >
+          <PixelIcon name="box" size={18} color={colors.onAccent} />
+          <Text style={styles.primaryText}>
+            {shared ? "上架制作新版" : "上架作品"}
+          </Text>
+        </Pressy>
+      ) : null}
+      {shared ? (
+        <View style={styles.managementActions}>
+          <Pressy
+            disabled={busy || !canManage}
+            onPress={() => void begin("edit")}
+            style={styles.managementAction}
+          >
+            <PixelIcon name="edit" size={16} color={colors.orchidText} />
+            <Text style={{ color: colors.orchidText, fontSize: 12 }}>
+              编辑市场信息
+            </Text>
+          </Pressy>
+          <Pressy
+            disabled={busy || !canManage}
+            onPress={withdraw}
+            style={styles.managementAction}
+          >
+            <PixelIcon name="close" size={16} color={colors.redText} />
+            <Text style={{ color: colors.redText, fontSize: 12 }}>
+              撤回上架
+            </Text>
+          </Pressy>
+        </View>
+      ) : null}
+      {sharingReady && !sharing?.application ? (
+        <Text style={styles.caption}>作品完成制作后即可上架。</Text>
+      ) : null}
+    </View>
+  ) : (
+    <View style={styles.note}>
+      {!ownershipReady ? (
+        <ActivityIndicator color={colors.orchidText} />
+      ) : (
+        <PixelIcon name="mine" size={20} color={colors.orchidText} />
+      )}
+      <Text style={styles.copy}>
+        {!ownershipReady
+          ? "正在读取作者权限…"
+          : shareNotice || "仅作品作者可管理公开状态。"}
+      </Text>
+      {ownershipReady && shareNotice ? (
+        <Pressy
+          onPress={() => setSharingAttempt((value) => value + 1)}
+          accessibilityLabel="重新读取作者权限"
+        >
+          <PixelIcon name="refresh" size={18} color={colors.orchidText} />
+        </Pressy>
+      ) : null}
+    </View>
+  );
   const primaryLabel = !localReady
     ? "正在读取应用…"
     : installed
@@ -573,11 +702,25 @@ function MarketDetailContent({
               ? editMode === "edit"
                 ? "编辑市场信息"
                 : "上架作品"
+              : publication
+              ? "公开到应用市场"
               : ownsSurface
               ? "作品详情"
               : "应用详情"
           }
           onBack={editMode ? closeEditor : onBack}
+          right={
+            !publication && !editMode && owner && onPublication ? (
+              <Pressy
+                accessibilityLabel="公开到应用市场"
+                onPress={onPublication}
+                scale={1}
+                style={{ width: 44, height: 44, alignItems: "center" }}
+              >
+                <PixelIcon name="send" size={20} color={colors.orchidText} />
+              </Pressy>
+            ) : undefined
+          }
         />
         <KeyboardViewport backgroundColor={colors.canvas}>
           <ScrollView
@@ -762,6 +905,8 @@ function MarketDetailContent({
                       )}。之后制作的新版不会自动公开。`}
                 </Text>
               </>
+            ) : publication ? (
+              management
             ) : (
               <>
                 <View style={styles.hero}>
@@ -775,7 +920,11 @@ function MarketDetailContent({
                     )}
                   </View>
                   <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-                    <Text style={styles.title}>
+                    <Text
+                      style={styles.title}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
                       {shared?.title || item.title || app.title}
                     </Text>
                     <View style={styles.tags}>
@@ -799,6 +948,39 @@ function MarketDetailContent({
                     </View>
                   </View>
                 </View>
+                {summary ? (
+                  <View style={styles.description}>
+                    <Text style={styles.copy}>{summary}</Text>
+                  </View>
+                ) : null}
+                {gallery.length ? (
+                  <View style={styles.gallery}>
+                    <View style={styles.line}>
+                      <Text style={styles.subtitle}>使用预览</Text>
+                      <Text style={styles.caption}>{gallery.length} 张</Text>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 10 }}
+                    >
+                      {gallery.map((url, index) => (
+                        <Pressy
+                          scale={1}
+                          key={url}
+                          accessibilityLabel={`查看截图 ${index + 1}`}
+                          onPress={() => setPreview(url)}
+                        >
+                          <AppImage
+                            source={{ uri: url }}
+                            style={styles.galleryImage}
+                            resizeMode="contain"
+                          />
+                        </Pressy>
+                      ))}
+                    </ScrollView>
+                  </View>
+                ) : null}
                 <Pressy
                   scale={1}
                   disabled={!authorId}
@@ -832,14 +1014,6 @@ function MarketDetailContent({
                   </View>
                   <PixelIcon name="arrow" size={16} color={colors.ink3} />
                 </Pressy>
-                <View style={styles.description}>
-                  <Text style={styles.copy}>
-                    {shared?.summary ??
-                      item.summary ??
-                      app.summary ??
-                      "打开作品，开始体验。"}
-                  </Text>
-                </View>
                 <View style={styles.facts}>
                   <View style={styles.fact}>
                     <Text style={styles.caption}>版本</Text>
@@ -863,247 +1037,63 @@ function MarketDetailContent({
                   ) : null}
                 </View>
                 <View style={styles.tools}>
-                  {app.appId !== bootstrap.defaultApplication ? (
-                    <Pressy
-                      disabled={busy || !ownershipReady}
-                      onPress={() => void modify()}
-                      style={[
-                        styles.tool,
-                        { backgroundColor: colors.cyanTint },
-                      ]}
-                    >
-                      <PixelIcon
-                        name="edit"
-                        size={20}
-                        color={colors.cyanText}
-                      />
-                      <Text
-                        style={[styles.toolText, { color: colors.cyanText }]}
-                      >
-                        改一改
-                      </Text>
-                    </Pressy>
-                  ) : null}
                   <Pressy
-                    disabled={busy || !ownershipReady}
-                    onPress={continueCreation}
+                    disabled={
+                      busy ||
+                      !ownershipReady ||
+                      app.appId === bootstrap.defaultApplication
+                    }
+                    onPress={() => (owner ? void modify() : continueCreation())}
+                    style={[styles.tool, { backgroundColor: colors.cyanTint }]}
+                  >
+                    <PixelIcon
+                      name={owner ? "edit" : "spark"}
+                      size={18}
+                      color={colors.cyanText}
+                    />
+                    <Text style={[styles.toolText, { color: colors.cyanText }]}>
+                      {owner ? "修改" : "Remix"}
+                    </Text>
+                  </Pressy>
+                  <Pressy
+                    disabled={busy || (ownsSurface && (!shared || !canManage))}
+                    accessibilityLabel={
+                      ownsSurface && !shared
+                        ? "分享，公开作品后可用"
+                        : "分享作品到动态"
+                    }
+                    onPress={() => onSharePost(shared ?? item)}
                     style={[
                       styles.tool,
                       { backgroundColor: colors.orchidTint },
                     ]}
                   >
                     <PixelIcon
-                      name="spark"
-                      size={20}
+                      name="share"
+                      size={18}
                       color={colors.orchidText}
                     />
                     <Text
                       style={[styles.toolText, { color: colors.orchidText }]}
                     >
-                      {ownsSurface ? "继续制作" : "基于它创作"}
+                      分享
                     </Text>
                   </Pressy>
-                  {shared || !ownsSurface ? (
-                    <Pressy
-                      disabled={busy || (ownsSurface && !canManage)}
-                      onPress={() => onSharePost(shared ?? item)}
-                      style={[styles.tool, { backgroundColor: colors.redTint }]}
-                    >
-                      <PixelIcon
-                        name="share"
-                        size={20}
-                        color={colors.redText}
-                      />
-                      <Text
-                        style={[styles.toolText, { color: colors.redText }]}
-                      >
-                        分享动态
-                      </Text>
-                    </Pressy>
-                  ) : null}
-                </View>
-                {gallery.length ? (
-                  <View style={styles.gallery}>
-                    <View style={styles.line}>
-                      <Text style={styles.subtitle}>使用预览</Text>
-                      <Text style={styles.caption}>{gallery.length} 张</Text>
-                    </View>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ gap: 10 }}
-                    >
-                      {gallery.map((url, index) => (
-                        <Pressy
-                          scale={1}
-                          key={url}
-                          accessibilityLabel={`查看截图 ${index + 1}`}
-                          onPress={() => setPreview(url)}
-                        >
-                          <AppImage
-                            source={{ uri: url }}
-                            style={styles.galleryImage}
-                            resizeMode="contain"
-                          />
-                        </Pressy>
-                      ))}
-                    </ScrollView>
-                  </View>
-                ) : null}
-                {ownsSurface ? (
-                  <View style={styles.management}>
-                    <View style={styles.line}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                      >
-                        <PixelIcon
-                          name="box"
-                          size={18}
-                          color={colors.greenText}
-                        />
-                        <Text style={styles.subtitle}>公开到应用市场</Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.tag,
-                          {
-                            backgroundColor: shared
-                              ? colors.greenTint
-                              : colors.orchidTint,
-                            color: shared
-                              ? colors.greenText
-                              : colors.orchidText,
-                          },
-                        ]}
-                      >
-                        {!sharingReady
-                          ? "待同步"
-                          : shared
-                          ? "已上架"
-                          : "仅自己可见"}
-                      </Text>
-                    </View>
-                    {!sharingReady && !shareNotice ? (
-                      <View style={styles.note}>
-                        <ActivityIndicator color={colors.greenText} />
-                        <Text style={styles.caption}>正在读取作品状态…</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.copy}>
-                        {shared
-                          ? hasNewVersion
-                            ? "制作已有新版，市场仍展示上次公开的版本。"
-                            : "大家可以在市场找到这份作品。"
-                          : "上架后，其他人就能安装和体验你的作品。"}
-                      </Text>
-                    )}
-                    {shared ? (
-                      <View style={styles.versionLine}>
-                        <Text style={styles.caption}>
-                          公开版本 {versionName(shared.manifest)}
-                        </Text>
-                        <Text style={styles.caption}>
-                          制作版本 {versionName(latest)}
-                        </Text>
-                      </View>
-                    ) : null}
-                    {shareNotice ? (
-                      <Text
-                        accessibilityLiveRegion="polite"
-                        style={styles.caption}
-                      >
-                        {shareNotice}
-                      </Text>
-                    ) : null}
-                    {!sharingReady && shareNotice ? (
-                      <Pressy
-                        disabled={busy}
-                        onPress={() => setSharingAttempt((value) => value + 1)}
-                        style={styles.retry}
-                      >
-                        <PixelIcon
-                          name="refresh"
-                          size={16}
-                          color={colors.greenText}
-                        />
-                        <Text style={{ color: colors.greenText, fontSize: 12 }}>
-                          重新读取状态
-                        </Text>
-                      </Pressy>
-                    ) : null}
-                    {sharing?.application && (!shared || hasNewVersion) ? (
-                      <Pressy
-                        disabled={busy || !canManage}
-                        onPress={() => void begin("share")}
-                        style={styles.marketPrimary}
-                      >
-                        <PixelIcon
-                          name="box"
-                          size={18}
-                          color={colors.onAccent}
-                        />
-                        <Text style={styles.primaryText}>
-                          {shared ? "上架制作新版" : "上架作品"}
-                        </Text>
-                      </Pressy>
-                    ) : null}
-                    {shared ? (
-                      <View style={styles.managementActions}>
-                        <Pressy
-                          disabled={busy || !canManage}
-                          onPress={() => void begin("edit")}
-                          style={styles.managementAction}
-                        >
-                          <PixelIcon
-                            name="edit"
-                            size={16}
-                            color={colors.orchidText}
-                          />
-                          <Text
-                            style={{ color: colors.orchidText, fontSize: 12 }}
-                          >
-                            编辑市场信息
-                          </Text>
-                        </Pressy>
-                        <Pressy
-                          disabled={busy || !canManage}
-                          onPress={withdraw}
-                          style={styles.managementAction}
-                        >
-                          <PixelIcon
-                            name="close"
-                            size={16}
-                            color={colors.redText}
-                          />
-                          <Text style={{ color: colors.redText, fontSize: 12 }}>
-                            撤回上架
-                          </Text>
-                        </Pressy>
-                      </View>
-                    ) : null}
-                    {sharingReady && !sharing?.application ? (
-                      <Text style={styles.caption}>
-                        作品完成制作后即可上架。
-                      </Text>
-                    ) : null}
-                  </View>
-                ) : null}
-                {installed && app.appId !== bootstrap.defaultApplication ? (
                   <Pressy
-                    disabled={busy}
+                    disabled={
+                      busy ||
+                      !installed ||
+                      app.appId === bootstrap.defaultApplication
+                    }
                     onPress={uninstall}
-                    style={styles.uninstall}
+                    style={[styles.tool, { backgroundColor: colors.redTint }]}
                   >
-                    <PixelIcon name="close" size={16} color={colors.redText} />
-                    <Text style={{ color: colors.redText, fontSize: 12 }}>
-                      从本机卸载
+                    <PixelIcon name="close" size={18} color={colors.redText} />
+                    <Text style={[styles.toolText, { color: colors.redText }]}>
+                      卸载
                     </Text>
                   </Pressy>
-                ) : null}
+                </View>
               </>
             )}
             {error ? (
@@ -1116,70 +1106,73 @@ function MarketDetailContent({
               </View>
             ) : null}
           </ScrollView>
-          <View style={styles.dock}>
-            {editMode ? (
-              <Pressy
-                disabled={busy || !canManage || !shareTitle.trim()}
-                onPress={() => void save()}
-                style={[styles.primary, { flex: 1 }]}
-              >
-                {busy ? (
-                  <ActivityIndicator color={colors.onAccent} />
-                ) : (
-                  <PixelIcon name="check" size={18} color={colors.onAccent} />
-                )}
-                <Text style={styles.primaryText}>
-                  {busy
-                    ? uploadStatus
-                      ? "正在上传截图…"
-                      : "正在保存…"
-                    : editMode === "edit"
-                    ? "保存信息"
-                    : "发布到市场"}
-                </Text>
-              </Pressy>
-            ) : (
-              <>
-                {installed && update ? (
-                  <Pressy
-                    accessibilityLabel="更新应用"
-                    disabled={busy}
-                    onPress={() => void install()}
-                    style={styles.updateButton}
-                  >
-                    <PixelIcon
-                      name="refresh"
-                      size={18}
-                      color={colors.orchidText}
-                    />
-                    <Text style={{ color: colors.orchidText, fontSize: 12 }}>
-                      更新
-                    </Text>
-                  </Pressy>
-                ) : null}
+          {!publication || editMode ? (
+            <View style={styles.dock}>
+              {editMode ? (
                 <Pressy
-                  disabled={
-                    busy ||
-                    !localReady ||
-                    (!installed && (!ownershipReady || (ownsSurface && !owner)))
-                  }
-                  onPress={() =>
-                    installed ? onOpen(app.appId) : void install()
-                  }
+                  disabled={busy || !canManage || !shareTitle.trim()}
+                  onPress={() => void save()}
                   style={[styles.primary, { flex: 1 }]}
                 >
                   {busy ? (
                     <ActivityIndicator color={colors.onAccent} />
                   ) : (
-                    <PixelIcon name="box" size={18} color={colors.onAccent} />
+                    <PixelIcon name="check" size={18} color={colors.onAccent} />
                   )}
                   <Text style={styles.primaryText}>
-                    {busy ? "正在准备…" : primaryLabel}
+                    {busy
+                      ? uploadStatus
+                        ? "正在上传截图…"
+                        : "正在保存…"
+                      : editMode === "edit"
+                      ? "保存信息"
+                      : "发布到市场"}
                   </Text>
                 </Pressy>
-              </>
-            )}
-          </View>
+              ) : (
+                <>
+                  {installed && update ? (
+                    <Pressy
+                      accessibilityLabel="更新应用"
+                      disabled={busy}
+                      onPress={() => void install()}
+                      style={styles.updateButton}
+                    >
+                      <PixelIcon
+                        name="refresh"
+                        size={18}
+                        color={colors.orchidText}
+                      />
+                      <Text style={{ color: colors.orchidText, fontSize: 12 }}>
+                        更新
+                      </Text>
+                    </Pressy>
+                  ) : null}
+                  <Pressy
+                    disabled={
+                      busy ||
+                      !localReady ||
+                      (!installed &&
+                        (!ownershipReady || (ownsSurface && !owner)))
+                    }
+                    onPress={() =>
+                      installed ? onOpen(app.appId) : void install()
+                    }
+                    style={[styles.primary, { flex: 1 }]}
+                  >
+                    {busy ? (
+                      <ActivityIndicator color={colors.onAccent} />
+                    ) : (
+                      <PixelIcon name="box" size={18} color={colors.onAccent} />
+                    )}
+                    <Text style={styles.primaryText}>
+                      {busy ? "正在准备…" : primaryLabel}
+                    </Text>
+                  </Pressy>
+                </>
+              )}
+            </View>
+          ) : null}
         </KeyboardViewport>
         <EdgeModal
           visible={!!preview}
@@ -1224,14 +1217,14 @@ const styles = themedStyleSheet((base) => {
     content: {
       paddingHorizontal: 16,
       paddingTop: 8,
-      paddingBottom: 20,
-      gap: 16,
+      paddingBottom: 12,
+      gap: 8,
     },
     hero: {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      paddingVertical: 8,
+      paddingVertical: 4,
     },
     mark: {
       width: 72,
@@ -1295,7 +1288,7 @@ const styles = themedStyleSheet((base) => {
       borderTopWidth: 0.5,
       borderBottomWidth: 0.5,
       borderColor: t.line,
-      paddingVertical: 12,
+      paddingVertical: 8,
     },
     fact: { flex: 1, gap: 4 },
     factValue: { color: t.ink1, fontSize: 12, lineHeight: 18 },
@@ -1303,11 +1296,11 @@ const styles = themedStyleSheet((base) => {
     tool: {
       flex: 1,
       minWidth: 0,
-      minHeight: 64,
+      minHeight: 52,
       borderRadius: 12,
       alignItems: "center",
-      gap: 7,
-      paddingVertical: 10,
+      gap: 4,
+      paddingVertical: 6,
     },
     toolText: { fontSize: 12, lineHeight: 18, textAlign: "center" },
     gallery: { gap: 8 },
@@ -1407,12 +1400,6 @@ const styles = themedStyleSheet((base) => {
       gap: 6,
       alignItems: "center",
       justifyContent: "flex-start",
-    },
-    uninstall: {
-      alignSelf: "flex-start",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
     },
     dock: {
       paddingHorizontal: 16,

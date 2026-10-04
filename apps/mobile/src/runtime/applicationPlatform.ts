@@ -75,7 +75,7 @@ export function installApplicationPlatform() {
             const state = await loadSharing(targetAppId);
             if (!owner || await currentAccountId() !== owner || !state.application) throw new Error("请先完成作品制作");
             if (!shellNavigationRef.isReady()) throw new Error("页面尚未就绪，请重试");
-            shellNavigationRef.navigate("marketDetail", { item: { manifest: state.application, authorId: owner, authorName: "", originalAppId: null, owned: true }, publish: true });
+            shellNavigationRef.navigate("marketPublication", { item: { manifest: state.application, authorId: owner, authorName: "", originalAppId: null, owned: true } });
           },
           readPreference: (key: string) => {
             if (key !== "shell.companion.name.v1") throw new Error("制作偏好键无效");

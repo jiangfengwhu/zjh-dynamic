@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useRouteContentReady } from "./useRouteContentReady";
 import { ActivityIndicator, Alert, Image, Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { FormField as TextInput } from "./FormField";
@@ -12,7 +13,8 @@ import { finishLoginRequest, chooseAccountAvatar, loginWithCode, logoutAccount, 
 export function AccountScreen({ onBack }: { onBack: () => void }) {
   const { colors } = useTheme();
   const { user, ready, storageError } = useAccount();
-  const [email, setEmail] = useState(""); const [code, setCode] = useState(""); const [name, setName] = useState("");
+  const contentReady = useRouteContentReady();
+  const [email, setEmail] = useState(""); const [code, setCode] = useState(""); const [name, setName] = useState(user?.name || "");
   const [retryAt, setRetryAt] = useState(0); const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false); const busyRef = useRef(false); const [message, setMessage] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
@@ -36,7 +38,11 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
   return <Screen style={styles.screen}>
     <PageHeader title={user ? "个人资料" : "邮箱登录"} caption={user ? "让大家认识你" : "一封邮件，就能回来"} onBack={onBack} />
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {!ready ? <Text style={styles.hint}>正在读取登录信息…</Text> : user ? <>
+      {!ready || !contentReady ? <View accessibilityLabel="正在准备个人资料" style={styles.panel}>
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.inset }} />
+        <View style={{ width: "50%", height: 18, borderRadius: 4, backgroundColor: colors.inset }} />
+        <View style={{ height: 48, borderRadius: 12, backgroundColor: colors.inset }} />
+      </View> : user ? <>
         <View style={styles.panel}>
           <View style={styles.avatarRow}>
             {user.avatarUrl ? <Image key={user.avatarUrl} source={{ uri: user.avatarUrl }} style={styles.avatar} onError={() => toast.error("头像加载失败，请检查网络后重试")} /> : <View style={[styles.avatar, styles.placeholder]}><Text style={styles.initial}>{Array.from(user.name)[0]}</Text></View>}

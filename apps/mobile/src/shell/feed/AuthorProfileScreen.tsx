@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouteContentReady } from "../useRouteContentReady";
 import { useIsFocused } from "@react-navigation/native";
 import {
   ActivityIndicator,
@@ -76,7 +77,8 @@ function AuthorProfileContent({
   const { colors } = useTheme();
   const { user } = useAccount();
   const timeline = useUserPosts();
-  const focused = useIsFocused() && active;
+  const contentReady = useRouteContentReady(embedded);
+  const focused = useIsFocused() && active && contentReady;
   const [profile, setProfile] = useState<AuthorProfile>(() => cachedAuthorProfile(initialAuthor.id) ?? ({
     author: initialAuthor,
     posts: timeline.posts.filter((post) => post.author.id === initialAuthor.id),
@@ -366,8 +368,11 @@ function AuthorProfileContent({
     return <PullRefreshSurface refresh={refresh} drawerGesture={drawerGesture} top={profileScroll.refreshOffset}>
               <Animated.FlatList<ProfileRow>
                 ref={tab === "posts" ? list : appList}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={5}
                 data={
-                  tab === "posts"
+                  !contentReady ? [] : tab === "posts"
                     ? profile.posts.map((post) => ({
                         type: "post" as const,
                         post,
@@ -431,7 +436,7 @@ function AuthorProfileContent({
                   );
                 }}
                 ListEmptyComponent={
-                  loaded && !error ? (
+                  contentReady && loaded && !error ? (
                     <Text
                       style={{
                         textAlign: "center",
@@ -441,7 +446,7 @@ function AuthorProfileContent({
                     >
                       {tab === "apps" ? "还没有公开作品" : "还没有公开动态"}
                     </Text>
-                  ) : !loaded && !error ? (
+                  ) : (!contentReady || !loaded) && !error ? (
                     <View accessibilityLabel="正在加载作者内容" style={{ padding: 16, gap: 16 }}>
                       {[0, 1, 2].map(key => <View key={key} style={{ gap: 10, paddingVertical: 12 }}>
                         <View style={{ width: "45%", height: 14, borderRadius: 4, backgroundColor: colors.inset }} />
@@ -453,7 +458,7 @@ function AuthorProfileContent({
                 }
                 ListFooterComponent={
                   <View style={{ padding: 16 }}>
-                    {busy && !loaded ? (
+                    {contentReady && busy && !loaded ? (
                       <ActivityIndicator color={colors.accent} />
                     ) : tab === "posts" && profile.nextCursor ? (
                       <Pressable

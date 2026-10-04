@@ -44,6 +44,7 @@ function MyProfileContent({
   onPost,
   onApplication,
   onDetail,
+  onManagePublication,
   onOpen,
   onCreate,
   onSharePost,
@@ -52,6 +53,7 @@ function MyProfileContent({
   onPost: (post: UserPost) => void;
   onApplication: (id: string) => Promise<void>;
   onDetail: (item: MarketApplication) => void;
+  onManagePublication: (item: MarketApplication) => void;
   onOpen: (id: string) => void;
   onCreate: () => void;
   onSharePost: (item: MarketApplication) => void;
@@ -372,6 +374,7 @@ function MyProfileContent({
                         onCreate={onCreate}
                         onOpen={onOpen}
                         onDetail={onDetail}
+                        onManagePublication={onManagePublication}
                         onSharePost={onSharePost}
                       />
                     </View>

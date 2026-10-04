@@ -39,6 +39,7 @@ export function MyApplicationsScreen({
   onBack,
   onCreate,
   onDetail,
+  onManagePublication,
   onOpen,
   onSharePost,
   embedded = false,
@@ -50,6 +51,7 @@ export function MyApplicationsScreen({
   onBack?: () => void;
   onCreate: () => void;
   onDetail: (item: MarketApplication) => void;
+  onManagePublication?: (item: MarketApplication) => void;
   onOpen: (id: string) => void;
   onSharePost?: (item: MarketApplication) => void;
   embedded?: boolean;
@@ -187,11 +189,13 @@ export function MyApplicationsScreen({
   async function workshop(work: MyWork) {
     await openApplicationWorkshop(work.appId, work.title, false, false);
   }
-  function detail(work: MyWork) {
+  function detail(work: MyWork, publication = false) {
     if (work.manifest)
-      onDetail({
+      (publication && onManagePublication ? onManagePublication : onDetail)({
         manifest: work.manifest,
         title: work.title,
+        summary: work.sharing?.shared?.summary ?? work.manifest.summary,
+        screenshots: work.sharing?.shared?.screenshots,
         authorId: user?.id ?? null,
         authorName: user?.name ?? "创作者",
         authorAvatarUrl: user?.avatarUrl,
@@ -370,6 +374,23 @@ export function MyApplicationsScreen({
                   onOpen={() => (work.manifest ? detail(work) : workshop(work))}
                   actions={
                     <>
+                      {work.manifest && onManagePublication ? (
+                        <Pressy
+                          accessibilityLabel="管理市场公开状态"
+                          onPress={() => detail(work, true)}
+                          style={{
+                            width: 44,
+                            height: 44,
+                            alignItems: "center",
+                          }}
+                        >
+                          <PixelIcon
+                            name="send"
+                            size={18}
+                            color={colors.cyanText}
+                          />
+                        </Pressy>
+                      ) : null}
                       <Pressy
                         accessibilityLabel={
                           ["making", "reply"].includes(work.stage)

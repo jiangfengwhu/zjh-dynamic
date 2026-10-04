@@ -34,7 +34,10 @@ import Animated, {
 import { type AppEntry } from "./catalog";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
 import { MarketScreen } from "./MarketScreen";
-import { MarketDetailScreen } from "./MarketDetailScreen";
+import {
+  MarketDetailScreen,
+  MarketPublicationScreen,
+} from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
 import { fetchPublicMarketApplication, isApplicationInstalled } from "./market";
 import {
@@ -92,7 +95,8 @@ export type RootParamList = {
   appearance: undefined;
   bundle: { id: string };
   applicationFeedback: { manifest: ApplicationManifest; ownerId: string };
-  marketDetail: { item: MarketApplication; publish?: boolean };
+  marketDetail: { item: MarketApplication };
+  marketPublication: { item: MarketApplication };
   myApps: undefined;
   account: undefined;
   composePost:
@@ -124,7 +128,7 @@ async function openNotice(notice: Notice) {
       notice.appId,
       notice.postPreview,
       false,
-      false,
+      false
     );
     return true;
   }
@@ -132,7 +136,7 @@ async function openNotice(notice: Notice) {
   const detail = await fetchPostDetail(
     notice.postId,
     undefined,
-    notice.commentId,
+    notice.commentId
   );
   if (
     !shellNavigationRef.isReady() ||
@@ -278,7 +282,7 @@ function handleShellRequest(raw: string | undefined) {
     console.log(
       "shell request",
       request.action,
-      request.tab ?? request.id ?? "",
+      request.tab ?? request.id ?? ""
     );
     if (request.action === "account") shellNavigationRef.navigate("account");
     else if (request.action === "providers")
@@ -297,7 +301,7 @@ function handleShellRequest(raw: string | undefined) {
   } catch (error) {
     console.log(
       "shell request unreadable",
-      error instanceof Error ? error.message : error,
+      error instanceof Error ? error.message : error
     );
   }
 }
@@ -320,7 +324,7 @@ function BundlePage({
     () => () => {
       mountedBundles.delete(id);
     },
-    [id],
+    [id]
   );
   const Page = id === bootstrap.defaultApplication ? View : Screen;
   return (
@@ -344,7 +348,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
         { translateY: active === "feed" ? hidden.value * tabHeight.value : 0 },
       ],
     }),
-    [active],
+    [active]
   );
   return (
     <Animated.View
@@ -395,7 +399,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
   const reduceMotion = useReducedMotion();
   const installedIds = useMemo(
     () => props.listed.map((item) => item.id),
-    [props.listed],
+    [props.listed]
   );
   const previous = useRef({ label: "", depth: 1 });
   const colors = palettes[props.mode];
@@ -413,7 +417,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
 
   useEffect(
     () => subscribePackageValue(SHELL_NAV_REQUEST, handleShellRequest),
-    [],
+    []
   );
   useEffect(() => {
     setApplicationPostHandlers(shareApplicationPost, async (_appId, draft) => {
@@ -457,7 +461,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         onReady={() => {
           void (async () => {
             const rollback = await readShellValue(
-              "application.rollback.notice",
+              "application.rollback.notice"
             );
             removeShellValue("application.rollback.notice");
             if (rollback)
@@ -467,7 +471,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 text2: rollback,
               });
             const workshop = await readShellValue(
-              "application.workshopAfterReload",
+              "application.workshopAfterReload"
             );
             removeShellValue("application.workshopAfterReload");
             if (workshop) {
@@ -478,7 +482,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   /^[a-z][a-z0-9-]{0,63}$/.test(request.target)
                 ) {
                   const context = applicationContext(
-                    bootstrap.defaultApplication,
+                    bootstrap.defaultApplication
                   );
                   context.storage.set("workshopTarget", request.target);
                   context.storage.set("openWorkshop", String(Date.now()));
@@ -586,7 +590,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             void requireAccount().then((allowed) => {
                               if (allowed)
                                 applicationContext(
-                                  bootstrap.defaultApplication,
+                                  bootstrap.defaultApplication
                                 ).navigation.create();
                             });
                           }}
@@ -611,6 +615,11 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                               item,
                             })
                           }
+                          onManagePublication={(item) =>
+                            shellNavigationRef.navigate("marketPublication", {
+                              item,
+                            })
+                          }
                           onOpen={props.onOpenBundle}
                           onCreate={() => openPublication("create")}
                           onSharePost={(application) =>
@@ -629,7 +638,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           <Stack.Screen name="marketDetail">
             {({ route }) => (
               <MarketDetailScreen
-                publish={route.params.publish}
                 item={route.params.item}
                 onBack={goBack}
                 onOpen={props.onOpenBundle}
@@ -643,12 +651,39 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   shellNavigationRef.navigate("composePost", { application })
                 }
                 onAuthor={openAuthor}
+                onPublication={() =>
+                  shellNavigationRef.navigate("marketPublication", {
+                    item: route.params.item,
+                  })
+                }
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="marketPublication">
+            {({ route }) => (
+              <MarketPublicationScreen
+                item={route.params.item}
+                onBack={goBack}
+                onOpen={props.onOpenBundle}
+                onAuthor={openAuthor}
+                onModify={(manifest, ownerId) =>
+                  shellNavigationRef.navigate("applicationFeedback", {
+                    manifest,
+                    ownerId,
+                  })
+                }
+                onSharePost={(application) =>
+                  shellNavigationRef.navigate("composePost", { application })
+                }
               />
             )}
           </Stack.Screen>
           <Stack.Screen name="myApps">
             {() => (
               <MyApplicationsScreen
+                onManagePublication={(item) =>
+                  shellNavigationRef.navigate("marketPublication", { item })
+                }
                 onOpen={props.onOpenBundle}
                 onBack={goBack}
                 onDetail={(item) =>
@@ -658,7 +693,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   void requireAccount().then((allowed) => {
                     if (allowed)
                       applicationContext(
-                        bootstrap.defaultApplication,
+                        bootstrap.defaultApplication
                       ).navigation.create();
                   });
                 }}
