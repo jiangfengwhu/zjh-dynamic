@@ -1,4 +1,5 @@
-import { PageSkeleton, LoadingSkeleton } from "./LoadingSkeleton";
+import { ActivityIndicator } from "react-native";
+import { PageSkeleton } from "./LoadingSkeleton";
 import { useEffect, useRef, useState } from "react";
 import { PixelAlert } from "./PixelAlert";
 import NativePluginHost from "../NativePluginHost";
@@ -28,6 +29,9 @@ import {
   publicApplicationUpdates,
   applicationNeedsReload,
   validateApplication,
+  checkApplicationUpdates,
+  stageApplicationUpdates,
+  loadApplication,
   type PublicApplicationUpdate,
 } from "../runtime/applications";
 import { openApplicationWorkshop } from "./workshopNavigation";
@@ -124,13 +128,48 @@ export function MyApplicationsScreen({
           setError("部分制作状态暂未同步，保留本机记录。下拉可重试。");
         }
       } else {
-        try {
-          const result = await publicApplicationUpdates(manual);
-          if (before === generation.current) setUpdates(result);
-        } catch {
+        const [publicResult, ownResult] = await Promise.allSettled([
+          publicApplicationUpdates(true),
+          apps.some((app) => app.owned)
+            ? restoreWorks(manual, true).then(() => readMyWorks())
+            : Promise.resolve([] as MyWork[]),
+        ]);
+        if (
+          before !== generation.current ||
+          (await currentAccountId()) !== user?.id
+        )
+          return;
+        const result: Record<string, PublicApplicationUpdate> =
+          publicResult.status === "fulfilled" ? publicResult.value : {};
+        if (ownResult.status === "fulfilled")
+          for (const app of apps.filter((app) => app.owned)) {
+            const candidate = ownResult.value.find(
+              (work) => work.appId === app.manifest.appId
+            )?.manifest;
+            if (!candidate) continue;
+            try {
+              validateApplication(candidate);
+              result[app.manifest.appId] = {
+                status:
+                  candidate.releaseId === app.manifest.releaseId
+                    ? "current"
+                    : "update",
+                manifest: candidate,
+              };
+            } catch {
+              result[app.manifest.appId] = {
+                status: "blocked",
+                message: "新版需要更新平台后使用",
+              };
+            }
+          }
+        setUpdates(result);
+        if (
+          publicResult.status === "rejected" ||
+          ownResult.status === "rejected"
+        ) {
           succeeded = false;
-          if (before === generation.current)
-            setError("更新检查未完成，本机应用仍可使用。下拉可重试。");
+          setError("部分更新未能检查，下拉可重试。本机应用仍可直接打开。");
         }
       }
     } catch {
@@ -226,11 +265,32 @@ export function MyApplicationsScreen({
     writing.current = true;
     setUpdating(item.manifest.appId);
     try {
-      const published = await fetchPublicMarketApplication(item.manifest.appId);
-      validateApplication(published.manifest);
-      const status = await installMarketApplication(published, {
-        reloadLoaded: false,
-      });
+      let manifest = item.manifest;
+      let status: "pending" | "ready";
+      if (applicationNeedsReload(item.manifest)) status = "pending";
+      else if (item.owned) {
+        await checkApplicationUpdates(item.manifest.appId);
+        await stageApplicationUpdates(item.manifest.appId);
+        const staged = (await installedMarket()).find(
+          (app) => app.manifest.appId === item.manifest.appId
+        );
+        manifest = staged?.manifest || item.manifest;
+        if (applicationNeedsReload(manifest)) status = "pending";
+        else {
+          await loadApplication(manifest.appId);
+          status = "ready";
+        }
+      } else {
+        const published = await fetchPublicMarketApplication(
+          item.manifest.appId
+        );
+        manifest = published.manifest;
+        validateApplication(manifest);
+        status =
+          (await installMarketApplication(published, {
+            reloadLoaded: false,
+          })) || "ready";
+      }
       Toast.show({
         type: "success",
         text1:
@@ -251,7 +311,7 @@ export function MyApplicationsScreen({
                   writeShellValue(
                     "application.openAfterReload",
                     JSON.stringify({
-                      appId: published.manifest.appId,
+                      appId: manifest.appId,
                       ownerId: await currentAccountId(),
                     })
                   );
@@ -609,39 +669,61 @@ export function MyApplicationsScreen({
                           ? "新版已下载，下次启动生效"
                           : updateState?.status === "update"
                           ? "有新版本"
+                          : updateState?.status === "blocked"
+                          ? updateState.message || "新版暂时无法使用"
+                          : busy && !updateState
+                          ? "正在检查更新"
                           : "已安装"}
                         {app.authorName ? ` · ${app.authorName}` : ""}
                       </Text>
                     </View>
                   </Pressy>
-                  {updateState?.status === "update" ? (
+                  {updateState?.status === "update" ||
+                  applicationNeedsReload(app.manifest) ? (
                     <Pressy
                       scale={1}
-                      accessibilityLabel={`更新${app.manifest.title}`}
+                      accessibilityLabel={`${
+                        applicationNeedsReload(app.manifest)
+                          ? "重新加载"
+                          : "更新"
+                      }${app.manifest.title}`}
                       accessibilityState={{
                         busy: updating === app.manifest.appId,
                       }}
                       disabled={!!updating}
                       onPress={() => void update(app)}
                       style={{
-                        width: 44,
+                        minWidth: 76,
                         height: 44,
                         alignItems: "center",
+                        justifyContent: "center",
+                        flexDirection: "row",
+                        gap: 5,
+                        paddingHorizontal: 10,
                         borderRadius: 10,
-                        backgroundColor: colors.greenTint,
+                        backgroundColor: colors.green,
                       }}
                     >
                       {updating === app.manifest.appId ? (
-                        <LoadingSkeleton
+                        <ActivityIndicator
                           size="small"
-                          color={colors.greenText}
+                          color={colors.onAccent}
                         />
                       ) : (
-                        <PixelIcon
-                          name="refresh"
-                          size={18}
-                          color={colors.greenText}
-                        />
+                        <>
+                          <PixelIcon
+                            name="refresh"
+                            size={16}
+                            color={colors.onAccent}
+                          />
+                          <Text
+                            style={{ color: colors.onAccent, fontSize: 12 }}
+                          >
+                            {applicationNeedsReload(app.manifest)
+                              ? "重新加载"
+                              : "更新"}
+                          </Text>
+                        </>
                       )}
                     </Pressy>
                   ) : null}

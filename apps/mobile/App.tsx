@@ -1,4 +1,4 @@
-import { PageSkeleton } from "./src/shell/LoadingSkeleton";
+import { ActivityIndicator } from "react-native";
 import { openCreationComposer } from "./src/shell/creationComposer";
 import { reportApplicationFailure } from "./src/runtime/applications";
 import {
@@ -394,7 +394,7 @@ function ShellApp() {
             >
               紫金花
             </Text>
-            <PageSkeleton rows={3} />
+            <ActivityIndicator color={theme.accentText} />
             <Text style={{ color: palettes[mode].ink3, fontSize: 12 }}>
               正在打开应用空间…
             </Text>
@@ -528,7 +528,7 @@ function FeatureHost({
         </>
       ) : opened.id === id && loadingVisible ? (
         <>
-          <PageSkeleton rows={3} />
+          <ActivityIndicator color={theme.accentText} />
           <Text style={styles.stateHint}>正在加载应用…</Text>
         </>
       ) : null}

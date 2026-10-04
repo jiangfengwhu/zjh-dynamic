@@ -1,4 +1,4 @@
-import { LoadingSkeleton } from "./LoadingSkeleton";
+import { ActivityIndicator } from "react-native";
 import { memo, useRef, useState } from "react";
 import { View } from "react-native";
 import Toast from "react-native-toast-message";
@@ -112,7 +112,7 @@ export const WorkCard = memo(function WorkCard({
               <PixelIcon name="box" size={26} color={accent} />
             )}
             {busy ? (
-              <LoadingSkeleton
+              <ActivityIndicator
                 color={accent}
                 style={{ position: "absolute", bottom: 0, right: 0 }}
               />

@@ -1,4 +1,4 @@
-import { LoadingSkeleton } from "./LoadingSkeleton";
+import { ActivityIndicator } from "react-native";
 import { PixelAlert as Alert } from "./PixelAlert";
 import {
   currentAccountId,
@@ -713,7 +713,7 @@ function MarketDetailContent({
   const publicationFallback = (
     <View style={styles.note}>
       {!ownershipReady || (owner && !shareNotice) ? (
-        <LoadingSkeleton color={colors.orchidText} />
+        <ActivityIndicator color={colors.orchidText} />
       ) : (
         <PixelIcon name="mine" size={20} color={colors.orchidText} />
       )}
@@ -953,7 +953,7 @@ function MarketDetailContent({
                   </View>
                   {uploadStatus ? (
                     <View style={styles.note}>
-                      <LoadingSkeleton color={colors.orchidText} />
+                      <ActivityIndicator color={colors.orchidText} />
                       <Text
                         accessibilityLiveRegion="polite"
                         style={styles.caption}
@@ -1192,7 +1192,7 @@ function MarketDetailContent({
                   style={[styles.primary, { flex: 1 }]}
                 >
                   {busy ? (
-                    <LoadingSkeleton color={colors.onAccent} />
+                    <ActivityIndicator color={colors.onAccent} />
                   ) : (
                     <PixelIcon name="check" size={18} color={colors.onAccent} />
                   )}
@@ -1244,7 +1244,7 @@ function MarketDetailContent({
                     style={[styles.primary, { flex: 1 }]}
                   >
                     {busy ? (
-                      <LoadingSkeleton color={colors.onAccent} />
+                      <ActivityIndicator color={colors.onAccent} />
                     ) : (
                       <PixelIcon name="box" size={18} color={colors.onAccent} />
                     )}

@@ -1,7 +1,7 @@
-import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
-import { useEffect, useState } from "react";
+import { PageSkeleton } from "../LoadingSkeleton";
+import { useEffect, useRef, useState } from "react";
 import { cachedAccountId, subscribeAccountIdentity } from "../account";
-import { Pressable, ScrollView, View } from "react-native";
+import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
 import {
   Screen,
   ScreenBar,
@@ -438,6 +438,23 @@ function RefreshButton({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!busy || !active) {
+      spin.setValue(0);
+      return;
+    }
+    const animation = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [busy, active, spin]);
   return (
     <Pressable
       accessibilityRole="button"
@@ -453,11 +470,20 @@ function RefreshButton({
         opacity: disabled ? 0.35 : 1,
       }}
     >
-      {busy && active ? (
-        <LoadingSkeleton color={colors.cyanText} />
-      ) : (
+      <Animated.View
+        style={{
+          transform: [
+            {
+              rotate: spin.interpolate({
+                inputRange: [0, 1],
+                outputRange: ["0deg", "360deg"],
+              }),
+            },
+          ],
+        }}
+      >
         <PixelIcon name="refresh" size={18} color={colors.cyanText} />
-      )}
+      </Animated.View>
     </Pressable>
   );
 }

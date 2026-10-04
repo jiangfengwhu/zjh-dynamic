@@ -1,4 +1,5 @@
-import { LoadingSkeleton } from "./LoadingSkeleton";
+import { ActivityIndicator } from "react-native";
+import { syncNotificationCount } from "./feed/notifications";
 import { useEffect, useRef, useState } from "react";
 import { Keyboard, Text, View } from "react-native";
 import PagerView, {
@@ -345,6 +346,7 @@ function CreateApplicationPage({
           text1: intent ? "修改需求已提交" : "制作需求已提交",
           text2: "Jolly 已收到，完成或失败都会通知你",
         });
+        requestIdleCallback(() => void syncNotificationCount().catch(() => {}));
         images.clear();
         if ((await readShellValue(draftKey))?.trim() === submittedText)
           writeShellValue(draftKey, "");
@@ -419,7 +421,7 @@ function CreateApplicationPage({
             }}
           >
             {polishing ? (
-              <LoadingSkeleton size="small" color={colors.orchidText} />
+              <ActivityIndicator size="small" color={colors.orchidText} />
             ) : (
               <PixelIcon name="spark" size={16} color={colors.orchidText} />
             )}
@@ -514,7 +516,7 @@ function CreateApplicationPage({
         }}
       >
         {busy ? (
-          <LoadingSkeleton color={colors.onAccent} />
+          <ActivityIndicator color={colors.onAccent} />
         ) : (
           <PixelIcon name="spark" size={20} color={colors.onAccent} />
         )}

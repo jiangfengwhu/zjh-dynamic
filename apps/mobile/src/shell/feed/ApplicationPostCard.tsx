@@ -1,4 +1,4 @@
-import { LoadingSkeleton } from "../LoadingSkeleton";
+import { ActivityIndicator } from "react-native";
 import { PixelText as Text } from "./PixelText";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
@@ -122,7 +122,7 @@ export function ApplicationPostCard({
       </View>
       {!preview ? (
         busy ? (
-          <LoadingSkeleton size="small" color={colors.accent} />
+          <ActivityIndicator size="small" color={colors.accent} />
         ) : (
           <PixelIcon name="arrow" size={18} color={colors.ink3} />
         )

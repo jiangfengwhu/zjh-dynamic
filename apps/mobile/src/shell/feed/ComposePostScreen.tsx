@@ -1,4 +1,4 @@
-import { LoadingSkeleton } from "../LoadingSkeleton";
+import { ActivityIndicator } from "react-native";
 import {
   useCallback,
   useDeferredValue,
@@ -542,7 +542,7 @@ export function ComposePostScreen({
 
           {busy ? (
             <View style={styles.status}>
-              <LoadingSkeleton size="small" color={colors.accent} />
+              <ActivityIndicator size="small" color={colors.accent} />
               <Text style={styles.counter}>{status || "准备发布…"}</Text>
             </View>
           ) : null}
@@ -556,7 +556,7 @@ export function ComposePostScreen({
             onPress={() => void publish()}
             style={[styles.publish, !canPublish && styles.disabled]}
           >
-            {busy ? <LoadingSkeleton size="small" color={colors.onAccent} /> : <Text style={styles.publishText}>发布动态</Text>}
+            {busy ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={styles.publishText}>发布动态</Text>}
           </Pressy>
         </View>
       </KeyboardViewport>
@@ -599,7 +599,7 @@ export function ComposePostScreen({
             <Text style={styles.counter}>仅分享应用市场里的公开版本</Text>
             <ScrollView keyboardShouldPersistTaps="handled">
               {loadingApps ? (
-                <LoadingSkeleton
+                <ActivityIndicator
                   color={colors.accent}
                   style={{ padding: 16 }}
                 />

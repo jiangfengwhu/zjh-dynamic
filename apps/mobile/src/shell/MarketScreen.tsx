@@ -1,3 +1,4 @@
+import { ActivityIndicator } from "react-native";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, ScrollView, TextInput, View } from "react-native";
@@ -706,7 +707,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
         ]}
       >
         {busy ? (
-          <LoadingSkeleton size="small" color={colors.cyanText} />
+          <ActivityIndicator size="small" color={colors.cyanText} />
         ) : (
           <PixelIcon
             name={installed ? "check" : "arrow"}

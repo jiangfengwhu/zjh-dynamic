@@ -15,12 +15,13 @@ export type Notice = {
   commentId: string;
   body: string;
   postPreview: string;
-  kind: "comment" | "reply" | "work-success" | "work-failure";
+  kind: "comment" | "reply" | "work-success" | "work-failure" | "work-submitted";
   appId?: string;
   createdAt: number;
   read: boolean;
 };
 export function noticeHeading(notice: Notice) {
+  if (notice.kind === "work-submitted") return "Jolly · 已提交制作";
   if (notice.kind === "work-success") return "Jolly · 制作完成";
   if (notice.kind === "work-failure") return "Jolly · 制作失败";
   return (

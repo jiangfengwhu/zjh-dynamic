@@ -1,3 +1,4 @@
+import { ActivityIndicator } from "react-native";
 import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
@@ -124,59 +125,66 @@ function NotificationsPage(props: Props) {
           alignItems: "center",
           paddingHorizontal: 16,
           paddingVertical: 4,
-          gap: 8,
+          gap: 0,
         }}
       >
-        {props.onBack ? (
-          <Pressy
-            accessibilityLabel="返回"
-            onPress={props.onBack}
-            style={{ width: 44, height: 44, justifyContent: "center" }}
-          >
-            <PixelIcon name="back" size={20} color={colors.ink1} />
-          </Pressy>
-        ) : null}
-        <Text
-          accessibilityRole="header"
-          style={{ color: colors.ink1, fontSize: 18 }}
-        >
-          通知
-        </Text>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <CompactTabs
-            value={category}
-            position={position}
-            tone="mint"
-            options={[
-              { id: "creation", label: "制作" },
-              { id: "interaction", label: "互动" },
-            ]}
-            onChange={(value) =>
-              pager.current?.setPage(value === "creation" ? 0 : 1)
-            }
-          />
-        </View>
-        <Pressy
-          accessibilityLabel="将所有通知标记为已读"
-          disabled={marking || !count}
-          onPress={() => void markAll()}
-          style={{
-            width: 44,
-            height: 44,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {marking ? (
-            <LoadingSkeleton />
+        <View style={{ width: 56, height: 44, justifyContent: "center" }}>
+          {props.onBack ? (
+            <Pressy
+              accessibilityLabel="返回"
+              onPress={props.onBack}
+              style={{ width: 44, height: 44, justifyContent: "center" }}
+            >
+              <PixelIcon name="back" size={20} color={colors.ink1} />
+            </Pressy>
           ) : (
-            <PixelIcon
-              name="check"
-              size={20}
-              color={count ? colors.accentText : colors.ink3}
-            />
+            <Text
+              accessibilityRole="header"
+              style={{ color: colors.ink1, fontSize: 18 }}
+            >
+              通知
+            </Text>
           )}
-        </Pressy>
+        </View>
+        <View style={{ flex: 1, minWidth: 0, alignItems: "center" }}>
+          <View style={{ width: 224, maxWidth: "100%" }}>
+            <CompactTabs
+              value={category}
+              position={position}
+              tone="mint"
+              options={[
+                { id: "creation", label: "制作" },
+                { id: "interaction", label: "互动" },
+              ]}
+              onChange={(value) =>
+                pager.current?.setPage(value === "creation" ? 0 : 1)
+              }
+            />
+          </View>
+        </View>
+        <View style={{ width: 56, alignItems: "flex-end" }}>
+          <Pressy
+            accessibilityLabel="将所有通知标记为已读"
+            disabled={marking || !count}
+            onPress={() => void markAll()}
+            style={{
+              width: 44,
+              height: 44,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {marking ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : (
+              <PixelIcon
+                name="check"
+                size={20}
+                color={count ? colors.accentText : colors.ink3}
+              />
+            )}
+          </Pressy>
+        </View>
       </ScreenBar>
       <GestureDetector gesture={native}>
         <AnimatedPager
@@ -216,6 +224,7 @@ function NotificationsContent({
   const { user } = useAccount();
   const count = useNotificationCount();
   const focused = useIsFocused() && active;
+  const seenCount = useRef(count);
   const [page, setPage] = useState<NoticePage>({
     notices: [],
     nextCursor: null,
@@ -377,6 +386,15 @@ function NotificationsContent({
     });
     return () => cancelIdleCallback(idle);
   }, [focused, user?.id]);
+  useEffect(() => {
+    const increased = count > seenCount.current;
+    seenCount.current = count;
+    if (!focused || !increased) return;
+    const idle = requestIdleCallback(() => {
+      void reload.current();
+    });
+    return () => cancelIdleCallback(idle);
+  }, [count, focused]);
   async function act(notice?: Notice) {
     if (writing.current || !user) return;
     writing.current = true;

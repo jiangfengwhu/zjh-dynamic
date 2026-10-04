@@ -126,7 +126,7 @@ function openAuthor(author: PublicAuthor) {
 }
 
 async function openNotice(notice: Notice) {
-  if (notice.kind === "work-success" || notice.kind === "work-failure") {
+  if (notice.kind === "work-success" || notice.kind === "work-failure" || notice.kind === "work-submitted") {
     if (!notice.appId) throw new Error("这条制作通知缺少作品信息");
     await openApplicationWorkshop(
       notice.appId,

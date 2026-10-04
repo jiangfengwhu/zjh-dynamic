@@ -1,4 +1,5 @@
-import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
+import { ActivityIndicator } from "react-native";
+import { PageSkeleton } from "../LoadingSkeleton";
 import { PixelAlert as Alert } from "../PixelAlert";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, Text, TextInput as NativeTextInput, View } from "react-native";
@@ -121,13 +122,13 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail, onBac
             <Text selectable style={{ color: colors.ink1, fontSize: 15, lineHeight: 22 }}>{item.body}</Text>
             <Pressable accessibilityLabel={`回复${item.author.name}`} onPress={() => { if (!writing.current) { setReply(item); input.current?.focus(); } }} style={{ alignSelf: "flex-start", paddingVertical: 10, paddingRight: 12 }}><Text style={{ color: colors.ink3, fontSize: 13 }}>回复</Text></Pressable>
           </View></View>}
-        ListFooterComponent={<View style={{ padding: 16 }}>{error ? <Pressable onPress={() => void load()}><Text style={{ color: colors.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressable> : null}{cursor ? <Pressable disabled={loading} onPress={() => void load(true)} style={{ padding: 12 }}>{loading ? <LoadingSkeleton color={colors.accent} /> : <Text style={{ color: colors.accentText, textAlign: "center" }}>查看更多评论</Text>}</Pressable> : null}</View>} />
+        ListFooterComponent={<View style={{ padding: 16 }}>{error ? <Pressable onPress={() => void load()}><Text style={{ color: colors.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressable> : null}{cursor ? <Pressable disabled={loading} onPress={() => void load(true)} style={{ padding: 12 }}>{loading ? <ActivityIndicator color={colors.accent} /> : <Text style={{ color: colors.accentText, textAlign: "center" }}>查看更多评论</Text>}</Pressable> : null}</View>} />
       </PullRefreshSurface>
       </View>
       <View style={{ padding: 12, backgroundColor: colors.surface, borderTopWidth: 0.5, borderTopColor: colors.line, gap: 8 }}>
         {reply ? <Pressable disabled={sending} onPress={() => setReply(null)}><Text style={{ color: colors.accentText }}>回复 {reply.author.name} · 取消</Text></Pressable> : null}
         <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}><TextInput ref={input} onFocus={() => { jumped.current = true; }} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="写下你的评论…" placeholderTextColor={colors.ink3} style={{ flex: 1, color: colors.ink1, fontSize: 15, maxHeight: 120, minHeight: 42, padding: 10, backgroundColor: colors.field, borderRadius: colors.radius.sm }} />
-          <Pressy accessibilityRole="button" accessibilityLabel="发送评论" disabled={!draftReady || sending || !!deleting || !text.trim() || count > 1000} onPress={() => void send()} style={{ backgroundColor: colors.accent, borderRadius: colors.radius.sm, minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, opacity: !text.trim() || count > 1000 || !!deleting ? 0.4 : 1 }}>{sending ? <LoadingSkeleton size="small" color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontWeight: "700" }}>发送</Text>}</Pressy></View>
+          <Pressy accessibilityRole="button" accessibilityLabel="发送评论" disabled={!draftReady || sending || !!deleting || !text.trim() || count > 1000} onPress={() => void send()} style={{ backgroundColor: colors.accent, borderRadius: colors.radius.sm, minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, opacity: !text.trim() || count > 1000 || !!deleting ? 0.4 : 1 }}>{sending ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontWeight: "700" }}>发送</Text>}</Pressy></View>
         {count > 800 ? <Text style={{ color: count > 1000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 12 }}>{count}/1000</Text> : null}
       </View>
     </KeyboardViewport>

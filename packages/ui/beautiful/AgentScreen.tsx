@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   StyleSheet,
@@ -10,7 +11,6 @@ import {
 } from "react-native";
 import { EdgeModal as Modal } from "../edge";
 import { Button } from "../shadcn/Button";
-import { Skeleton } from "../shadcn/Skeleton";
 import { theme, themedStyleSheet, useTheme } from "../theme";
 
 /* ─────────────────────────────────────────────────────────
@@ -122,17 +122,11 @@ export function AgentScreen({
       >
         {loading ? (
           <View style={styles.loadingScreen}>
-            <Skeleton height={80} style={{ backgroundColor: theme.line }} />
-            <Text style={styles.loadingText}>
-              Connecting to agent&apos;s screen
-            </Text>
+            <ActivityIndicator color={theme.ink1} size="small" />
+            <Text style={styles.loadingText}>Connecting to agent&apos;s screen</Text>
           </View>
         ) : streamSrc ? (
-          <Image
-            source={{ uri: streamSrc }}
-            style={styles.streamImage}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: streamSrc }} style={styles.streamImage} resizeMode="cover" />
         ) : (
           <FauxWindow />
         )}
