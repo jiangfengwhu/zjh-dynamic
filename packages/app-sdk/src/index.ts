@@ -27,6 +27,7 @@ export type ApplicationManifest = {
   version: string;
   title: string;
   summary: string;
+  releaseNotes?: string;
   mark: string;
   accent: string;
   dataSchemaVersion: number;

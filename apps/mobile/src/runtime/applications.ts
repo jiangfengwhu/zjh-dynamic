@@ -9,6 +9,7 @@ import type { PendingPackage } from "../shell/packageUpdates";
 
 export type ApplicationManifest = {
   format: number; appId: string; releaseId: string; title: string; summary: string; mark: string; accent: string;
+  releaseNotes?: string;
   requires: { engineAbi: string; sdk: string; shared: Record<string, string> };
   modules: { base: number; size: number };
   bundle: { sha256: string; bytes: number };

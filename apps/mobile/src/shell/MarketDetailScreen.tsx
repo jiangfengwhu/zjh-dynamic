@@ -120,6 +120,7 @@ function MarketDetailContent({
   const [installed, setInstalled] = useState(false);
   const [release, setRelease] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [localReady, setLocalReady] = useState(false);
   const [ownershipReady, setOwnershipReady] = useState(false);
@@ -152,6 +153,9 @@ function MarketDetailContent({
   usePreventRemove(busy, () =>
     Toast.show({ type: "info", text1: "正在处理，请稍候" })
   );
+  useEffect(() => {
+    if (saved && !busy && publication) onBack();
+  }, [saved, busy, publication, onBack]);
   const scroll = useRef<KeyboardAwareScrollViewRef>(null);
   const mutation = useRef(false);
   async function modify() {
@@ -477,6 +481,7 @@ function MarketDetailContent({
       setBaseline(formValue);
       setSharing(state);
       setPublishLatest(false);
+      setSaved(true);
       setShareNotice(
         mode === "edit"
           ? "分享信息已保存，公开版本保持不变。"
@@ -1104,6 +1109,16 @@ function MarketDetailContent({
                     </View>
                   ) : null}
                 </View>
+                {typeof (ownsSurface ? latest : app).releaseNotes ===
+                  "string" &&
+                (ownsSurface ? latest : app).releaseNotes?.trim() ? (
+                  <View style={styles.description}>
+                    <Text style={styles.subtitle}>本次更新</Text>
+                    <Text style={styles.copy}>
+                      {(ownsSurface ? latest : app).releaseNotes}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={styles.tools}>
                   <Pressy
                     disabled={

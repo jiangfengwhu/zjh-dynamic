@@ -126,7 +126,11 @@ function openAuthor(author: PublicAuthor) {
 }
 
 async function openNotice(notice: Notice) {
-  if (notice.kind === "work-success" || notice.kind === "work-failure" || notice.kind === "work-submitted") {
+  if (
+    notice.kind === "work-success" ||
+    notice.kind === "work-failure" ||
+    notice.kind === "work-submitted"
+  ) {
     if (!notice.appId) throw new Error("这条制作通知缺少作品信息");
     await openApplicationWorkshop(
       notice.appId,
@@ -348,13 +352,12 @@ function BundlePage({
     },
     [id]
   );
-  const Page = id === bootstrap.defaultApplication ? View : Screen;
   return (
-    <Page style={{ flex: 1, backgroundColor: colors.canvas }}>
+    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
       <View style={styles.feature} onLayout={ready}>
         {render(id, goBack)}
       </View>
-    </Page>
+    </View>
   );
 }
 
@@ -769,28 +772,10 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     route.params?.creation
                   );
                 }}
-                onCreated={(appId) => {
+                onCreated={() => {
                   if (shellNavigationRef.getCurrentRoute()?.key !== route.key)
                     return;
-                  void (async () => {
-                    try {
-                      if (
-                        !(await openApplicationWorkshop(
-                          appId,
-                          "这次制作",
-                          false,
-                          false
-                        ))
-                      )
-                        throw new Error("制作已提交，可在我的作品中查看进度");
-                    } catch {
-                      Toast.show({
-                        type: "success",
-                        text1: "已开始制作",
-                        text2: "可在我的作品中查看进度",
-                      });
-                    }
-                  })();
+                  goBack();
                 }}
                 initialMode={route.params?.mode}
                 creation={route.params?.creation}
