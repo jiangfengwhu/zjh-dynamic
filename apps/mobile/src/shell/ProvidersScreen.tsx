@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { useDiscardChanges, confirmDiscard } from "./useDiscardChanges";
-import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import Toast from "react-native-toast-message";
 import { Icon, PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
@@ -33,9 +32,12 @@ const empty = {
   isDefault: false,
 };
 
+// Keep only display metadata in memory; API keys stay in native storage.
+let cachedProviders: AiProvider[] | undefined;
+
 export function ProvidersScreen({ onBack }: Props) {
   const { colors } = useTheme();
-  const [items, setItems] = useState<AiProvider[]>([]);
+  const [items, setItems] = useState<AiProvider[]>(() => cachedProviders ?? []);
   const [draft, setDraft] = useState(empty);
   const [editing, setEditing] = useState(false);
   const [baseline, setBaseline] = useState(empty);
@@ -43,7 +45,9 @@ export function ProvidersScreen({ onBack }: Props) {
   useDiscardChanges(dirty);
   function selectDraft(next: typeof empty) { const apply = () => { setDraft(next); setBaseline(next); setEditing(true); }; if (dirty) confirmDiscard(apply); else apply(); }
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
+  const [loaded, setLoaded] = useState(cachedProviders !== undefined);
+  const [attempt, setAttempt] = useState(0);
   const contentReady = useRouteContentReady();
   const working = useRef(false); const alive = useRef(true);
   function fail(reason: unknown) {
@@ -55,16 +59,17 @@ export function ProvidersScreen({ onBack }: Props) {
   async function reload() {
     const result = await shellProviders();
     if (!result.ok) throw new Error("无法读取 AI 引擎，请重试");
-    if (alive.current) setItems(result.items ?? []);
+    cachedProviders = (result.items ?? []).map(item => ({ ...item, apiKey: "" }));
+    if (alive.current) { setItems(cachedProviders); setLoaded(true); }
   }
 
   useEffect(() => {
     if (!contentReady) return;
     alive.current = true;
-    working.current = true; setBusy(true);
+    working.current = true; setBusy(true); setError("");
     void reload().catch(fail).finally(() => { working.current = false; if (alive.current) setBusy(false); });
     return () => { alive.current = false; };
-  }, [contentReady]);
+  }, [contentReady, attempt]);
 
   async function save() {
     if (working.current) return;
@@ -114,12 +119,13 @@ export function ProvidersScreen({ onBack }: Props) {
     <Screen style={styles.screen}>
       <PageHeader
         title="AI 引擎"
-        caption={items.length > 0 ? `已接入 ${items.length} 个` : "接入一个模型，小结和创作都会用到"}
+        caption="管理创作和动态小结使用的模型"
         onBack={onBack}
         right={<Pressy accessibilityLabel="添加 AI 引擎" style={styles.add} disabled={busy} onPress={() => selectDraft(empty)}><Icon name="plus" size={20} color={colors.accentText} /></Pressy>}
       />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {!loaded ? <Surface style={styles.loading}><Text style={styles.meta}>{error || "正在读取本机引擎配置"}</Text>{error ? <Pressy accessibilityRole="button" accessibilityLabel="重试读取引擎配置" onPress={() => setAttempt(value => value + 1)} style={styles.retry}><Text style={styles.resetText}>重试</Text></Pressy> : <ActivityIndicator color={colors.accent} />}</Surface> : null}
         {error && !editing && items.length ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
         {items.length > 0 ? (
           <View style={styles.block}>
@@ -127,7 +133,7 @@ export function ProvidersScreen({ onBack }: Props) {
             {items.map((item) => {
               const selected = draft.id === item.id;
               return (
-                <Animated.View key={item.id} entering={FadeInDown.duration(180).reduceMotion(ReduceMotion.System)}>
+                <View key={item.id}>
                   <Surface
                     tone={selected ? "raised" : "base"}
                     style={[
@@ -176,13 +182,13 @@ export function ProvidersScreen({ onBack }: Props) {
                     </Pressy>
                   </Surface>
                   <Pressy disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("验证引擎连接", "将发送一条简短请求，可能消耗少量模型额度。", [{ text: "取消", style: "cancel" }, { text: "验证", onPress: () => void verify(item) }])} style={styles.verify}><Text style={{ color: colors.accentText, fontSize: 12 }}>验证连接</Text></Pressy>
-                </Animated.View>
+                </View>
               );
             })}
           </View>
         ) : null}
 
-        {editing || !items.length ? <>
+        {editing || (loaded && !items.length) ? <>
         <SectionTitle>{draft.id ? "编辑引擎" : "添加引擎"}</SectionTitle>
         <Surface tone="raised" radius={colors.radius.xl} style={styles.form}>
           {draft.id ? (
@@ -234,17 +240,17 @@ export function ProvidersScreen({ onBack }: Props) {
           </View>
 
           {error ? (
-            <Animated.View style={styles.errorRow}>
+            <View style={styles.errorRow}>
               <Icon name="alert" size={16} color={colors.redText} />
               <Text style={styles.error}>{error}</Text>
-            </Animated.View>
+            </View>
           ) : null}
 
           <Pressy disabled={busy} accessibilityRole="button" onPress={() => void save()} style={styles.save}>
             {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.saveLabel}>{draft.id ? "保存修改" : "保存配置"}</Text>}
           </Pressy>
         </Surface>
-        </> : <Text style={styles.meta}>平台和应用共用这些配置；点击引擎编辑，右上角添加。</Text>}
+        </> : loaded ? <Text style={styles.meta}>平台和应用共用这些配置；点击引擎编辑，右上角添加。</Text> : null}
       </ScrollView>
     </Screen>
   );
@@ -261,6 +267,8 @@ const styles = themedStyleSheet((t) => ({
     paddingBottom: 12,
     gap: 8,
   },
+  loading: { minHeight: 88, padding: 12, gap: 8, justifyContent: "center" },
+  retry: { minHeight: 44, justifyContent: "center" },
   add: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: t.radius.sm, backgroundColor: t.accentTint },
   verify: { alignSelf: "flex-end", paddingHorizontal: 12 },
   block: {

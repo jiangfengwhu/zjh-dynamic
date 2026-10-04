@@ -1,5 +1,3 @@
-import { useRouteContentReady } from "./useRouteContentReady";
-import { PageSkeleton } from "./LoadingSkeleton";
 import { ActivityIndicator } from "react-native";
 import { syncNotificationCount } from "./feed/notifications";
 import { useEffect, useRef, useState } from "react";
@@ -44,16 +42,10 @@ export function PublicationScreen(
   props: Parameters<typeof PublicationContent>[0]
 ) {
   const theme = usePixelTheme();
-  const contentReady = useRouteContentReady();
   return (
     <ThemeContext.Provider value={theme}>
       <ScreenEdge bottom={false}>
-        {contentReady ? <PublicationContent {...props} /> : (
-          <Screen style={{ flex: 1, backgroundColor: theme.colors.canvas }}>
-            <PageHeader variant="pixel" title={props.creation || props.initialMode === "create" ? "制作应用" : "发布"} onBack={props.onBack} />
-            <View style={{ padding: 16 }}><PageSkeleton rows={3} /></View>
-          </Screen>
-        )}
+        <PublicationContent {...props} />
       </ScreenEdge>
     </ThemeContext.Provider>
   );
