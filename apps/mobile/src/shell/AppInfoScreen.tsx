@@ -1,3 +1,4 @@
+import { useRouteContentReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -26,7 +27,8 @@ const kindLabel: Record<PackageKind, string> = {
 
 export function AppInfoScreen({ onBack }: Props) {
   const { colors } = useTheme();
-  const focused = useIsFocused();
+  const contentReady = useRouteContentReady();
+  const focused = useIsFocused() && contentReady;
   const [items, setItems] = useState<InstalledPackage[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);

@@ -4,13 +4,12 @@ import { PixelAlert as Alert } from "../PixelAlert";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, Text, TextInput as NativeTextInput, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
-import Animated, { useAnimatedScrollHandler, useSharedValue, useReducedMotion } from "react-native-reanimated";
+import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { KeyboardViewport } from "../KeyboardViewport";
-import { useNavigation, usePreventRemove, type ParamListBase } from "@react-navigation/native";
+import { usePreventRemove } from "@react-navigation/native";
 import { readShellValue, writeShellValue, removeShellValue } from "../shellStorage";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { Screen, ScreenEdge } from "../../../../../packages/ui/edge";
@@ -21,6 +20,7 @@ import { UserPostCard } from "./UserPostCard";
 import { PullRefreshSurface } from "./PullRefreshSurface";
 import { usePullToRefresh } from "./pullToRefresh";
 import { usePixelTheme } from "./pixelTheme";
+import { useRouteContentReady } from "../useRouteContentReady";
 import { PostMenu } from "./PostMenu";
 
 const when = (at: number) => new Date(at).toLocaleString();
@@ -33,9 +33,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail, onBac
   const trackScroll = useAnimatedScrollHandler(event => { scrollY.value = Math.max(0, event.contentOffset.y); });
   const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => load(false, true) });
   const { colors } = useTheme(); const { user } = useAccount(); const timeline = useUserPosts();
-  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
-  const reduceMotion = useReducedMotion();
-  const [entered, setEntered] = useState(reduceMotion);
+  const entered = useRouteContentReady();
   const [fallback, setFallback] = useState(initialPost); const post = timeline.posts.find(item => item.id === initialPost.id) ?? fallback;
   const [comments, setComments] = useState<UserComment[]>(initialDetail?.comments ?? []); const [cursor, setCursor] = useState<string | null>(initialDetail?.nextCursor ?? null);
   const [loading, setLoading] = useState(!initialDetail); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState(""); const [text, setText] = useState("");
@@ -78,9 +76,6 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail, onBac
     finally { reading.current = false; if (alive.current) { setLoading(false); setRefreshing(false); if (before !== version.current && !writing.current) void load(); } }
   }
   useEffect(() => () => { alive.current = false; }, []);
-  useEffect(() => navigation.addListener("transitionEnd", event => {
-    if (!event.data.closing) setEntered(true);
-  }), [navigation]);
   // Comment mounts and timeline broadcasts must not compete with the entrance animation.
   useEffect(() => { if (!entered) return; version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } if (skipInitial.current) { skipInitial.current = false; updateUserPost(initialDetail!.post); } else void load(); }, [entered, user?.id]);
   function updated(post: UserPost) { version.current++; setFallback(post); }

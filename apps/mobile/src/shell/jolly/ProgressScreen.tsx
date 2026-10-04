@@ -417,7 +417,7 @@ function ProgressContent({
               <Text
                 style={{ fontSize: 11, lineHeight: 18, color: colors.ink3 }}
               >
-                无需守在这里，完成或失败都会收到站内通知。
+                点击右上角手动刷新进度，完成或失败后可到通知页查看。
               </Text>
             ) : null}
           </>

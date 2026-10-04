@@ -9,18 +9,6 @@ export type PendingPackage = {
   sha256: string;
 };
 
-const WATCH_MS = 30 * 60 * 1000;
-let watchTimer: ReturnType<typeof setInterval> | undefined;
-
-export function startReleaseWatch(onCheck: () => void) {
-  if (watchTimer) return;
-  watchTimer = setInterval(() => {
-    console.log("release watch tick");
-    onCheck();
-  }, WATCH_MS);
-  console.log("release watch every", WATCH_MS);
-}
-
 export async function checkPackageUpdates(): Promise<PendingPackage[]> {
   // 当前 APK 会吞掉下载错误；先确认线上版本，避免把下载失败当作没有更新。
   const response = await fetch(`${edgeUrl}/v1/release`);

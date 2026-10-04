@@ -83,6 +83,8 @@ type Page = {
   nextCursor: string | null;
   reactionOwnerId?: string;
   unreadCount?: number;
+  loaded?: boolean;
+  at?: number;
 };
 type LikeSettlement = { post: UserPost; error?: unknown };
 type PendingLike = {
@@ -140,6 +142,13 @@ let followingPage: Page = { posts: [], nextCursor: null };
 let followingRevision = 0;
 let followingRefresh: Promise<void> | undefined;
 let followingPaging: Promise<void> | undefined;
+export function userPostsLoaded(scope: FeedScope) {
+  return !!(scope === "following" ? followingPage : value).loaded;
+}
+export function shouldRefreshUserPosts(scope: FeedScope) {
+  const page = scope === "following" ? followingPage : value;
+  return !page.loaded || !page.at || Date.now() - page.at > 60000;
+}
 const followingListeners = new Set<(page: Page) => void>();
 function saveFollowing(page: Page) {
   followingPage = { ...page, posts: page.posts.map(withPendingLike) };
@@ -170,10 +179,13 @@ async function refreshFollowing() {
   if (followingRefresh) return followingRefresh;
   followingRefresh = (async () => {
     const before = followingRevision;
+    const countBefore = notificationRevision();
     const page = await readSocial<Page>("/v1/posts?feed=following");
+    if (before === followingRevision && page.unreadCount !== undefined)
+      updateNotificationCount(page.unreadCount, countBefore);
     if (before === followingRevision) {
       followingRevision++;
-      saveFollowing(page);
+      saveFollowing({ ...page, loaded: true, at: Date.now() });
     }
   })().finally(() => {
     followingRefresh = undefined;
@@ -194,6 +206,7 @@ async function loadMoreFollowing() {
     const known = new Set(followingPage.posts.map((post) => post.id));
     followingRevision++;
     saveFollowing({
+      ...followingPage,
       posts: [
         ...followingPage.posts,
         ...page.posts.filter((post) => !known.has(post.id)),
@@ -247,7 +260,7 @@ export function refreshUserPosts(
     const page = await requestPage();
     if (before === revision) {
       revision++;
-      save(page);
+      save({ ...page, loaded: true, at: Date.now() });
     }
   })().finally(() => {
     refreshing = undefined;
@@ -268,6 +281,7 @@ export function loadMoreUserPosts(
     const known = new Set(value.posts.map((post) => post.id));
     revision++;
     save({
+      ...value,
       posts: [
         ...value.posts,
         ...page.posts.filter((post) => !known.has(post.id)),

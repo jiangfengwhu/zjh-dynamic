@@ -156,35 +156,13 @@ export function useProgress(
   }, [service, appId, scope]);
 
   useEffect(() => {
-    if (!active || !service) return;
+    if (!active || !service || loaded) return;
     const task = requestIdleCallback(() => {
+      if (appId && valid()) context.storage.set("workshopTarget", appId);
       void refresh();
     });
     return () => cancelIdleCallback(task);
-  }, [active, service, refresh]);
-  useEffect(() => {
-    if (!active || (!snapshot && !error)) return;
-    const state = snapshot ? progressState(snapshot.detail) : "queued";
-    if (
-      !snapshot?.detail.stale &&
-      !error &&
-      !["queued", "making", "packing"].includes(state)
-    )
-      return;
-    let pending: ReturnType<typeof requestIdleCallback> | undefined;
-    const timer = setInterval(() => {
-      if (!activeRef.current) return;
-      if (pending !== undefined) return;
-      pending = requestIdleCallback(() => {
-        pending = undefined;
-        void refresh();
-      });
-    }, 10000);
-    return () => {
-      clearInterval(timer);
-      if (pending !== undefined) cancelIdleCallback(pending);
-    };
-  }, [active, snapshot, error, refresh]);
+  }, [active, service, refresh, loaded]);
   useEffect(() => {
     if (!active || !appId || !snapshot) return;
     let cancelled = false;

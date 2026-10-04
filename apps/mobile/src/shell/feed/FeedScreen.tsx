@@ -39,6 +39,8 @@ import { usePullToRefresh } from "./pullToRefresh";
 import {
   useUserPosts,
   refreshUserPosts,
+  userPostsLoaded,
+  shouldRefreshUserPosts,
   loadMoreUserPosts,
   type UserPost,
 } from "./userPosts";
@@ -140,7 +142,7 @@ export const FeedScreen = memo(function FeedScreen({
 
   useFocusEffect(
     useCallback(() => {
-      if (kind === "installed") return;
+      if (kind === "installed" || !shouldRefreshUserPosts(kind)) return;
       const task = requestIdleCallback(() => {
         setTimelineLoading((previous) => ({ ...previous, [kind]: true }));
         void refreshUserPosts(kind)
@@ -442,13 +444,14 @@ export const FeedScreen = memo(function FeedScreen({
                                   }
                                   ListEmptyComponent={
                                     timelineLoading[pageKind] &&
+                                    !userPostsLoaded(pageKind) &&
                                     (pageKind !== "following" || user) ? (
                                       <View style={{ padding: 16 }}>
                                         <PageSkeleton rows={4} />
                                       </View>
                                     ) : (
                                       <View style={styles.empty}>
-                                        <PixelAvatar size={80} />
+                                        {pageKind !== "following" ? <PixelAvatar size={80} /> : null}
                                         <Text style={styles.emptyTitle}>
                                           {pageKind === "following"
                                             ? user
@@ -464,7 +467,7 @@ export const FeedScreen = memo(function FeedScreen({
                                             : "分享一个想法，记录你的创造。"}
                                         </Text>
                                         <Pressy
-                                          accessibilityLabel="发布第一条动态"
+                                          accessibilityLabel={pageKind === "following" ? user ? "去发现创作者" : "登录" : "发布第一条动态"}
                                           onPress={
                                             pageKind === "following"
                                               ? user
@@ -480,7 +483,7 @@ export const FeedScreen = memo(function FeedScreen({
                                           style={styles.compose}
                                         >
                                           <PixelIcon
-                                            name="plus"
+                                            name={pageKind === "following" ? "search" : "plus"}
                                             size={14}
                                             color={colors.onAccent}
                                           />

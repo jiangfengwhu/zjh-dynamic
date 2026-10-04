@@ -1,3 +1,4 @@
+import { useRouteContentReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
 import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
@@ -43,6 +44,7 @@ export function ProvidersScreen({ onBack }: Props) {
   function selectDraft(next: typeof empty) { const apply = () => { setDraft(next); setBaseline(next); setEditing(true); }; if (dirty) confirmDiscard(apply); else apply(); }
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const contentReady = useRouteContentReady();
   const working = useRef(false); const alive = useRef(true);
   function fail(reason: unknown) {
     if (!alive.current) return;
@@ -57,11 +59,12 @@ export function ProvidersScreen({ onBack }: Props) {
   }
 
   useEffect(() => {
+    if (!contentReady) return;
     alive.current = true;
     working.current = true; setBusy(true);
     void reload().catch(fail).finally(() => { working.current = false; if (alive.current) setBusy(false); });
     return () => { alive.current = false; };
-  }, []);
+  }, [contentReady]);
 
   async function save() {
     if (working.current) return;

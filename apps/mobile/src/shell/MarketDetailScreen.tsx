@@ -41,6 +41,7 @@ import {
 } from "../runtime/applications";
 
 import {
+  fetchPublicMarketApplication,
   cachedSharing,
   loadSharing,
   editMarketApplication,
@@ -57,6 +58,7 @@ import { PixelText as Text } from "./feed/PixelText";
 import { PixelIcon } from "./feed/PixelKit";
 import { pixelTheme, usePixelTheme } from "./feed/pixelTheme";
 import { KeyboardViewport } from "./KeyboardViewport";
+import { AsyncRouteScreen } from "./AsyncRouteScreen";
 import { useRouteContentReady } from "./useRouteContentReady";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export function MarketPublicationScreen(
@@ -76,6 +78,15 @@ export function MarketPublicationScreen(
 export function MarketDetailScreen(
   props: Parameters<typeof MarketDetailContent>[0]
 ) {
+  if (!props.item.latest && !props.item.owned) return (
+    <AsyncRouteScreen key={props.item.manifest.appId} title="应用详情" onBack={props.onBack}
+      load={() => fetchPublicMarketApplication(props.item.manifest.appId)}>
+      {item => <LoadedMarketDetail {...props} item={item} />}
+    </AsyncRouteScreen>
+  );
+  return <LoadedMarketDetail {...props} />;
+}
+function LoadedMarketDetail(props: Parameters<typeof MarketDetailContent>[0]) {
   const theme = usePixelTheme();
   return (
     <ThemeContext.Provider value={theme}>
@@ -158,28 +169,13 @@ function MarketDetailContent({
   }, [saved, busy, publication, onBack]);
   const scroll = useRef<KeyboardAwareScrollViewRef>(null);
   const mutation = useRef(false);
-  async function modify() {
-    if (mutation.current) return;
-    mutation.current = true;
-    setBusy(true);
-    try {
-      if (!(await requireAccount())) return;
-      const ownerId = await currentAccountId();
-      if (!ownerId) return;
-      const manifest =
-        (installed ? runningApplication(app.appId) : undefined) ??
-        (owner ? sharing?.application : undefined) ??
-        app;
-      onModify(manifest, ownerId, !owner);
-    } catch (e) {
-      Toast.show({
-        type: "error",
-        text1: e instanceof Error ? e.message : "无法打开反馈页",
-      });
-    } finally {
-      mutation.current = false;
-      if (alive.current) setBusy(false);
-    }
+  function modify() {
+    const ownerId = user?.id;
+    if (!ownerId) { void requireAccount(); return; }
+    const manifest =
+      (installed ? runningApplication(app.appId) : undefined) ??
+      (owner ? sharing?.application : undefined) ?? app;
+    onModify(manifest, ownerId, !owner);
   }
   useEffect(() => {
     if (!contentReady) return;

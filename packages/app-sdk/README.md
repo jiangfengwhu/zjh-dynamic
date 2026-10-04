@@ -117,7 +117,7 @@ getAppContext() 提供存储、文件、资源、动态、导航、剪贴板、�
 
 AI 使用 getAppContext().ai：listProviders() 获取模型信息，complete({ messages, providerId?, temperature?, maxTokens? }) 请求文本，openSettings() 打开宿主配置页。密钥由原生宿主保存，请求从本机发送至用户配置的服务商；不向应用暴露密钥。失败保留输入并提示，不自动重试；当前不支持流式、图片或工具调用，完整参数和结果见 SDK 类型。
 
-@zijinhua/app-sdk/creation 提供宿主授权给 Jolly 的制作服务，普通应用不能直接获得制作权限。服务按 appId 绑定 session，读取聚合进展和历史，只检查或更新目标应用。缓存用于展示，不代替写操作的实时鉴权。
+@zijinhua/app-sdk/creation 提供宿主授权给 Jolly 的制作服务，普通应用不能直接获得制作权限。服务按 appId 绑定 session，读取聚合进展和历史，只检查或更新目标应用。缓存用于展示，不代替写操作的实时鉴权。制作提交只提交任务；旧 `watchJulesSession` 入口执行一次显式查询并返回当前结果，不启动自动轮询。进度页首次读取后仅通过手动刷新查询，交付与终态通知由服务端负责。
 
 ### 动态内容模板
 

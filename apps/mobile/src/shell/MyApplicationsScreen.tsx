@@ -216,22 +216,12 @@ export function MyApplicationsScreen({
       "workspaces",
       reload
     );
-    const timer = setInterval(() => {
-      if (
-        scope === "works" &&
-        works.some((work) =>
-          ["making", "reply", "load", "blocked"].includes(work.stage)
-        )
-      )
-        reload();
-    }, 30000);
     return () => {
       if (idle !== undefined) cancelIdleCallback(idle);
       appState.remove();
       offCatalog();
       offSharing();
       offWorks();
-      clearInterval(timer);
     };
   }, [focused, user?.id, scope, works]);
   async function workshop(work: MyWork) {

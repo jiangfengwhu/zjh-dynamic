@@ -53,7 +53,6 @@ import { UpdateBanner } from "./src/shell/UpdateBanner";
 import {
   applyPackageUpdates,
   checkPackageUpdates,
-  startReleaseWatch,
   updateSignature,
   type PendingPackage,
 } from "./src/shell/packageUpdates";
@@ -192,7 +191,6 @@ function ShellApp() {
         if (!disposed) void refreshUpdates();
       });
     };
-    startReleaseWatch(deferUpdates);
     const timer = setTimeout(() => {
       idle = requestIdleCallback(() => {
         idle = undefined;

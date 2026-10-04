@@ -139,7 +139,7 @@ export function useNotificationCount() {
   }, []);
   return value;
 }
-/** One foreground poller for the shell; anonymous/background sessions make no requests. */
+/** Event-driven sync only; no periodic Worker requests. */
 export function useNotificationSync() {
   useEffect(() => {
     let pending: ReturnType<typeof requestIdleCallback> | undefined;
@@ -152,14 +152,12 @@ export function useNotificationSync() {
       });
     };
     sync();
-    const timer = setInterval(sync, 30000);
     const app = AppState.addEventListener("change", (state) => {
       if (state === "active") sync();
     });
     const off = subscribeAccountIdentity(() => sync());
     return () => {
       if (pending !== undefined) cancelIdleCallback(pending);
-      clearInterval(timer);
       app.remove();
       off();
     };

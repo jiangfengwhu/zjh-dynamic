@@ -1,4 +1,3 @@
-import { ActivityIndicator } from "react-native";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, ScrollView, TextInput, View } from "react-native";
@@ -29,7 +28,6 @@ import { loadCatalog, subscribeCatalog } from "./catalog";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import {
   fetchMarketPage,
-  fetchPublicMarketApplication,
   readMarketView,
   rememberMarketView,
   marketViewKey,
@@ -265,9 +263,6 @@ function MarketDiscovery({
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const edited = useRef(false);
-  const opening = useRef(false);
-  const [openingId, setOpeningId] = useState<string>();
-  const retryDetail = useRef<MarketApplication | undefined>(undefined);
   const list = useRef<FlatList<MarketApplication>>(null);
   const generation = useRef(0);
   const loading = useRef(false);
@@ -313,7 +308,6 @@ function MarketDiscovery({
     setBusy(true);
     setPulling(manual);
     setError("");
-    retryDetail.current = undefined;
     const before = current.current.view;
     try {
       const page = await fetchMarketPage(
@@ -408,27 +402,7 @@ function MarketDiscovery({
     void loadCatalog().then(update);
     return subscribeCatalog(update);
   }, []);
-  const open = useCallback(
-    async (item: MarketApplication) => {
-      if (opening.current) return;
-      opening.current = true;
-      setOpeningId(item.manifest.appId);
-      const token = generation.current;
-      try {
-        const fresh = await fetchPublicMarketApplication(item.manifest.appId);
-        if (token === generation.current) onDetail(fresh);
-      } catch (e) {
-        if (token === generation.current) {
-          retryDetail.current = item;
-          setError(e instanceof Error ? e.message : "详情加载失败");
-        }
-      } finally {
-        opening.current = false;
-        setOpeningId(undefined);
-      }
-    },
-    [onDetail]
-  );
+  const open = useCallback((item: MarketApplication) => onDetail(item), [onDetail]);
   const installedIds = useMemo(() => new Set(installed), [installed]);
   return (
     <View style={[styles.screen, { backgroundColor: colors.canvas }]}>
@@ -524,9 +498,7 @@ function MarketDiscovery({
               {error ? (
                 <Pressy
                   onPress={() => {
-                    const failed = retryDetail.current;
-                    if (failed) void open(failed);
-                    else void load(true);
+                    void load(true);
                   }}
                 >
                   <Text style={styles.error}>{error} · 点此重试</Text>
@@ -538,7 +510,6 @@ function MarketDiscovery({
             <MarketApplicationRow
               item={item}
               installed={installedIds.has(item.manifest.appId)}
-              busy={openingId === item.manifest.appId}
               onOpen={open}
               onAuthor={onAuthor}
             />
@@ -611,14 +582,12 @@ function MarketDiscovery({
 const MarketApplicationRow = memo(function MarketApplicationRow({
   item,
   installed,
-  busy,
   onOpen,
   onAuthor,
 }: {
   item: MarketApplication;
   installed: boolean;
-  busy: boolean;
-  onOpen: (item: MarketApplication) => Promise<void>;
+  onOpen: (item: MarketApplication) => void;
   onAuthor: MarketProps["onAuthor"];
 }) {
   const { colors } = useTheme();
@@ -706,15 +675,11 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
           { backgroundColor: installed ? colors.greenTint : colors.cyanTint },
         ]}
       >
-        {busy ? (
-          <ActivityIndicator size="small" color={colors.cyanText} />
-        ) : (
-          <PixelIcon
-            name={installed ? "check" : "arrow"}
-            size={16}
-            color={installed ? colors.greenText : colors.cyanText}
-          />
-        )}
+        <PixelIcon
+          name={installed ? "check" : "arrow"}
+          size={16}
+          color={installed ? colors.greenText : colors.cyanText}
+        />
         <Text
           style={{
             fontSize: 10,

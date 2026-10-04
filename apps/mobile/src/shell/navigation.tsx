@@ -10,6 +10,8 @@ import {
   useKeyboardOpen,
 } from "../../../../packages/ui/edge";
 import {
+  useIsFocused,
+  useRoute,
   NavigationContainer,
   DefaultTheme,
   createNavigationContainerRef,
@@ -50,7 +52,7 @@ import {
   useProfileDrawer,
 } from "./ProfileDrawer";
 import { MineScreen } from "./MineScreen";
-import { requireAccount, currentAccountId } from "./account";
+import { requireAccount, currentAccountId, cachedAccountId } from "./account";
 import { readShellValue, removeShellValue } from "./shellStorage";
 import { AccountScreen } from "./AccountScreen";
 import { ProvidersScreen } from "./ProvidersScreen";
@@ -62,6 +64,7 @@ import {
   type ThemeMode,
 } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
+import { AsyncRouteScreen } from "./AsyncRouteScreen";
 import { openFeature } from "../../../../packages/features/src/registry";
 import Toast from "react-native-toast-message";
 import { PublicationScreen } from "./PublicationScreen";
@@ -92,6 +95,8 @@ import JollyProgressScreen from "./jolly/ProgressScreen";
 import { ShellTabScene } from "./ShellTabScene";
 
 export type RootParamList = {
+  applicationLink: { appId: string };
+  noticePost: { postId: string; commentId?: string };
   workshopProgress: { appId?: string; title?: string; ownerId: string };
   tabs: NavigatorScreenParams<TabParamList> | undefined;
   providers: undefined;
@@ -140,22 +145,8 @@ async function openNotice(notice: Notice) {
     );
     return true;
   }
-  const origin = shellNavigationRef.getCurrentRoute()?.key;
-  const detail = await fetchPostDetail(
-    notice.postId,
-    undefined,
-    notice.commentId
-  );
-  if (
-    !shellNavigationRef.isReady() ||
-    shellNavigationRef.getCurrentRoute()?.key !== origin
-  )
-    return false;
-  shellNavigationRef.navigate("postDetail", {
-    post: detail.post,
-    commentId: notice.commentId,
-    initialDetail: detail,
-  });
+  if (!shellNavigationRef.isReady()) return false;
+  shellNavigationRef.navigate("noticePost", { postId: notice.postId, commentId: notice.commentId });
   return true;
 }
 
@@ -180,99 +171,33 @@ function NotificationsTab({
 
 const Stack = createNativeStackNavigator<RootParamList>();
 const Tabs = createMaterialTopTabNavigator<TabParamList>();
-const mountedBundles = new Set<string>();
-const mountWaiters = new Map<string, Set<() => void>>();
-let openingRequest = 0;
-
-function waitForBundleMount(id: string): Promise<void> {
-  if (mountedBundles.has(id)) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const waiters = mountWaiters.get(id) ?? new Set<() => void>();
-    const finish = () => {
-      clearTimeout(timer);
-      waiters.delete(finish);
-      if (!waiters.size) mountWaiters.delete(id);
-      resolve();
-    };
-    const timer = setTimeout(() => {
-      waiters.delete(finish);
-      if (!waiters.size) mountWaiters.delete(id);
-      reject(new Error("页面准备超时，请重试"));
-    }, 5000);
-    waiters.add(finish);
-    mountWaiters.set(id, waiters);
-  });
-}
-
-const nextFrame = () =>
-  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
 export function openShellTab(id: ShellTabId) {
   if (!shellNavigationRef.isReady()) return;
   shellNavigationRef.navigate("tabs", { screen: id });
 }
 function openPublication(mode: "post" | "create" = "post") {
-  void requireAccount().then((allowed) => {
-    if (allowed && shellNavigationRef.isReady())
-      shellNavigationRef.navigate("composePost", { mode });
-  });
+  const open = () => {
+    if (shellNavigationRef.isReady()) shellNavigationRef.navigate("composePost", { mode });
+  };
+  if (cachedAccountId()) open();
+  else void requireAccount().then(allowed => { if (allowed) open(); });
 }
 export async function openPublicMarketApplication(appId: string) {
-  if (!shellNavigationRef.isReady()) return;
-  const origin = shellNavigationRef.getCurrentRoute()?.key;
-  if (await isApplicationInstalled(appId)) {
-    if (shellNavigationRef.getCurrentRoute()?.key === origin)
-      await openShellBundle(appId);
-    return;
-  }
-  const item = await fetchPublicMarketApplication(appId);
-  if (
-    shellNavigationRef.isReady() &&
-    shellNavigationRef.getCurrentRoute()?.key === origin
-  )
-    shellNavigationRef.navigate("marketDetail", { item });
+  if (shellNavigationRef.isReady())
+    shellNavigationRef.navigate("applicationLink", { appId });
 }
 
 export async function openShellBundle(id: string) {
   if (!shellNavigationRef.isReady()) return false;
   if (id === bootstrap.defaultApplication) {
-    const ownerId = await currentAccountId();
+    const ownerId = cachedAccountId();
     if (!ownerId) return false;
-    const appId =
-      applicationContext(id).storage.get("workshopTarget") || undefined;
+    const appId = applicationContext(id).storage.get("workshopTarget") || undefined;
     shellNavigationRef.navigate("workshopProgress", { appId, ownerId });
-    return true;
-  }
-  const request = ++openingRequest;
-  const origin = shellNavigationRef.getCurrentRoute()?.key;
-  const isCurrent = () =>
-    request === openingRequest &&
-    shellNavigationRef.isReady() &&
-    shellNavigationRef.getCurrentRoute()?.key === origin;
-  try {
-    await openFeature(id);
-    if (!isCurrent()) return false;
-    if (!mountedBundles.has(id)) {
-      const mounted = waitForBundleMount(id);
-      shellNavigationRef.preload("bundle", { id });
-      await mounted;
-      // Let Fabric commit the preloaded view before starting the native transition.
-      await nextFrame();
-      await nextFrame();
-    }
-    if (!isCurrent()) return false;
-    console.log("route push", "bundle", id);
+  } else {
     shellNavigationRef.navigate("bundle", { id });
-    return true;
-  } catch (error) {
-    if (isCurrent())
-      Toast.show({
-        type: "error",
-        text1: "应用未能打开",
-        text2: error instanceof Error ? error.message : String(error),
-      });
-    return false;
   }
+  return true;
 }
 
 function goBack() {
@@ -332,33 +257,25 @@ function handleShellRequest(raw: string | undefined) {
   }
 }
 
-/** Native-stack preloads this route before its entrance transition. */
-function BundlePage({
-  id,
-  render,
-}: {
+function BundlePage({ id, render }: {
   id: string;
   render: (id: string, onBack: () => void) => ReactNode;
 }) {
-  const colors = palettes[useTheme().mode];
-  function ready() {
-    if (mountedBundles.has(id)) return;
-    mountedBundles.add(id);
-    for (const finish of [...(mountWaiters.get(id) ?? [])]) finish();
-  }
-  useEffect(
-    () => () => {
-      mountedBundles.delete(id);
-    },
-    [id]
-  );
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <View style={styles.feature} onLayout={ready}>
-        {render(id, goBack)}
-      </View>
-    </View>
-  );
+  return <AsyncRouteScreen title="打开应用" onBack={goBack} load={() => openFeature(id)}>
+    {() => <View style={styles.feature}>{render(id, goBack)}</View>}
+  </AsyncRouteScreen>;
+}
+
+function ApplicationLinkResult({ appId, item }: { appId: string; item: MarketApplication | null }) {
+  const focused = useIsFocused();
+  const route = useRoute();
+  useEffect(() => {
+    if (!focused) return;
+    shellNavigationRef.dispatch({ source: route.key, type: "REPLACE", payload: item
+      ? { name: "marketDetail", params: { item } }
+      : { name: "bundle", params: { id: appId } } });
+  }, [appId, item, focused, route.key]);
+  return null;
 }
 
 function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
@@ -595,12 +512,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                                 post,
                               })
                             }
-                            onCompose={() => {
-                              void requireAccount().then((allowed) => {
-                                if (allowed && shellNavigationRef.isReady())
-                                  shellNavigationRef.navigate("composePost");
-                              });
-                            }}
+                            onCompose={() => openPublication()}
                           />
                         </ShellTabScene>
                       )}
@@ -616,14 +528,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                                 item,
                               })
                             }
-                            onCreate={() => {
-                              void requireAccount().then((allowed) => {
-                                if (allowed)
-                                  applicationContext(
-                                    bootstrap.defaultApplication
-                                  ).navigation.create();
-                              });
-                            }}
+                            onCreate={() => openCreationComposer()}
                           />
                         </ShellTabScene>
                       )}
@@ -673,6 +578,19 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 </ScreenEdge>
               </ProfileDrawer>
             )}
+          </Stack.Screen>
+          <Stack.Screen name="applicationLink">
+            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="应用详情" onBack={goBack}
+              load={async () => await isApplicationInstalled(route.params.appId) ? null : fetchPublicMarketApplication(route.params.appId)}>
+              {item => <ApplicationLinkResult appId={route.params.appId} item={item} />}
+            </AsyncRouteScreen>}
+          </Stack.Screen>
+          <Stack.Screen name="noticePost">
+            {({ route }) => <AsyncRouteScreen key={`${route.params.postId}:${route.params.commentId ?? ""}`} title="动态" onBack={goBack}
+              load={() => fetchPostDetail(route.params.postId, undefined, route.params.commentId)}>
+              {detail => <PostDetailScreen initialPost={detail.post} initialDetail={detail} initialCommentId={route.params.commentId}
+                onBack={goBack} onApplication={openPublicMarketApplication} onAuthor={openAuthor} />}
+            </AsyncRouteScreen>}
           </Stack.Screen>
           <Stack.Screen name="marketDetail">
             {({ route }) => (

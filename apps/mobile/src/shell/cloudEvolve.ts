@@ -13,7 +13,6 @@ import {
 } from "../runtime/applications";
 import { restoreWorks } from "./workRecovery";
 import { confirmCreation } from "./creationConsent";
-import { AppState } from "react-native";
 import type { WorkshopDetail } from "../../../../packages/app-sdk/src/creation";
 
 const SOURCE = "sources/github/jiangfengwhu/zjh-plugin";
@@ -478,6 +477,7 @@ function createService(appId: string, originalAppId?: string) {
     return result;
   }
 
+  // Legacy SDK watch calls perform one explicit read, never start a poller.
   async function waitSession(
     name: string,
     url: string,
@@ -490,76 +490,19 @@ function createService(appId: string, originalAppId?: string) {
     expectRestart: boolean,
     sinceMs: number
   ): Promise<CloudOutcome> {
-    let deadline = Date.now() + 85 * 60 * 1000;
-    let restartDeadline = Date.now() + 3 * 60 * 1000;
-    let approved = false;
-    let sawWork = !expectRestart;
     const owner = await currentAccountId();
-    while (Date.now() < deadline) {
-      if (options.shouldStop()) return "cancelled";
-      const pollAt = Date.now();
-      await delay(5000);
-      if (options.shouldStop() || (await currentAccountId()) !== owner)
-        return "cancelled";
-      if (AppState.currentState !== "active" || options.shouldPause?.()) {
-        const pausedFor = Date.now() - pollAt;
-        deadline += pausedFor;
-        restartDeadline += pausedFor;
-        continue;
-      }
-      const detail = await fetchDetail(name);
-      if (options.shouldStop() || (await currentAccountId()) !== owner)
-        return "cancelled";
-      const session = detail.session;
-      const state = session.state ?? "";
-      if (
-        state === "QUEUED" ||
-        state === "PLANNING" ||
-        state === "IN_PROGRESS" ||
-        state === "AWAITING_PLAN_APPROVAL" ||
-        state === "AWAITING_USER_FEEDBACK"
-      ) {
-        sawWork = true;
-      }
-      const view = await sessionTraces(
-        name,
-        state,
-        session.url || url,
-        sinceMs,
-        sawWork,
-        detail
-      );
-      options.onTrace(view.traces);
-      const latest = [...view.traces]
-        .reverse()
-        .find((item) => item.kind !== "text");
-      console.log(
-        "jules state",
-        state,
-        "activities",
-        view.traces.length,
-        latest?.title ?? "",
-        view.settled ? "settled" : "open"
-      );
-      if ((state === "COMPLETED" || state === "PAUSED") && !sawWork) {
-        if (Date.now() > restartDeadline) throw new Error("会话没有接着做");
-        options.onStatus("正在继续同一个会话");
-        continue;
-      }
-      if (state === "COMPLETED" && view.settled) return "finished";
-      if (state === "FAILED") throw new Error("Jules 失败");
-      if (state === "PAUSED") throw new Error("Jules 已暂停");
-      if (state === "AWAITING_PLAN_APPROVAL" && !approved) {
-        approved = true;
-        await jules("POST", `/v1alpha/${name}:approvePlan`, "{}");
-      }
-      if (state === "AWAITING_USER_FEEDBACK") {
-        options.onStatus("Jules 等待你的回复");
-        return "waiting";
-      }
-      options.onStatus(clip(latest?.title || stateLabel(state), 80));
-    }
-    throw new Error("线上定制超时");
+    if (options.shouldStop()) return "cancelled";
+    if (options.shouldPause?.()) return "waiting";
+    const detail = await fetchDetail(name);
+    if (options.shouldStop() || (await currentAccountId()) !== owner)
+      return "cancelled";
+    const state = detail.session.state ?? "";
+    const view = await sessionTraces(name, state, detail.session.url || url, sinceMs, !expectRestart, detail);
+    options.onTrace(view.traces);
+    options.onStatus(stateLabel(state));
+    if (state === "FAILED") throw new Error("Jules 失败");
+    if (state === "COMPLETED" && view.settled) return "finished";
+    return "waiting";
   }
 
   async function sessionTraces(
@@ -808,11 +751,7 @@ function createService(appId: string, originalAppId?: string) {
     return `Jules ${result.status}`;
   }
 
-  function delay(ms: number) {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(undefined), ms);
-    });
-  }
+
 
   return {
     runCloudEvolve,

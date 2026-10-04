@@ -1,4 +1,3 @@
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { requireAccount, currentAccountId, cachedAccountId } from "./account";
 import { shellNavigationRef } from "./navigation";
 
@@ -22,10 +21,5 @@ export async function openApplicationWorkshop(
     throw new Error("作品身份无效");
   if (!shellNavigationRef.isReady()) return;
   shellNavigationRef.navigate("workshopProgress", { appId, title, ownerId });
-  // Keep the legacy task-selection key; route rendering no longer waits for storage or a plugin.
-  requestAnimationFrame(() => {
-    if (applicationContext("jolly").storage.get("__accountScope") === ownerId)
-      applicationContext("jolly").storage.set("workshopTarget", appId);
-  });
   return appId;
 }
