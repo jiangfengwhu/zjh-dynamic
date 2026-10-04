@@ -11,16 +11,21 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { Screen, ScreenEdge } from "../../../../../packages/ui/edge";
-import { useTheme } from "../../../../../packages/ui/theme";
+import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
 import { requireAccount, useAccount } from "../account";
 import { deletePostComment, fetchPostDetail, publishPostComment, updateUserPost, useUserPosts, type UserComment, type UserPost, type PostDetail } from "./userPosts";
 import { UserPostCard } from "./UserPostCard";
 import { PullRefreshSurface } from "./PullRefreshSurface";
 import { usePullToRefresh } from "./pullToRefresh";
+import { usePixelTheme } from "./pixelTheme";
 import { PostMenu } from "./PostMenu";
 
 const when = (at: number) => new Date(at).toLocaleString();
-export function PostDetailScreen({ initialPost, initialCommentId, initialDetail, onBack, onApplication, onAuthor }: { initialPost: UserPost; initialCommentId?: string; initialDetail?: PostDetail; onBack: () => void; onApplication: (appId: string) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {
+export function PostDetailScreen(props: Parameters<typeof PostDetailContent>[0]) {
+  const theme = usePixelTheme();
+  return <ThemeContext.Provider value={theme}><PostDetailContent {...props} /></ThemeContext.Provider>;
+}
+function PostDetailContent({ initialPost, initialCommentId, initialDetail, onBack, onApplication, onAuthor }: { initialPost: UserPost; initialCommentId?: string; initialDetail?: PostDetail; onBack: () => void; onApplication: (appId: string) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {
   const scrollY = useSharedValue(0);
   const trackScroll = useAnimatedScrollHandler(event => { scrollY.value = Math.max(0, event.contentOffset.y); });
   const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => load(false, true) });

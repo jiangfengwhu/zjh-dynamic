@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -8,9 +8,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useIsFocused } from "@react-navigation/native";
+import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelectedEvent } from "react-native-pager-view";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
-import Animated, { FadeInDown, ReduceMotion, useAnimatedScrollHandler, useSharedValue, runOnJS } from "react-native-reanimated";
+import Animated, { FadeInDown, ReduceMotion, useAnimatedScrollHandler, useSharedValue, runOnJS, runOnUI, useEvent } from "react-native-reanimated";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import {
@@ -39,6 +41,7 @@ import { usePixelTheme, pixelTheme } from "./feed/pixelTheme";
 import { usePullToRefresh } from "./feed/pullToRefresh";
 import { PullRefreshSurface } from "./feed/PullRefreshSurface";
 import { useProfileDrawer } from "./ProfileDrawer";
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const empty: MarketView = { applications: [], at: 0, offset: 0 };
 type MarketProps = {
   onAuthor: (author: {
@@ -63,7 +66,19 @@ export function MarketScreen(props: MarketProps) {
 function MarketContent(props: MarketProps) {
   const { colors } = useTheme();
   const [section, setSection] = useState<"discover" | "installed">("discover");
-  const { gesture } = useProfileDrawer();
+  const { gesture, marketActive, marketPosition } = useProfileDrawer();
+  const pager = useRef<PagerView>(null);
+  useFocusEffect(useCallback(() => {
+    runOnUI(() => { "worklet"; marketActive.value = true; })();
+    return () => { runOnUI(() => { "worklet"; marketActive.value = false; })(); };
+  }, [marketActive]));
+  const native = useMemo(() => Gesture.Native().requireExternalGestureToFail(gesture), [gesture]);
+  const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(event => {
+    "worklet"; marketPosition.value = event.position + event.offset;
+  }, ["onPageScroll"]);
+  const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(event => {
+    "worklet"; runOnJS(setSection)(event.position === 0 ? "discover" : "installed");
+  }, ["onPageSelected"]);
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
       <PageHeader
@@ -90,21 +105,20 @@ function MarketContent(props: MarketProps) {
         <CompactTabs
           tone="mint"
           value={section}
+          position={marketPosition}
           options={[
             { id: "discover", label: "发现作品", icon: "spark" },
             { id: "installed", label: "我安装的", icon: "box" },
           ]}
-          onChange={setSection}
+          onChange={value => pager.current?.setPage(value === "discover" ? 0 : 1)}
         />
       </View>
-      <View
-        style={{ flex: 1, display: section === "discover" ? "flex" : "none" }}
-      >
+      <GestureDetector gesture={native}>
+      <AnimatedPagerView ref={pager} style={{ flex: 1 }} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected}>
+      <View key="discover" collapsable={false} style={{ flex: 1 }}>
         <MarketDiscovery {...props} active={section === "discover"} />
       </View>
-      <View
-        style={{ flex: 1, display: section === "installed" ? "flex" : "none" }}
-      >
+      <View key="installed" collapsable={false} style={{ flex: 1 }}>
         <MyApplicationsScreen
           scope="installed"
           embedded
@@ -115,6 +129,8 @@ function MarketContent(props: MarketProps) {
           onDetail={props.onDetail}
         />
       </View>
+      </AnimatedPagerView>
+      </GestureDetector>
     </Screen>
   );
 }

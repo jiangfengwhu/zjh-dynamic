@@ -506,9 +506,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
-            navigationBarColor: "transparent",
-            navigationBarTranslucent: true,
-            navigationBarHidden: false,
             animation: reduceMotion ? "none" : "slide_from_right",
             animationDuration: 220,
             contentStyle: { backgroundColor: colors.canvas },

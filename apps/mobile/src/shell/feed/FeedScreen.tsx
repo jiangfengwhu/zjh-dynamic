@@ -83,7 +83,6 @@ export const FeedScreen = memo(function FeedScreen({
         "systemBars",
         JSON.stringify({
           statusBar: colors.canvas,
-          navigationBar: colors.canvas,
           window: colors.canvas,
           light: mode === "light",
         })

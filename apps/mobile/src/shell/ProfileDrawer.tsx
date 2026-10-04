@@ -44,6 +44,8 @@ type Drawer = {
   feedIdle: SharedValue<boolean>;
   profileActive: SharedValue<boolean>;
   profilePosition: SharedValue<number>;
+  marketActive: SharedValue<boolean>;
+  marketPosition: SharedValue<number>;
   gesture: ReturnType<typeof Gesture.Pan>;
   progress: SharedValue<number>;
   width: number;
@@ -81,6 +83,8 @@ export function ProfileDrawer({
   const feedIdle = useSharedValue(true);
   const profileActive = useSharedValue(false);
   const profilePosition = useSharedValue(0);
+  const marketActive = useSharedValue(false);
+  const marketPosition = useSharedValue(0);
   const progress = useSharedValue(0);
   const start = useSharedValue(0);
   const [opened, setOpened] = useState(false);
@@ -151,6 +155,7 @@ export function ProfileDrawer({
             canOpen.value &&
             (!profileActive.value ||
               Math.abs(profilePosition.value) <= 0.001) &&
+            (!marketActive.value || Math.abs(marketPosition.value) <= 0.001) &&
             (!feedActive.value ||
               (feedPage.value === 0 && Math.abs(feedPosition.value) <= 0.001));
           const touch = event.allTouches[0];
@@ -200,6 +205,8 @@ export function ProfileDrawer({
       feedPosition,
       profileActive,
       profilePosition,
+      marketActive,
+      marketPosition,
       eligible,
       origin,
       active,
@@ -217,6 +224,8 @@ export function ProfileDrawer({
       feedIdle,
       profileActive,
       profilePosition,
+      marketActive,
+      marketPosition,
       gesture,
       progress,
       width,
@@ -232,6 +241,8 @@ export function ProfileDrawer({
       feedIdle,
       profileActive,
       profilePosition,
+      marketActive,
+      marketPosition,
       gesture,
       progress,
       width,

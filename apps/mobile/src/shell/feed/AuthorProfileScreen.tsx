@@ -7,10 +7,14 @@ import {
   View,
 } from "react-native";
 import Animated, {
-  useAnimatedStyle,
+  useAnimatedRef,
+  useAnimatedScrollHandler,
+  useEvent,
+  runOnJS,
   useSharedValue,
 } from "react-native-reanimated";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelectedEvent } from "react-native-pager-view";
+import { Gesture } from "react-native-gesture-handler";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { useProfileScroll } from "../ProfileScroll";
 import { CompactTabs } from "../CompactTabs";
@@ -23,7 +27,7 @@ import Toast from "react-native-toast-message";
 import { WorkCard } from "../WorkCard";
 import { UserPostCard } from "./UserPostCard";
 import { usePullToRefresh } from "./pullToRefresh";
-import { PullIndicator } from "./PullIndicator";
+import { PullRefreshSurface } from "./PullRefreshSurface";
 import {
   fetchAuthorPosts,
   fetchAuthorProfile,
@@ -34,6 +38,7 @@ import {
   type UserPost,
 } from "./userPosts";
 
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 type ProfileRow =
   | { type: "post"; post: UserPost }
   | { type: "app"; app: AuthorProfile["applications"][number] };
@@ -78,6 +83,17 @@ function AuthorProfileContent({
     nextCursor: null,
   }));
   const [tab, setTab] = useState<"posts" | "apps">("posts");
+  const pager = useRef<PagerView>(null);
+  const position = useSharedValue(0);
+  const appY = useSharedValue(0);
+  const appList = useAnimatedRef<import("react-native").FlatList<ProfileRow>>();
+  const appScroll = useAnimatedScrollHandler(event => { appY.value = Math.max(0, event.contentOffset.y); });
+  const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(event => {
+    "worklet"; position.value = event.position + event.offset;
+  }, ["onPageScroll"]);
+  const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(event => {
+    "worklet"; runOnJS(setTab)(event.position === 0 ? "posts" : "apps");
+  }, ["onPageSelected"]);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -121,20 +137,8 @@ function AuthorProfileContent({
   const scrollY = useSharedValue(0);
   const profileScroll = useProfileScroll<ProfileRow>("posts", scrollY);
   const list = profileScroll.ref;
-  const { pull, phase, gesture, scrollGesture } = usePullToRefresh({
-    scrollY,
-    onRefresh: () => load(),
-  });
-  const listGesture = useMemo(
-    () =>
-      drawerGesture
-        ? Gesture.Native().requireExternalGestureToFail(gesture, drawerGesture)
-        : scrollGesture,
-    [gesture, drawerGesture, scrollGesture],
-  );
-  const lift = useAnimatedStyle(() => ({
-    transform: [{ translateY: pull.value }],
-  }));
+  const postsRefresh = usePullToRefresh({ scrollY, onRefresh: () => load() });
+  const appsRefresh = usePullToRefresh({ scrollY: appY, onRefresh: () => load() });
   async function load(more = false) {
     if (reading.current) {
       if (!more) rerun.current = true;
@@ -333,14 +337,13 @@ function AuthorProfileContent({
           ) : null}
           <CompactTabs
             value={tab}
+            position={position}
             options={[
               { id: "posts", label: "动态", icon: "feed" },
               { id: "apps", label: "作品", icon: "box" },
             ]}
             onChange={(value) => {
-              setTab(value);
-              list.current?.scrollToOffset({ offset: 0, animated: false });
-              scrollY.value = 0;
+              pager.current?.setPage(value === "posts" ? 0 : 1);
             }}
           />
         </View>
@@ -356,18 +359,11 @@ function AuthorProfileContent({
       ) : null}
     </View>
   );
-  return (
-    <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
-      {!embedded ? (
-        <PageHeader title="作者主页" variant="pixel" onBack={onBack} />
-      ) : null}
-      <GestureDetector gesture={gesture}>
-        <View style={{ flex: 1, overflow: "hidden" }}>
-          <View pointerEvents="none" style={{ position: "absolute", top: profileScroll.refreshOffset, left: 0, right: 0 }}><PullIndicator pull={pull} phase={phase} /></View>
-          <Animated.View style={[{ flex: 1 }, lift]}>
-            <GestureDetector gesture={listGesture}>
+  const renderPage = (tab: "posts" | "apps") => {
+    const refresh = tab === "posts" ? postsRefresh : appsRefresh;
+    return <PullRefreshSurface refresh={refresh} drawerGesture={drawerGesture} top={profileScroll.refreshOffset}>
               <Animated.FlatList<ProfileRow>
-                ref={list}
+                ref={tab === "posts" ? list : appList}
                 data={
                   tab === "posts"
                     ? profile.posts.map((post) => ({
@@ -383,15 +379,15 @@ function AuthorProfileContent({
                   row.type === "post" ? row.post.id : row.app.manifest.appId
                 }
                 removeClippedSubviews={false}
-                onScroll={profileScroll.onScroll}
-                onLayout={profileScroll.onLayout}
-                onContentSizeChange={profileScroll.onContentSizeChange}
-                contentContainerStyle={profileScroll.contentStyle}
+                onScroll={tab === "posts" ? profileScroll.onScroll : appScroll}
+                onLayout={tab === "posts" ? profileScroll.onLayout : undefined}
+                onContentSizeChange={tab === "posts" ? profileScroll.onContentSizeChange : undefined}
+                contentContainerStyle={tab === "posts" ? profileScroll.contentStyle : undefined}
                 showsVerticalScrollIndicator={false}
                 scrollEventThrottle={16}
                 overScrollMode="never"
                 bounces={false}
-                scrollEnabled={phase !== "refreshing" && phase !== "done"}
+                scrollEnabled={refresh.phase !== "refreshing" && refresh.phase !== "done"}
                 ListHeaderComponent={header}
                 renderItem={({ item: row, index }) => {
                   if (row.type === "app") {
@@ -474,10 +470,19 @@ function AuthorProfileContent({
                   </View>
                 }
               />
-            </GestureDetector>
-          </Animated.View>
-        </View>
-      </GestureDetector>
+    </PullRefreshSurface>;
+  };
+  return (
+    <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
+      {!embedded ? (
+        <PageHeader title="作者主页" variant="pixel" onBack={onBack} />
+      ) : null}
+      {embedded ? renderPage("posts") : (
+        <AnimatedPagerView ref={pager} style={{ flex: 1 }} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected}>
+          <View key="posts" collapsable={false} style={{ flex: 1 }}>{renderPage("posts")}</View>
+          <View key="apps" collapsable={false} style={{ flex: 1 }}>{renderPage("apps")}</View>
+        </AnimatedPagerView>
+      )}
     </Root>
   );
 }
