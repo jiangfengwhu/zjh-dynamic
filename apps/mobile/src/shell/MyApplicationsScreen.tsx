@@ -15,7 +15,7 @@ import { Screen } from "../../../../packages/ui/edge";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { FormField } from "./FormField";
-import { useAccount } from "./account";
+import { useAccount, currentAccountId } from "./account";
 import { writeShellValue, removeShellValue } from "./shellStorage";
 import { subscribeCatalog } from "./catalog";
 import {
@@ -246,22 +246,30 @@ export function MyApplicationsScreen({
             { text: "稍后", style: "cancel" },
             {
               text: "重新加载",
-              onPress: () => {
-                writeShellValue(
-                  "application.openAfterReload",
-                  published.manifest.appId
-                );
-                void NativePluginHost.call(
-                  "shell",
-                  "reloadApplications",
-                  "{}"
-                ).catch(() => {
+              onPress: async () => {
+                try {
+                  writeShellValue(
+                    "application.openAfterReload",
+                    JSON.stringify({
+                      appId: published.manifest.appId,
+                      ownerId: await currentAccountId(),
+                    })
+                  );
+                  const result = JSON.parse(
+                    await NativePluginHost.call(
+                      "shell",
+                      "reloadApplications",
+                      "{}"
+                    )
+                  ) as { ok?: boolean };
+                  if (result.ok !== true) throw new Error("重新加载未完成");
+                } catch {
                   removeShellValue("application.openAfterReload");
                   Toast.show({
                     type: "error",
                     text1: "重新加载失败，新版已保留",
                   });
-                });
+                }
               },
             },
           ],
