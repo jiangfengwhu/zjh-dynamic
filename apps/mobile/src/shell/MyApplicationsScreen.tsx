@@ -5,7 +5,7 @@ import { usePullToRefresh } from "./feed/pullToRefresh";
 import { PullRefreshSurface } from "./feed/PullRefreshSurface";
 import { useProfileScroll } from "./ProfileScroll";
 import { Gesture } from "react-native-gesture-handler";
-import { useIsFocused, usePreventRemove } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
@@ -22,6 +22,7 @@ import {
 } from "./market";
 import {
   publicApplicationUpdates,
+  applicationNeedsReload,
   validateApplication,
   type PublicApplicationUpdate,
 } from "../runtime/applications";
@@ -87,9 +88,6 @@ export function MyApplicationsScreen({
   const query = searchQuery ?? localQuery;
   const generation = useRef(0);
   const reading = useRef(false);
-  usePreventRemove(!!updating, () =>
-    Toast.show({ type: "info", text1: "正在下载应用更新，请稍候" })
-  );
   async function refresh(manual = false) {
     if (
       !focusedRef.current ||
@@ -158,8 +156,13 @@ export function MyApplicationsScreen({
   }, [focused, user?.id, scope]);
   useEffect(() => {
     if (!focused) return;
+    let idle: ReturnType<typeof requestIdleCallback> | undefined;
     const reload = () => {
-      void refresh();
+      if (idle !== undefined) cancelIdleCallback(idle);
+      idle = requestIdleCallback(() => {
+        idle = undefined;
+        void refresh();
+      });
     };
     const appState = AppState.addEventListener("change", (state) => {
       if (state === "active") reload();
@@ -180,6 +183,7 @@ export function MyApplicationsScreen({
         reload();
     }, 30000);
     return () => {
+      if (idle !== undefined) cancelIdleCallback(idle);
       appState.remove();
       offCatalog();
       offSharing();
@@ -189,7 +193,12 @@ export function MyApplicationsScreen({
   }, [focused, user?.id, scope, works]);
   async function workshop(work: MyWork) {
     if (work.stage !== "making") {
-      openCreationComposer({ appId: work.appId, title: work.title, ownerId: user?.id, fork: false });
+      openCreationComposer({
+        appId: work.appId,
+        title: work.title,
+        ownerId: user?.id,
+        fork: false,
+      });
       return;
     }
     await openApplicationWorkshop(work.appId, work.title, false, false);
@@ -215,8 +224,16 @@ export function MyApplicationsScreen({
     try {
       const published = await fetchPublicMarketApplication(item.manifest.appId);
       validateApplication(published.manifest);
-      await installMarketApplication(published);
-      Toast.show({ type: "success", text1: "应用已更新，本机数据保留" });
+      const status = await installMarketApplication(published, {
+        reloadLoaded: false,
+      });
+      Toast.show({
+        type: "success",
+        text1:
+          status === "pending"
+            ? "新版已下载，下次启动生效"
+            : "应用已更新，本机数据保留",
+      });
       void refresh(true);
     } catch (cause) {
       Toast.show({
@@ -545,16 +562,47 @@ export function MyApplicationsScreen({
                           fontSize: 10,
                         }}
                       >
-                        {updateState?.status === "update"
+                        {applicationNeedsReload(app.manifest)
+                          ? "新版已下载，下次启动生效"
+                          : updateState?.status === "update"
                           ? "有新版本"
                           : "已安装"}
                         {app.authorName ? ` · ${app.authorName}` : ""}
                       </Text>
                     </View>
                   </Pressy>
-
+                  {updateState?.status === "update" ? (
+                    <Pressy
+                      scale={1}
+                      accessibilityLabel={`更新${app.manifest.title}`}
+                      accessibilityState={{
+                        busy: updating === app.manifest.appId,
+                      }}
+                      disabled={!!updating}
+                      onPress={() => void update(app)}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        alignItems: "center",
+                        borderRadius: 10,
+                        backgroundColor: colors.greenTint,
+                      }}
+                    >
+                      {updating === app.manifest.appId ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={colors.greenText}
+                        />
+                      ) : (
+                        <PixelIcon
+                          name="refresh"
+                          size={18}
+                          color={colors.greenText}
+                        />
+                      )}
+                    </Pressy>
+                  ) : null}
                   <Pressy
-                    disabled={!!updating}
                     accessibilityLabel={`${app.manifest.title}详情与卸载`}
                     onPress={() => void installedDetail(app)}
                     style={{ width: 44, height: 44, alignItems: "center" }}
@@ -562,26 +610,6 @@ export function MyApplicationsScreen({
                     <PixelIcon name="more" size={18} color={colors.ink3} />
                   </Pressy>
                 </View>
-                {updateState?.status === "update" ? (
-                  <Pressy
-                    disabled={!!updating}
-                    onPress={() => void update(app)}
-                    style={{
-                      alignSelf: "flex-start",
-                      marginLeft: 58,
-                      minHeight: 32,
-                      paddingHorizontal: 10,
-                      borderRadius: 8,
-                      backgroundColor: colors.greenTint,
-                    }}
-                  >
-                    <Text style={{ color: colors.greenText, fontSize: 12 }}>
-                      {updating === app.manifest.appId
-                        ? "正在更新…"
-                        : "更新应用"}
-                    </Text>
-                  </Pressy>
-                ) : null}
               </View>
             );
           }}

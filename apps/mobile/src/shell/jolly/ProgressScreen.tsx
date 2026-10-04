@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { cachedAccountId, subscribeAccountIdentity } from "../account";
-import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
 import {
   Screen,
   ScreenBar,
@@ -340,7 +347,7 @@ function ProgressContent({
                 })}
               </View>
             ) : null}
-            {query.error || query.cached ? (
+            {query.error ? (
               <View
                 style={{
                   gap: 6,
@@ -354,14 +361,13 @@ function ProgressContent({
                 >
                   <PixelIcon name="info" size={14} color={colors.cyanText} />
                   <Text style={{ color: colors.cyanText, fontSize: 12 }}>
-                    {query.error ? "进度暂未同步" : "正在核对最新进度"}
+                    进度暂未同步
                   </Text>
                 </View>
                 <Text
                   style={{ fontSize: 12, color: colors.ink2, lineHeight: 19 }}
                 >
-                  {query.error ||
-                    "当前显示已保存的进度，同步完成后会自动更新。"}
+                  {query.error}
                 </Text>
                 {query.error ? (
                   <Pressable
@@ -494,42 +500,19 @@ function LoadingPanel({ failed }: { failed: boolean }) {
       accessibilityLiveRegion="polite"
       style={{
         minHeight: 166,
-        padding: 16,
+        alignItems: "center",
         justifyContent: "center",
         gap: 12,
-        backgroundColor: colors.accentTint,
-        borderRadius: 12,
-        borderWidth: 0.5,
-        borderColor: colors.lineStrong,
       }}
     >
-      <Text style={{ fontSize: 18 }}>
-        {failed ? "暂时无法读取进度" : "正在接回制作进度"}
-      </Text>
       {failed ? (
-        <Text style={{ color: colors.ink2, fontSize: 13, lineHeight: 21 }}>
-          制作任务仍会继续，可点击下方重试同步。
-        </Text>
+        <PixelIcon name="alert" size={24} color={colors.redText} />
       ) : (
-        <>
-          <View
-            style={{
-              width: "60%",
-              height: 12,
-              backgroundColor: colors.line,
-              borderRadius: 3,
-            }}
-          />
-          <View
-            style={{
-              width: "85%",
-              height: 8,
-              backgroundColor: colors.line,
-              borderRadius: 3,
-            }}
-          />
-        </>
+        <ActivityIndicator color={colors.cyanText} />
       )}
+      <Text style={{ fontSize: 14, color: colors.ink2 }}>
+        {failed ? "加载失败，请重试" : "加载中…"}
+      </Text>
     </View>
   );
 }

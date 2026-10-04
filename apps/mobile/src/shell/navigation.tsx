@@ -89,6 +89,7 @@ export type TabParamList = {
 };
 
 import JollyProgressScreen from "./jolly/ProgressScreen";
+import { ShellTabScene } from "./ShellTabScene";
 
 export type RootParamList = {
   workshopProgress: { appId?: string; title?: string; ownerId: string };
@@ -571,74 +572,88 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   >
                     <Tabs.Screen name="feed">
                       {() => (
-                        <FeedScreen
-                          onAuthor={openAuthor}
-                          onApplication={openPublicMarketApplication}
-                          onProfile={showProfileDrawer}
-                          onPost={(post) =>
-                            shellNavigationRef.navigate("postDetail", { post })
-                          }
-                          onCompose={() => {
-                            void requireAccount().then((allowed) => {
-                              if (allowed && shellNavigationRef.isReady())
-                                shellNavigationRef.navigate("composePost");
-                            });
-                          }}
-                        />
+                        <ShellTabScene>
+                          <FeedScreen
+                            onAuthor={openAuthor}
+                            onApplication={openPublicMarketApplication}
+                            onProfile={showProfileDrawer}
+                            onPost={(post) =>
+                              shellNavigationRef.navigate("postDetail", {
+                                post,
+                              })
+                            }
+                            onCompose={() => {
+                              void requireAccount().then((allowed) => {
+                                if (allowed && shellNavigationRef.isReady())
+                                  shellNavigationRef.navigate("composePost");
+                              });
+                            }}
+                          />
+                        </ShellTabScene>
                       )}
                     </Tabs.Screen>
                     <Tabs.Screen name="market">
                       {() => (
-                        <MarketScreen
-                          onOpen={props.onOpenBundle}
-                          onAuthor={openAuthor}
-                          onDetail={(item) =>
-                            shellNavigationRef.navigate("marketDetail", {
-                              item,
-                            })
-                          }
-                          onCreate={() => {
-                            void requireAccount().then((allowed) => {
-                              if (allowed)
-                                applicationContext(
-                                  bootstrap.defaultApplication
-                                ).navigation.create();
-                            });
-                          }}
-                        />
+                        <ShellTabScene>
+                          <MarketScreen
+                            onOpen={props.onOpenBundle}
+                            onAuthor={openAuthor}
+                            onDetail={(item) =>
+                              shellNavigationRef.navigate("marketDetail", {
+                                item,
+                              })
+                            }
+                            onCreate={() => {
+                              void requireAccount().then((allowed) => {
+                                if (allowed)
+                                  applicationContext(
+                                    bootstrap.defaultApplication
+                                  ).navigation.create();
+                              });
+                            }}
+                          />
+                        </ShellTabScene>
                       )}
                     </Tabs.Screen>
                     <Tabs.Screen name="notifications">
-                      {() => <NotificationsTab onOpen={openNotice} />}
+                      {() => (
+                        <ShellTabScene>
+                          <NotificationsTab onOpen={openNotice} />
+                        </ShellTabScene>
+                      )}
                     </Tabs.Screen>
                     <Tabs.Screen name="mine">
                       {() => (
-                        <MyProfileScreen
-                          onAccount={() =>
-                            shellNavigationRef.navigate("account")
-                          }
-                          onPost={(post) =>
-                            shellNavigationRef.navigate("postDetail", { post })
-                          }
-                          onApplication={openPublicMarketApplication}
-                          onDetail={(item) =>
-                            shellNavigationRef.navigate("marketDetail", {
-                              item,
-                            })
-                          }
-                          onManagePublication={(item) =>
-                            shellNavigationRef.navigate("marketPublication", {
-                              item,
-                            })
-                          }
-                          onOpen={props.onOpenBundle}
-                          onCreate={() => openPublication("create")}
-                          onSharePost={(application) =>
-                            shellNavigationRef.navigate("composePost", {
-                              application,
-                            })
-                          }
-                        />
+                        <ShellTabScene>
+                          <MyProfileScreen
+                            onAccount={() =>
+                              shellNavigationRef.navigate("account")
+                            }
+                            onPost={(post) =>
+                              shellNavigationRef.navigate("postDetail", {
+                                post,
+                              })
+                            }
+                            onApplication={openPublicMarketApplication}
+                            onDetail={(item) =>
+                              shellNavigationRef.navigate("marketDetail", {
+                                item,
+                              })
+                            }
+                            onManagePublication={(item) =>
+                              shellNavigationRef.navigate("marketPublication", {
+                                item,
+                              })
+                            }
+                            onOpen={props.onOpenBundle}
+                            onCreate={() => openPublication("create")}
+                            onSharePost={(application) =>
+                              shellNavigationRef.navigate("composePost", {
+                                application,
+                              })
+                            }
+                          />
+                        </ShellTabScene>
                       )}
                     </Tabs.Screen>
                   </Tabs.Navigator>

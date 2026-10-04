@@ -261,7 +261,10 @@ export async function installedMarket(): Promise<MarketApplication[]> {
   }
   return items;
 }
-export async function installMarketApplication(item: MarketApplication) {
+export async function installMarketApplication(
+  item: MarketApplication,
+  options?: { reloadLoaded?: boolean }
+) {
   const manifest = item.manifest;
   // Compatibility is checked before downloading or changing the installed catalog.
   validateApplication(manifest);
@@ -285,6 +288,7 @@ export async function installMarketApplication(item: MarketApplication) {
   await saveCatalog(catalog);
   const current = runningApplication(manifest.appId);
   if (applicationNeedsReload(manifest)) {
+    if (options?.reloadLoaded === false) return "pending" as const;
     writeShellValue(
       "application.openAfterReload",
       JSON.stringify({
@@ -305,6 +309,7 @@ export async function installMarketApplication(item: MarketApplication) {
   await loadApplication(manifest.appId);
   // Refresh the avatar after activation, without changing application business code.
   await saveCatalog(await loadCatalog());
+  return "ready" as const;
 }
 export async function uninstallMarketApplication(appId: string) {
   if (appId === bootstrap.defaultApplication)

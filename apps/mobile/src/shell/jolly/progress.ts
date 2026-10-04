@@ -51,34 +51,6 @@ export const progressLabels: Record<ProgressState, string> = {
   blocked: "交付需要处理",
 };
 
-function cachedSnapshot(
-  key: string,
-  appId: string
-): ProgressSnapshot | undefined {
-  try {
-    const value = JSON.parse(getAppContext().storage.get(key) || "null");
-    if (
-      typeof value?.session !== "string" ||
-      !value.session.startsWith("sessions/") ||
-      !value.detail?.status ||
-      !Array.isArray(value.detail?.traces) ||
-      typeof value.at !== "number"
-    )
-      return;
-    const current = readJollyRun(appId);
-    // A new round must not flash the previous round's cached progress.
-    if (current.stage === "making" && current.at > value.at) return;
-    if (
-      current.stage === "making" &&
-      !["queued", "making"].includes(progressState(value.detail))
-    )
-      return;
-    return value;
-  } catch {
-    return;
-  }
-}
-
 export function useProgress(
   appId: string | undefined,
   originalAppId: string | undefined,
@@ -92,14 +64,10 @@ export function useProgress(
       AppState.currentState !== "inactive"
   );
   const active = focused && foreground && routeReady;
-  const key = `progressView.${scope}.${appId || "none"}`;
-  const [snapshot, setSnapshot] = useState(() =>
-    appId ? cachedSnapshot(key, appId) : undefined
-  );
+  const [snapshot, setSnapshot] = useState<ProgressSnapshot>();
   const [checking, setChecking] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
-  const [verified, setVerified] = useState(false);
   const [service] = useState(() =>
     appId ? getCreationService(appId, originalAppId) : undefined
   );
@@ -136,7 +104,6 @@ export function useProgress(
         wish.current = run?.prompt || readJollyRun(appId).wish;
         if (!currentSession) {
           setSnapshot(undefined);
-          setVerified(true);
           setLoaded(true);
           setError("");
           return;
@@ -145,7 +112,6 @@ export function useProgress(
         if (!valid()) return;
         if (!detail) throw new Error("暂时无法读取制作进度，请重试");
         setSnapshot({ session: currentSession, detail, at: Date.now() });
-        setVerified(true);
         setLoaded(true);
         setError("");
       } catch (cause) {
@@ -197,7 +163,7 @@ export function useProgress(
     };
   }, [active, snapshot, error, refresh]);
   useEffect(() => {
-    if (!active || !appId || !snapshot || !verified) return;
+    if (!active || !appId || !snapshot) return;
     let cancelled = false;
     const task = requestIdleCallback(() => {
       void (async () => {
@@ -210,7 +176,6 @@ export function useProgress(
           (context.storage.get("__accountScope") || "guest") !== scope
         )
           return;
-        context.storage.set(key, JSON.stringify(snapshot));
         const state = progressState(snapshot.detail);
         const stage: WorkshopStage =
           state === "queued" || state === "making"
@@ -243,14 +208,13 @@ export function useProgress(
       cancelled = true;
       cancelIdleCallback(task);
     };
-  }, [active, appId, snapshot, verified, key, scope, service]);
+  }, [active, appId, snapshot, scope, service]);
   return {
     snapshot,
     checking,
     error,
     loaded,
     active,
-    cached: !!snapshot && (!verified || !!error || snapshot.detail.stale),
     refresh,
   };
 }

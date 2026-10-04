@@ -18,7 +18,6 @@ import {
   bundles,
   openFeature,
   cachedFeature,
-  refreshApplications,
   restoreApplications,
 } from "../../packages/features/src/registry";
 import type { FeatureComponent } from "../../packages/features/src/featureHost";
@@ -181,46 +180,30 @@ function ShellApp() {
 
   useEffect(() => {
     if (!pluginsReady) return;
-    console.log("shell ready");
-    void (async () => {
-      try {
-        await NativePluginHost.call("shell", "bundleReady", "{}");
-      } catch (error) {
-        console.log(
-          "bundle ready failed",
-          error instanceof Error ? error.message : error
-        );
-      }
-      const started = Date.now();
-      startReleaseWatch(() => {
-        void refreshUpdates();
-      });
-      try {
-        await syncPlugins();
-        void refreshUpdates();
-      } catch (error) {
-        console.log(
-          "shell warm failed",
-          error instanceof Error ? error.message : error
-        );
-      }
-      console.log("shell warm ms", Date.now() - started);
-    })();
-  }, [pluginsReady]);
-
-  useEffect(() => {
-    if (!pluginsReady) return;
+    // Acknowledge the healthy shell immediately; all maintenance follows the first interaction window.
+    void NativePluginHost.call("shell", "bundleReady", "{}").catch(() => {});
     let disposed = false;
-    const task = requestIdleCallback(() => {
-      void refreshApplications()
-        .then(() => {
-          if (!disposed) setCatalog((current) => [...current]);
-        })
-        .catch(() => {});
-    });
+    let idle: ReturnType<typeof requestIdleCallback> | undefined;
+    const deferUpdates = () => {
+      if (idle !== undefined) cancelIdleCallback(idle);
+      idle = requestIdleCallback(() => {
+        idle = undefined;
+        if (!disposed) void refreshUpdates();
+      });
+    };
+    startReleaseWatch(deferUpdates);
+    const timer = setTimeout(() => {
+      idle = requestIdleCallback(() => {
+        idle = undefined;
+        void syncPlugins().finally(() => {
+          if (!disposed) deferUpdates();
+        });
+      });
+    }, 1500);
     return () => {
       disposed = true;
-      cancelIdleCallback(task);
+      clearTimeout(timer);
+      if (idle !== undefined) cancelIdleCallback(idle);
     };
   }, [pluginsReady]);
 

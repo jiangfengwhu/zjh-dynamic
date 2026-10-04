@@ -26,9 +26,15 @@ import { usePixelTheme } from "./pixelTheme";
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
 
-export function NotificationsScreen(props: Parameters<typeof NotificationsContent>[0]) {
+export function NotificationsScreen(
+  props: Parameters<typeof NotificationsContent>[0]
+) {
   const theme = usePixelTheme();
-  return <ThemeContext.Provider value={theme}><NotificationsContent {...props} /></ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={theme}>
+      <NotificationsContent {...props} />
+    </ThemeContext.Provider>
+  );
 }
 function NotificationsContent({
   onBack,
@@ -180,7 +186,11 @@ function NotificationsContent({
     loadedOwner.current = undefined;
   }, [user?.id]);
   useEffect(() => {
-    if (focused) void load();
+    if (!focused) return;
+    const idle = requestIdleCallback(() => {
+      void load();
+    });
+    return () => cancelIdleCallback(idle);
   }, [focused, user?.id]);
   async function act(notice?: Notice) {
     if (writing.current || !user) return;
