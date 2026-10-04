@@ -1,18 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   ScrollView,
-  Text,
   TextInput,
   View,
 } from "react-native";
 import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelectedEvent } from "react-native-pager-view";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
+import { PixelText as Text } from "./feed/PixelText";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
-import Animated, { FadeInDown, ReduceMotion, useAnimatedScrollHandler, useSharedValue, runOnJS, runOnUI, useEvent } from "react-native-reanimated";
+import Animated, { useAnimatedScrollHandler, useSharedValue, runOnJS, runOnUI, useEvent } from "react-native-reanimated";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import {
@@ -30,6 +29,7 @@ import {
   rememberMarketView,
   marketViewKey,
   marketCategories,
+  marketDiscoveryCategories,
   marketDefinition,
   type MarketView,
   type MarketApplication,
@@ -186,7 +186,7 @@ function MarketDiscovery({
       if (live && !edited.current && raw) {
         try {
           const saved = JSON.parse(raw);
-          if (marketCategories.some((item) => item.id === saved.category))
+          if (marketDiscoveryCategories.some((item) => item.id === saved.category))
             setCategory(saved.category);
           if (typeof saved.query === "string") {
             setQuery(saved.query);
@@ -311,7 +311,7 @@ function MarketDiscovery({
     void loadCatalog().then(update);
     return subscribeCatalog(update);
   }, []);
-  async function open(item: MarketApplication) {
+  const open = useCallback(async (item: MarketApplication) => {
     if (opening.current) return;
     opening.current = true;
     setOpeningId(item.manifest.appId);
@@ -328,42 +328,10 @@ function MarketDiscovery({
       opening.current = false;
       setOpeningId(undefined);
     }
-  }
+  }, [onDetail]);
+  const installedIds = useMemo(() => new Set(installed), [installed]);
   return (
     <View style={[styles.screen, { backgroundColor: colors.canvas }]}>
-      <PullRefreshSurface refresh={refreshPull} drawerGesture={drawerGesture}>
-      <Animated.FlatList
-        ref={list}
-        data={
-          search || category ? view.applications : view.applications.slice(1)
-        }
-        keyExtractor={(item) => item.manifest.appId}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        removeClippedSubviews={false}
-        onContentSizeChange={(_, height) => {
-          if (
-            restoreOffset.current !== undefined &&
-            height > restoreOffset.current
-          ) {
-            list.current?.scrollToOffset({
-              offset: restoreOffset.current,
-              animated: false,
-            });
-            restoreOffset.current = undefined;
-          }
-        }}
-        onScroll={trackScroll}
-        scrollEventThrottle={16}
-        bounces={false}
-        overScrollMode="never"
-        scrollEnabled={refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"}
-        onEndReached={() => {
-          if (!error) void load();
-        }}
-        onEndReachedThreshold={0.4}
-        ListHeaderComponent={
           <View style={styles.discovery}>
             <View
               style={[
@@ -403,9 +371,9 @@ function MarketDiscovery({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8 }}
+              contentContainerStyle={{ gap: 6, paddingRight: 16 }}
             >
-              {marketCategories.map((item) => (
+              {marketDiscoveryCategories.map((item) => (
                 <Pressy
                   key={item.id}
                   accessibilityRole="button"
@@ -417,14 +385,14 @@ function MarketDiscovery({
                   style={[
                     styles.chip,
                     category === item.id && {
-                      backgroundColor: colors.accentTint,
+                      backgroundColor: item.id === "official" ? colors.orchid : colors.accent,
                     },
                   ]}
                 >
                   <Text
                     style={{
                       color:
-                        category === item.id ? colors.accentText : colors.ink3,
+                        category === item.id ? colors.onAccent : colors.ink2,
                     }}
                   >
                     {item.label}
@@ -432,21 +400,50 @@ function MarketDiscovery({
                 </Pressy>
               ))}
             </ScrollView>
-            {!search && !category && view.applications[0] ? (
-              <FeaturedApplication
-                item={view.applications[0]}
-                busy={openingId === view.applications[0].manifest.appId}
-                onPress={() => void open(view.applications[0])}
-              />
-            ) : null}
+          </View>
+      <PullRefreshSurface refresh={refreshPull} drawerGesture={drawerGesture}>
+      <Animated.FlatList
+        ref={list}
+        data={view.applications}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        keyExtractor={(item) => item.manifest.appId}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews={false}
+        onContentSizeChange={(_, height) => {
+          if (
+            restoreOffset.current !== undefined &&
+            height > restoreOffset.current
+          ) {
+            list.current?.scrollToOffset({
+              offset: restoreOffset.current,
+              animated: false,
+            });
+            restoreOffset.current = undefined;
+          }
+        }}
+        onScroll={trackScroll}
+        scrollEventThrottle={16}
+        bounces={false}
+        overScrollMode="never"
+        scrollEnabled={refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"}
+        onEndReached={() => {
+          if (!error) void load();
+        }}
+        onEndReachedThreshold={0.4}
+        ListHeaderComponent={
+          <View>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>
                 {search
                   ? "搜索结果"
                   : category
-                    ? marketCategories.find((item) => item.id === category)
+                    ? marketDiscoveryCategories.find((item) => item.id === category)
                         ?.label
-                    : "全部应用"}
+                    : "最新发布"}
               </Text>
               <Text style={styles.caption}>
                 {view.applications.length
@@ -469,105 +466,16 @@ function MarketDiscovery({
             ) : null}
           </View>
         }
-        renderItem={({ item }) => {
-          const app = item.manifest;
-          const Avatar = marketDefinition(item)?.avatar;
-          return (
-            <Pressy
-              accessibilityRole="button"
-              accessibilityLabel={`查看${item.title || app.title}`}
-              onPress={() => void open(item)}
-            >
-              <View style={styles.row}>
-                <View style={styles.rowHead}>
-                  <View
-                    style={[
-                      styles.mark,
-                      { backgroundColor: `${app.accent}18` },
-                    ]}
-                  >
-                    {Avatar ? (
-                      <Avatar size={44} />
-                    ) : (
-                      <Text style={{ fontSize: 20, color: app.accent }}>
-                        {app.mark}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-                    <Text style={styles.name} numberOfLines={2}>
-                      {item.title || app.title}
-                    </Text>
-                    <Text style={styles.summary} numberOfLines={2}>
-                      {item.summary || app.summary}
-                    </Text>
-                  </View>
-                  <Text style={styles.badge}>
-                    {openingId === app.appId
-                      ? "加载中…"
-                      : installed.includes(app.appId)
-                        ? "已安装"
-                        : "查看"}
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Pressy
-                    disabled={!item.authorId}
-                    accessibilityLabel={`查看${item.authorName}的主页`}
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      if (item.authorId)
-                        onAuthor({
-                          id: item.authorId,
-                          name: item.authorName,
-                          avatarUrl: item.authorAvatarUrl ?? null,
-                          official: item.authorOfficial,
-                        });
-                    }}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 6,
-                      paddingVertical: 6,
-                      minHeight: 36,
-                      flexShrink: 1,
-                    }}
-                  >
-                    {item.authorAvatarUrl ? (
-                      <Image
-                        source={{ uri: item.authorAvatarUrl }}
-                        style={{ width: 18, height: 18, borderRadius: 9 }}
-                      />
-                    ) : null}
-                    <Text style={[styles.caption, { flexShrink: 1 }]}>
-                      {item.authorName || "社区创作者"}
-                    </Text>
-                    {item.authorOfficial ? (
-                      <Text style={styles.official}>官方</Text>
-                    ) : null}
-                  </Pressy>
-                  <Text style={styles.caption}>
-                    {
-                      marketCategories.find(
-                        (category) =>
-                          category.id === (item.category || "other"),
-                      )?.label
-                    }
-                  </Text>
-                </View>
-              </View>
-            </Pressy>
-          );
-        }}
+        renderItem={({ item }) => <MarketApplicationRow
+          item={item}
+          installed={installedIds.has(item.manifest.appId)}
+          busy={openingId === item.manifest.appId}
+          onOpen={open}
+          onAuthor={onAuthor}
+        />}
         ListEmptyComponent={
-          view.applications.length || error ? null : busy ? (
-            <ActivityIndicator style={{ margin: 16 }} color={colors.accent} />
+          view.applications.length || error ? null : busy || !ready || !view.at ? (
+            <View accessibilityLabel="正在加载应用" style={{ gap: 1 }}>{[0, 1, 2, 3, 4].map(id => <View key={id} style={[styles.row, { flexDirection: "row", gap: 12 }]}><View style={[styles.mark, { backgroundColor: colors.inset }]} /><View style={{ flex: 1, gap: 9 }}><View style={{ width: "55%", height: 16, backgroundColor: colors.inset, borderRadius: 4 }} /><View style={{ height: 12, backgroundColor: colors.inset, borderRadius: 4 }} /><View style={{ width: "35%", height: 10, backgroundColor: colors.inset, borderRadius: 4 }} /></View></View>)}</View>
           ) : (
             <Text style={styles.empty}>
               {search || category
@@ -592,104 +500,58 @@ function MarketDiscovery({
     </View>
   );
 }
-function FeaturedApplication({
-  item,
-  busy,
-  onPress,
-}: {
+const MarketApplicationRow = memo(function MarketApplicationRow({ item, installed, busy, onOpen, onAuthor }: {
   item: MarketApplication;
+  installed: boolean;
   busy: boolean;
-  onPress: () => void;
+  onOpen: (item: MarketApplication) => Promise<void>;
+  onAuthor: MarketProps["onAuthor"];
 }) {
   const { colors } = useTheme();
   const app = item.manifest;
   const Avatar = marketDefinition(item)?.avatar;
-  return (
-    <Animated.View
-      entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.Never)}
-    >
-      <Pressy
-        disabled={busy}
-        onPress={onPress}
-        accessibilityLabel={`查看最新上架应用 ${item.title || app.title}`}
-        style={styles.featured}
-      >
-        <View style={styles.featuredTop}>
-          <Text style={styles.featuredLabel}>
-            {busy ? "正在打开…" : "最新上架"}
-          </Text>
-          <PixelIcon name="arrow" size={18} color={colors.accentText} />
-        </View>
-        <View style={styles.rowHead}>
-          <View style={[styles.mark, { backgroundColor: `${app.accent}18` }]}>
-            {Avatar ? (
-              <Avatar size={44} />
-            ) : (
-              <Text style={{ color: app.accent, fontSize: 20 }}>
-                {app.mark}
-              </Text>
-            )}
-          </View>
-          <View style={styles.featuredCopy}>
-            <Text style={styles.featuredName} numberOfLines={2}>
-              {item.title || app.title}
-            </Text>
-            <Text style={styles.summary} numberOfLines={2}>
-              {item.summary || app.summary}
-            </Text>
-            <Text numberOfLines={1} style={[styles.caption, { flexShrink: 1 }]}>
-              {item.authorName || "社区创作者"}
-            </Text>
-          </View>
-          {item.screenshots?.[0] ? (
-            <AppImage
-              accessibilityLabel={`${item.title || app.title}的真实应用截图`}
-              source={{ uri: item.screenshots[0] }}
-              style={styles.featuredImage}
-              resizeMode={"cover"}
-            />
-          ) : null}
-        </View>
-      </Pressy>
-    </Animated.View>
-  );
-}
+  const category = marketCategories.find(category => category.id === (item.category || "other"))?.label;
+  const tint = item.authorOfficial ? colors.orchidTint : item.category === "creative" ? colors.redTint : item.category === "productivity" ? colors.cyanTint : colors.greenTint;
+  return <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.title || app.title}${installed ? "，已安装" : ""}`} onPress={() => void onOpen(item)} scale={1} style={styles.row}>
+    <View style={[styles.mark, { backgroundColor: tint }]}>
+      {Avatar ? <Avatar size={44} /> : <Text style={{ fontSize: 24, color: app.accent }}>{app.mark}</Text>}
+    </View>
+    <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1}>{item.title || app.title}</Text>
+        {item.authorOfficial ? <Text style={styles.official}>官方</Text> : null}
+      </View>
+      <Text style={styles.summary} numberOfLines={1}>{item.summary || app.summary || "查看应用详情"}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Pressy disabled={!item.authorId} hitSlop={{ top: 8, bottom: 8 }} accessibilityRole="button" accessibilityLabel={`查看${item.authorName || "创作者"}的主页`} onPress={event => {
+          event.stopPropagation();
+          if (item.authorId) onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial });
+        }} style={{ flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1, minHeight: 28 }}>
+          {item.authorAvatarUrl ? <AppImage source={{ uri: item.authorAvatarUrl }} style={{ width: 16, height: 16, borderRadius: 8 }} /> : null}
+          <Text numberOfLines={1} style={[styles.caption, { flexShrink: 1 }]}>{item.authorName || "社区创作者"}</Text>
+        </Pressy>
+        <Text style={styles.category}>{category}</Text>
+      </View>
+    </View>
+    <View style={[styles.openMark, { backgroundColor: installed ? colors.greenTint : colors.cyanTint }]}>
+      {busy ? <ActivityIndicator size="small" color={colors.cyanText} /> : <PixelIcon name={installed ? "check" : "arrow"} size={16} color={installed ? colors.greenText : colors.cyanText} />}
+      <Text style={{ fontSize: 10, color: installed ? colors.greenText : colors.cyanText }}>{installed ? "已安装" : "查看"}</Text>
+    </View>
+  </Pressy>;
+});
 const styles = themedStyleSheet((base) => {
   const t = pixelTheme(base);
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
-    header: {
-      paddingHorizontal: 16,
-      paddingVertical: 4,
-      gap: 8,
-      alignItems: "center",
-      flexDirection: "row",
-      borderBottomWidth: 0.5,
-      borderBottomColor: t.line,
-    },
-    title: {
-      fontSize: 21,
-      letterSpacing: -0.5,
-      fontWeight: "800",
-      color: t.ink1,
-    },
-    caption: { fontSize: 12, lineHeight: 18, color: t.ink3 },
+    caption: { fontSize: 11, lineHeight: 16, color: t.ink3 },
     content: { paddingHorizontal: 16, paddingBottom: 16 },
-    discovery: { gap: 12, paddingTop: 12, paddingBottom: 4 },
-    create: {
-      width: 44,
-      height: 44,
-      borderRadius: t.radius.sm,
-      backgroundColor: t.accent,
-      alignItems: "center",
-      justifyContent: "center",
-    },
+    discovery: { gap: 8, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
     searchBox: {
       flexDirection: "row",
       alignItems: "center",
       paddingLeft: 12,
       borderRadius: t.radius.sm,
-      backgroundColor: t.inset,
+      backgroundColor: t.surface,
       borderWidth: 0.5,
       borderColor: t.lineStrong,
       gap: 8,
@@ -707,65 +569,39 @@ const styles = themedStyleSheet((base) => {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingTop: 4,
+      paddingVertical: 8,
     },
     sectionTitle: { color: t.ink1, fontSize: 14, fontWeight: "700" },
-    featured: {
-      padding: 14,
-      backgroundColor: t.accentTint,
-      borderWidth: 0.5,
-      borderColor: t.accentSoft,
-      borderRadius: t.radius.md,
-      gap: 12,
-    },
-    featuredTop: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    featuredLabel: { fontSize: 11, fontWeight: "600", color: t.accentText },
-    featuredName: {
-      fontSize: 21,
-      lineHeight: 28,
-      color: t.ink1,
-      fontWeight: "800",
-      letterSpacing: -0.5,
-    },
-    featuredCopy: { flex: 1, minWidth: 0, gap: 4 },
-    featuredImage: {
-      width: 64,
-      height: 88,
-      borderRadius: t.radius.sm,
-      backgroundColor: t.inset,
-    },
     chip: {
       minHeight: 44,
       justifyContent: "center",
-      borderRadius: t.radius.sm,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
       backgroundColor: t.surface,
     },
     row: {
-      gap: 2,
-      paddingVertical: 10,
+      minHeight: 88,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 8,
       borderBottomWidth: 0.5,
       borderBottomColor: t.line,
     },
-    rowHead: { flexDirection: "row", gap: 12, alignItems: "center" },
     mark: {
-      width: 44,
-      height: 44,
-      borderRadius: t.radius.sm,
+      width: 48,
+      height: 48,
+      borderRadius: 12,
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
     },
-    name: { color: t.ink1, fontSize: 15, fontWeight: "600" },
-    summary: { color: t.ink2, fontSize: 13, lineHeight: 19 },
+    name: { color: t.ink1, fontSize: 16, lineHeight: 21, fontWeight: "600" },
+    summary: { color: t.ink2, fontSize: 12, lineHeight: 17 },
     official: {
-      color: t.accentText,
-      backgroundColor: t.accentTint,
+      color: t.orchidText,
+      backgroundColor: t.orchidTint,
       fontSize: 10,
       fontWeight: "600",
       borderRadius: 5,
@@ -773,16 +609,8 @@ const styles = themedStyleSheet((base) => {
       paddingVertical: 2,
       overflow: "hidden",
     },
-    badge: {
-      flexShrink: 0,
-      color: t.accentText,
-      fontSize: 11,
-      fontWeight: "600",
-      backgroundColor: t.accentTint,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: t.radius.xs,
-    },
+    category: { color: t.ink3, fontSize: 10, lineHeight: 14 },
+    openMark: { width: 42, minHeight: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", gap: 3 },
     error: { color: t.redText, fontSize: 13, lineHeight: 20 },
     empty: { color: t.ink3, textAlign: "center", paddingVertical: 20 },
   };

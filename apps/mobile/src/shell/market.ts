@@ -47,6 +47,7 @@ export const marketCategories = [
   { id: "creative", label: "创意" },
   { id: "other", label: "其他" },
 ];
+export const marketDiscoveryCategories = [marketCategories[0], { id: "official", label: "官方" }, ...marketCategories.slice(1)];
 export type MarketPage = {
   applications: MarketApplication[];
   nextCursor?: string;
