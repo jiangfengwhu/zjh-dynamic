@@ -44,10 +44,12 @@ export function ComposePostScreen({
   onBack,
   initialApplication,
   initialDraft,
+  modeTabs,
 }: {
   onBack: () => void;
   initialApplication?: MarketApplication;
   initialDraft?: UserPostDraft;
+  modeTabs?: import("react").ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
@@ -337,7 +339,7 @@ export function ComposePostScreen({
   return (
     <Screen style={styles.screen}>
       <PageHeader
-        title="发动态"
+        title={modeTabs ? "发布" : "发动态"}
         onBack={busy ? undefined : onBack}
         right={
           <Pressy
@@ -356,6 +358,7 @@ export function ComposePostScreen({
           </Pressy>
         }
       />
+      {modeTabs}
       <KeyboardAvoidingView style={styles.fill} behavior="padding">
         <ScrollView
           keyboardShouldPersistTaps="handled"

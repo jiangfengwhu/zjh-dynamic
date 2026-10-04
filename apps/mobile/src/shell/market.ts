@@ -1,81 +1,253 @@
 import { accountFetch, currentAccountId } from "./account";
-import { fetchApplicationCatalog, runningApplication, loadApplication, preparePublicApplication, validateApplication, applicationNeedsReload, type ApplicationManifest } from "../runtime/applications";
+import {
+  fetchApplicationCatalog,
+  runningApplication,
+  loadApplication,
+  preparePublicApplication,
+  validateApplication,
+  applicationNeedsReload,
+  type ApplicationManifest,
+} from "../runtime/applications";
 import { edgeUrl } from "./evolveHost";
 import { loadCatalog, saveCatalog } from "./catalog";
-import { readShellValue, writeShellValue, removeShellValue, shellKeys } from "./shellStorage";
-import { registerApplicationMetadata, bundles } from "../../../../packages/features/src/registry";
+import {
+  readShellValue,
+  writeShellValue,
+  removeShellValue,
+  shellKeys,
+} from "./shellStorage";
+import {
+  registerApplicationMetadata,
+  bundles,
+} from "../../../../packages/features/src/registry";
 import NativePluginHost from "../NativePluginHost";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { confirmCreation } from "./creationConsent";
-export type MarketApplication = { manifest: ApplicationManifest & { version?: string }; authorId: string | null; authorName: string; authorAvatarUrl?: string | null; authorOfficial?: boolean; originalAppId: string | null; title?: string; summary?: string; category?: string; screenshots?: string[]; publishedAt?: number; owned?: boolean; latest?: boolean };
-export const marketCategories = [{ id: "", label: "全部" }, { id: "tools", label: "工具" }, { id: "productivity", label: "效率" }, { id: "life", label: "生活" }, { id: "creative", label: "创意" }, { id: "other", label: "其他" }];
-export type MarketPage = { applications: MarketApplication[]; nextCursor?: string };
+export type MarketApplication = {
+  manifest: ApplicationManifest & { version?: string };
+  authorId: string | null;
+  authorName: string;
+  authorAvatarUrl?: string | null;
+  authorOfficial?: boolean;
+  originalAppId: string | null;
+  title?: string;
+  summary?: string;
+  category?: string;
+  screenshots?: string[];
+  publishedAt?: number;
+  owned?: boolean;
+  latest?: boolean;
+};
+export const marketCategories = [
+  { id: "", label: "全部" },
+  { id: "tools", label: "工具" },
+  { id: "productivity", label: "效率" },
+  { id: "life", label: "生活" },
+  { id: "creative", label: "创意" },
+  { id: "other", label: "其他" },
+];
+export type MarketPage = {
+  applications: MarketApplication[];
+  nextCursor?: string;
+};
 export type MarketView = MarketPage & { at: number; offset: number };
 const views = new Map<string, MarketView>();
 let marketRevision = 0;
-export const marketViewKey = (category: string, query: string) => `${category}:${query.trim().toLowerCase()}`;
-export function rememberMarketView(key: string, view: MarketView, persist = true) {
-  if (views.size >= 12 && !views.has(key)) { const oldest = views.keys().next().value!; views.delete(oldest); removeShellValue(`market.view.${encodeURIComponent(oldest)}`); }
-  views.set(key, view); if (persist) writeShellValue(`market.view.${encodeURIComponent(key)}`, JSON.stringify(view));
+export const marketViewKey = (category: string, query: string) =>
+  `${category}:${query.trim().toLowerCase()}`;
+export function rememberMarketView(
+  key: string,
+  view: MarketView,
+  persist = true
+) {
+  if (views.size >= 12 && !views.has(key)) {
+    const oldest = views.keys().next().value!;
+    views.delete(oldest);
+    removeShellValue(`market.view.${encodeURIComponent(oldest)}`);
+  }
+  views.set(key, view);
+  if (persist)
+    writeShellValue(
+      `market.view.${encodeURIComponent(key)}`,
+      JSON.stringify(view)
+    );
   if (persist) {
-    const stored = shellKeys().filter(item => item.startsWith("market.view.") && item !== `market.view.${encodeURIComponent(key)}`);
+    const stored = shellKeys().filter(
+      (item) =>
+        item.startsWith("market.view.") &&
+        item !== `market.view.${encodeURIComponent(key)}`
+    );
     while (stored.length >= 12) removeShellValue(stored.shift()!);
   }
 }
-export async function readMarketView(key: string): Promise<MarketView | undefined> {
+export async function readMarketView(
+  key: string
+): Promise<MarketView | undefined> {
   if (views.has(key)) return views.get(key);
-  try { const value = JSON.parse(await readShellValue(`market.view.${encodeURIComponent(key)}`) || "null"); if (Array.isArray(value?.applications)) { const view = { ...value, at: 0, applications: value.applications.map((item: MarketApplication) => ({ ...item, latest: false })) }; views.set(key, view); return view; } } catch {}
+  try {
+    const value = JSON.parse(
+      (await readShellValue(`market.view.${encodeURIComponent(key)}`)) || "null"
+    );
+    if (Array.isArray(value?.applications)) {
+      const view = {
+        ...value,
+        at: 0,
+        applications: value.applications.map((item: MarketApplication) => ({
+          ...item,
+          latest: false,
+        })),
+      };
+      views.set(key, view);
+      return view;
+    }
+  } catch {}
   return undefined;
 }
-export function invalidateMarketViews() { marketRevision++; views.clear(); }
-export function marketViewRevision() { return marketRevision; }
-export async function fetchMarketPage(category = "", query = "", cursor?: string): Promise<MarketPage> {
-  const params = new URLSearchParams({ limit: "24" }); if (category) params.set("category", category); if (query.trim()) params.set("q", query.trim()); if (cursor) params.set("cursor", cursor);
-  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/market?${params}`);
+export function invalidateMarketViews() {
+  marketRevision++;
+  views.clear();
+}
+export function marketViewRevision() {
+  return marketRevision;
+}
+export async function fetchMarketPage(
+  category = "",
+  query = "",
+  cursor?: string
+): Promise<MarketPage> {
+  const params = new URLSearchParams({ limit: "24" });
+  if (category) params.set("category", category);
+  if (query.trim()) params.set("q", query.trim());
+  if (cursor) params.set("cursor", cursor);
+  const response = await fetchApplicationCatalog(
+    `${edgeUrl}/v1/market?${params}`
+  );
   if (!response.ok) throw new Error("市场加载失败，请重试");
-  const data = await response.json() as MarketPage;
+  const data = (await response.json()) as MarketPage;
   if (!Array.isArray(data.applications)) throw new Error("市场数据暂时不可用");
-  return { applications: data.applications.map(item => ({ ...item, latest: true })), nextCursor: data.nextCursor };
+  return {
+    applications: data.applications.map((item) => ({ ...item, latest: true })),
+    nextCursor: data.nextCursor,
+  };
 }
 const CACHE = "market.catalog.v1";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
-export async function fetchPublicMarketApplication(appId: string): Promise<MarketApplication> {
-  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/market?appId=${encodeURIComponent(appId)}`);
+export async function fetchPublicMarketApplication(
+  appId: string
+): Promise<MarketApplication> {
+  const response = await fetchApplicationCatalog(
+    `${edgeUrl}/v1/market?appId=${encodeURIComponent(appId)}`
+  );
   if (!response.ok) throw new Error("应用详情暂时不可用，请重试");
-  const data = await response.json() as { applications?: MarketApplication[] };
-  const item = data.applications?.find(item => item.manifest?.appId === appId);
+  const data = (await response.json()) as {
+    applications?: MarketApplication[];
+  };
+  const item = data.applications?.find(
+    (item) => item.manifest?.appId === appId
+  );
   if (!item) throw new Error("这个应用已撤回或暂未上架");
   return { ...item, latest: true };
 }
 export async function cachedMarket(): Promise<MarketApplication[]> {
-  try { const raw = await readShellValue(CACHE); return raw ? (JSON.parse(raw) as MarketApplication[]).map(item => ({ ...item, latest: false })) : []; } catch { return []; }
+  try {
+    const raw = await readShellValue(CACHE);
+    return raw
+      ? (JSON.parse(raw) as MarketApplication[]).map((item) => ({
+          ...item,
+          latest: false,
+        }))
+      : [];
+  } catch {
+    return [];
+  }
 }
-export async function fetchMarket(authorId?: string): Promise<MarketApplication[]> {
-  const response = await fetchApplicationCatalog(`${edgeUrl}/v1/market${authorId ? `?authorId=${encodeURIComponent(authorId)}` : ""}`);
+export async function fetchMarket(
+  authorId?: string
+): Promise<MarketApplication[]> {
+  const response = await fetchApplicationCatalog(
+    `${edgeUrl}/v1/market${
+      authorId ? `?authorId=${encodeURIComponent(authorId)}` : ""
+    }`
+  );
   if (!response.ok) throw new Error("暂时无法获取应用市场，请稍后重试");
-  const data = await response.json() as { applications: MarketApplication[] };
-  if (!Array.isArray(data.applications)) throw new Error("应用市场数据暂时不可用");
-  const items = data.applications.filter(item => /^[a-z][a-z0-9-]{0,63}$/.test(item.manifest?.appId)).map(item => ({ ...item, latest: true }));
+  const data = (await response.json()) as { applications: MarketApplication[] };
+  if (!Array.isArray(data.applications))
+    throw new Error("应用市场数据暂时不可用");
+  const items = data.applications
+    .filter((item) => /^[a-z][a-z0-9-]{0,63}$/.test(item.manifest?.appId))
+    .map((item) => ({ ...item, latest: true }));
   if (!authorId) writeShellValue(CACHE, JSON.stringify(items));
   return items;
+}
+export async function isApplicationInstalled(appId: string): Promise<boolean> {
+  const owner = await currentAccountId();
+  const entries = await loadCatalog();
+  if (
+    !entries.some(
+      (entry) => entry.id === appId && !entry.trashedAt && !entry.purged
+    )
+  )
+    return false;
+  const pending = await readShellValue(`application.pending.${appId}`);
+  const manifest =
+    pending || (await readShellValue(`application.install.${appId}`));
+  if (!manifest) return false;
+  const raw = await readShellValue(
+    `application.${pending ? "pending.access" : "access"}.${appId}`
+  );
+  try {
+    const access = JSON.parse(raw || "{}");
+    return (
+      (!access.ownerId || access.ownerId === owner) &&
+      (await currentAccountId()) === owner
+    );
+  } catch {
+    return false;
+  }
 }
 export async function installedMarket(): Promise<MarketApplication[]> {
   const entries = await loadCatalog();
   const items: MarketApplication[] = [];
   const accountId = await currentAccountId();
   const market = await cachedMarket();
-  for (const entry of entries.filter(entry => !entry.trashedAt && !entry.purged)) {
-    const accessRaw = await readShellValue(`application.pending.${entry.id}`) ? await readShellValue(`application.pending.access.${entry.id}`) : await readShellValue(`application.access.${entry.id}`);
-    try { const access = JSON.parse(accessRaw || "{}"); if (access.ownerId && access.ownerId !== accountId) continue; } catch { continue; }
-    const raw = await readShellValue(`application.pending.${entry.id}`) || await readShellValue(`application.install.${entry.id}`);
+  for (const entry of entries.filter(
+    (entry) => !entry.trashedAt && !entry.purged
+  )) {
+    const accessRaw = (await readShellValue(`application.pending.${entry.id}`))
+      ? await readShellValue(`application.pending.access.${entry.id}`)
+      : await readShellValue(`application.access.${entry.id}`);
+    try {
+      const access = JSON.parse(accessRaw || "{}");
+      if (access.ownerId && access.ownerId !== accountId) continue;
+    } catch {
+      continue;
+    }
+    const raw =
+      (await readShellValue(`application.pending.${entry.id}`)) ||
+      (await readShellValue(`application.install.${entry.id}`));
     if (!raw) continue;
     try {
       const saved = await readShellValue(`application.market.${entry.id}`);
-      const author = market.find(item => item.manifest.appId === entry.id) ?? (saved ? JSON.parse(saved) as MarketApplication : undefined);
-      const owned = Boolean(accountId) && await readShellValue(`shell.jules.apps.${entry.id}.owner`) === accountId;
-      items.push({ ...author, manifest: JSON.parse(raw), authorId: owned ? accountId! : author?.authorId ?? null, authorName: author?.authorName ?? "社区创作者", originalAppId: author?.originalAppId ?? null, latest: false, owned });
-    } catch { /* Keep other applications available. */ }
+      const author =
+        market.find((item) => item.manifest.appId === entry.id) ??
+        (saved ? (JSON.parse(saved) as MarketApplication) : undefined);
+      const owned =
+        Boolean(accountId) &&
+        (await readShellValue(`shell.jules.apps.${entry.id}.owner`)) ===
+          accountId;
+      items.push({
+        ...author,
+        manifest: JSON.parse(raw),
+        authorId: owned ? accountId! : author?.authorId ?? null,
+        authorName: author?.authorName ?? "社区创作者",
+        originalAppId: author?.originalAppId ?? null,
+        latest: false,
+        owned,
+      });
+    } catch {
+      /* Keep other applications available. */
+    }
   }
   return items;
 }
@@ -85,67 +257,175 @@ export async function installMarketApplication(item: MarketApplication) {
   validateApplication(manifest);
   await preparePublicApplication(manifest);
   writeShellValue(`application.market.${manifest.appId}`, JSON.stringify(item));
-  writeShellValue(`application.pending.${manifest.appId}`, JSON.stringify(manifest));
+  writeShellValue(
+    `application.pending.${manifest.appId}`,
+    JSON.stringify(manifest)
+  );
   writeShellValue(`application.failed.${manifest.appId}`, "");
   writeShellValue(`application.attempt.${manifest.appId}`, "");
   registerApplicationMetadata(manifest);
   const catalog = await loadCatalog();
-  const existing = catalog.find(entry => entry.id === manifest.appId);
-  if (existing) { existing.trashedAt = undefined; existing.purged = false; existing.hidden = false; existing.pinned = true; }
-  else catalog.push({ id: manifest.appId, hidden: false, pinned: true });
+  const existing = catalog.find((entry) => entry.id === manifest.appId);
+  if (existing) {
+    existing.trashedAt = undefined;
+    existing.purged = false;
+    existing.hidden = false;
+    existing.pinned = true;
+  } else catalog.push({ id: manifest.appId, hidden: false, pinned: true });
   await saveCatalog(catalog);
   const current = runningApplication(manifest.appId);
   if (applicationNeedsReload(manifest)) {
-    writeShellValue("application.openAfterReload", JSON.stringify({ appId: manifest.appId, ownerId: await currentAccountId() }));
-    try { await NativePluginHost.call("shell", "reloadApplications", "{}"); }
-    catch (error) { writeShellValue("application.openAfterReload", ""); throw error; }
+    writeShellValue(
+      "application.openAfterReload",
+      JSON.stringify({
+        appId: manifest.appId,
+        ownerId: await currentAccountId(),
+      })
+    );
+    try {
+      await NativePluginHost.call("shell", "reloadApplications", "{}");
+    } catch (error) {
+      writeShellValue("application.openAfterReload", "");
+      throw error;
+    }
     return;
   }
-  if (current?.releaseId === manifest.releaseId) writeShellValue(`application.pending.${manifest.appId}`, "");
+  if (current?.releaseId === manifest.releaseId)
+    writeShellValue(`application.pending.${manifest.appId}`, "");
   await loadApplication(manifest.appId);
   // Refresh the avatar after activation, without changing application business code.
   await saveCatalog(await loadCatalog());
 }
 export async function uninstallMarketApplication(appId: string) {
-  if (appId === bootstrap.defaultApplication) throw new Error("Jolly 是默认伙伴，暂不支持卸载");
+  if (appId === bootstrap.defaultApplication)
+    throw new Error("Jolly 是默认伙伴，暂不支持卸载");
   const catalog = await loadCatalog();
-  const entry = catalog.find(entry => entry.id === appId);
+  const entry = catalog.find((entry) => entry.id === appId);
   if (!entry) return;
-  entry.trashedAt = Date.now(); entry.hidden = true; entry.pinned = false;
+  entry.trashedAt = Date.now();
+  entry.hidden = true;
+  entry.pinned = false;
   await saveCatalog(catalog);
   writeShellValue(`application.pending.${appId}`, "");
   // Retain storage and cached media; reload to release evaluated JS and timers.
   await NativePluginHost.call("shell", "reloadApplications", "{}");
 }
-export function marketDefinition(item: MarketApplication) { return bundles.find(bundle => bundle.id === item.manifest.appId); }
-
-export type SharingState = { shared: MarketApplication | null; application: MarketApplication["manifest"] | null };
-export async function cachedSharing(appId: string): Promise<SharingState | undefined> {
-  const raw = await readShellValue(`shell.market.state.${appId}`);
-  try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; }
+export function marketDefinition(item: MarketApplication) {
+  return bundles.find((bundle) => bundle.id === item.manifest.appId);
 }
-async function marketAction(appId: string, input: { action: string; releaseId?: string; title?: string; summary?: string; category?: string; screenshots?: string[] }): Promise<SharingState> {
-  if (input.action === "withdraw") await confirmCreation(input.action === "withdraw" ? "撤回分享" : input.action === "edit" ? "修改市场介绍" : "上架到应用市场", appId, input.action === "withdraw" ? "作品会从市场移除；已安装版本和你的作品仍保留。" : [input.title, input.summary].filter(Boolean).join("\n"));
-  const token = await readShellValue(`shell.jules.apps.${appId}.token`);
-  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000);
+
+export type SharingState = {
+  shared: MarketApplication | null;
+  application: MarketApplication["manifest"] | null;
+};
+export async function cachedSharing(
+  appId: string
+): Promise<SharingState | undefined> {
+  const raw = await readShellValue(`shell.market.state.${appId}`);
   try {
-    const response = await accountFetch(`${edgeUrl}/v1/market`, { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appId, token, ...input }) }, input.action !== "status");
+    return raw ? JSON.parse(raw) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+async function marketAction(
+  appId: string,
+  input: {
+    action: string;
+    releaseId?: string;
+    title?: string;
+    summary?: string;
+    category?: string;
+    screenshots?: string[];
+  }
+): Promise<SharingState> {
+  if (input.action === "withdraw")
+    await confirmCreation(
+      input.action === "withdraw"
+        ? "撤回分享"
+        : input.action === "edit"
+        ? "修改市场介绍"
+        : "上架到应用市场",
+      appId,
+      input.action === "withdraw"
+        ? "作品会从市场移除；已安装版本和你的作品仍保留。"
+        : [input.title, input.summary].filter(Boolean).join("\n")
+    );
+  const token = await readShellValue(`shell.jules.apps.${appId}.token`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await accountFetch(
+      `${edgeUrl}/v1/market`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId, token, ...input }),
+      },
+      input.action !== "status"
+    );
     const result = await response.json();
-    if (!response.ok) throw new Error(result.message || "分享操作未完成，请重试");
+    if (!response.ok)
+      throw new Error(result.message || "分享操作未完成，请重试");
     const state = result as SharingState;
     writeShellValue(`shell.market.state.${appId}`, JSON.stringify(state));
-    applicationContext(bootstrap.defaultApplication).storage.set(`sharing.${appId}`, JSON.stringify({ releaseId: state.shared?.manifest.releaseId ?? "", hasUpdate: Boolean(state.shared && state.application && state.shared.manifest.releaseId !== state.application.releaseId) }));
+    applicationContext(bootstrap.defaultApplication).storage.set(
+      `sharing.${appId}`,
+      JSON.stringify({
+        releaseId: state.shared?.manifest.releaseId ?? "",
+        hasUpdate: Boolean(
+          state.shared &&
+            state.application &&
+            state.shared.manifest.releaseId !== state.application.releaseId
+        ),
+      })
+    );
     if (input.action !== "status") {
       invalidateMarketViews();
-      const items = (await cachedMarket()).filter(item => item.manifest.appId !== appId);
+      const items = (await cachedMarket()).filter(
+        (item) => item.manifest.appId !== appId
+      );
       if (state.shared) items.unshift(state.shared);
       writeShellValue(CACHE, JSON.stringify(items));
       writePackageValue("shell.market.changed", String(Date.now()));
     }
     return state;
-  } finally { clearTimeout(timer); }
+  } finally {
+    clearTimeout(timer);
+  }
 }
-export const loadSharing = (appId: string) => marketAction(appId, { action: "status" });
-export const shareMarketApplication = (appId: string, releaseId: string, title: string, summary: string, category?: string, screenshots?: string[]) => marketAction(appId, { action: "share", releaseId, title, summary, category, screenshots });
-export const editMarketApplication = (appId: string, title: string, summary: string, category?: string, screenshots?: string[]) => marketAction(appId, { action: "edit", title, summary, category, screenshots });
-export const withdrawMarketApplication = (appId: string) => marketAction(appId, { action: "withdraw" });
+export const loadSharing = (appId: string) =>
+  marketAction(appId, { action: "status" });
+export const shareMarketApplication = (
+  appId: string,
+  releaseId: string,
+  title: string,
+  summary: string,
+  category?: string,
+  screenshots?: string[]
+) =>
+  marketAction(appId, {
+    action: "share",
+    releaseId,
+    title,
+    summary,
+    category,
+    screenshots,
+  });
+export const editMarketApplication = (
+  appId: string,
+  title: string,
+  summary: string,
+  category?: string,
+  screenshots?: string[]
+) =>
+  marketAction(appId, {
+    action: "edit",
+    title,
+    summary,
+    category,
+    screenshots,
+  });
+export const withdrawMarketApplication = (appId: string) =>
+  marketAction(appId, { action: "withdraw" });

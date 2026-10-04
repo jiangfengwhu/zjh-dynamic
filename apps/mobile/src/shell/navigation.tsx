@@ -36,7 +36,7 @@ import { MyApplicationsScreen } from "./MyApplicationsScreen";
 import { MarketScreen } from "./MarketScreen";
 import { MarketDetailScreen } from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
-import { fetchPublicMarketApplication } from "./market";
+import { fetchPublicMarketApplication, isApplicationInstalled } from "./market";
 import {
   applicationContext,
   setApplicationPostHandlers,
@@ -61,7 +61,12 @@ import {
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { openFeature } from "../../../../packages/features/src/registry";
 import Toast from "react-native-toast-message";
-import { ComposePostScreen } from "./feed/ComposePostScreen";
+import { PublicationScreen } from "./PublicationScreen";
+import { MyProfileScreen } from "./MyProfileScreen";
+import {
+  openApplicationWorkshop,
+  openCreationRequest,
+} from "./workshopNavigation";
 import { PostDetailScreen } from "./feed/PostDetailScreen";
 import type { UserPost } from "./feed/userPosts";
 import type { UserPostDraft } from "../../../../packages/app-sdk/src/index";
@@ -79,6 +84,7 @@ export type TabParamList = {
   feed: undefined;
   market: undefined;
   notifications: undefined;
+  mine: undefined;
 };
 
 export type RootParamList = {
@@ -92,7 +98,11 @@ export type RootParamList = {
   myApps: undefined;
   account: undefined;
   composePost:
-    | { application?: MarketApplication; draft?: UserPostDraft }
+    | {
+        application?: MarketApplication;
+        draft?: UserPostDraft;
+        mode?: "post" | "create";
+      }
     | undefined;
   postDetail: {
     post: UserPost;
@@ -110,6 +120,16 @@ function openAuthor(author: PublicAuthor) {
 }
 
 async function openNotice(notice: Notice) {
+  if (notice.kind === "work-success" || notice.kind === "work-failure") {
+    if (!notice.appId) throw new Error("这条制作通知缺少作品信息");
+    await openApplicationWorkshop(
+      notice.appId,
+      notice.postPreview,
+      false,
+      false
+    );
+    return true;
+  }
   const origin = shellNavigationRef.getCurrentRoute()?.key;
   const detail = await fetchPostDetail(
     notice.postId,
@@ -167,16 +187,24 @@ function waitForBundleMount(id: string): Promise<void> {
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-export function openShellTab(id: ShellTabId | "mine") {
+export function openShellTab(id: ShellTabId) {
   if (!shellNavigationRef.isReady()) return;
-  if (id === "mine") {
-    shellNavigationRef.navigate("tabs", { screen: "feed" });
-    showProfileDrawer();
-  } else shellNavigationRef.navigate("tabs", { screen: id });
+  shellNavigationRef.navigate("tabs", { screen: id });
+}
+function openPublication(mode: "post" | "create" = "post") {
+  void requireAccount().then((allowed) => {
+    if (allowed && shellNavigationRef.isReady())
+      shellNavigationRef.navigate("composePost", { mode });
+  });
 }
 export async function openPublicMarketApplication(appId: string) {
   if (!shellNavigationRef.isReady()) return;
   const origin = shellNavigationRef.getCurrentRoute()?.key;
+  if (await isApplicationInstalled(appId)) {
+    if (shellNavigationRef.getCurrentRoute()?.key === origin)
+      await openShellBundle(appId);
+    return;
+  }
   const item = await fetchPublicMarketApplication(appId);
   if (
     shellNavigationRef.isReady() &&
@@ -344,6 +372,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
     >
       <TabBar
         activeId={active}
+        onCompose={() => openPublication()}
         onChange={(id) => {
           const route = state.routes.find((item) => item.name === id);
           if (route) jumpTo(route.key);
@@ -496,10 +525,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                       shellNavigationRef.navigate("account");
                     }}
                     mode={props.mode}
-                    onApplications={() => {
-                      dismiss();
-                      shellNavigationRef.navigate("myApps");
-                    }}
                     onProviders={() => {
                       dismiss();
                       shellNavigationRef.navigate("providers");
@@ -568,6 +593,26 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     <Tabs.Screen name="notifications">
                       {() => <NotificationsTab onOpen={openNotice} />}
                     </Tabs.Screen>
+                    <Tabs.Screen name="mine">
+                      {() => (
+                        <MyProfileScreen
+                          onAccount={() =>
+                            shellNavigationRef.navigate("account")
+                          }
+                          onPost={(post) =>
+                            shellNavigationRef.navigate("postDetail", { post })
+                          }
+                          onApplication={openPublicMarketApplication}
+                          onDetail={(item) =>
+                            shellNavigationRef.navigate("marketDetail", {
+                              item,
+                            })
+                          }
+                          onOpen={props.onOpenBundle}
+                          onCreate={() => openPublication("create")}
+                        />
+                      )}
+                    </Tabs.Screen>
                   </Tabs.Navigator>
                 </ScreenEdge>
               </ProfileDrawer>
@@ -630,8 +675,20 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           </Stack.Screen>
           <Stack.Screen name="composePost">
             {({ route }) => (
-              <ComposePostScreen
+              <PublicationScreen
                 onBack={goBack}
+                onCreate={async (prompt) => {
+                  const target = await openCreationRequest(
+                    bootstrap.defaultApplication,
+                    prompt,
+                    false
+                  );
+                  return (
+                    !!target &&
+                    (await openShellBundle(bootstrap.defaultApplication))
+                  );
+                }}
+                initialMode={route.params?.mode}
                 initialApplication={route.params?.application}
                 initialDraft={route.params?.draft}
               />

@@ -20,22 +20,51 @@ export const SHELL_TABS = [
   { id: "feed", title: "动态", icon: "feed" },
   { id: "market", title: "应用市场", icon: "box" },
   { id: "notifications", title: "通知", icon: "bell" },
+  { id: "mine", title: "我的", icon: "mine" },
 ] as const;
 export type ShellTabId = (typeof SHELL_TABS)[number]["id"];
 
 export function TabBar({
   activeId,
   onChange,
+  onCompose,
 }: {
   activeId: string;
   onChange: (id: ShellTabId) => void;
+  onCompose: () => void;
 }) {
-  useTheme();
+  const colors = pixelTheme(useTheme().colors);
   const unread = useNotificationCount();
   useNotificationSync();
   return (
     <View style={styles.bar}>
-      {SHELL_TABS.map((item) => (
+      {SHELL_TABS.slice(0, 2).map((item) => (
+        <Tab
+          key={item.id}
+          item={item}
+          active={item.id === activeId}
+          unread={item.id === "notifications" ? unread : 0}
+          onPress={() => onChange(item.id)}
+        />
+      ))}
+      <Pressy
+        accessibilityRole="button"
+        accessibilityLabel="发布动态或制作应用"
+        onPress={onCompose}
+        scale={1}
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          alignSelf: "center",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: colors.accent,
+        }}
+      >
+        <PixelIcon name="plus" size={22} color={colors.onAccent} />
+      </Pressy>
+      {SHELL_TABS.slice(2).map((item) => (
         <Tab
           key={item.id}
           item={item}
@@ -124,10 +153,10 @@ const styles = themedStyleSheet((base) => {
       flex: 1,
       minWidth: 0,
       minHeight: 44,
-      flexDirection: "row",
+      flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      gap: 6,
+      gap: 3,
     },
     selected: {
       position: "absolute",

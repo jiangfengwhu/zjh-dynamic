@@ -1,5 +1,5 @@
 import { PixelText as Text } from "./PixelText";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { PixelIcon } from "./PixelKit";
 import Toast from "react-native-toast-message";
@@ -7,6 +7,9 @@ import { Pressy } from "../../../../../packages/ui/chrome";
 import { useTheme } from "../../../../../packages/ui/theme";
 import type { ApplicationLink } from "./userPosts";
 import { pixelTheme } from "./pixelTheme";
+import { isApplicationInstalled } from "../market";
+import { subscribeCatalog } from "../catalog";
+import { useAccount } from "../account";
 
 export function ApplicationPostCard({
   application,
@@ -23,6 +26,26 @@ export function ApplicationPostCard({
   );
   const colors = inPixelFeed ? pixelTheme(context.colors) : context.colors;
   const [busy, setBusy] = useState(false);
+  const [installed, setInstalled] = useState(false);
+  const { user } = useAccount();
+  useEffect(() => {
+    if (preview) return;
+    let alive = true;
+    const refresh = () => {
+      void isApplicationInstalled(application.appId)
+        .then((value) => {
+          if (alive) setInstalled(value);
+        })
+        .catch(() => {});
+    };
+    setInstalled(false);
+    refresh();
+    const off = subscribeCatalog(refresh);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [application.appId, preview, user?.id]);
   const working = useRef(false);
   async function open() {
     if (working.current) return;
@@ -44,7 +67,9 @@ export function ApplicationPostCard({
   return (
     <Pressy
       accessibilityRole="button"
-      accessibilityLabel={`查看应用 ${application.title}`}
+      accessibilityLabel={`${installed ? "打开" : "查看"}应用 ${
+        application.title
+      }`}
       disabled={preview || busy}
       onPress={() => void open()}
       style={{
@@ -87,7 +112,11 @@ export function ApplicationPostCard({
           {application.summary || "打开应用市场，体验这个作品"}
         </Text>
         <Text style={{ fontSize: 11, color: colors.accentText }}>
-          应用市场 · {preview ? "随动态分享" : "查看并体验"}
+          {preview
+            ? "随动态分享"
+            : installed
+            ? "已安装 · 直接打开"
+            : "应用市场 · 查看并体验"}
         </Text>
       </View>
       {!preview ? (

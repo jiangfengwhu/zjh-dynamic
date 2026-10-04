@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import {
   ActivityIndicator,
@@ -12,7 +12,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
-import { GestureDetector } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { CompactTabs } from "../CompactTabs";
 import { PageHeader } from "../../../../../packages/ui/chrome";
@@ -43,16 +43,22 @@ export function AuthorProfileScreen({
   onBack,
   onPost,
   onApplication,
+  embedded = false,
+  active = true,
+  drawerGesture,
 }: {
   initialAuthor: PublicAuthor;
-  onBack: () => void;
+  onBack?: () => void;
+  embedded?: boolean;
+  active?: boolean;
+  drawerGesture?: ReturnType<typeof Gesture.Pan>;
   onPost: (post: UserPost) => void;
   onApplication: (appId: string) => Promise<void>;
 }) {
   const { colors } = useTheme();
   const { user } = useAccount();
   const timeline = useUserPosts();
-  const focused = useIsFocused();
+  const focused = useIsFocused() && active;
   const [profile, setProfile] = useState<AuthorProfile>(() => ({
     author: initialAuthor,
     posts: timeline.posts.filter((post) => post.author.id === initialAuthor.id),
@@ -109,6 +115,13 @@ export function AuthorProfileScreen({
     scrollY,
     onRefresh: () => load(),
   });
+  const listGesture = useMemo(
+    () =>
+      drawerGesture
+        ? Gesture.Native().requireExternalGestureToFail(gesture, drawerGesture)
+        : scrollGesture,
+    [gesture, drawerGesture, scrollGesture]
+  );
   const lift = useAnimatedStyle(() => ({
     transform: [{ translateY: pull.value }],
   }));
@@ -195,129 +208,132 @@ export function AuthorProfileScreen({
     profile.author.id === user?.id
       ? { ...profile.author, name: user.name, avatarUrl: user.avatarUrl }
       : profile.author;
+  const Root = embedded ? View : Screen;
   const header = (
     <View>
-      <View style={{ padding: 16, gap: 12 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          {author.avatarUrl ? (
-            <AppImage
-              source={{ uri: author.avatarUrl }}
-              style={{ width: 56, height: 56, borderRadius: 28 }}
-            />
-          ) : (
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: colors.accent,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text
+      {!embedded ? (
+        <View style={{ padding: 16, gap: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {author.avatarUrl ? (
+              <AppImage
+                source={{ uri: author.avatarUrl }}
+                style={{ width: 56, height: 56, borderRadius: 28 }}
+              />
+            ) : (
+              <View
                 style={{
-                  fontSize: 23,
-                  fontWeight: "700",
-                  color: colors.onAccent,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: colors.accent,
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                {Array.from(author.name)[0]}
-              </Text>
-            </View>
-          )}
-          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-            <Text
-              numberOfLines={2}
-              style={{
-                fontSize: 22,
-                lineHeight: 28,
-                letterSpacing: -0.5,
-                fontWeight: "800",
-                color: colors.ink1,
-              }}
-            >
-              {author.name}
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {author.official ? (
-                <Text style={{ fontSize: 11, color: colors.accentText }}>
-                  官方创作者
+                <Text
+                  style={{
+                    fontSize: 23,
+                    fontWeight: "700",
+                    color: colors.onAccent,
+                  }}
+                >
+                  {Array.from(author.name)[0]}
                 </Text>
-              ) : null}
-              {user?.id === author.id ? (
-                <Text style={{ fontSize: 11, color: colors.ink3 }}>
-                  我的主页
-                </Text>
-              ) : null}
-              <Text style={{ color: colors.ink3, fontSize: 11 }}>
-                {loaded
-                  ? `${profile.applications.length} 个公开应用`
-                  : error
-                  ? "主页暂未同步"
-                  : busy
-                  ? "正在加载…"
-                  : "作者主页"}
+              </View>
+            )}
+            <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+              <Text
+                numberOfLines={2}
+                style={{
+                  fontSize: 22,
+                  lineHeight: 28,
+                  letterSpacing: -0.5,
+                  fontWeight: "800",
+                  color: colors.ink1,
+                }}
+              >
+                {author.name}
               </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {author.official ? (
+                  <Text style={{ fontSize: 11, color: colors.accentText }}>
+                    官方创作者
+                  </Text>
+                ) : null}
+                {user?.id === author.id ? (
+                  <Text style={{ fontSize: 11, color: colors.ink3 }}>
+                    我的主页
+                  </Text>
+                ) : null}
+                <Text style={{ color: colors.ink3, fontSize: 11 }}>
+                  {loaded
+                    ? `${profile.applications.length} 个公开应用`
+                    : error
+                    ? "主页暂未同步"
+                    : busy
+                    ? "正在加载…"
+                    : "作者主页"}
+                </Text>
+              </View>
             </View>
+            {user?.id !== author.id ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={profile.following ? "取消关注" : "关注作者"}
+                accessibilityState={{
+                  disabled: followBusy || busy,
+                  selected: !!profile.following,
+                }}
+                disabled={followBusy || busy}
+                onPress={() => void toggleFollow()}
+                style={{
+                  minHeight: 44,
+                  minWidth: 76,
+                  paddingHorizontal: 12,
+                  borderRadius: 22,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: profile.following
+                    ? colors.inset
+                    : colors.accent,
+                  opacity: followBusy || busy ? 0.6 : 1,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: profile.following ? colors.ink2 : colors.onAccent,
+                  }}
+                >
+                  {followBusy
+                    ? "处理中…"
+                    : profile.following
+                    ? "已关注"
+                    : "+ 关注"}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
-          {user?.id !== author.id ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={profile.following ? "取消关注" : "关注作者"}
-              accessibilityState={{
-                disabled: followBusy || busy,
-                selected: !!profile.following,
-              }}
-              disabled={followBusy || busy}
-              onPress={() => void toggleFollow()}
-              style={{
-                minHeight: 44,
-                minWidth: 76,
-                paddingHorizontal: 12,
-                borderRadius: 22,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: profile.following
-                  ? colors.inset
-                  : colors.accent,
-                opacity: followBusy || busy ? 0.6 : 1,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: profile.following ? colors.ink2 : colors.onAccent,
-                }}
-              >
-                {followBusy
-                  ? "处理中…"
-                  : profile.following
-                  ? "已关注"
-                  : "+ 关注"}
-              </Text>
-            </Pressable>
+          {loaded ? (
+            <Text style={{ fontSize: 12, color: colors.ink3 }}>
+              {profile.followingCount ?? 0} 关注 · {profile.followerCount ?? 0}{" "}
+              关注者
+            </Text>
           ) : null}
+          <CompactTabs
+            value={tab}
+            options={[
+              { id: "posts", label: "动态" },
+              { id: "apps", label: "应用" },
+            ]}
+            onChange={(value) => {
+              setTab(value);
+              list.current?.scrollToOffset({ offset: 0, animated: false });
+              scrollY.value = 0;
+            }}
+          />
         </View>
-        {loaded ? (
-          <Text style={{ fontSize: 12, color: colors.ink3 }}>
-            {profile.followingCount ?? 0} 关注 · {profile.followerCount ?? 0}{" "}
-            关注者
-          </Text>
-        ) : null}
-        <CompactTabs
-          value={tab}
-          options={[
-            { id: "posts", label: "动态" },
-            { id: "apps", label: "应用" },
-          ]}
-          onChange={(value) => {
-            setTab(value);
-            list.current?.scrollToOffset({ offset: 0, animated: false });
-            scrollY.value = 0;
-          }}
-        />
-      </View>
+      ) : null}
       {error ? (
         <Pressable
           accessibilityRole="button"
@@ -330,13 +346,13 @@ export function AuthorProfileScreen({
     </View>
   );
   return (
-    <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <PageHeader title="作者主页" onBack={onBack} />
+    <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
+      {!embedded ? <PageHeader title="作者主页" onBack={onBack} /> : null}
       <GestureDetector gesture={gesture}>
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PullIndicator pull={pull} phase={phase} />
           <Animated.View style={[{ flex: 1 }, lift]}>
-            <GestureDetector gesture={scrollGesture}>
+            <GestureDetector gesture={listGesture}>
               <Animated.FlatList<ProfileRow>
                 ref={list}
                 data={
@@ -442,6 +458,6 @@ export function AuthorProfileScreen({
           </Animated.View>
         </View>
       </GestureDetector>
-    </Screen>
+    </Root>
   );
 }

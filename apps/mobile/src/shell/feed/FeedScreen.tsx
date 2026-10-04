@@ -31,11 +31,7 @@ import {
 import { pixelTheme, usePixelTheme } from "./pixelTheme";
 import { PixelAvatar, PixelIcon } from "./PixelKit";
 import NativePluginHost from "../../NativePluginHost";
-import {
-  useFeedChrome,
-  SHELL_BOTTOM_PADDING,
-  SHELL_CHROME_THRESHOLD,
-} from "./FeedChrome";
+import { useFeedChrome, SHELL_CHROME_THRESHOLD } from "./FeedChrome";
 import { useAccount } from "../account";
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
@@ -75,7 +71,6 @@ export const FeedScreen = memo(function FeedScreen({
   const { colors, mode } = themeContext;
   const insets = useSafeAreaInsets();
   const {
-    hidden: chromeHidden,
     target: chromeTarget,
     travel: bottomTravel,
     tabHeight,
@@ -127,12 +122,7 @@ export const FeedScreen = memo(function FeedScreen({
     transform: [{ translateY: -hiddenHeader.value }],
   }));
   const bottomSpace = useAnimatedStyle(() => ({
-    paddingBottom: tabHeight.value + 68,
-  }));
-  const composePosition = useAnimatedStyle(() => ({
-    bottom: Math.max(SHELL_BOTTOM_PADDING, insets.bottom, tabHeight.value) + 12,
-    transform: [{ translateY: chromeHidden.value * (tabHeight.value + 76) }],
-    opacity: 1 - chromeHidden.value,
+    paddingBottom: tabHeight.value + 16,
   }));
   useEffect(() => {
     runOnUI((key: string) => {
@@ -465,25 +455,6 @@ export const FeedScreen = memo(function FeedScreen({
                   </GestureDetector>
                 </View>
               </GestureDetector>
-              <Animated.View style={[styles.composeDock, composePosition]}>
-                <Pressy
-                  accessibilityLabel="发布动态"
-                  onPress={onCompose}
-                  scale={1}
-                  style={[
-                    styles.compose,
-                    {
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
-                      paddingHorizontal: 0,
-                      justifyContent: "center",
-                    },
-                  ]}
-                >
-                  <PixelIcon name="plus" size={18} color={colors.onAccent} />
-                </Pressy>
-              </Animated.View>
             </View>
           </View>
         </GestureHandlerRootView>
@@ -698,7 +669,6 @@ const styles = themedStyleSheet((base) => {
       backgroundColor: t.canvas,
     },
     viewport: { flex: 1, overflow: "hidden" },
-    composeDock: { position: "absolute", right: 16, zIndex: 30 },
     compose: {
       minHeight: 44,
       flexDirection: "row",

@@ -21,7 +21,6 @@ type Props = {
   drawer?: boolean;
   onClose?: () => void;
   mode: ThemeMode;
-  onApplications: () => void;
   onAccount: () => void;
   onProviders: () => void;
   onInfo: () => void;
@@ -33,7 +32,6 @@ export const MineScreen = memo(function MineScreen({
   drawer,
   onClose,
   mode,
-  onApplications,
   onAccount,
   onProviders,
   onInfo,
@@ -56,7 +54,7 @@ export const MineScreen = memo(function MineScreen({
     <Screen style={styles.screen}>
       {!drawer ? (
         <PageHeader
-          title="我的"
+          title="设置"
           right={
             onClose ? (
               <Pressy
@@ -109,13 +107,6 @@ export const MineScreen = memo(function MineScreen({
           </Pressy>
         </Animated.View>
         <View style={styles.shortcuts}>
-          <Shortcut
-            icon="box"
-            title="作品与应用"
-            hint="创作 / 分享 / 安装"
-            onPress={onApplications}
-            primary
-          />
           <Shortcut
             icon="engine"
             title="AI 引擎"
