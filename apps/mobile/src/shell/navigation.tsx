@@ -90,7 +90,7 @@ export type TabParamList = {
 };
 
 import JollyProgressScreen from "./jolly/ProgressScreen";
-import { ShellTabScene } from "./ShellTabScene";
+import { ShellTabScene, prioritizeShellTab, setShellTabWarmupActive } from "./ShellTabScene";
 
 export type RootParamList = {
   applicationLink: { appId: string };
@@ -331,7 +331,10 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
         onCompose={() => openPublication()}
         onChange={(id) => {
           const route = state.routes.find((item) => item.name === id);
-          if (route) jumpTo(route.key);
+          if (route) {
+            prioritizeShellTab();
+            jumpTo(route.key);
+          }
         }}
       />
     </Animated.View>
@@ -385,6 +388,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
   function onStateChange(state: NavigationState | undefined) {
     if (!state) return;
     const top = state.routes[state.index];
+    setShellTabWarmupActive(top?.name === "tabs");
     let label = top?.name ?? "";
     let detail = "";
     if (top?.name === "tabs" && top.state) {
@@ -508,7 +512,8 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     tabBar={(tabProps) => <ShellTabBar {...tabProps} />}
                     screenOptions={{
                       swipeEnabled: false,
-                      lazy: true,
+                      lazy: false,
+                      animationEnabled: false,
                       sceneStyle: { backgroundColor: colors.canvas },
                     }}
                   >
