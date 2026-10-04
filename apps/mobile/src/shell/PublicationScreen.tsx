@@ -351,7 +351,7 @@ function CreateApplicationPage({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        padding: 16,
+        paddingHorizontal: 16,
         gap: 16,
         paddingBottom: 16 + insets.bottom,
       }}
