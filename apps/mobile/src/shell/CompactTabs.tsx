@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { PixelText } from "./feed/PixelText";
@@ -18,11 +19,13 @@ export function CompactTabs<T extends string>({
   options,
   onChange,
   tone = "sun",
+  position,
 }: {
   value: T;
   options: readonly { id: T; label: string; icon?: PixelSymbol }[];
   onChange: (value: T) => void;
   tone?: "sun" | "mint" | "berry" | "violet";
+  position?: SharedValue<number>;
 }) {
   const { colors } = usePixelTheme();
   const [width, setWidth] = useState(0);
@@ -39,7 +42,7 @@ export function CompactTabs<T extends string>({
     });
   }, [index, slot, x]);
   const motion = useAnimatedStyle(() => ({
-    transform: [{ translateX: x.value }],
+    transform: [{ translateX: position ? position.value * slot : x.value }],
   }));
   const fill =
     tone === "mint"

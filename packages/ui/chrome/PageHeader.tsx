@@ -45,7 +45,7 @@ export function PageHeader({
           backgroundColor: colors.canvas,
           borderBottomWidth: 0,
           paddingHorizontal: 16,
-          paddingBottom: 8,
+          paddingBottom: 2,
         },
       ]}
     >

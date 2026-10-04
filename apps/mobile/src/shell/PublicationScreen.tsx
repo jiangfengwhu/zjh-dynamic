@@ -21,7 +21,7 @@ import { readShellValue, writeShellValue } from "./shellStorage";
 import type { MarketApplication } from "./market";
 
 export function PublicationScreen(
-  props: Parameters<typeof PublicationContent>[0]
+  props: Parameters<typeof PublicationContent>[0],
 ) {
   const theme = usePixelTheme();
   return (
@@ -47,7 +47,7 @@ function PublicationContent({
   const [postOpened, setPostOpened] = useState(initialMode === "post");
   const [creating, setCreating] = useState(false);
   const tabs = (
-    <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 }}>
+    <View style={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 6 }}>
       <CompactTabs
         value={mode}
         options={[
@@ -113,7 +113,7 @@ function CreateApplicationPage({
     () => () => {
       alive.current = false;
     },
-    []
+    [],
   );
   useEffect(() => {
     let active = true;

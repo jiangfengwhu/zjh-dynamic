@@ -85,7 +85,7 @@ function MarketContent(props: MarketProps) {
           </Pressy>
         }
       />
-      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 6 }}>
         <CompactTabs
           tone="mint"
           value={section}
@@ -186,11 +186,11 @@ function MarketDiscovery({
       const page = await fetchMarketPage(
         category,
         search,
-        reset ? undefined : before.nextCursor
+        reset ? undefined : before.nextCursor,
       );
       if (token !== generation.current) return;
       const known = new Set(
-        before.applications.map((item) => item.manifest.appId)
+        before.applications.map((item) => item.manifest.appId),
       );
       apply({
         applications: reset
@@ -198,7 +198,7 @@ function MarketDiscovery({
           : [
               ...before.applications,
               ...page.applications.filter(
-                (item) => !known.has(item.manifest.appId)
+                (item) => !known.has(item.manifest.appId),
               ),
             ],
         nextCursor: page.nextCursor,
@@ -227,7 +227,7 @@ function MarketDiscovery({
     setError("");
     writeShellValue(
       "market.filters",
-      JSON.stringify({ category, query: search })
+      JSON.stringify({ category, query: search }),
     );
     if (current.current.key !== key) {
       current.current = { key, view: empty };
@@ -261,14 +261,14 @@ function MarketDiscovery({
           void load(true);
         }
       }),
-    [focused, key]
+    [focused, key],
   );
   useEffect(() => {
     const update = (entries: Awaited<ReturnType<typeof loadCatalog>>) =>
       setInstalled(
         entries
           .filter((entry) => !entry.trashedAt && !entry.purged)
-          .map((entry) => entry.id)
+          .map((entry) => entry.id),
       );
     void loadCatalog().then(update);
     return subscribeCatalog(update);
@@ -421,8 +421,9 @@ function MarketDiscovery({
                 {search
                   ? "搜索结果"
                   : category
-                  ? marketCategories.find((item) => item.id === category)?.label
-                  : "全部应用"}
+                    ? marketCategories.find((item) => item.id === category)
+                        ?.label
+                    : "全部应用"}
               </Text>
               <Text style={styles.caption}>
                 {view.applications.length
@@ -482,8 +483,8 @@ function MarketDiscovery({
                     {openingId === app.appId
                       ? "加载中…"
                       : installed.includes(app.appId)
-                      ? "已安装"
-                      : "查看"}
+                        ? "已安装"
+                        : "查看"}
                   </Text>
                 </View>
                 <View
@@ -531,7 +532,8 @@ function MarketDiscovery({
                   <Text style={styles.caption}>
                     {
                       marketCategories.find(
-                        (category) => category.id === (item.category || "other")
+                        (category) =>
+                          category.id === (item.category || "other"),
                       )?.label
                     }
                   </Text>

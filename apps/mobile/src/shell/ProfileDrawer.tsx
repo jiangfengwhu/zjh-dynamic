@@ -42,6 +42,8 @@ type Drawer = {
   feedPage: SharedValue<number>;
   feedPosition: SharedValue<number>;
   feedIdle: SharedValue<boolean>;
+  profileActive: SharedValue<boolean>;
+  profilePosition: SharedValue<number>;
   gesture: ReturnType<typeof Gesture.Pan>;
   progress: SharedValue<number>;
   width: number;
@@ -70,13 +72,15 @@ export function ProfileDrawer({
   const { colors } = theme;
   const drawerTheme = useMemo(
     () => ({ ...theme, colors: { ...colors, surface: colors.canvas } }),
-    [theme, colors]
+    [theme, colors],
   );
   const width = Math.min(340, screenWidth * 0.84);
   const feedActive = useSharedValue(false);
   const feedPage = useSharedValue(0);
   const feedPosition = useSharedValue(0);
   const feedIdle = useSharedValue(true);
+  const profileActive = useSharedValue(false);
+  const profilePosition = useSharedValue(0);
   const progress = useSharedValue(0);
   const start = useSharedValue(0);
   const [opened, setOpened] = useState(false);
@@ -91,7 +95,7 @@ export function ProfileDrawer({
         if (finished && !next) runOnJS(setOpened)(false);
       });
     },
-    [progress]
+    [progress],
   );
   const open = useCallback(() => settle(true), [settle]);
   const close = useCallback(() => settle(false), [settle]);
@@ -103,7 +107,7 @@ export function ProfileDrawer({
   }, [progress]);
   const drawerContent = useMemo(
     () => render(close, dismiss),
-    [render, close, dismiss]
+    [render, close, dismiss],
   );
   const startDrag = useCallback(() => {
     setOpening(true);
@@ -122,7 +126,7 @@ export function ProfileDrawer({
       () => {
         close();
         return true;
-      }
+      },
     );
     return () => subscription.remove();
   }, [opened, focused, close]);
@@ -145,6 +149,8 @@ export function ProfileDrawer({
           // very touch, so it must not veto an edge-originating drawer drag.
           eligible.value =
             canOpen.value &&
+            (!profileActive.value ||
+              Math.abs(profilePosition.value) <= 0.001) &&
             (!feedActive.value ||
               (feedPage.value === 0 && Math.abs(feedPosition.value) <= 0.001));
           const touch = event.allTouches[0];
@@ -180,7 +186,7 @@ export function ProfileDrawer({
         .onEnd((event) => {
           runOnJS(settle)(
             event.velocityX > 500 ||
-              (event.velocityX >= -500 && progress.value > 0.4)
+              (event.velocityX >= -500 && progress.value > 0.4),
           );
         })
         .onFinalize((_event, success) => {
@@ -192,6 +198,8 @@ export function ProfileDrawer({
       feedActive,
       feedPage,
       feedPosition,
+      profileActive,
+      profilePosition,
       eligible,
       origin,
       active,
@@ -199,7 +207,7 @@ export function ProfileDrawer({
       width,
       startDrag,
       settle,
-    ]
+    ],
   );
   const value = useMemo(
     () => ({
@@ -207,6 +215,8 @@ export function ProfileDrawer({
       feedPage,
       feedPosition,
       feedIdle,
+      profileActive,
+      profilePosition,
       gesture,
       progress,
       width,
@@ -220,6 +230,8 @@ export function ProfileDrawer({
       feedPage,
       feedPosition,
       feedIdle,
+      profileActive,
+      profilePosition,
       gesture,
       progress,
       width,
@@ -227,7 +239,7 @@ export function ProfileDrawer({
       close,
       startDrag,
       settle,
-    ]
+    ],
   );
   const canClose = useSharedValue(false);
   useEffect(() => {
@@ -270,13 +282,13 @@ export function ProfileDrawer({
         .onUpdate((event) => {
           progress.value = Math.max(
             0,
-            Math.min(1, start.value + event.translationX / width)
+            Math.min(1, start.value + event.translationX / width),
           );
         })
         .onEnd((event) => {
           runOnJS(settle)(
             event.velocityX > 500 ||
-              (event.velocityX >= -500 && progress.value > 0.5)
+              (event.velocityX >= -500 && progress.value > 0.5),
           );
         })
         .onFinalize((_event, success) => {
@@ -284,11 +296,11 @@ export function ProfileDrawer({
             runOnJS(settle)(progress.value > 0.5);
           closingActive.value = false;
         }),
-    [canClose, origin, progress, start, width, settle, closingActive]
+    [canClose, origin, progress, start, width, settle, closingActive],
   );
   const drawerGestures = useMemo(
     () => Gesture.Simultaneous(gesture, closing),
-    [gesture, closing]
+    [gesture, closing],
   );
   const panel = useAnimatedStyle(() => ({
     transform: [{ translateX: -width * (1 - progress.value) }],

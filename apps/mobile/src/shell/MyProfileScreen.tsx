@@ -1,11 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Text, View, useWindowDimensions } from "react-native";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  useEvent,
+  runOnJS,
+  runOnUI,
 } from "react-native-reanimated";
+import PagerView, {
+  type PagerViewOnPageScrollEvent,
+  type PagerViewOnPageSelectedEvent,
+} from "react-native-pager-view";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { useFocusEffect } from "@react-navigation/native";
 import { ProfileScrollContext, PROFILE_RANGE } from "./ProfileScroll";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
@@ -18,6 +27,8 @@ import { PixelAvatar, PixelIcon } from "./feed/PixelKit";
 import { useProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
 import type { UserPost, PublicAuthor } from "./feed/userPosts";
 import type { MarketApplication } from "./market";
+
+const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 export function MyProfileScreen(props: Parameters<typeof MyProfileContent>[0]) {
   const theme = usePixelTheme();
@@ -61,6 +72,10 @@ function MyProfileContent({
       }),
     [],
   );
+  const { width: windowWidth } = useWindowDimensions();
+  const headerWidth = useSharedValue(windowWidth);
+  const titleWidth = useSharedValue(76);
+  const pager = useRef<PagerView>(null);
   const collapsed = useSharedValue(0);
   const active = useSharedValue("posts");
   const [viewport, setViewport] = useState(0);
@@ -76,8 +91,13 @@ function MyProfileContent({
   }));
   const avatarPosition = useAnimatedStyle(() => ({
     transform: [
-      { translateX: (-30 * collapsed.value) / PROFILE_RANGE },
-      { translateY: (-80 * collapsed.value) / PROFILE_RANGE },
+      {
+        translateX:
+          (((headerWidth.value - titleWidth.value) / 2 - 46) *
+            collapsed.value) /
+          PROFILE_RANGE,
+      },
+      { translateY: (-76 * collapsed.value) / PROFILE_RANGE },
     ],
   }));
   const avatarScale = useAnimatedStyle(() => ({
@@ -89,17 +109,56 @@ function MyProfileContent({
   const compactTitle = useAnimatedStyle(() => ({
     opacity: collapsed.value / PROFILE_RANGE,
   }));
+  const { gesture, profileActive, profilePosition } = useProfileDrawer();
+  useFocusEffect(
+    useCallback(() => {
+      const hasProfile = !!user;
+      runOnUI(() => {
+        "worklet";
+        profileActive.value = hasProfile;
+      })();
+      return () => {
+        runOnUI(() => {
+          "worklet";
+          profileActive.value = false;
+        })();
+      };
+    }, [profileActive, user?.id]),
+  );
+  const nativeGesture = useMemo(
+    () => Gesture.Native().requireExternalGestureToFail(gesture),
+    [gesture],
+  );
+  const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
+    (event) => {
+      "worklet";
+      profilePosition.value = event.position + event.offset;
+    },
+    ["onPageScroll"],
+  );
+  const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
+    (event) => {
+      "worklet";
+      const value = event.position === 0 ? "posts" : "works";
+      active.value = value;
+      runOnJS(setTab)(value);
+    },
+    ["onPageSelected"],
+  );
   function selectTab(value: "posts" | "works") {
-    active.value = value;
-    setTab(value);
+    pager.current?.setPage(value === "posts" ? 0 : 1);
   }
-  const { gesture } = useProfileDrawer();
   const author: PublicAuthor | undefined = user
     ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
     : undefined;
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <View style={{ flex: 1 }}>
+      <View
+        style={{ flex: 1 }}
+        onLayout={(event) => {
+          headerWidth.value = event.nativeEvent.layout.width;
+        }}
+      >
         <View
           style={{
             height: 52,
@@ -119,24 +178,42 @@ function MyProfileContent({
           >
             我的
           </Animated.Text>
-          <Animated.Text
-            numberOfLines={1}
+          <Animated.View
             pointerEvents="none"
             style={[
               {
                 position: "absolute",
-                left: 60,
+                top: 0,
+                bottom: 0,
+                left: 64,
                 right: 64,
-                top: 14,
-                color: colors.ink1,
-                fontSize: 18,
-                fontWeight: "700",
+                alignItems: "center",
+                justifyContent: "center",
               },
               compactTitle,
             ]}
           >
-            {user?.name ?? "我的"}
-          </Animated.Text>
+            <View
+              onLayout={(event) => {
+                titleWidth.value = event.nativeEvent.layout.width;
+              }}
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <View style={{ width: 28, height: 28 }} />
+              <Text
+                numberOfLines={1}
+                style={{
+                  maxWidth: Math.max(0, windowWidth - 164),
+                  color: colors.ink1,
+                  fontSize: 18,
+                  lineHeight: 24,
+                  fontWeight: "700",
+                }}
+              >
+                {user?.name ?? "我的"}
+              </Text>
+            </View>
+          </Animated.View>
           <Pressy
             accessibilityRole="button"
             accessibilityLabel="打开设置抽屉"
@@ -225,6 +302,7 @@ function MyProfileContent({
                   ]}
                 >
                   <CompactTabs
+                    position={profilePosition}
                     value={tab}
                     options={[
                       { id: "posts", label: "动态", icon: "feed" },
@@ -233,42 +311,43 @@ function MyProfileContent({
                     onChange={selectTab}
                   />
                 </Animated.View>
-                <View style={{ flex: 1 }}>
-                  <View
-                    style={{
-                      flex: 1,
-                      display: tab === "posts" ? "flex" : "none",
-                    }}
+                <GestureDetector gesture={nativeGesture}>
+                  <AnimatedPagerView
+                    key={author.id}
+                    ref={pager}
+                    style={{ flex: 1 }}
+                    initialPage={tab === "posts" ? 0 : 1}
+                    offscreenPageLimit={1}
+                    overScrollMode="never"
+                    onPageScroll={onPageScroll}
+                    onPageSelected={onPageSelected}
                   >
-                    <AuthorProfileScreen
-                      key={author.id}
-                      initialAuthor={author}
-                      embedded
-                      active={tab === "posts"}
-                      drawerGesture={gesture}
-                      onPost={onPost}
-                      onApplication={onApplication}
-                      onProfileLoaded={onProfileLoaded}
-                    />
-                  </View>
-                  <View
-                    style={{
-                      flex: 1,
-                      display: tab === "works" ? "flex" : "none",
-                    }}
-                  >
-                    <MyApplicationsScreen
-                      key={author.id}
-                      embedded
-                      active={tab === "works"}
-                      drawerGesture={gesture}
-                      onCreate={onCreate}
-                      onOpen={onOpen}
-                      onDetail={onDetail}
-                      onSharePost={onSharePost}
-                    />
-                  </View>
-                </View>
+                    <View key="posts" collapsable={false} style={{ flex: 1 }}>
+                      <AuthorProfileScreen
+                        key={author.id}
+                        initialAuthor={author}
+                        embedded
+                        active={tab === "posts"}
+                        drawerGesture={gesture}
+                        onPost={onPost}
+                        onApplication={onApplication}
+                        onProfileLoaded={onProfileLoaded}
+                      />
+                    </View>
+                    <View key="works" collapsable={false} style={{ flex: 1 }}>
+                      <MyApplicationsScreen
+                        key={author.id}
+                        embedded
+                        active={tab === "works"}
+                        drawerGesture={gesture}
+                        onCreate={onCreate}
+                        onOpen={onOpen}
+                        onDetail={onDetail}
+                        onSharePost={onSharePost}
+                      />
+                    </View>
+                  </AnimatedPagerView>
+                </GestureDetector>
               </>
             ) : (
               <View
