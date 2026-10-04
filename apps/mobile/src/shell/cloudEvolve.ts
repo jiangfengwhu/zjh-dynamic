@@ -152,7 +152,7 @@ async function runCloudEvolve(options: {
   options.onStatus("正在提交到 Jules");
   const prompt = options.requirement.trim();
   if (!prompt) throw new Error("请描述想做什么");
-  const existing = await loadJulesSession();
+  const existing = await loadJulesSession(!!options.submitOnly);
   if (options.expectedOwnerId && await currentAccountId() !== options.expectedOwnerId)
     throw new Error("账号已改变，请重新提交");
   if (existing && options.submitOnly) {
@@ -234,9 +234,9 @@ async function cancelCloudRun(session: string): Promise<void> {
   console.log("jules stop requested", session);
 }
 
-async function loadJulesSession(): Promise<string> {
+async function loadJulesSession(cachedOnly = false): Promise<string> {
   const owner = await currentAccountId(); if (!owner) return "";
-  if (await readShellValue(`shell.jules.apps.${appId}.owner`) !== owner || !await readShellValue(APPROVAL_STORAGE)) await restoreWorks(true);
+  if (!cachedOnly && (await readShellValue(`shell.jules.apps.${appId}.owner`) !== owner || !await readShellValue(APPROVAL_STORAGE))) await restoreWorks(true);
   if (await readShellValue(`shell.jules.apps.${appId}.owner`) !== owner || await currentAccountId() !== owner) return "";
   const saved = (await readShellValue(SESSION_STORAGE))?.trim() ?? "";
   return saved.startsWith("sessions/") ? saved : "";
