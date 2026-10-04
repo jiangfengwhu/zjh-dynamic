@@ -1,12 +1,30 @@
 import type { ReactNode } from "react";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { Dimensions, Platform, useWindowDimensions } from "react-native";
+import Animated, { measure, runOnUI, useAnimatedRef, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-/** Full-screen keyboard inset, without measuring a changing nested layout. */
+/** Reserve only keyboard overlap not already removed by the native window. */
 export function KeyboardViewport({ children }: { children: ReactNode }) {
-  const { height } = useReanimatedKeyboardAnimation();
+  const { height, progress } = useReanimatedKeyboardAnimation();
   const { bottom } = useSafeAreaInsets();
-  const inset = useAnimatedStyle(() => ({ paddingBottom: Math.max(bottom, -height.value) }));
-  return <Animated.View style={[{ flex: 1 }, inset]}>{children}</Animated.View>;
+  const window = useWindowDimensions();
+  const screenHeight = Platform.OS === "android" ? Dimensions.get("screen").height : window.height;
+  const ref = useAnimatedRef<Animated.View>();
+  const edge = useSharedValue(0);
+  const inset = useAnimatedStyle(() => {
+    // Read the actual native frame during the IME animation too: Android may
+    // resize the window before JS receives the corresponding layout event.
+    const layout = _WORKLET ? measure(ref) : null;
+    const lowerEdge = layout ? layout.pageY + layout.height : edge.value;
+    const overlap = lowerEdge > 0 ? Math.max(0, lowerEdge - (screenHeight + height.value)) : 0;
+    return { paddingBottom: Math.max(bottom * (1 - Math.max(0, Math.min(1, progress.value))), overlap) };
+  });
+  return <Animated.View ref={ref} onLayout={() => {
+    runOnUI(() => {
+      "worklet";
+      const layout = measure(ref);
+      if (layout) edge.value = layout.pageY + layout.height;
+    })();
+  }} style={[{ flex: 1 }, inset]}>{children}</Animated.View>;
 }

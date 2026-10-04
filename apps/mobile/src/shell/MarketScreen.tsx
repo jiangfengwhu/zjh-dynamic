@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -11,7 +10,7 @@ import {
 } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
-import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
+import Animated, { FadeInDown, ReduceMotion, useAnimatedScrollHandler, useSharedValue, runOnJS } from "react-native-reanimated";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import {
@@ -37,6 +36,8 @@ import { CompactTabs } from "./CompactTabs";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
 import { PixelIcon } from "./feed/PixelKit";
 import { usePixelTheme, pixelTheme } from "./feed/pixelTheme";
+import { usePullToRefresh } from "./feed/pullToRefresh";
+import { PullRefreshSurface } from "./feed/PullRefreshSurface";
 import { useProfileDrawer } from "./ProfileDrawer";
 const empty: MarketView = { applications: [], at: 0, offset: 0 };
 type MarketProps = {
@@ -122,6 +123,25 @@ function MarketDiscovery({
   onAuthor,
   active,
 }: MarketProps & { active: boolean }) {
+  const { gesture: drawerGesture } = useProfileDrawer();
+  const scrollY = useSharedValue(0);
+  const lastSave = useSharedValue(0);
+  const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => load(true, true) });
+  const rememberOffset = (offset: number) => {
+    if (restoreOffset.current === undefined && current.current.key === key) {
+      const next = { ...current.current.view, offset };
+      current.current.view = next;
+      rememberMarketView(key, next, false);
+    }
+  };
+  const trackScroll = useAnimatedScrollHandler(event => {
+    scrollY.value = Math.max(0, event.contentOffset.y);
+    const now = Date.now();
+    if (now - lastSave.value >= 200) {
+      lastSave.value = now;
+      runOnJS(rememberOffset)(scrollY.value);
+    }
+  });
   const { colors } = useTheme();
   const focused = useIsFocused() && active;
   const [view, setView] = useState<MarketView>(empty);
@@ -174,7 +194,7 @@ function MarketDiscovery({
     rememberMarketView(target, next);
   }
   async function load(reset = false, manual = false) {
-    if (loading.current || (!reset && !current.current.view.nextCursor)) return;
+    if (loading.current || (!reset && !current.current.view.nextCursor)) return false;
     const token = generation.current;
     loading.current = true;
     setBusy(true);
@@ -207,9 +227,11 @@ function MarketDiscovery({
       });
       if (reset && manual)
         list.current?.scrollToOffset({ offset: 0, animated: false });
+      return true;
     } catch (e) {
       if (token === generation.current)
         setError(e instanceof Error ? e.message : "市场加载失败，请重试");
+      return false;
     } finally {
       if (token === generation.current) {
         loading.current = false;
@@ -293,7 +315,8 @@ function MarketDiscovery({
   }
   return (
     <View style={[styles.screen, { backgroundColor: colors.canvas }]}>
-      <FlatList
+      <PullRefreshSurface refresh={refreshPull} drawerGesture={drawerGesture}>
+      <Animated.FlatList
         ref={list}
         data={
           search || category ? view.applications : view.applications.slice(1)
@@ -315,27 +338,11 @@ function MarketDiscovery({
             restoreOffset.current = undefined;
           }
         }}
-        onScroll={(event) => {
-          if (
-            restoreOffset.current === undefined &&
-            current.current.key === key
-          ) {
-            const next = {
-              ...current.current.view,
-              offset: Math.max(0, event.nativeEvent.contentOffset.y),
-            };
-            current.current.view = next;
-            rememberMarketView(key, next, false);
-          }
-        }}
-        scrollEventThrottle={200}
-        refreshControl={
-          <RefreshControl
-            refreshing={pulling}
-            onRefresh={() => void load(true, true)}
-            tintColor={colors.accent}
-          />
-        }
+        onScroll={trackScroll}
+        scrollEventThrottle={16}
+        bounces={false}
+        overScrollMode="never"
+        scrollEnabled={refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"}
         onEndReached={() => {
           if (!error) void load();
         }}
@@ -565,6 +572,7 @@ function MarketDiscovery({
           ) : null
         }
       />
+      </PullRefreshSurface>
     </View>
   );
 }

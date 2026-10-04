@@ -108,3 +108,6 @@ AI 润色为可选，复用原 AI 引擎与配置入口，润色成功直接填�
 
 
 发布与详情 ScreenEdge.bottom=false，仅 KeyboardViewport 留底部安全区。发布按钮在 ScrollView 外固定显示并随键盘抬起；HTML 标题与预览／编辑入口同一水平中线。制作页使用 KeyboardAwareScrollView，按钮紧随固定高度输入框，bottomOffset 覆盖整个输入框及按钮，光标位于首行时也保留操作空间。通知页包裹像素主题上下文，内容、页头与底部 tab 共用画布色。
+
+
+键盘避让只补充真实容器下边缘与键盘顶边之间的重叠，不重复扣除 Android 已经 resize 的空间；底部安全区随键盘进度连续收缩。我的页当前列表所有滚动事件与拖动／惯性结束位置均更新身份收起进度，列表测量不将当前页回滚到旧的头部位置。作品按稳定 startedAt/run.at 降序排序；交付加载兼容失败不标记制作状态 stale。完成轮次已有匹配候选时服务端采用本地权威交付状态，不因旧 Jules 会话或缓存时限显示过期。市场、安装列表、作品和评论详情移除原生 RefreshControl，复用动态页 pullToRefresh/PullIndicator 手势、反馈和状态；请求跳过或失败返回 false。

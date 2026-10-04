@@ -363,7 +363,7 @@ function AuthorProfileContent({
       ) : null}
       <GestureDetector gesture={gesture}>
         <View style={{ flex: 1, overflow: "hidden" }}>
-          <PullIndicator pull={pull} phase={phase} />
+          <View pointerEvents="none" style={{ position: "absolute", top: profileScroll.refreshOffset, left: 0, right: 0 }}><PullIndicator pull={pull} phase={phase} /></View>
           <Animated.View style={[{ flex: 1 }, lift]}>
             <GestureDetector gesture={listGesture}>
               <Animated.FlatList<ProfileRow>

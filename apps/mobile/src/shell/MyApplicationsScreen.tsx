@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
-  RefreshControl,
   View,
 } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { useSharedValue } from "react-native-reanimated";
+import { usePullToRefresh } from "./feed/pullToRefresh";
+import { PullRefreshSurface } from "./feed/PullRefreshSurface";
 import { useProfileScroll } from "./ProfileScroll";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Gesture } from "react-native-gesture-handler";
 import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
@@ -58,7 +59,9 @@ export function MyApplicationsScreen({
   drawerGesture?: ReturnType<typeof Gesture.Pan>;
   scope?: "works" | "installed";
 }) {
-  const profileScroll = useProfileScroll<Row>("works");
+  const scrollY = useSharedValue(0);
+  const profileScroll = useProfileScroll<Row>("works", scrollY);
+  const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => refresh(true) });
   const { user } = useAccount();
   const { colors } = usePixelTheme();
   const focused = useIsFocused() && active;
@@ -78,13 +81,6 @@ export function MyApplicationsScreen({
   const [query, setQuery] = useState("");
   const generation = useRef(0);
   const reading = useRef(false);
-  const listGesture = useMemo(
-    () =>
-      drawerGesture
-        ? Gesture.Native().requireExternalGestureToFail(drawerGesture)
-        : Gesture.Native(),
-    [drawerGesture],
-  );
   usePreventRemove(!!updating, () =>
     Toast.show({ type: "info", text1: "正在下载应用更新，请稍候" }),
   );
@@ -94,7 +90,8 @@ export function MyApplicationsScreen({
       reading.current ||
       AppState.currentState !== "active"
     )
-      return;
+      return false;
+    let succeeded = true;
     const before = ++generation.current;
     reading.current = true;
     setBusy(true);
@@ -114,18 +111,22 @@ export function MyApplicationsScreen({
         const next = await readMyWorks();
         if (before !== generation.current) return;
         setWorks(next);
-        if (next.some((work) => work.stale))
+        if (next.some((work) => work.stale)) {
+          succeeded = false;
           setError("部分制作状态暂未同步，保留本机记录。下拉可重试。");
+        }
       } else {
         try {
           const result = await publicApplicationUpdates(manual);
           if (before === generation.current) setUpdates(result);
         } catch {
+          succeeded = false;
           if (before === generation.current)
             setError("更新检查未完成，本机应用仍可使用。下拉可重试。");
         }
       }
     } catch {
+      succeeded = false;
       if (before === generation.current)
         setError("暂时无法读取内容，下拉可重试。");
     } finally {
@@ -135,6 +136,7 @@ export function MyApplicationsScreen({
         setPulling(false);
       }
     }
+    return succeeded;
   }
   useEffect(() => {
     if (focused) {
@@ -267,7 +269,7 @@ export function MyApplicationsScreen({
           onBack={onBack}
         />
       ) : null}
-      <GestureDetector gesture={listGesture}>
+      <PullRefreshSurface refresh={refreshPull} drawerGesture={drawerGesture} top={profileScroll.refreshOffset}>
         <Animated.FlatList<Row>
           ref={profileScroll.ref}
           onScroll={profileScroll.onScroll}
@@ -295,14 +297,9 @@ export function MyApplicationsScreen({
             },
             profileScroll.contentStyle,
           ]}
-          refreshControl={
-            <RefreshControl
-              progressViewOffset={profileScroll.refreshOffset}
-              refreshing={pulling}
-              onRefresh={() => void refresh(true)}
-              tintColor={colors.accentText}
-            />
-          }
+          bounces={false}
+          overScrollMode="never"
+          scrollEnabled={refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"}
           ListHeaderComponent={
             <View style={{ gap: 10, paddingBottom: 16 }}>
               <View
@@ -576,7 +573,7 @@ export function MyApplicationsScreen({
             ) : null
           }
         />
-      </GestureDetector>
+      </PullRefreshSurface>
     </Root>
   );
 }

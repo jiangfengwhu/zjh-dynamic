@@ -43,16 +43,18 @@ export function useProfileScroll<T>(
         const next = Math.max(0, event.contentOffset.y);
         offset.value = next;
         if (externalY) externalY.value = next;
-        if (enabled && active.value === key && moving.value)
+        if (enabled && active.value === key)
           collapsed.value = Math.min(PROFILE_RANGE, next);
       },
-      onEndDrag: () => {
+      onEndDrag: (event) => {
+        if (enabled && active.value === key) collapsed.value = Math.min(PROFILE_RANGE, Math.max(0, event.contentOffset.y));
         moving.value = false;
       },
       onMomentumBegin: () => {
         moving.value = true;
       },
-      onMomentumEnd: () => {
+      onMomentumEnd: (event) => {
+        if (enabled && active.value === key) collapsed.value = Math.min(PROFILE_RANGE, Math.max(0, event.contentOffset.y));
         moving.value = false;
       },
     },
@@ -71,6 +73,9 @@ export function useProfileScroll<T>(
         if (state.active && !previous?.active) collapsed.value = PROFILE_RANGE;
         return;
       }
+      // The active list owns its native offset, including momentum/layout events.
+      // Never rewind it to a stale header position after a fast gesture.
+      if (state.active && previous?.active) return;
       if (
         Math.abs(offset.value - state.collapse) > 0.5 ||
         (state.active &&

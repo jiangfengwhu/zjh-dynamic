@@ -20,7 +20,13 @@ export async function restoreWorks(force = false, wait = false): Promise<void> {
   try { cached = JSON.parse(await readShellValue(`shell.works.cache.${owner}`) || "null") ?? undefined; } catch {}
   await hydrateWorksCache();
   if (!force && Date.now() - (refreshed.get(owner) ?? cached?.at ?? 0) < 30000) return;
-  const prior = restoring.get(owner); if (prior) { if (force || wait) await prior; return; }
+  const prior = restoring.get(owner);
+  if (prior) {
+    if (!force && !wait) return;
+    try { await prior; } catch (error) { if (!force) throw error; }
+    if (!force || await currentAccountId() !== owner) return;
+    // A manual retry must issue refresh=1 after an earlier automatic request.
+  }
   const pending = restore(owner, force).then(() => { refreshed.set(owner, Date.now()); }).finally(() => restoring.delete(owner));
   restoring.set(owner, pending);
   if (force || wait || !cached) await pending; else void pending.catch(() => {});
@@ -62,13 +68,17 @@ async function applyWorks(owner: string, works: Work[], fromCache = false) {
           writeShellValue(`shell.workshop.application.${work.appId}`, JSON.stringify(manifest));
           if (!status.stale && !loaded) {
             try { offerApplication(manifest, owner); }
-            catch { writeShellValue(`shell.work.summary.${owner}.${work.appId}`, JSON.stringify({ stale: true })); }
+            catch { /* Package compatibility/loading is separate from successfully synced production status. */ }
           }
         }
       }
       const item = { appId: work.appId, title: work.status?.application?.title || work.title, originalAppId: work.originalAppId, originalReleaseId: work.originalReleaseId };
       const index = workspaces.findIndex(item => item.appId === work.appId);
       if (index < 0) workspaces.push(item); else workspaces[index] = { ...workspaces[index], ...item };
+      if (work.startedAt) {
+        let existing: Record<string, unknown> = {}; try { existing = JSON.parse(context.storage.get(`run:${work.appId}`) || "{}"); } catch {}
+        if (existing.at !== work.startedAt && existing.stage) context.storage.set(`run:${work.appId}`, JSON.stringify({ ...existing, at: work.startedAt }));
+      }
       if (!context.storage.get(`run:${work.appId}`)) { context.storage.set(`run:${work.appId}`, JSON.stringify({ appId: work.appId, wish: work.wish, at: work.startedAt ?? Date.now(), phase: work.phase === "working" ? "making" : work.phase === "paused" ? "stopped" : "ready", stage: work.phase === "working" ? "making" : work.phase === "paused" ? "paused" : "ready", status: "已接回制作记录", steps: [] })); }
     }
     const serialized = JSON.stringify(workspaces);

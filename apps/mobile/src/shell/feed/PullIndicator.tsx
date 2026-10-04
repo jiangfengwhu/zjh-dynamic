@@ -25,7 +25,7 @@ const LABEL: Record<PullPhase, string> = {
   failed: "刷新未完成",
 };
 
-/** Progress stays on the UI thread; reduced motion keeps a static status icon. */
+/** Progress and feedback stay on the UI thread across every host list. */
 export function PullIndicator({
   pull,
   phase,

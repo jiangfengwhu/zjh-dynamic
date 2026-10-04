@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput as NativeTextInput, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
-import { useReducedMotion } from "react-native-reanimated";
+import Animated, { useAnimatedScrollHandler, useSharedValue, useReducedMotion } from "react-native-reanimated";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { KeyboardViewport } from "../KeyboardViewport";
@@ -15,10 +15,15 @@ import { useTheme } from "../../../../../packages/ui/theme";
 import { requireAccount, useAccount } from "../account";
 import { deletePostComment, fetchPostDetail, publishPostComment, updateUserPost, useUserPosts, type UserComment, type UserPost, type PostDetail } from "./userPosts";
 import { UserPostCard } from "./UserPostCard";
+import { PullRefreshSurface } from "./PullRefreshSurface";
+import { usePullToRefresh } from "./pullToRefresh";
 import { PostMenu } from "./PostMenu";
 
 const when = (at: number) => new Date(at).toLocaleString();
 export function PostDetailScreen({ initialPost, initialCommentId, initialDetail, onBack, onApplication, onAuthor }: { initialPost: UserPost; initialCommentId?: string; initialDetail?: PostDetail; onBack: () => void; onApplication: (appId: string) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {
+  const scrollY = useSharedValue(0);
+  const trackScroll = useAnimatedScrollHandler(event => { scrollY.value = Math.max(0, event.contentOffset.y); });
+  const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => load(false, true) });
   const { colors } = useTheme(); const { user } = useAccount(); const timeline = useUserPosts();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const reduceMotion = useReducedMotion();
@@ -53,14 +58,15 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
   useEffect(() => { if (draftReady && loadedDraftKey.current === draftKey) { if (text) writeShellValue(draftKey, text); else removeShellValue(draftKey); } }, [text, draftReady, draftKey]);
   function fail(title: string, cause: unknown) { Toast.show({ type: "error", text1: title, text2: cause instanceof Error ? cause.message : "请稍后重试" }); }
   async function load(more = false, manual = false) {
-    if (reading.current || writing.current || (more && !cursor)) return;
+    if (reading.current || writing.current || (more && !cursor)) return false;
     reading.current = true; setLoading(true); setRefreshing(manual); const before = version.current;
     try {
       const result = await fetchPostDetail(initialPost.id, more ? cursor! : undefined, more ? undefined : initialCommentId);
       if (!alive.current || before !== version.current) return;
       loaded.current = true; setFallback(result.post); updateUserPost(result.post); setCursor(result.nextCursor); setError("");
       setComments(previous => (more ? [...previous, ...result.comments.filter(item => !previous.some(old => old.id === item.id))] : result.comments).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)));
-    } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "评论加载失败"); }
+      return true;
+    } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "评论加载失败"); return false; }
     finally { reading.current = false; if (alive.current) { setLoading(false); setRefreshing(false); if (before !== version.current && !writing.current) void load(); } }
   }
   useEffect(() => () => { alive.current = false; }, []);
@@ -95,7 +101,8 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
   return <ScreenEdge bottom={false}><Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
     <PageHeader variant="pixel" title="动态" onBack={onBack} />
     <KeyboardViewport>
-      <FlatList ref={list} data={comments} keyExtractor={item => item.id} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" refreshing={refreshing} onRefresh={() => void load(false, true)} onContentSizeChange={() => { if (initialCommentId && loaded.current && headerHeight.current && !jumped.current) { jumped.current = true; requestAnimationFrame(() => { if (!input.current?.isFocused()) list.current?.scrollToOffset({ offset: headerHeight.current, animated: false }); }); } }}
+      <PullRefreshSurface refresh={refreshPull}>
+      <Animated.FlatList ref={list} onScroll={trackScroll} scrollEventThrottle={16} bounces={false} overScrollMode="never" scrollEnabled={refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"} data={comments} keyExtractor={item => item.id} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" onContentSizeChange={() => { if (initialCommentId && loaded.current && headerHeight.current && !jumped.current) { jumped.current = true; requestAnimationFrame(() => { if (!input.current?.isFocused()) list.current?.scrollToOffset({ offset: headerHeight.current, animated: false }); }); } }}
         ListHeaderComponent={<View onLayout={event => { headerHeight.current = event.nativeEvent.layout.height; }}><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} onAuthor={onAuthor} onUpdated={updated} /><Text style={{ paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, fontWeight: "700", color: colors.ink1, backgroundColor: colors.inset }}>评论 · {post.commentCount ?? 0}</Text>{initialCommentId ? <Text style={{ paddingHorizontal: 16, paddingBottom: 12, color: colors.ink3, fontSize: 12 }}>从提醒中的评论开始显示</Text> : null}</View>}
         ListEmptyComponent={<View style={{ padding: 16 }}>{loading ? <ActivityIndicator color={colors.accent} /> : !error ? <Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text> : null}</View>}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: colors.line, backgroundColor: item.id === initialCommentId ? colors.accentTint : colors.canvas }}>
@@ -107,6 +114,7 @@ export function PostDetailScreen({ initialPost, initialCommentId, initialDetail,
             <Pressable accessibilityLabel={`回复${item.author.name}`} onPress={() => { if (!writing.current) { setReply(item); input.current?.focus(); } }} style={{ alignSelf: "flex-start", paddingVertical: 10, paddingRight: 12 }}><Text style={{ color: colors.ink3, fontSize: 13 }}>回复</Text></Pressable>
           </View></View>}
         ListFooterComponent={<View style={{ padding: 16 }}>{error ? <Pressable onPress={() => void load()}><Text style={{ color: colors.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressable> : null}{cursor ? <Pressable disabled={loading} onPress={() => void load(true)} style={{ padding: 12 }}>{loading ? <ActivityIndicator color={colors.accent} /> : <Text style={{ color: colors.accentText, textAlign: "center" }}>查看更多评论</Text>}</Pressable> : null}</View>} />
+      </PullRefreshSurface>
       <View style={{ padding: 12, backgroundColor: colors.surface, borderTopWidth: 0.5, borderTopColor: colors.line, gap: 8 }}>
         {reply ? <Pressable disabled={sending} onPress={() => setReply(null)}><Text style={{ color: colors.accentText }}>回复 {reply.author.name} · 取消</Text></Pressable> : null}
         <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}><TextInput ref={input} onFocus={() => { jumped.current = true; }} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="写下你的评论…" placeholderTextColor={colors.ink3} style={{ flex: 1, color: colors.ink1, fontSize: 15, maxHeight: 120, minHeight: 42, padding: 10, backgroundColor: colors.field, borderRadius: colors.radius.sm }} />

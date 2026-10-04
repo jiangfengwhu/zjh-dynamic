@@ -74,7 +74,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
         setPhase(succeeded ? "done" : "failed");
         timers.current.push(
           setTimeout(() => {
-            pull.value = withTiming(0, { duration: 220, reduceMotion: ReduceMotion.System });
+            pull.value = withTiming(0, { duration: 220, reduceMotion: ReduceMotion.Never });
             setPhase("idle");
             timers.current = [];
           }, DONE_HOLD_MS),
@@ -144,11 +144,11 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
           if (!success || phaseUI.value === "refreshing" || phaseUI.value === "done" || phaseUI.value === "failed") return;
           if (phaseUI.value === "ready") {
             phaseUI.value = "refreshing";
-            pull.value = withSpring(PULL_HOLD, { damping: 22, stiffness: 280, reduceMotion: ReduceMotion.System });
+            pull.value = withSpring(PULL_HOLD, { damping: 22, stiffness: 280, reduceMotion: ReduceMotion.Never });
             runOnJS(beginRefresh)();
           } else {
             phaseUI.value = "idle";
-            pull.value = withSpring(0, { damping: 22, stiffness: 300, reduceMotion: ReduceMotion.System });
+            pull.value = withSpring(0, { damping: 22, stiffness: 300, reduceMotion: ReduceMotion.Never });
             runOnJS(notifyPhase)("idle");
           }
         })
@@ -156,7 +156,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
           "worklet";
           // 系统取消或切 Tab 时只回弹，不执行刷新。
           if (dragging.value && !success && phaseUI.value !== "refreshing" && phaseUI.value !== "done" && phaseUI.value !== "failed") {
-            pull.value = withSpring(0, { damping: 22, stiffness: 300, reduceMotion: ReduceMotion.System });
+            pull.value = withSpring(0, { damping: 22, stiffness: 300, reduceMotion: ReduceMotion.Never });
             phaseUI.value = "idle";
             runOnJS(notifyPhase)("idle");
           }
