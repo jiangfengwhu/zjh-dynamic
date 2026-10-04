@@ -59,7 +59,7 @@ export function TabBar({
           alignSelf: "center",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: colors.accent,
+          backgroundColor: colors.orchid,
         }}
       >
         <PixelIcon name="plus" size={22} color={colors.onAccent} />

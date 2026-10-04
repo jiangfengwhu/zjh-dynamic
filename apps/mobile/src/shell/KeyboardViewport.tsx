@@ -5,7 +5,7 @@ import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /** Reserve only keyboard overlap not already removed by the native window. */
-export function KeyboardViewport({ children }: { children: ReactNode }) {
+export function KeyboardViewport({ children, backgroundColor }: { children: ReactNode; backgroundColor?: string }) {
   const { height, progress } = useReanimatedKeyboardAnimation();
   const { bottom } = useSafeAreaInsets();
   const window = useWindowDimensions();
@@ -36,5 +36,5 @@ export function KeyboardViewport({ children }: { children: ReactNode }) {
       const layout = measure(ref);
       if (layout) edge.value = layout.pageY + layout.height;
     })();
-  }} style={[{ flex: 1 }, inset]}>{children}</Animated.View>;
+  }} style={[{ flex: 1, backgroundColor }, inset]}>{children}</Animated.View>;
 }

@@ -26,9 +26,6 @@ export async function openCreationRequest(
     const target = `app-${Date.now().toString(36)}-${Math.random()
       .toString(36)
       .slice(2, 10)}`;
-    const workspaces = JSON.parse(context.storage.get("workspaces") || "[]");
-    workspaces.push({ appId: target, title: "新应用" });
-    context.storage.set("workspaces", JSON.stringify(workspaces));
     context.storage.set("workshopTarget", target);
     if (prompt) context.storage.set(`pendingPrompt.${target}`, prompt);
     context.storage.set("openWorkshop", String(Date.now()));

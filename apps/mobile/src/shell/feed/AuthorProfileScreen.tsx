@@ -31,6 +31,7 @@ import { PullRefreshSurface } from "./PullRefreshSurface";
 import {
   fetchAuthorPosts,
   fetchAuthorProfile,
+  cachedAuthorProfile,
   setAuthorFollow,
   useUserPosts,
   type AuthorProfile,
@@ -76,7 +77,7 @@ function AuthorProfileContent({
   const { user } = useAccount();
   const timeline = useUserPosts();
   const focused = useIsFocused() && active;
-  const [profile, setProfile] = useState<AuthorProfile>(() => ({
+  const [profile, setProfile] = useState<AuthorProfile>(() => cachedAuthorProfile(initialAuthor.id) ?? ({
     author: initialAuthor,
     posts: timeline.posts.filter((post) => post.author.id === initialAuthor.id),
     applications: [],
@@ -95,7 +96,7 @@ function AuthorProfileContent({
     "worklet"; runOnJS(setTab)(event.position === 0 ? "posts" : "apps");
   }, ["onPageSelected"]);
   const [busy, setBusy] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(() => !!cachedAuthorProfile(initialAuthor.id));
   const [error, setError] = useState("");
   const alive = useRef(true);
   const reading = useRef(false);
@@ -201,7 +202,9 @@ function AuthorProfileContent({
         posts: previous.posts.map((post) => ({ ...post, liked: false })),
       }));
     }
-    if (focused) void load();
+    if (!focused) return;
+    const pending = requestIdleCallback(() => { void load(); });
+    return () => cancelIdleCallback(pending);
   }, [focused, user?.id]);
   function updated(post: UserPost) {
     revision.current++;
@@ -329,12 +332,11 @@ function AuthorProfileContent({
               </Pressable>
             ) : null}
           </View>
-          {loaded ? (
-            <Text style={{ fontSize: 12, color: colors.ink3 }}>
+          <Text style={{ fontSize: 12, lineHeight: 18, minHeight: 18, color: colors.ink3 }}>
+              {loaded ? <>
               {profile.followingCount ?? 0} 关注 · {profile.followerCount ?? 0}{" "}
-              关注者
+              关注者</> : "— 关注 · — 关注者"}
             </Text>
-          ) : null}
           <CompactTabs
             value={tab}
             position={position}
@@ -388,7 +390,6 @@ function AuthorProfileContent({
                 overScrollMode="never"
                 bounces={false}
                 scrollEnabled={refresh.phase !== "refreshing" && refresh.phase !== "done"}
-                ListHeaderComponent={header}
                 renderItem={({ item: row, index }) => {
                   if (row.type === "app") {
                     const item = row.app;
@@ -441,6 +442,14 @@ function AuthorProfileContent({
                     >
                       {tab === "apps" ? "还没有公开作品" : "还没有公开动态"}
                     </Text>
+                  ) : !loaded && !error ? (
+                    <View accessibilityLabel="正在加载作者内容" style={{ padding: 16, gap: 16 }}>
+                      {[0, 1, 2].map(key => <View key={key} style={{ gap: 10, paddingVertical: 12 }}>
+                        <View style={{ width: "45%", height: 14, borderRadius: 4, backgroundColor: colors.inset }} />
+                        <View style={{ height: tab === "apps" ? 96 : 54, borderRadius: 12, backgroundColor: colors.inset }} />
+                        <View style={{ width: "70%", height: 10, borderRadius: 4, backgroundColor: colors.inset }} />
+                      </View>)}
+                    </View>
                   ) : null
                 }
                 ListFooterComponent={
@@ -477,6 +486,7 @@ function AuthorProfileContent({
       {!embedded ? (
         <PageHeader title="作者主页" variant="pixel" onBack={onBack} />
       ) : null}
+      {header}
       {embedded ? renderPage("posts") : (
         <AnimatedPagerView ref={pager} style={{ flex: 1 }} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected}>
           <View key="posts" collapsable={false} style={{ flex: 1 }}>{renderPage("posts")}</View>

@@ -54,8 +54,24 @@ export type AuthorProfile = {
   applications: MarketApplication[];
   nextCursor: string | null;
 };
+const authorProfiles = new Map<string, AuthorProfile>();
+const authorFlights = new Map<string, Promise<AuthorProfile>>();
+function profileKey(id: string) { return `${cachedAccountId() ?? "guest"}:${id}`; }
+export function cachedAuthorProfile(id: string) { return authorProfiles.get(profileKey(id)); }
 export function fetchAuthorProfile(id: string) {
-  return readSocial<AuthorProfile>(`/v1/profiles/${id}`);
+  const key = profileKey(id);
+  const existing = authorFlights.get(key);
+  if (existing) return existing;
+  const promise = readSocial<AuthorProfile>(`/v1/profiles/${id}`).then(profile => {
+    if (profileKey(id) === key) {
+      authorProfiles.delete(key);
+      authorProfiles.set(key, profile);
+      if (authorProfiles.size > 12) authorProfiles.delete(authorProfiles.keys().next().value!);
+    }
+    return profile;
+  }).finally(() => { if (authorFlights.get(key) === promise) authorFlights.delete(key); });
+  authorFlights.set(key, promise);
+  return promise;
 }
 export function fetchAuthorPosts(id: string, cursor: string) {
   return readSocial<{ posts: UserPost[]; nextCursor: string | null }>(
@@ -442,6 +458,8 @@ export async function deletePostComment(id: string, commentId: string) {
   return result;
 }
 subscribeAccountIdentity(() => {
+  authorProfiles.clear();
+  authorFlights.clear();
   pendingLikes.clear();
   followingRevision++;
   saveFollowing({ posts: [], nextCursor: null });

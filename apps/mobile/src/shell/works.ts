@@ -28,9 +28,11 @@ export async function readMyWorks(): Promise<MyWork[]> {
     const summary = parsed<{ stale: boolean }>(await readShellValue(`shell.work.summary.${accountId}.${workspace.appId}`));
     let stage: WorkStage = run?.stage && Object.hasOwn(workLabels, run.stage) ? run.stage : manifest ? "ready" : "draft";
     if (stage === "load" && manifest && runningApplicationReleases()[workspace.appId] === manifest.releaseId) stage = "ready";
+    const session = await readShellValue(`shell.jules.apps.${workspace.appId}.session`);
+    if (!manifest && !session?.startsWith("sessions/")) return undefined;
     return { appId: workspace.appId, title: title && title !== workspace.appId ? title : "未命名作品", wish: run?.wish ?? "", stage, message: run?.status ?? "", manifest, sharing, stale: summary?.stale, createdAt: run?.at ?? 0 };
   }));
-  return result.sort((a, b) => b.createdAt - a.createdAt || b.appId.localeCompare(a.appId));
+  return result.filter((work): work is NonNullable<typeof work> => !!work).sort((a, b) => b.createdAt - a.createdAt || b.appId.localeCompare(a.appId));
 }
 export function sharingLabel(work: MyWork): string {
   if (!work.sharing?.shared) return "未分享";

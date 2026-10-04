@@ -124,6 +124,15 @@ async function loadJulesRun(): Promise<JulesRun | undefined> {
 
 function saveJulesRun(run: JulesRun): void {
   writeShellValue(RUN_STORAGE, JSON.stringify(run));
+  // Only an accepted session belongs in the user's works; opening a draft does not.
+  if (run.session.startsWith("sessions/")) {
+    const context = applicationContext("jolly");
+    const workspaces = JSON.parse(context.storage.get("workspaces") || "[]") as Array<{ appId: string; title: string }>;
+    if (!workspaces.some(item => item.appId === appId)) {
+      workspaces.push({ appId, title: run.prompt.replace(/\s+/g, " ").slice(0, 20) });
+      context.storage.set("workspaces", JSON.stringify(workspaces));
+    }
+  }
   console.log("jules run saved", run.session);
 }
 
