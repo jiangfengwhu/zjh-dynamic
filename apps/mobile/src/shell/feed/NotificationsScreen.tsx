@@ -231,6 +231,8 @@ function NotificationsContent({
     unreadCount: 0,
   });
   const [loading, setLoading] = useState(Boolean(user));
+  const [loaded, setLoaded] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState("");
   const alive = useRef(true);
@@ -271,6 +273,7 @@ function NotificationsContent({
     }
     reading.current = true;
     setLoading(true);
+    setLoadingMore(more);
     const before = revision.current;
     const owner = user.id;
     try {
@@ -285,6 +288,7 @@ function NotificationsContent({
             if (Array.isArray(cached.notices)) {
               firstCursor.current = cached.nextCursor;
               setPage(cached);
+              setLoaded(true);
             }
           } catch {}
         }
@@ -300,6 +304,7 @@ function NotificationsContent({
       )
         return false;
       if (!more) firstCursor.current = result.nextCursor;
+      setLoaded(true);
       setPage((previous) => {
         const next = more
           ? {
@@ -324,6 +329,7 @@ function NotificationsContent({
       reading.current = false;
       if (alive.current) {
         setLoading(false);
+        setLoadingMore(false);
         if (again.current) {
           again.current = false;
           void reload.current();
@@ -377,6 +383,8 @@ function NotificationsContent({
     firstCursor.current = null;
     loadedOwner.current = undefined;
     setLoading(Boolean(user));
+    setLoaded(false);
+    setLoadingMore(false);
     setError("");
   }, [user?.id]);
   useEffect(() => {
@@ -547,7 +555,7 @@ function NotificationsContent({
                 )}
                 ListEmptyComponent={
                   <View style={{ padding: 16, alignItems: "center" }}>
-                    {loading ? (
+                    {user && loading && !loaded ? (
                       <PageSkeleton rows={4} />
                     ) : (
                       <Text style={{ color: colors.ink3 }}>
@@ -581,7 +589,7 @@ function NotificationsContent({
                       onPress={() => void load(true)}
                       style={{ padding: 16 }}
                     >
-                      {loading ? (
+                      {loadingMore ? (
                         <LoadingSkeleton color={colors.accent} />
                       ) : (
                         <Text
