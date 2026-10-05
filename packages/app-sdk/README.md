@@ -8,7 +8,7 @@
 
 | 功能 | 使用规则 |
 | --- | --- |
-| 页面 | 根容器 `Screen`，背景全屏；顶栏用 `ScreenBar`，贴底 Tab 用直接子级 `ScreenBottomBar`，其背景铺到系统导航区，默认键盘打开时隐藏；输入操作栏传 `hideOnKeyboard={false}`。不重复加安全区或隐藏系统栏。宿主统一避让键盘，不再套 KeyboardAvoidingView；长表单用共享库 `react-native-keyboard-controller` 的 `KeyboardAwareScrollView` 自动滚动到输入项。宿主已提供手势、安全区、键盘、BottomSheet 和 Toast 容器；提示用 `app.toast`，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
+| 页面 | 根容器 `Screen`，背景全屏；顶栏用 `ScreenBar`，贴底 Tab 用 `ScreenBottomBar`，可封装在子组件中，其背景铺到系统导航区、下沿不留圆角，默认键盘打开时隐藏；输入操作栏传 `hideOnKeyboard={false}`。不重复加安全区或隐藏系统栏。宿主统一避让键盘，不再套 KeyboardAvoidingView；长表单用共享库 `react-native-keyboard-controller` 的 `KeyboardAwareScrollView` 自动滚动到输入项。宿主已提供手势、安全区、键盘、BottomSheet 和 Toast 容器；提示用 `app.toast`，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
 | 资源与存储 | 资源放 `assets/`，用 `app.assets.uri(name)`，不用 require 图片。文件与存储用 AppContext；文件路径相对应用目录，下载仅 HTTPS，不读取宿主凭据。 |
 | 图片与正文 | 使用 `MediaPicker`、`AppImage`、`RichMarkdown`。选图取消 `E_PICKER_CANCELLED` 不报错；临时文件上传或复制后 `cleanSingle`，不作永久地址、不删相册原件。Markdown 流式传 `markdown/streaming`，自定义链接用 `onLinkPress`。 |
 | 动态分享 | 用户点击才调用 `feed.share({ body, html, requestId })`，需先编辑用 `feed.compose`。body ≤2000 字、html ≤32 KB，至少一项；HTML 使用基础文本、a/img 和简单内联样式，不含脚本、事件属性、iframe、外部字体或样式表。媒体用稳定公开 HTTPS 地址；应用链接用 `zijinhua://app/<appId>`。失败重试复用 requestId，新操作换 ID（8–100 位字母、数字或短横线）。 |
