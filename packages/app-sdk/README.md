@@ -6,14 +6,14 @@ Node.js ≥22.11.0。插件根目录 npm ci；任务与交付规则见 AGENTS.md
 
 入口默认导出 defineApp({main})，main 返回页面组件。API 用 @zijinhua/app-sdk，UI 用其 /ui；参数查公共类型，下文按需查阅。
 
-共享入口/版本查 dist/platform.json、dist/libraries.md；禁止私有路径、重复安装共享库和 overrides。额外纯 JS 依赖写应用 package.json，npm install 后提交根锁文件；原生能力需配套 APK。
+共享入口/版本查 dist/platform.json、dist/libraries.md；禁止私有路径、重复安装共享库和 overrides。额外纯 JS 依赖写应用 package.json，npm install 更新根锁文件；原生能力需配套 APK。
 
 新应用 authorize→init，已有应用仅 authorize。交付仅运行 publish，自动提交当前应用与根锁文件、构建并验证线上候选；授权与兼容校验不可绕过。
 
 ```sh
 npx --no-install zjh-app authorize <id> '<grant>'
 npx --no-install zjh-app init <id>
-npx --no-install zjh-app publish <id>
+npm run publish:application -- <id>
 ```
 
 ## 全屏布局
@@ -48,4 +48,4 @@ AppContext.ai 提供 listProviders、complete、openSettings。密钥保存在�
 
 ## 构建与兼容
 
-publish 仅上传候选，不自动上架，公开版本由作者选择。publish 自动提交当前应用目录与根锁文件，存在其他改动则停止；自动构建、上传后回读线上候选，确认输出 published:true、appId、releaseId、commit 才算交付成功，回执保存在 dist/applications/<id>/publication.json。单独构建不会发布，用 npx --no-install zjh-app build <id>，产物在 dist/applications/<id>/。发布只接受 origin 为 jiangfengwhu/zjh-plugin 的干净源码；校验本轮授权、原子基线、RN/Hermes ABI、SDK 同主版本且宿主不低于需求、所用共享依赖精确版本。冲突或不兼容时保留源码并处理原因，不改清单绕过校验。
+publish 仅上传候选，不自动上架，公开版本由作者选择。publish 自动提交当前应用目录与根锁文件，存在其他改动则停止；自动构建、上传后回读线上候选，确认输出 published:true、appId、releaseId、commit 才算交付成功，回执保存在 dist/applications/<id>/publication.json。发布只接受 origin 为 jiangfengwhu/zjh-plugin 的干净源码；校验本轮授权、原子基线、RN/Hermes ABI、SDK 同主版本且宿主不低于需求、所用共享依赖精确版本。冲突或不兼容时保留源码并处理原因，不改清单绕过校验。
