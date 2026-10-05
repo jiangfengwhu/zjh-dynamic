@@ -1,3 +1,4 @@
+import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { ActivityIndicator } from "react-native";
 import {
@@ -377,18 +378,7 @@ export function ComposePostScreen({
           contentContainerStyle={styles.content}
         >
           <View style={styles.author}>
-            {user?.avatarUrl ? (
-              <AppImage
-                source={{ uri: user.avatarUrl }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={[styles.avatar, styles.placeholder]}>
-                <Text style={styles.initial}>
-                  {Array.from(user?.name || "我")[0]}
-                </Text>
-              </View>
-            )}
+            <UserAvatar uri={user?.avatarUrl} size={36} style={styles.avatar} />
             <Text style={styles.name}>{user?.name || "我"}</Text>
           </View>
           <TextInput
@@ -663,12 +653,6 @@ const styles = themedStyleSheet((base) => {
     publishDock: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: t.canvas },
     author: { flexDirection: "row", gap: 12, alignItems: "center" },
     avatar: { width: 36, height: 36, borderRadius: 18 },
-    placeholder: {
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: t.accentTint,
-    },
-    initial: { color: t.accentText, fontSize: 20 },
     name: { color: t.ink1, fontSize: 16, fontWeight: "600" },
     input: {
       minHeight: 144,

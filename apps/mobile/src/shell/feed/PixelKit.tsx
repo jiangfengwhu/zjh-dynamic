@@ -1,35 +1,16 @@
+import { UserAvatar, defaultAvatarSource } from "../UserAvatar";
 import { memo } from "react";
-import { Image, View } from "react-native";
+import { View } from "react-native";
 import { PixelText as Text } from "./PixelText";
-import { pixelAssets } from "./pixelAssets";
 
 export {
   PixelIcon,
   type PixelSymbol,
 } from "../../../../../packages/ui/chrome/PixelIcon";
 
-export const mascotImage = {
-  uri: `data:image/png;base64,${pixelAssets.avatar.base64}`,
-};
-export const PixelAvatar = memo(function PixelAvatar({
-  size = 48,
-}: {
-  size?: number;
-}) {
-  return (
-    <Image
-      fadeDuration={0}
-      accessible={false}
-      source={mascotImage}
-      resizeMode="contain"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: "#FFFFFF",
-      }}
-    />
-  );
+export const mascotImage = defaultAvatarSource;
+export const PixelAvatar = memo(function PixelAvatar({ size = 48 }: { size?: number }) {
+  return <UserAvatar size={size} />;
 });
 
 export function PixelBadge({

@@ -1,5 +1,6 @@
+import { UserAvatar } from "./UserAvatar";
 import { memo, useEffect, useState } from "react";
-import { Image, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { useAccount } from "./account";
 import { Screen } from "../../../../packages/ui/edge";
@@ -88,15 +89,7 @@ export const MineScreen = memo(function MineScreen({
             onPress={user ? onProfile : onAccount}
             style={styles.profile}
           >
-            {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={styles.portrait} />
-            ) : (
-              <View style={[styles.portrait, styles.placeholder]}>
-                <Text style={styles.initial}>
-                  {Array.from(user?.name || "我")[0]}
-                </Text>
-              </View>
-            )}
+            <UserAvatar uri={user?.avatarUrl} size={52} style={styles.portrait} />
             <View style={styles.profileCopy}>
               <Text numberOfLines={2} style={styles.profileName}>
                 {user?.name ?? "登录紫金花"}
@@ -266,12 +259,6 @@ const styles = themedStyleSheet((t) => ({
     borderBottomColor: t.line,
   },
   portrait: { width: 52, height: 52, borderRadius: 26 },
-  placeholder: {
-    backgroundColor: t.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  initial: { fontSize: 23, fontWeight: "700", color: t.onAccent },
   profileCopy: { flex: 1, minWidth: 0, gap: 4 },
   profileName: {
     fontSize: 22,

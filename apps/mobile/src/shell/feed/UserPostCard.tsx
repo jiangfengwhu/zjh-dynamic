@@ -1,3 +1,4 @@
+import { UserAvatar } from "../UserAvatar";
 import { PixelAlert as Alert } from "../PixelAlert";
 import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
@@ -110,13 +111,7 @@ export function UserPostCard({
     Clipboard.setString(post.body || url);
     Toast.show({ type: "success", text1: "已复制" });
   }
-  const avatar = post.author.avatarUrl ? (
-    <AppImage source={{ uri: post.author.avatarUrl }} style={styles.avatar} />
-  ) : (
-    <View style={[styles.avatar, styles.placeholder]}>
-      <Text style={styles.initial}>{Array.from(post.author.name)[0]}</Text>
-    </View>
-  );
+  const avatar = <UserAvatar uri={post.author.avatarUrl} authorId={post.author.id} size={36} style={styles.avatar} />;
   return (
     <>
       <Pressable
@@ -239,12 +234,6 @@ const makeStyles = (t: Theme) =>
       borderWidth: 0,
       borderColor: t.line,
     },
-    placeholder: {
-      backgroundColor: t.accentTint,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    initial: { fontSize: 20, color: t.accentText },
     body: { fontSize: 15, lineHeight: 22, color: t.ink1 },
     detailBody: { fontSize: 16, lineHeight: 24 },
     images: { flexDirection: "row", flexWrap: "wrap", gap: 2, marginTop: 2 },

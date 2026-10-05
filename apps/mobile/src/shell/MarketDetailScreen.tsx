@@ -1,3 +1,4 @@
+import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
 import { NewDataNotice } from "./NewDataNotice";
 import { dataChanged } from "./pageCache";
@@ -1075,18 +1076,7 @@ function MarketDetailContent({
                   style={styles.author}
                 >
                   <View style={styles.authorIdentity}>
-                    {authorAvatar ? (
-                      <AppImage
-                        source={{ uri: authorAvatar }}
-                        style={{ width: 28, height: 28, borderRadius: 14 }}
-                      />
-                    ) : (
-                      <PixelIcon
-                        name="mine"
-                        size={24}
-                        color={colors.orchidText}
-                      />
-                    )}
+                    <UserAvatar uri={authorAvatar} authorId={authorId} size={28} />
                     <Text
                       numberOfLines={1}
                       style={{

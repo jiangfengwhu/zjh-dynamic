@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 // the avatar and application logo are embedded in the dynamic package.
 const root = new URL("../apps/mobile/src/shell/feed/", import.meta.url);
 const entries = await Promise.all(
-  ["avatar.png", "logo.png"].map(async (name) => {
+  ["avatar.webp", "logo.png"].map(async (name) => {
     const bytes = await readFile(new URL(`assets/${name}`, root));
     return [
       name.split(".")[0],

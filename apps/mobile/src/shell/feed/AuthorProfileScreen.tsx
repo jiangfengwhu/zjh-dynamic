@@ -1,3 +1,4 @@
+import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { NewDataNotice } from "../NewDataNotice";
 import { dataChanged } from "../pageCache";
@@ -19,7 +20,6 @@ import Animated, {
 } from "react-native-reanimated";
 import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelectedEvent } from "react-native-pager-view";
 import { Gesture } from "react-native-gesture-handler";
-import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { useProfileScroll } from "../ProfileScroll";
 import { CompactTabs } from "../CompactTabs";
 import { PageHeader } from "../../../../../packages/ui/chrome";
@@ -239,33 +239,7 @@ function AuthorProfileContent({
       {!embedded ? (
         <View style={{ padding: 16, gap: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            {author.avatarUrl ? (
-              <AppImage
-                source={{ uri: author.avatarUrl }}
-                style={{ width: 56, height: 56, borderRadius: 28 }}
-              />
-            ) : (
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: colors.accent,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 23,
-                    fontWeight: "700",
-                    color: colors.onAccent,
-                  }}
-                >
-                  {Array.from(author.name)[0]}
-                </Text>
-              </View>
-            )}
+            <UserAvatar uri={author.avatarUrl} authorId={author.id} size={56} />
             <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
               <Text
                 numberOfLines={2}

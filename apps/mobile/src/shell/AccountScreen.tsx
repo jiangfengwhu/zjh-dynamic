@@ -1,8 +1,9 @@
+import { UserAvatar } from "./UserAvatar";
 import { ActivityIndicator } from "react-native";
 import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
 import { useRouteContentReady } from "./useRouteContentReady";
-import { Image, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { FormField as TextInput } from "./FormField";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
@@ -47,7 +48,7 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
       </View> : user ? <>
         <View style={styles.panel}>
           <View style={styles.avatarRow}>
-            {user.avatarUrl ? <Image key={user.avatarUrl} source={{ uri: user.avatarUrl }} style={styles.avatar} onError={() => toast.error("头像加载失败，请检查网络后重试")} /> : <View style={[styles.avatar, styles.placeholder]}><Text style={styles.initial}>{Array.from(user.name)[0]}</Text></View>}
+            <UserAvatar uri={user.avatarUrl} size={56} style={styles.avatar} onError={() => toast.error("头像加载失败，请检查网络后重试")} />
             <View style={styles.fill}><Text style={styles.label}>你的头像</Text><Text style={styles.hint}>从相册选择一张喜欢的照片</Text></View>
           </View>
           {button("更换头像", () => void perform(() => chooseAccountAvatar(setUploadStatus), "头像已更新"), false, true)}
@@ -84,5 +85,5 @@ const styles = themedStyleSheet(t => ({
   logout: { backgroundColor: t.redTint }, logoutLabel: { color: t.redText }, secondary: { backgroundColor: t.inset }, disabled: { opacity: 0.45 },
   buttonLabel: { color: t.onAccent, fontSize: 14, fontWeight: "700" }, secondaryLabel: { color: t.accentText, fontSize: 14, fontWeight: "700" },
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 12 }, fill: { flex: 1 },
-  avatar: { width: 56, height: 56, borderRadius: 28 }, placeholder: { backgroundColor: t.accentTint, alignItems: "center", justifyContent: "center" }, initial: { color: t.accentText, fontSize: 20, fontWeight: "600" },
+  avatar: { width: 56, height: 56, borderRadius: 28 },
 }));

@@ -13,6 +13,7 @@
 | 键盘 | apps/mobile/src/shell/KeyboardViewport.tsx | 只补实际重叠，安全区连续过渡 |
 | 新数据 | apps/mobile/src/shell/NewDataNotice.tsx | 静默刷新，用户点击后展示 |
 | APK 更新 | apps/mobile/src/shell/apkUpdates.ts | 应用内下载、校验、系统安装 |
+| 用户头像 | apps/mobile/src/shell/UserAvatar.tsx | 同一默认图、圆形裁切，当前账号优先使用最新头像 |
 | 媒体与共享 UI | packages/ui | 统一选图、图片、Markdown、图标与提示 |
 
 ## 导航与手势

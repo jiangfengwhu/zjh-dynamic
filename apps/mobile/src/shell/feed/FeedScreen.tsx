@@ -1,3 +1,4 @@
+import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { NewDataNotice } from "../NewDataNotice";
 import { PixelText as Text } from "./PixelText";
@@ -32,7 +33,7 @@ import {
   themedStyleSheet,
 } from "../../../../../packages/ui/theme";
 import { pixelTheme, usePixelTheme } from "./pixelTheme";
-import { PixelAvatar, PixelIcon } from "./PixelKit";
+import { PixelIcon } from "./PixelKit";
 import NativePluginHost from "../../NativePluginHost";
 import { useFeedChrome, SHELL_CHROME_THRESHOLD } from "./FeedChrome";
 import { useAccount } from "../account";
@@ -49,7 +50,6 @@ import {
 } from "./userPosts";
 import { UserPostCard } from "./UserPostCard";
 import Toast from "react-native-toast-message";
-import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import { requireAccount } from "../account";
 import { useInstalledShortcuts } from "./useInstalledShortcuts";
@@ -255,14 +255,7 @@ export const FeedScreen = memo(function FeedScreen({
                       scale={0.92}
                       style={styles.profileControl}
                     >
-                      {user?.avatarUrl ? (
-                        <AppImage
-                          source={{ uri: user.avatarUrl }}
-                          style={styles.profileAvatar}
-                        />
-                      ) : (
-                        <PixelAvatar size={36} />
-                      )}
+                      <UserAvatar uri={user?.avatarUrl} size={36} style={styles.profileAvatar} />
                     </Pressy>
                     <FeedCategoryTabs
                       selected={kind}

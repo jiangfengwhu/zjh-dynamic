@@ -1,3 +1,4 @@
+import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { PixelText as Text } from "./PixelText";
 import { NewDataNotice } from "../NewDataNotice";
@@ -9,7 +10,6 @@ import { useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, TextInput as NativeTextInput, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
-import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { KeyboardViewport } from "../KeyboardViewport";
 import { usePreventRemove } from "@react-navigation/native";
@@ -119,7 +119,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
         contentContainerStyle={!comments.length ? { flexGrow: 1 } : undefined}
         ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} /></View> : !error ? <EmptyState><Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text></EmptyState> : null}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: colors.line, backgroundColor: item.id === initialCommentId ? colors.accentTint : colors.canvas }}>
-          <Pressable accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)}>{item.author.avatarUrl ? <AppImage source={{ uri: item.author.avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18 }} /> : <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.field, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accentText }}>{item.author.name.slice(0, 1)}</Text></View>}</Pressable>
+          <Pressable accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)}><UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={36} /></Pressable>
           <View style={{ flex: 1 }}><View style={{ flexDirection: "row", alignItems: "center" }}><View style={{ flex: 1 }}><Text onPress={() => onAuthor(item.author)} style={{ color: colors.ink1, fontWeight: "700", fontSize: 15 }}>{item.author.name}</Text><Text style={{ color: colors.ink3, fontSize: 11 }}>{when(item.createdAt)}</Text></View>
             <PostMenu busy={deleting === item.id} onCopy={() => { Clipboard.setString(item.body); Toast.show({ type: "success", text1: "已复制" }); }} onDelete={user?.id === item.author.id ? () => remove(item) : undefined} /></View>
             {item.replyTo ? <Text style={{ color: colors.accentText, marginBottom: 4 }}>回复 {item.replyTo.name}</Text> : null}

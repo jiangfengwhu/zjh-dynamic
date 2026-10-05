@@ -1,9 +1,9 @@
+import { UserAvatar } from "./UserAvatar";
 import { ActivityIndicator } from "react-native";
 import { memo, useRef, useState } from "react";
 import { View } from "react-native";
 import Toast from "react-native-toast-message";
 import { Pressy } from "../../../../packages/ui/chrome";
-import { AppImage } from "../../../../packages/ui/media/AppImage";
 import { PixelText as Text } from "./feed/PixelText";
 import { PixelIcon } from "./feed/PixelKit";
 import { usePixelTheme } from "./feed/pixelTheme";
@@ -164,14 +164,7 @@ export const WorkCard = memo(function WorkCard({
             gap: 6,
           }}
         >
-          {authorAvatarUrl ? (
-            <AppImage
-              source={{ uri: authorAvatarUrl }}
-              style={{ width: 22, height: 22, borderRadius: 11 }}
-            />
-          ) : (
-            <PixelIcon name="mine" size={18} color={colors.ink3} />
-          )}
+          <UserAvatar uri={authorAvatarUrl} size={22} />
           <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
             <Text
               numberOfLines={1}

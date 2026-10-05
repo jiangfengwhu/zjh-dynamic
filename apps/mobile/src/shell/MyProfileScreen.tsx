@@ -1,3 +1,4 @@
+import { UserAvatar } from "./UserAvatar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Text, View, useWindowDimensions } from "react-native";
 import { Pressy } from "../../../../packages/ui/chrome";
@@ -17,14 +18,13 @@ import PagerView, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useFocusEffect } from "@react-navigation/native";
 import { ProfileScrollContext, PROFILE_RANGE } from "./ProfileScroll";
-import { AppImage } from "../../../../packages/ui/media/AppImage";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 import { usePixelTheme } from "./feed/pixelTheme";
 import { useAccount, requireAccount } from "./account";
 import { CompactTabs } from "./CompactTabs";
 import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
-import { PixelAvatar, PixelIcon } from "./feed/PixelKit";
+import { PixelIcon } from "./feed/PixelKit";
 import { useProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
 import type { UserPost, PublicAuthor } from "./feed/userPosts";
 import type { MarketApplication } from "./market";
@@ -437,14 +437,7 @@ function MyProfileContent({
             }}
           >
             <Animated.View style={avatarScale}>
-              {user?.avatarUrl ? (
-                <AppImage
-                  source={{ uri: user.avatarUrl }}
-                  style={{ width: 56, height: 56, borderRadius: 28 }}
-                />
-              ) : (
-                <PixelAvatar size={56} />
-              )}
+              <UserAvatar uri={user?.avatarUrl} size={56} />
             </Animated.View>
           </Pressy>
         </Animated.View>

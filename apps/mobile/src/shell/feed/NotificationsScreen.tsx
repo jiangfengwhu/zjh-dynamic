@@ -1,3 +1,4 @@
+import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "../pageCache";
 import { NewDataNotice } from "../NewDataNotice";
@@ -16,7 +17,6 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Toast from "react-native-toast-message";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../../packages/ui/edge";
@@ -502,27 +502,7 @@ function NotificationsContent({
                         : colors.accentTint,
                     }}
                   >
-                    {item.actor.avatarUrl ? (
-                      <AppImage
-                        source={{ uri: item.actor.avatarUrl }}
-                        style={{ width: 40, height: 40, borderRadius: 20 }}
-                      />
-                    ) : (
-                      <View
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          backgroundColor: colors.field,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Text style={{ color: colors.accentText }}>
-                          {Array.from(item.actor.name)[0]}
-                        </Text>
-                      </View>
-                    )}
+                    <UserAvatar uri={item.actor.avatarUrl} authorId={item.actor.id} size={40} />
                     <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                       <Text style={{ color: colors.ink1, fontSize: 14 }}>
                         {noticeHeading(item)}

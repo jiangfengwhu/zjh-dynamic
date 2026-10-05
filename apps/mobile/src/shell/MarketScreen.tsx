@@ -1,3 +1,4 @@
+import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
 import { ActivityIndicator } from "react-native";
 import { dataChanged } from "./pageCache";
@@ -12,7 +13,6 @@ import PagerView, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { PixelText as Text } from "./feed/PixelText";
-import { AppImage } from "../../../../packages/ui/media/AppImage";
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
@@ -664,12 +664,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
               minHeight: 28,
             }}
           >
-            {item.authorAvatarUrl ? (
-              <AppImage
-                source={{ uri: item.authorAvatarUrl }}
-                style={{ width: 16, height: 16, borderRadius: 8 }}
-              />
-            ) : null}
+            <UserAvatar uri={item.authorAvatarUrl} authorId={item.authorId} size={16} />
             <Text numberOfLines={1} style={[styles.caption, { flexShrink: 1 }]}>
               {item.authorName || "社区创作者"}
             </Text>
