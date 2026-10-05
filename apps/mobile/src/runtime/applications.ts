@@ -18,6 +18,12 @@ export type ApplicationManifest = {
 };
 
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
+const hostBuildId = (require("../shell/build-identity.json") as { buildId: string }).buildId;
+// A package that failed under a previous host may work after a runtime fix.
+async function failedUnderCurrentHost(appId: string, releaseId: string) {
+  if (await readShellValue(`application.failed.${appId}`) !== releaseId) return false;
+  return await readShellValue(`application.failed.host.${appId}`) === hostBuildId;
+}
 const loading = new Map<string, Promise<void>>();
 const loaded = new Set<string>();
 const evaluating = new Set<string>();
@@ -116,7 +122,7 @@ export async function publicApplicationUpdates(force = false): Promise<Record<st
       const manifest = snapshot!.applications.find(item => item.appId === id)?.manifest;
       if (!manifest) { result[id] = { status: "unavailable", message: "已撤回，保留本机版本" }; continue; }
       if (raw && JSON.parse(raw).releaseId === manifest.releaseId) { result[id] = { status: "current", manifest }; continue; }
-      if (manifest.releaseId === await readShellValue(`application.failed.${id}`)) { result[id] = { status: "blocked", message: "新版加载失败，保留本机版本" }; continue; }
+      if (await failedUnderCurrentHost(id, manifest.releaseId)) { result[id] = { status: "blocked", message: "新版加载失败，保留本机版本" }; continue; }
       try { assertCompatible(manifest, id); result[id] = { status: "update", manifest }; }
       catch (error) { result[id] = { status: "blocked", message: error instanceof Error ? error.message : "请先更新平台" }; }
     } catch { result[id] = { status: "blocked", message: "本机版本信息异常，请重新打开详情" }; }
@@ -194,8 +200,9 @@ async function load(appId: string) {
   const key = `application.install.${appId}`;
   const saved = await readShellValue(key);
   let staged = await readShellValue(`application.pending.${appId}`);
-  if (staged && (await readShellValue(`application.attempt.${appId}`) || await readShellValue(`application.evaluation.${appId}`))) {
+  if (staged && await readShellValue(`application.evaluation.host.${appId}`) === hostBuildId && (await readShellValue(`application.attempt.${appId}`) || await readShellValue(`application.evaluation.${appId}`))) {
     writeShellValue(`application.failed.${appId}`, JSON.parse(staged).releaseId);
+    writeShellValue(`application.failed.host.${appId}`, hostBuildId);
     writeShellValue(`application.pending.${appId}`, "");
     writeShellValue(`application.attempt.${appId}`, "");
     writeShellValue(`application.evaluation.${appId}`, "");
@@ -238,7 +245,7 @@ async function load(appId: string) {
   if (access.ownerId && await currentAccountId() !== access.ownerId) throw new Error("作品账号已改变，请重载");
   activeAccess.set(appId, access);
   console.log("application load", appId, manifest.releaseId);
-  if (manifest.releaseId === await readShellValue(`application.failed.${appId}`)) throw new Error("这个版本加载失败，请等待新版本或重新选择安装版本");
+  if (await failedUnderCurrentHost(appId, manifest.releaseId)) throw new Error("这个版本加载失败，请等待新版本或重新选择安装版本");
   // Keep first installs pending too, so evaluation and lazy-page failures can roll back.
   if (!saved) { writeShellValue(`application.pending.${appId}`, JSON.stringify(manifest)); writeShellValue(`application.pending.access.${appId}`, JSON.stringify(access)); }
   // Record the last accepted version before executing any new package code.
@@ -248,6 +255,7 @@ async function load(appId: string) {
   }
   active.set(appId, manifest);
   writeShellValue(`application.evaluation.${appId}`, manifest.releaseId);
+  writeShellValue(`application.evaluation.host.${appId}`, hostBuildId);
   evaluating.add(appId);
   const raw = await NativePluginHost.call("shell", "loadApplication", JSON.stringify(manifest));
   const result = JSON.parse(raw) as { assets: Record<string, string> };
@@ -292,6 +300,7 @@ export async function reportApplicationFailure(appId: string) {
   const previous = await readShellValue(`application.previous.${appId}`);
   healthy.delete(appId);
   writeShellValue(`application.failed.${appId}`, current.releaseId);
+  writeShellValue(`application.failed.host.${appId}`, hostBuildId);
   writeShellValue(`application.pending.${appId}`, "");
   writeShellValue(`application.attempt.${appId}`, "");
   writeShellValue(`application.evaluation.${appId}`, "");

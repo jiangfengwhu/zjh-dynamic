@@ -81,13 +81,13 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   if (options.publish) await assertBaseline(repoRoot, remote, source);
 
   await writeVendorLibs(repoRoot, mobileDir);
-  const inputs = await vendorInputs(mobileDir);
-  const reuseVendor = Boolean(remote) && !options.forceVendor && remote?.runtimeVersion === runtime && remote?.vendor.inputs === inputs;
   const mapFile = path.join(outDir, "module-ids-vendor.json");
   if (remote) {
     await writeFile(mapFile, await fetchRemoteVendorMap(remote.vendor.map));
     console.log("vendor map from remote");
   }
+  const inputs = await vendorInputs(mobileDir);
+  const reuseVendor = Boolean(remote) && !options.forceVendor && remote?.runtimeVersion === runtime && remote?.vendor.inputs === inputs;
 
   let vendor: ReleaseVendor;
   let vendorFile = "";
@@ -98,7 +98,7 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
     const built = await bundleLayer(mobileDir, path.join(mobileDir, "vendor-entry.js"), path.join(outDir, "vendor.js"), path.join(outDir, "vendor.bundle"), "vendor", false);
     vendorFile = path.join(outDir, "vendor.bundle");
     const map = await readVendorMap(mapFile);
-    vendor = { ...built, inputs, map: sha256Hex(map) };
+    vendor = { ...built, inputs: await vendorInputs(mobileDir), map: sha256Hex(map) };
     console.log(`vendor ready sha256=${vendor.sha256.slice(0, 12)} bytes=${vendor.bytes}`);
   }
 
@@ -288,6 +288,19 @@ async function vendorInputs(mobileDir: string): Promise<string> {
   const parts: string[] = [];
   for (const file of files) {
     parts.push(`${file.replaceAll("\\", "/")}:${sha256Hex(await readIfExists(path.join(mobileDir, file)))}`);
+  }
+  // First-party dependencies reachable from vendor (e.g. shared typography/theme)
+  // must invalidate the cache too. Recompute after building to include new modules.
+  const repoRoot = path.resolve(mobileDir, "../..");
+  const map = JSON.parse((await readIfExists(path.join(repoRoot, "dist/bundles/module-ids-vendor.json"))).toString("utf8") || "{}") as Record<string, number>;
+  for (const key of Object.keys(map).filter(key => !key.startsWith("node_modules/")).sort()) {
+    const relative = key.startsWith("mobile/") ? `apps/${key}`
+      : key.startsWith("components/") ? `packages/ui/${key.slice(11)}`
+      : key.startsWith("features/src/lib/") ? `packages/platform/src/${key.slice(17)}`
+      : key.startsWith("features/") ? `packages/${key}` : key;
+    const file = path.resolve(repoRoot, relative);
+    if (!file.startsWith(`${repoRoot}${path.sep}`)) throw new Error(`vendor 模块路径无效：${key}`);
+    parts.push(`${key}:${sha256Hex(await readIfExists(file))}`);
   }
   return sha256Hex(parts.join("\n"));
 }
