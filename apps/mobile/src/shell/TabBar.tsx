@@ -13,6 +13,7 @@ import {
   useNotificationCount,
   useNotificationSync,
 } from "./feed/notifications";
+import { useMessageCount, useMessagesSync } from "./social/api";
 import { PixelIcon } from "./feed/PixelKit";
 import { pixelTheme } from "./feed/pixelTheme";
 
@@ -34,7 +35,8 @@ export function TabBar({
   onCompose: () => void;
 }) {
   const colors = pixelTheme(useTheme().colors);
-  const unread = useNotificationCount();
+  const unread = useNotificationCount() + useMessageCount();
+  useMessagesSync();
   useNotificationSync();
   return (
     <View style={styles.bar}>

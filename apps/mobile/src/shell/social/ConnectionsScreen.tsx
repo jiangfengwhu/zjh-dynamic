@@ -1,0 +1,79 @@
+import { useRef, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
+import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelectedEvent } from "react-native-pager-view";
+import Animated, { runOnJS, useEvent, useSharedValue, useAnimatedScrollHandler } from "react-native-reanimated";
+import { Pressy } from "../../../../../packages/ui/chrome";
+import { CompactTabs } from "../CompactTabs";
+import { UserAvatar } from "../UserAvatar";
+import { PixelText as Text } from "../feed/PixelText";
+import { usePixelTheme } from "../feed/pixelTheme";
+import { setAuthorFollow, type PublicAuthor } from "../feed/userPosts";
+import { usePullToRefresh } from "../feed/pullToRefresh";
+import { PullRefreshSurface } from "../feed/PullRefreshSurface";
+import { useSocialPage } from "./useSocialPage";
+import { readRelations, type RelationKind, type RelationPage } from "./api";
+import { SocialEmpty, SocialError, SocialFrame } from "./SocialLayout";
+import { requireAccount, useAccount } from "../account";
+import Toast from "react-native-toast-message";
+const AnimatedPager = Animated.createAnimatedComponent(PagerView);
+export function ConnectionsScreen({ author, initialKind, onBack, onAuthor }: {
+  author: PublicAuthor; initialKind: RelationKind; onBack: () => void; onAuthor: (author: PublicAuthor) => void;
+}) {
+  const [kind, setKind] = useState(initialKind);
+  const { user } = useAccount();
+  const pager = useRef<PagerView>(null), initialIndex = useRef(initialKind === "following" ? 0 : 1);
+  const position = useSharedValue(initialIndex.current);
+  const scroll = useEvent<PagerViewOnPageScrollEvent>(e => { "worklet"; position.value = e.position + e.offset; }, ["onPageScroll"]);
+  const selected = useEvent<PagerViewOnPageSelectedEvent>(e => { "worklet"; runOnJS(setKind)(e.position === 0 ? "following" : "followers"); }, ["onPageSelected"]);
+  return <SocialFrame title={author.id === user?.id ? kind === "following" ? "我的关注" : "我的粉丝" : `${author.name}的${kind === "following" ? "关注" : "粉丝"}`} onBack={onBack}>
+    <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}><CompactTabs value={kind} position={position}
+      options={[{ id: "following", label: "关注" }, { id: "followers", label: "粉丝" }]}
+      onChange={next => pager.current?.setPage(next === "following" ? 0 : 1)} /></View>
+    <AnimatedPager ref={pager} initialPage={initialIndex.current} style={{ flex: 1 }} offscreenPageLimit={1} onPageScroll={scroll} onPageSelected={selected}>
+      {(["following", "followers"] as const).map(page => <View key={page} collapsable={false} style={{ flex: 1 }}>
+        <ConnectionsList author={author} kind={page} active={kind === page} onAuthor={onAuthor} />
+      </View>)}
+    </AnimatedPager>
+  </SocialFrame>;
+}
+function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAuthor; kind: RelationKind; active: boolean; onAuthor: (author: PublicAuthor) => void }) {
+  const { colors } = usePixelTheme();
+  const query = useSocialPage<RelationPage>({ name: `connections:${author.id}:${kind}`, empty: { authors: [], nextCursor: null }, active,
+    read: cursor => readRelations(author.id, kind, cursor),
+    merge: (previous, next, more) => more ? { ...next, authors: [...previous.authors, ...next.authors.filter(item => !previous.authors.some(old => old.author.id === item.author.id))] } : next });
+  const [acting, setActing] = useState<string>();
+  const locks = useRef(new Set<string>());
+  const scrollY = useSharedValue(0), scroll = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
+  const refresh = usePullToRefresh({ scrollY, onRefresh: () => query.load() });
+  async function follow(id: string, wanted: boolean) {
+    if (locks.current.has(id)) return;
+    locks.current.add(id); setActing(id);
+    try {
+      if (!await requireAccount()) return;
+      await setAuthorFollow(id, wanted);
+      if (query.focused) await query.load();
+    } catch (cause) { Toast.show({ type: "error", text1: "关注未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
+    finally { locks.current.delete(id); setActing(undefined); }
+  }
+  return <PullRefreshSurface refresh={refresh}><Animated.FlatList
+    data={query.data.authors} keyExtractor={item => item.author.id} onScroll={scroll} scrollEventThrottle={16}
+    showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never" contentContainerStyle={!query.data.authors.length ? { flexGrow: 1 } : undefined}
+    ListHeaderComponent={<SocialError error={query.error} retry={() => { void query.load(); }} />}
+    ListEmptyComponent={<SocialEmpty loading={query.loading} loaded={query.loaded} text={kind === "following" ? "还没有关注的人" : "还没有粉丝"} />}
+    renderItem={({ item }) => <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: colors.line }}>
+      <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)} style={{ flex: 1, paddingVertical: 14, flexDirection: "row", gap: 12, alignItems: "center" }}>
+        <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={44} />
+        <View style={{ flex: 1, gap: 4 }}><Text numberOfLines={1} style={{ color: colors.ink1, fontSize: 16 }}>{item.author.name}</Text>
+          {item.followsYou ? <Text style={{ color: colors.greenText, fontSize: 12 }}>{item.following ? "互相关注" : "关注了你"}</Text> : null}
+        </View>
+      </Pressy>
+      {query.user?.id !== item.author.id ? <Pressy accessibilityRole="button" accessibilityLabel={item.following ? "取消关注" : "关注"} disabled={acting === item.author.id}
+        onPress={() => { void follow(item.author.id, !item.following); }} style={{ minHeight: 44, minWidth: 72, alignItems: "center", justifyContent: "center", paddingHorizontal: 10, backgroundColor: item.following ? colors.surface : colors.accent, borderRadius: 4 }}>
+        <Text style={{ color: item.following ? colors.ink3 : colors.onAccent }}>{acting === item.author.id ? "处理中" : item.following ? "已关注" : "+ 关注"}</Text>
+      </Pressy> : null}
+    </View>}
+    ListFooterComponent={query.data.nextCursor ? <Pressy accessibilityRole="button" onPress={() => { void query.load(true); }} disabled={query.loading} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>
+      {query.loading ? <ActivityIndicator color={colors.accent} /> : <Text style={{ color: colors.accentText }}>加载更多</Text>}
+    </Pressy> : null}
+  /></PullRefreshSurface>;
+}

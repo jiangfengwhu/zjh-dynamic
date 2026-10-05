@@ -20,6 +20,7 @@ import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelecte
 import { Gesture } from "react-native-gesture-handler";
 import { useProfileScroll } from "../ProfileScroll";
 import { CompactTabs } from "../CompactTabs";
+import type { RelationKind } from "../social/api";
 import { PageHeader } from "../../../../../packages/ui/chrome";
 import { Screen } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
@@ -65,6 +66,8 @@ function AuthorProfileContent({
   active = true,
   drawerGesture,
   onProfileLoaded,
+  onConnections,
+  onMessage,
 }: {
   initialAuthor: PublicAuthor;
   onBack?: () => void;
@@ -74,6 +77,8 @@ function AuthorProfileContent({
   onPost: (post: UserPost) => void;
   onApplication: (appId: string) => Promise<void>;
   onProfileLoaded?: (profile: AuthorProfile) => void;
+  onConnections?: (author: PublicAuthor, kind: RelationKind) => void;
+  onMessage?: (author: PublicAuthor) => void;
 }) {
   const { colors } = useTheme();
   const { user } = useAccount();
@@ -306,12 +311,17 @@ function AuthorProfileContent({
                 </Text>
               </Pressable>
             ) : null}
+            {onMessage && user?.id !== author.id ? <Pressable accessibilityRole="button" accessibilityLabel={`给${author.name}发私信`} onPress={() => onMessage(author)}
+              style={{ minHeight: 44, minWidth: 58, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.orchid, borderRadius: 4 }}>
+              <Text style={{ color: colors.onAccent }}>私信</Text>
+            </Pressable> : null}
           </View>
-          <Text style={{ fontSize: 12, lineHeight: 18, minHeight: 18, color: colors.ink3 }}>
-              {loaded ? <>
-              {profile.followingCount ?? 0} 关注 · {profile.followerCount ?? 0}{" "}
-              关注者</> : "— 关注 · — 关注者"}
-            </Text>
+          <View style={{ flexDirection: "row", gap: 16 }}>
+            {(["following", "followers"] as const).map(kind => <Pressable key={kind} accessibilityRole="button" accessibilityLabel={kind === "following" ? "查看关注" : "查看粉丝"} disabled={!onConnections}
+              onPress={() => onConnections?.(author, kind)} style={{ minHeight: 44, justifyContent: "center" }}>
+              <Text style={{ fontSize: 12, color: kind === "following" ? colors.greenText : colors.orchidText }}>{loaded ? (kind === "following" ? profile.followingCount ?? 0 : profile.followerCount ?? 0) : "—"} {kind === "following" ? "关注" : "粉丝"}</Text>
+            </Pressable>)}
+          </View>
           <CompactTabs
             value={tab}
             position={position}

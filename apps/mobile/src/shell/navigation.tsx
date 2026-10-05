@@ -82,6 +82,9 @@ import type { PublicAuthor } from "./feed/userPosts";
 import { fetchPostDetail, type PostDetail } from "./feed/userPosts";
 import type { Notice } from "./feed/notifications";
 import { NotificationsScreen } from "./feed/NotificationsScreen";
+import { ConnectionsScreen } from "./social/ConnectionsScreen";
+import { ChatScreen } from "./social/ChatScreen";
+import type { RelationKind } from "./social/api";
 
 export type TabParamList = {
   feed: undefined;
@@ -121,12 +124,23 @@ export type RootParamList = {
   };
   notifications: undefined;
   authorProfile: { author: PublicAuthor };
+  connections: { author: PublicAuthor; kind: RelationKind };
+  chat: { peer: PublicAuthor };
 };
 
 export const shellNavigationRef = createNavigationContainerRef<RootParamList>();
 function openAuthor(author: PublicAuthor) {
   if (shellNavigationRef.isReady())
     shellNavigationRef.navigate("authorProfile", { author });
+}
+
+function openConnections(author: PublicAuthor, kind: RelationKind) {
+  if (shellNavigationRef.isReady()) shellNavigationRef.navigate("connections", { author, kind });
+}
+function openChat(peer: PublicAuthor) {
+  const open = () => { if (shellNavigationRef.isReady() && cachedAccountId() !== peer.id) shellNavigationRef.navigate("chat", { peer }); };
+  if (cachedAccountId()) open();
+  else void requireAccount().then(allowed => { if (allowed) open(); });
 }
 
 async function openNotice(notice: Notice) {
@@ -164,6 +178,7 @@ function NotificationsTab({
         position: notificationPosition,
       }}
       onOpen={onOpen}
+      onMessage={openChat}
     />
   );
 }
@@ -562,6 +577,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                       {() => (
                         <ShellTabScene>
                           <MyProfileScreen
+                            onConnections={openConnections}
                             onAccount={() =>
                               shellNavigationRef.navigate("account")
                             }
@@ -718,13 +734,15 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             )}
           </Stack.Screen>
           <Stack.Screen name="notifications">
-            {() => <NotificationsScreen onBack={goBack} onOpen={openNotice} />}
+            {() => <NotificationsScreen onBack={goBack} onOpen={openNotice} onMessage={openChat} />}
           </Stack.Screen>
           <Stack.Screen name="authorProfile">
             {({ route }) => (
               <AuthorProfileScreen
                 key={route.params.author.id}
                 initialAuthor={route.params.author}
+                onConnections={openConnections}
+                onMessage={openChat}
                 onBack={goBack}
                 onPost={(post) =>
                   shellNavigationRef.navigate("postDetail", { post })
@@ -732,6 +750,12 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 onApplication={openPublicMarketApplication}
               />
             )}
+          </Stack.Screen>
+          <Stack.Screen name="connections">
+            {({ route }) => <ConnectionsScreen key={`${route.params.author.id}:${route.params.kind}`} author={route.params.author} initialKind={route.params.kind} onBack={goBack} onAuthor={openAuthor} />}
+          </Stack.Screen>
+          <Stack.Screen name="chat">
+            {({ route }) => <ChatScreen key={route.params.peer.id} peer={route.params.peer} onBack={goBack} />}
           </Stack.Screen>
           <Stack.Screen name="providers">
             {() => <ProvidersScreen onBack={goBack} />}

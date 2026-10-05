@@ -201,3 +201,10 @@ export async function accountFetch(url: string, options: RequestInit, prompt = t
   }
   return response;
 }
+
+/** Native socket authorization stays in the host; credentials never enter URLs. */
+export async function accountSocket(path: "/v1/messages/live"): Promise<WebSocket> {
+  if (!await requireAccount(false)) throw new Error("请先登录后再查看私信");
+  const Socket = WebSocket as unknown as new (url: string, protocols: string[], options: { headers: Record<string, string> }) => WebSocket;
+  return new Socket(edgeUrl.replace(/^http/, "ws") + path, [], { headers: { Authorization: `Bearer ${credential!.token}` } });
+}

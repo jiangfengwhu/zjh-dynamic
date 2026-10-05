@@ -26,7 +26,9 @@ import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
 import { PixelIcon } from "./feed/PixelKit";
 import { useProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
+import { fetchAuthorProfile } from "./feed/userPosts";
 import type { UserPost, PublicAuthor } from "./feed/userPosts";
+import type { RelationKind } from "./social/api";
 import type { MarketApplication } from "./market";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
@@ -41,6 +43,7 @@ export function MyProfileScreen(props: Parameters<typeof MyProfileContent>[0]) {
 }
 function MyProfileContent({
   onAccount,
+  onConnections,
   onPost,
   onApplication,
   onDetail,
@@ -50,6 +53,7 @@ function MyProfileContent({
   onSharePost,
 }: {
   onAccount: () => void;
+  onConnections: (author: PublicAuthor, kind: RelationKind) => void;
   onPost: (post: UserPost) => void;
   onApplication: (id: string) => Promise<void>;
   onDetail: (item: MarketApplication) => void;
@@ -65,6 +69,7 @@ function MyProfileContent({
     id: string;
     publicCount: number;
     followers: number;
+    following: number;
   }>();
   const onProfileLoaded = useCallback(
     (profile: import("./feed/userPosts").AuthorProfile) =>
@@ -72,9 +77,18 @@ function MyProfileContent({
         id: profile.author.id,
         publicCount: profile.applications.length,
         followers: profile.followerCount ?? 0,
+        following: profile.followingCount ?? 0,
       }),
     []
   );
+  useFocusEffect(useCallback(() => {
+    if (!user) return;
+    let live = true;
+    const idle = requestIdleCallback(() => {
+      void fetchAuthorProfile(user.id).then(profile => { if (live) onProfileLoaded(profile); }).catch(() => {});
+    });
+    return () => { live = false; cancelIdleCallback(idle); };
+  }, [user?.id, onProfileLoaded]));
   const { width: windowWidth } = useWindowDimensions();
   const headerWidth = useSharedValue(windowWidth);
   const titleWidth = useSharedValue(76);
@@ -278,7 +292,7 @@ function MyProfileContent({
                 },
                 identityMotion,
               ]}
-              pointerEvents="none"
+              pointerEvents="box-none"
             >
               <View
                 style={{
@@ -304,13 +318,15 @@ function MyProfileContent({
                   >
                     {user?.name ?? "登录紫金花"}
                   </Text>
-                  <Text style={{ color: colors.ink3, fontSize: 12 }}>
-                    {stats?.id === user?.id && stats
-                      ? `${stats.publicCount} 份公开作品 · ${stats.followers} 位关注者`
-                      : user
-                      ? "我的创造与分享"
-                      : "记录创造，收藏自己的作品"}
-                  </Text>
+                  {author ? <View style={{ flexDirection: "row", gap: 12 }}>
+                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的关注" onPress={() => onConnections(author, "following")} style={{ minHeight: 44, justifyContent: "center" }}>
+                      <Text style={{ color: colors.greenText, fontSize: 12 }}>{stats?.id === user?.id ? stats?.following ?? "—" : "—"} 关注</Text>
+                    </Pressy>
+                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的粉丝" onPress={() => onConnections(author, "followers")} style={{ minHeight: 44, justifyContent: "center" }}>
+                      <Text style={{ color: colors.orchidText, fontSize: 12 }}>{stats?.id === user?.id ? stats?.followers ?? "—" : "—"} 粉丝</Text>
+                    </Pressy>
+                  </View> : <Text style={{ color: colors.ink3, fontSize: 12 }}>记录创造，收藏自己的作品</Text>}
+
                 </View>
               </View>
             </Animated.View>

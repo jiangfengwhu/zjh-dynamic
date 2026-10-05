@@ -1,4 +1,7 @@
 import { UserAvatar } from "../UserAvatar";
+import { InboxContent } from "../social/InboxContent";
+import { useMessageCount } from "../social/api";
+import type { PublicAuthor } from "./userPosts";
 import { JollyPortrait } from "../jolly/ui/portrait";
 import { EmptyState } from "../EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "../pageCache";
@@ -52,6 +55,7 @@ type Props = {
   };
   onBack?: () => void;
   onOpen: (notice: Notice) => Promise<boolean>;
+  onMessage: (peer: PublicAuthor) => void;
 };
 export function NotificationsScreen(props: Props) {
   const theme = usePixelTheme();
@@ -63,10 +67,11 @@ export function NotificationsScreen(props: Props) {
 }
 function NotificationsPage(props: Props) {
   const { colors } = useTheme();
-  const [category, setCategory] = useState<NoticeCategory>("creation");
+  const [category, setCategory] = useState<NoticeCategory | "messages">("creation");
   const [marking, setMarking] = useState(false);
   const count = useNotificationCount();
   const counts = useNotificationCategoryCounts();
+  const messageCount = useMessageCount();
   const tabLabel = (label: string, unread: number) => unread ? `${label} (${unread > 99 ? "99+" : unread})` : label;
   const pager = useRef<PagerView>(null);
   const localPosition = useSharedValue(0);
@@ -104,7 +109,7 @@ function NotificationsPage(props: Props) {
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
     (event) => {
       "worklet";
-      runOnJS(setCategory)(event.position === 0 ? "creation" : "interaction");
+      runOnJS(setCategory)(event.position === 0 ? "creation" : event.position === 1 ? "interaction" : "messages");
     },
     ["onPageSelected"]
   );
@@ -153,7 +158,7 @@ function NotificationsPage(props: Props) {
           )}
         </View>
         <View style={{ flex: 1, minWidth: 0, alignItems: "center" }}>
-          <View style={{ width: 224, maxWidth: "100%" }}>
+          <View style={{ width: 336, maxWidth: "100%" }}>
             <CompactTabs
               value={category}
               position={position}
@@ -161,15 +166,16 @@ function NotificationsPage(props: Props) {
               options={[
                 { id: "creation", label: tabLabel("制作", counts.creation) },
                 { id: "interaction", label: tabLabel("互动", counts.interaction) },
+                { id: "messages", label: tabLabel("私信", messageCount) },
               ]}
               onChange={(value) =>
-                pager.current?.setPage(value === "creation" ? 0 : 1)
+                pager.current?.setPage(value === "creation" ? 0 : value === "interaction" ? 1 : 2)
               }
             />
           </View>
         </View>
         <View style={{ width: 56, alignItems: "flex-end" }}>
-          <Pressy
+          {category !== "messages" ? <Pressy
             accessibilityLabel="将所有通知标记为已读"
             disabled={marking || !count}
             onPress={() => void markAll()}
@@ -189,7 +195,7 @@ function NotificationsPage(props: Props) {
                 color={count ? colors.accentText : colors.ink3}
               />
             )}
-          </Pressy>
+          </Pressy> : null}
         </View>
       </ScreenBar>
       <GestureDetector gesture={native}>
@@ -214,6 +220,9 @@ function NotificationsPage(props: Props) {
               category="interaction"
               active={category === "interaction"}
             />
+          </View>
+          <View key="messages" collapsable={false} style={{ flex: 1 }}>
+            <InboxContent active={category === "messages"} onMessage={props.onMessage} drawerGesture={props.drawerGesture} />
           </View>
         </AnimatedPager>
       </GestureDetector>
