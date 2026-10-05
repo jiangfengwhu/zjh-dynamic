@@ -1,4 +1,4 @@
-import { Linking } from "react-native";
+import { installApkUpdate, type ApkProgress } from "./apkUpdates";
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "./evolveHost";
 import { checkApplicationUpdates, stageApplicationUpdates } from "../runtime/applications";
@@ -48,11 +48,10 @@ export function updateSignature(items: PendingPackage[]): string {
   return items.map((item) => `${item.kind}:${item.id}:${item.sha256}`).sort().join("|");
 }
 
-export async function applyPackageUpdates(items: PendingPackage[] = []): Promise<number> {
+export async function applyPackageUpdates(items: PendingPackage[] = [], onApkProgress?: (value: ApkProgress) => void): Promise<number> {
   const apk = items.find(item => item.kind === "apk");
   if (apk) {
-    if (!apk.url || apk.url !== `https://zjh-cdn.297782.xyz/v1/apk/${apk.sha256}.apk`) throw new Error("APK 下载地址无效");
-    await Linking.openURL(apk.url);
+    await installApkUpdate(apk, onApkProgress);
     return 0;
   }
   const applicationCount = await stageApplicationUpdates();

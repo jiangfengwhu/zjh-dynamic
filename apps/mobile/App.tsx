@@ -1,3 +1,4 @@
+import type { ApkProgress } from "./src/shell/apkUpdates";
 import { ActivityIndicator } from "react-native";
 import { openCreationComposer } from "./src/shell/creationComposer";
 import { reportApplicationFailure } from "./src/runtime/applications";
@@ -150,6 +151,7 @@ function ShellApp() {
   const [updateBusy, setUpdateBusy] = useState(false);
   const updateWorking = useRef(false);
   const [updateError, setUpdateError] = useState("");
+  const [apkProgress, setApkProgress] = useState<ApkProgress>();
   const appearanceWorking = useRef(false);
   useEffect(() => {
     const utils = (
@@ -353,7 +355,7 @@ function ShellApp() {
     setUpdateBusy(true);
     try {
       removeShellValue("shell.updates.dismissed");
-      await applyPackageUpdates(updates);
+      await applyPackageUpdates(updates, setApkProgress);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "更新未完成，请重试";
@@ -433,6 +435,7 @@ function ShellApp() {
             busy={updateBusy}
             completed={false}
             error={updateError}
+            apkProgress={apkProgress}
             onNow={() => {
               void applyUpdatesNow();
             }}
