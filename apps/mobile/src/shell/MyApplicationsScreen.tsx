@@ -673,8 +673,6 @@ export function MyApplicationsScreen({
                           ? "有新版本"
                           : updateState?.status === "blocked"
                           ? updateState.message || "新版暂时无法使用"
-                          : busy && !updateState
-                          ? "正在检查更新"
                           : "已安装"}
                         {app.authorName ? ` · ${app.authorName}` : ""}
                       </Text>
@@ -741,7 +739,7 @@ export function MyApplicationsScreen({
             );
           }}
           ListEmptyComponent={
-            !busy && !error ? (
+            loaded || (!busy && !error) ? (
               <EmptyState>
                 <PixelIcon name="box" size={32} color={colors.orchidText} />
                 <Text style={{ color: colors.ink3, fontSize: 13 }}>
