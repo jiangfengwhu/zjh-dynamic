@@ -133,10 +133,6 @@ export function MyApplicationsScreen({
         const snapshot = { works: next, installed: apps };
         rememberPage(cacheKey, snapshot);
         setWorks(next);
-        if (next.some((work) => work.stale)) {
-          succeeded = false;
-          setError("部分制作状态暂未同步，保留本机记录。下拉可重试。");
-        }
       } else {
         const [publicResult, ownResult] = await Promise.allSettled([
           publicApplicationUpdates(true),
