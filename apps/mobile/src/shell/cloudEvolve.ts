@@ -399,7 +399,7 @@ function createService(appId: string, originalAppId?: string) {
       ((await readShellValue(`shell.jules.apps.${appId}.owner`)) !== owner ||
         !(await readShellValue(APPROVAL_STORAGE)))
     )
-      await restoreWorks(true);
+      await restoreWorks(false, true);
     if (
       (await readShellValue(`shell.jules.apps.${appId}.owner`)) !== owner ||
       (await currentAccountId()) !== owner

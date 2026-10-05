@@ -1,3 +1,5 @@
+import { writePackageValue } from "../../../../packages/ui/packageLink";
+import { subscribeLiveEvents } from "./liveEvents";
 import { accountFetch, currentAccountId } from "./account";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { readShellValue, writeShellValue } from "./shellStorage";
@@ -85,11 +87,15 @@ async function restore(owner: string, force: boolean) {
     if (!response.ok) throw new Error("暂时无法加载作品，请稍后重试");
     const { works } = (await response.json()) as { works: Work[] };
     if ((await currentAccountId()) !== owner) return;
-    writeShellValue(
-      `shell.works.cache.${owner}`,
-      JSON.stringify({ at: Date.now(), works })
-    );
+    const previous = await readShellValue(`shell.works.cache.${owner}`);
+    if ((await currentAccountId()) !== owner) return;
+    writeShellValue(`shell.works.cache.${owner}`, JSON.stringify({ at: Date.now(), works }));
     await applyWorks(owner, works);
+    if ((await currentAccountId()) === owner) {
+      let oldWorks: unknown;
+      try { oldWorks = previous ? JSON.parse(previous).works : undefined; } catch {}
+      if (JSON.stringify(oldWorks) !== JSON.stringify(works)) writePackageValue("shell.works.changed", String(Date.now()));
+    }
   } finally {
     clearTimeout(timer);
   }
@@ -260,3 +266,26 @@ async function applyWorks(owner: string, works: Work[], fromCache = false) {
   )
     context.storage.set("workspaces", serialized);
 }
+
+// Events request only the local BFF snapshot; upstream progress stays manual.
+let workEventSync: Promise<void> | undefined;
+let workEventAgain = false;
+subscribeLiveEvents(event => {
+  if (event.type !== "work" && event.type !== "ready") return;
+  workEventAgain = true;
+  if (workEventSync) return;
+  workEventSync = (async () => {
+    while (workEventAgain) {
+      workEventAgain = false;
+      const owner = await currentAccountId();
+      if (!owner) return;
+      const prior = restoring.get(owner);
+      if (prior) await prior.catch(() => {});
+      if (await currentAccountId() !== owner) return;
+      const operation = restore(owner, false);
+      restoring.set(owner, operation);
+      try { await operation; refreshed.set(owner, Date.now()); }
+      finally { if (restoring.get(owner) === operation) restoring.delete(owner); }
+    }
+  })().catch(() => {}).finally(() => { workEventSync = undefined; });
+});

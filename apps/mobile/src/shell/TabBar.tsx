@@ -11,7 +11,6 @@ import { Pressy } from "../../../../packages/ui/chrome";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import {
   useNotificationCount,
-  useNotificationSync,
 } from "./feed/notifications";
 import { useMessageCount, useMessagesSync } from "./social/api";
 import { PixelIcon } from "./feed/PixelKit";
@@ -37,7 +36,6 @@ export function TabBar({
   const colors = pixelTheme(useTheme().colors);
   const unread = useNotificationCount() + useMessageCount();
   useMessagesSync();
-  useNotificationSync();
   return (
     <View style={styles.bar}>
       {SHELL_TABS.slice(0, 2).map((item) => (

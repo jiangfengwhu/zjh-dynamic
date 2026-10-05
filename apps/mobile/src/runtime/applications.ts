@@ -32,7 +32,7 @@ const offered = new Map<string, { manifest: ApplicationManifest; ownerId: string
 const activeAccess = new Map<string, Access>();
 subscribeAccountIdentity(id => {
   offered.clear();
-  if (id) void restoreWorks(true).catch(() => {});
+  if (id) void restoreWorks(false, true).catch(() => {});
   if ([...activeAccess.values()].some(access => access.ownerId && access.ownerId !== id)) void NativePluginHost.call("shell", "reloadApplications", "{}").catch(() => {});
 });
 async function verifyAccess(manifest: ApplicationManifest, ownerId: string | null): Promise<void> {

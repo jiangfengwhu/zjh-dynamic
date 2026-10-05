@@ -1,3 +1,4 @@
+import { useLiveVersion } from "./liveEvents";
 import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
 import { dataChanged } from "./pageCache";
@@ -141,6 +142,7 @@ function MarketDetailContent({
   const { user } = useAccount();
   const { colors } = useTheme();
   const app = item.manifest;
+  const workVersion = useLiveVersion("work", app.appId);
   const contentReady = useRouteContentReady();
   const focused = useIsFocused() && contentReady;
   const [installed, setInstalled] = useState(false);
@@ -349,7 +351,7 @@ function MarketDetailContent({
       live = false;
       cancelIdleCallback(idle);
     };
-  }, [app.appId, focused, user?.id, sharingAttempt, publication]);
+  }, [app.appId, focused, user?.id, sharingAttempt, publication, workVersion]);
   const formValue = JSON.stringify({
     title: shareTitle,
     summary: shareSummary,

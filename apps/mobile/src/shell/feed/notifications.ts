@@ -1,5 +1,4 @@
 import { startTransition, useEffect, useState } from "react";
-import { AppState } from "react-native";
 import {
   accountFetch,
   currentAccountId,
@@ -153,27 +152,10 @@ export function useNotificationCategoryCounts() {
   }, []);
   return value;
 }
-/** Event-driven sync only; no periodic Worker requests. */
-export function useNotificationSync() {
-  useEffect(() => {
-    let pending: ReturnType<typeof requestIdleCallback> | undefined;
-    const sync = () => {
-      if (pending !== undefined) cancelIdleCallback(pending);
-      pending = requestIdleCallback(() => {
-        pending = undefined;
-        if (AppState.currentState === "active")
-          void syncNotificationCount().catch(() => {});
-      });
-    };
-    sync();
-    const app = AppState.addEventListener("change", (state) => {
-      if (state === "active") sync();
-    });
-    const off = subscribeAccountIdentity(() => sync());
-    return () => {
-      if (pending !== undefined) cancelIdleCallback(pending);
-      app.remove();
-      off();
-    };
-  }, []);
+/** Socket snapshots supersede any older in-flight HTTP count response. */
+export function applyLiveNotificationCounts(value: number, categories: CategoryCounts) {
+  identity(cachedAccountId());
+  if (!owner) return;
+  revision++;
+  emit(value, categories);
 }

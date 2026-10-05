@@ -1,3 +1,5 @@
+import { reconnectMessages } from "../social/api";
+import { useLiveVersion } from "../liveEvents";
 import { UserAvatar } from "../UserAvatar";
 import { InboxContent } from "../social/InboxContent";
 import { useMessageCount } from "../social/api";
@@ -238,10 +240,7 @@ function NotificationsContent({
   const { colors } = useTheme();
   const { user } = useAccount();
   const totalCount = useNotificationCount();
-  const counts = useNotificationCategoryCounts();
-  const count = counts[category];
   const focused = useIsFocused() && active;
-  const seenCount = useRef(count);
   const cacheKey = pageCacheKey(`notices:${category}`);
   const [page, setPage] = useState<NoticePage>(() => cachedPage<NoticePage>(cacheKey) ?? { notices: [], nextCursor: null, unreadCount: 0 });
   const [loading, setLoading] = useState(Boolean(user));
@@ -255,6 +254,7 @@ function NotificationsContent({
   const writing = useRef(false);
   const firstCursor = useRef<string | null>(null);
   const loadedOwner = useRef<string | undefined>(undefined);
+  const noticeVersion = useLiveVersion("notification");
   const reload = useRef<() => Promise<void | boolean>>(async () => {});
   const again = useRef(false);
   reload.current = () => load(false);
@@ -265,7 +265,7 @@ function NotificationsContent({
   });
   const { pull, phase, gesture } = usePullToRefresh({
     scrollY,
-    onRefresh: () => load(),
+    onRefresh: () => { reconnectMessages(); return load(); },
   });
   const lift = useAnimatedStyle(() => ({
     transform: [{ translateY: pull.value }],
@@ -412,16 +412,7 @@ function NotificationsContent({
       void load(false);
     });
     return () => cancelIdleCallback(idle);
-  }, [focused, user?.id]);
-  useEffect(() => {
-    const increased = count > seenCount.current;
-    seenCount.current = count;
-    if (!focused || !increased) return;
-    const idle = requestIdleCallback(() => {
-      void reload.current();
-    });
-    return () => cancelIdleCallback(idle);
-  }, [count, focused]);
+  }, [focused, user?.id, noticeVersion]);
   async function act(notice?: Notice) {
     if (writing.current || !user) return;
     writing.current = true;

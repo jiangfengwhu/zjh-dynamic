@@ -1,3 +1,5 @@
+import { dispatchLiveEvent, subscribeLiveEvents } from "../liveEvents";
+import { applyLiveNotificationCounts, syncNotificationCount } from "../feed/notifications";
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { accountFetch, accountSocket, cachedAccountId, currentAccountId, subscribeAccountIdentity, useAccount } from "../account";
@@ -35,7 +37,6 @@ export const markMessagesRead = (id: string, through: string) => {
 let unread = 0;
 let countRevision = 0;
 const countListeners = new Set<(value: number) => void>();
-const eventListeners = new Set<(type: string) => void>();
 function emitCount(value: number) { unread = Math.max(0, value); countListeners.forEach(fn => fn(unread)); }
 subscribeAccountIdentity(() => { countRevision++; emitCount(0); });
 export function useMessageCount() {
@@ -45,11 +46,9 @@ export function useMessageCount() {
 }
 export function useInboxVersion(messageOnly = false) {
   const [version, setVersion] = useState(0);
-  useEffect(() => {
-    const listener = (type: string) => { if (!messageOnly || type === "message") setVersion(v => v + 1); };
-    eventListeners.add(listener);
-    return () => { eventListeners.delete(listener); };
-  }, [messageOnly]);
+  useEffect(() => subscribeLiveEvents(event => {
+    if (event.type === "ready" || event.type === "message" || !messageOnly && event.type === "read") setVersion(v => v + 1);
+  }), [messageOnly]);
   return version;
 }
 function syncUnread() {
@@ -63,6 +62,10 @@ export function useMessagesSync() {
   const { user } = useAccount();
   useEffect(() => {
     let live = true, socket: WebSocket | undefined, opening = false;
+    let lastVersion = 0;
+    let fallbackUsed = false;
+    const fallback = () => { if (!live || cachedAccountId() !== user?.id || fallbackUsed) return; fallbackUsed = true; syncUnread(); void syncNotificationCount().catch(() => {}); };
+    const valid = (next: WebSocket) => live && socket === next && cachedAccountId() === user?.id && AppState.currentState === "active";
     const connect = async () => {
       if (!user || !live || AppState.currentState !== "active" || opening || socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) return;
       opening = true;
@@ -70,19 +73,28 @@ export function useMessagesSync() {
         const next = await accountSocket("/v1/messages/live");
         if (!live || cachedAccountId() !== user.id || AppState.currentState !== "active") { next.close(); return; }
         socket = next;
-        next.onopen = () => {
-          syncUnread();
-          eventListeners.forEach(fn => fn("message")); // Catch up after foreground/reconnect.
-        };
+        fallbackUsed = false;
+        next.onopen = () => {}; // The server sends one authoritative initial snapshot.
         next.onmessage = event => {
-          try { const data = JSON.parse(String(event.data)); if (data.type === "message" || data.type === "read") {
-            eventListeners.forEach(fn => fn(data.type));
-            syncUnread();
-          } } catch {}
+          if (!valid(next)) return;
+          try {
+            const data = JSON.parse(String(event.data));
+            if (!["ready", "message", "read", "notification", "feed", "work"].includes(data.type)) return;
+            if (Number.isSafeInteger(data.version)) {
+              if (data.version > lastVersion) {
+                lastVersion = data.version;
+                if (Number.isSafeInteger(data.unreadCount) && data.unreadCount >= 0) { countRevision++; emitCount(data.unreadCount); }
+                const counts = data.unreadByCategory;
+                if (Number.isSafeInteger(data.notificationCount) && data.notificationCount >= 0 && Number.isSafeInteger(counts?.creation) && counts.creation >= 0 && Number.isSafeInteger(counts?.interaction) && counts.interaction >= 0)
+                  applyLiveNotificationCounts(data.notificationCount, counts);
+              }
+            } else if (data.type === "message" || data.type === "read") { syncUnread(); }
+            dispatchLiveEvent({ type: data.type, ...(typeof data.appId === "string" ? { appId: data.appId } : {}) });
+          } catch {}
         };
-        next.onerror = () => {};
-        next.onclose = event => { if (live && event.code === 1000 && event.reason === "Reconnect") void connect(); };
-      } catch {} finally { opening = false; }
+        next.onerror = () => { if (valid(next)) fallback(); };
+        next.onclose = event => { if (socket !== next) return; socket = undefined; if (live && event.code === 1000 && event.reason === "Reconnect") void connect(); };
+      } catch { fallback(); } finally { opening = false; }
     };
     const ensure = () => { void connect(); };
     reconnect = ensure;

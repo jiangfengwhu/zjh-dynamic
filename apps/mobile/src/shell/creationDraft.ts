@@ -101,7 +101,7 @@ export async function submitCreationPrompt(
         (await readShellValue(`shell.jules.apps.${intent.appId}.owner`)) !==
         owner
       )
-        await restoreWorks(true);
+        await restoreWorks(false, true);
       owned =
         (await readShellValue(`shell.jules.apps.${intent.appId}.owner`)) ===
         owner;

@@ -1,3 +1,5 @@
+import { reconnectMessages } from "../social/api";
+import { useLiveVersion } from "../liveEvents";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { NewDataNotice } from "../NewDataNotice";
@@ -96,6 +98,8 @@ export const FeedScreen = memo(function FeedScreen({
       ).catch(() => {});
     }, [colors.canvas, mode])
   );
+  const feedVersion = useLiveVersion("feed");
+  const seenFeedVersion = useRef<Record<string, number>>({});
   const userTimeline = useUserPosts();
   const followingTimeline = useUserPosts("following");
   const shortcuts = useInstalledShortcuts();
@@ -146,8 +150,9 @@ export const FeedScreen = memo(function FeedScreen({
 
   useFocusEffect(
     useCallback(() => {
-      if (kind === "installed" || !shouldRefreshUserPosts(kind)) return;
+      if (kind === "installed" || (seenFeedVersion.current[kind] ?? 0) === feedVersion && !shouldRefreshUserPosts(kind)) return;
       const task = requestIdleCallback(() => {
+        seenFeedVersion.current[kind] = feedVersion;
         setTimelineLoading((previous) => ({ ...previous, [kind]: true }));
         void refreshUserPosts(kind, true)
           .then(
@@ -159,12 +164,13 @@ export const FeedScreen = memo(function FeedScreen({
           );
       });
       return () => cancelIdleCallback(task);
-    }, [kind, setTimelineError])
+    }, [kind, setTimelineError, feedVersion])
   );
 
   const { pull, phase, gesture } = usePullToRefresh({
     scrollY,
     onRefresh: async () => {
+      reconnectMessages();
       if (kind === "installed") return shortcuts.refresh();
       try {
         await refreshUserPosts(kind);

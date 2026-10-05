@@ -214,7 +214,7 @@ export function MyApplicationsScreen({
       if (idle !== undefined) cancelIdleCallback(idle);
       idle = requestIdleCallback(() => {
         idle = undefined;
-        void refresh(true);
+        void refresh(false);
       });
     };
     const appState = AppState.addEventListener("change", (state) => {
@@ -222,6 +222,7 @@ export function MyApplicationsScreen({
     });
     const offCatalog = subscribeCatalog(reload);
     const offSharing = subscribePackageValue("shell.market.changed", reload);
+    const offSnapshot = subscribePackageValue("shell.works.changed", reload);
     const offWorks = applicationContext("jolly").storage.subscribe(
       "workspaces",
       reload
@@ -231,6 +232,7 @@ export function MyApplicationsScreen({
       appState.remove();
       offCatalog();
       offSharing();
+      offSnapshot();
       offWorks();
     };
   }, [focused, user?.id, scope, works]);
@@ -336,7 +338,7 @@ export function MyApplicationsScreen({
           ],
           { cancelable: true }
         );
-      requestIdleCallback(() => void refresh(true));
+      requestIdleCallback(() => void refresh(false));
     } catch (cause) {
       Toast.show({
         type: "error",
