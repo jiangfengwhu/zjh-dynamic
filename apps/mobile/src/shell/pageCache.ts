@@ -25,7 +25,16 @@ export function rememberPage<T>(key: string, value: T) {
   });
 }
 export function forgetPage(key: string) { memory.delete(key); removeShellValue(prefix + key); }
-export function dataChanged(a: unknown, b: unknown) { return JSON.stringify(a) !== JSON.stringify(b); }
+export function dataChanged(a: unknown, b: unknown, metadataKeys: string[] = []) {
+  const serialize = (value: unknown) => JSON.stringify(value, (key, item) => {
+    if (metadataKeys.includes(key)) return undefined;
+    if (item && typeof item === "object" && !Array.isArray(item)) {
+      return Object.fromEntries(Object.keys(item).sort().map(name => [name, item[name]]));
+    }
+    return item;
+  });
+  return serialize(a) !== serialize(b);
+}
 
 export function forgetPageFamily(key: string) {
   for (const cached of [...memory.keys()]) if (cached.startsWith(key)) memory.delete(cached);

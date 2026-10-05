@@ -94,7 +94,7 @@ export function MarketDetailScreen(
     void fetchPublicMarketApplication(props.item.manifest.appId).then(next => {
       if (!live) return;
       setError(false);
-      if (dataChanged(item, next)) setPending(next);
+      if (dataChanged(item, next, ["latest"])) setPending(next);
     }, () => { if (live) setError(true); });
     return () => { live = false; };
   }, [ready, focused, props.item.manifest.appId, props.item.owned, attempt]);

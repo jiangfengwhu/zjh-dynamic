@@ -145,7 +145,7 @@ export function useProgress(
           at: Date.now(),
         };
         rememberPage(pageCacheKey(`progress:${appId}:${currentSession}:${run?.submissionId ?? ""}:${run?.startedAt ?? ""}`), next);
-        if (!manual && latestSnapshot.current && dataChanged(latestSnapshot.current.detail, next.detail)) setPendingSnapshot(next);
+        if (!manual && latestSnapshot.current && dataChanged(latestSnapshot.current.detail, next.detail, ["stale"])) setPendingSnapshot(next);
         else { setSnapshot(next); setPendingSnapshot(undefined); }
         setLoaded(true);
         setError("");

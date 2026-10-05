@@ -337,7 +337,7 @@ function MarketDiscovery({
         at: Date.now(),
         offset: reset && manual ? 0 : before.offset,
       };
-      if (reset && !manual && before.at && dataChanged(before.applications, next.applications)) { setPendingView(next); rememberMarketView(key, next); }
+      if (reset && !manual && before.at && dataChanged(before.applications, next.applications, ["latest"])) { setPendingView(next); rememberMarketView(key, next); }
       else { apply(next); setPendingView(undefined); }
       if (reset && manual)
         list.current?.scrollToOffset({ offset: 0, animated: false });
