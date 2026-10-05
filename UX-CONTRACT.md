@@ -11,7 +11,7 @@
 | 作品展示与管理 | apps/mobile/src/shell/WorkCard.tsx、MyApplicationsScreen.tsx | 区分公开版本、私有候选与本机安装 |
 | 发布 | apps/mobile/src/shell/PublicationScreen.tsx | 本地表单先展示，两种模式保留草稿 |
 | 键盘 | packages/ui/keyboard.tsx | 应用入口统一避让，只补实际重叠；宿主页面复用同一容器 |
-| 应用底栏与安全区 | packages/ui/edge.tsx | ScreenBottomBar 接管贴底安全区，背景延伸到系统导航区，内容不重复留白 |
+| 应用底栏与安全区 | 应用布局与 SDK README | 系统导航栏透明，应用使用原库处理底部背景与安全区，内容只避让一次 |
 | 首页新动态 | apps/mobile/src/shell/NewDataNotice.tsx | 静默刷新，用户点击后展示 |
 | APK 更新 | apps/mobile/src/shell/apkUpdates.ts | 应用内下载、校验、系统安装 |
 | 粉丝与关注 | apps/mobile/src/shell/social/ConnectionsScreen.tsx | 主页数量入口、独立列表分页与滚动、点击和原生横划 |
@@ -30,7 +30,7 @@
 
 所有入口立即进入目标路由，网络、缓存持久化和非必要同步延后执行。已安装作品直接打开，不先闪过详情。运行时已确认加载且当前账号有权限的组件复用，不重复加载包；首次加载和失败重试在可返回的目标页处理。
 
-云端应用入口统一套键盘视口，键盘打开时缩小可用内容区；安全区仍由 Screen 与 ScreenBottomBar 分配，视口不另加底部安全区。ScreenBottomBar 向所属 Screen 登记，封装在子组件中也只计算一次底部 inset，卸载后恢复页面安全区；贴底区域下沿不留圆角，贴底 Tab 默认随键盘隐藏，输入操作栏可保留并随视口抬升。悬浮栏留在页面安全区内，不将圆角面板背景延伸到系统栏。长表单通过 KeyboardAwareScrollView 保证聚焦项可见，不按输入框各写避让逻辑。
+云端应用入口统一套键盘视口，键盘打开时缩小可用内容区，视口不另加底部安全区。普通页面使用 Screen，自定义底栏由应用使用 View 与安全区库管理；系统导航栏透明，贴底背景连续延伸至屏幕下沿，内容只避让一次。悬浮栏外侧与系统导航区使用页面背景。长表单通过 KeyboardAwareScrollView 保证聚焦项可见，不按输入框各写避让逻辑。
 
 ## 数据与反馈
 

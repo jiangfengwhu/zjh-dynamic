@@ -2,7 +2,7 @@ export * from "../../ui/chrome";
 export * from "../../ui/theme";
 export { PostFrame, PostBody, PostAttachment } from "../../ui/feed/kit";
 export type { FeedCardProps } from "../../ui/feed/store";
-export { EdgeModal, Screen, ScreenBar, ScreenBottomBar } from "../../ui/edge";
+export { EdgeModal, Screen, ScreenBar } from "../../ui/edge";
 export { PromptBar } from "../../ui/beautiful/PromptBar";
 export { AppImage } from "../../ui/media/AppImage";
 export { RichMarkdown } from "../../ui/media/RichMarkdown";

@@ -1,4 +1,4 @@
-import { Children, createContext, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import { Children, createContext, isValidElement, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Keyboard, Modal, StyleSheet, View, type ModalProps, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -11,7 +11,6 @@ export function ScreenEdge({ bottom, children }: { bottom: boolean; children: Re
 }
 
 const BarContext = createContext(0);
-const BottomBarContext = createContext<(() => () => void) | undefined>(undefined);
 
 /**
  * 页面根容器。背景色画在同一层上，并铺进状态栏和导航栏。
@@ -21,22 +20,14 @@ export function Screen({ style, children, ...rest }: ViewProps) {
   const insets = useSafeAreaInsets();
   const edge = useContext(EdgeContext);
   const keyboard = useKeyboardOpen();
-  const [bottomBars, setBottomBars] = useState(0);
-  const registerBottomBar = useCallback(() => {
-    setBottomBars(count => count + 1);
-    return () => setBottomBars(count => Math.max(0, count - 1));
-  }, []);
   const hasBar = Children.toArray(children).some((child) => isValidElement(child) && (child.type === ScreenBar || Boolean((child.type as { providesBar?: boolean }).providesBar)));
-  const hasBottomBar = Children.toArray(children).some((child) => isValidElement(child) && (child.type === ScreenBottomBar || Boolean((child.type as { providesBottomBar?: boolean }).providesBottomBar)));
   const paddingTop = hasBar ? 0 : insets.top;
-  const paddingBottom = edge.bottom && !hasBottomBar && bottomBars === 0 && !keyboard ? insets.bottom : 0;
+  const paddingBottom = edge.bottom && !keyboard ? insets.bottom : 0;
   return (
     <BarContext.Provider value={insets.top}>
-      <BottomBarContext.Provider value={registerBottomBar}>
         <View {...rest} collapsable={false} style={[styles.fill, style, { paddingTop, paddingBottom }]}>
           {children}
         </View>
-      </BottomBarContext.Provider>
     </BarContext.Provider>
   );
 }
@@ -55,24 +46,6 @@ export function ScreenBar({ style, children, ...rest }: ViewProps) {
       {children}
     </View>
   );
-}
-
-/** 贴底栏的背景延伸到系统导航区，向所属 Screen 登记，内容只避让一次安全区。 */
-export function ScreenBottomBar({ style, children, hideOnKeyboard = true, ...rest }: ViewProps & { hideOnKeyboard?: boolean }) {
-  const { bottom } = useSafeAreaInsets();
-  const edge = useContext(EdgeContext);
-  const keyboard = useKeyboardOpen();
-  const register = useContext(BottomBarContext);
-  useLayoutEffect(() => register?.(), [register]);
-  const flat = StyleSheet.flatten(style);
-  const inner = typeof flat?.paddingBottom === "number"
-    ? flat.paddingBottom
-    : typeof flat?.paddingVertical === "number"
-      ? flat.paddingVertical
-      : typeof flat?.padding === "number" ? flat.padding : 0;
-  if (hideOnKeyboard && keyboard) return null;
-  const inset = edge.bottom && !keyboard ? bottom : 0;
-  return <View {...rest} style={[style, { paddingBottom: inner + inset }, inset > 0 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>{children}</View>;
 }
 
 /** 弹层窗口铺满状态栏和导航栏，遮罩不用每个弹窗再设一次。 */
