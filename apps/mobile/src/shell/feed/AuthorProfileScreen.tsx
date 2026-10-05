@@ -376,7 +376,7 @@ function AuthorProfileContent({
                 maxToRenderPerBatch={4}
                 windowSize={5}
                 data={
-                  !contentReady ? [] : tab === "posts"
+                  !contentReady && !loaded ? [] : tab === "posts"
                     ? profile.posts.map((post) => ({
                         type: "post" as const,
                         post,
@@ -440,7 +440,7 @@ function AuthorProfileContent({
                   );
                 }}
                 ListEmptyComponent={
-                  contentReady && loaded && !error ? (
+                  loaded && !error ? (
                     <Text
                       style={{
                         textAlign: "center",
@@ -450,7 +450,7 @@ function AuthorProfileContent({
                     >
                       {tab === "apps" ? "还没有公开作品" : "还没有公开动态"}
                     </Text>
-                  ) : (!contentReady || !loaded) && !error ? (
+                  ) : !loaded && !error ? (
                     <View accessibilityLabel="正在加载作者内容" style={{ padding: 16, gap: 16 }}>
                       {[0, 1, 2].map(key => <View key={key} style={{ gap: 10, paddingVertical: 12 }}>
                         <View style={{ width: "45%", height: 14, borderRadius: 4, backgroundColor: colors.inset }} />

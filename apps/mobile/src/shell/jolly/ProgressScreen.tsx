@@ -389,7 +389,7 @@ function ProgressContent({
             {state && message ? (
               <View style={{ gap: 8, paddingTop: 2 }}>
                 <Text style={{ fontSize: 13, color: colors.ink3 }}>
-                  最新进展
+                  近期进展
                 </Text>
                 <Text
                   numberOfLines={expanded ? undefined : 3}

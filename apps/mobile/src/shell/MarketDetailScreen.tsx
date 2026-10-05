@@ -1,3 +1,5 @@
+import { NewDataNotice } from "./NewDataNotice";
+import { dataChanged } from "./pageCache";
 import { ActivityIndicator } from "react-native";
 import { PixelAlert as Alert } from "./PixelAlert";
 import {
@@ -60,7 +62,6 @@ import { PixelText as Text } from "./feed/PixelText";
 import { PixelIcon } from "./feed/PixelKit";
 import { pixelTheme, usePixelTheme } from "./feed/pixelTheme";
 import { KeyboardViewport } from "./KeyboardViewport";
-import { AsyncRouteScreen } from "./AsyncRouteScreen";
 import { useRouteContentReady } from "./useRouteContentReady";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export function MarketPublicationScreen(
@@ -80,13 +81,25 @@ export function MarketPublicationScreen(
 export function MarketDetailScreen(
   props: Parameters<typeof MarketDetailContent>[0]
 ) {
-  if (!props.item.latest && !props.item.owned) return (
-    <AsyncRouteScreen key={props.item.manifest.appId} title="应用详情" onBack={props.onBack} cacheKey={`market:${props.item.manifest.appId}`}
-      load={() => fetchPublicMarketApplication(props.item.manifest.appId)}>
-      {item => <LoadedMarketDetail {...props} item={item} />}
-    </AsyncRouteScreen>
-  );
-  return <LoadedMarketDetail {...props} />;
+  useAccount();
+  const ready = useRouteContentReady();
+  const focused = useIsFocused();
+  const [item, setItem] = useState(props.item);
+  const [pending, setPending] = useState<MarketApplication>();
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!ready || !focused || props.item.owned) return;
+    let live = true;
+    void fetchPublicMarketApplication(props.item.manifest.appId).then(next => {
+      if (!live) return;
+      setError(false);
+      if (dataChanged(item, next)) setPending(next);
+    }, () => { if (live) setError(true); });
+    return () => { live = false; };
+  }, [ready, focused, props.item.manifest.appId, props.item.owned, attempt]);
+  // The list already supplies a complete public detail snapshot.
+  return <View style={{ flex: 1 }}><LoadedMarketDetail {...props} item={item} />{pending ? <NewDataNotice top={56} label="查看作品最新信息" onPress={() => { setItem(pending); setPending(undefined); }} /> : error ? <NewDataNotice top={56} label="同步未完成 · 重试" onPress={() => { setError(false); setAttempt(value => value + 1); }} /> : null}</View>;
 }
 function LoadedMarketDetail(props: Parameters<typeof MarketDetailContent>[0]) {
   const theme = usePixelTheme();
