@@ -109,6 +109,7 @@ let initialization: Promise<void> | undefined;
 let initialized = false;
 let revision = 0;
 let refreshing: Promise<void> | undefined;
+let manualRefreshRequested = false;
 let paging: Promise<void> | undefined;
 const listeners = new Set<(page: Page) => void>();
 function save(next: Page) {
@@ -128,6 +129,7 @@ async function initialize() {
         if (before === revision && Array.isArray(cached?.posts)) {
           value = {
             ...cached,
+            pending: manualRefreshRequested ? undefined : cached.pending,
             posts: cached.posts.map((post: UserPost) => withPendingLike({
               ...post,
               liked: cached.reactionOwnerId === owner && !!post.liked,
@@ -145,6 +147,7 @@ export type FeedScope = "recommended" | "following";
 let followingPage: Page = cachedPage<Page>(pageCacheKey("feed:following")) ?? { posts: [], nextCursor: null };
 let followingRevision = 0;
 let followingRefresh: Promise<void> | undefined;
+let followingManualRefreshRequested = false;
 let followingPaging: Promise<void> | undefined;
 export function userPostsLoaded(scope: FeedScope) {
   return !!(scope === "following" ? followingPage : value).loaded;
@@ -181,6 +184,10 @@ export async function setAuthorFollow(id: string, following: boolean) {
   return result;
 }
 async function refreshFollowing(silent = false) {
+  if (!silent) {
+    followingManualRefreshRequested = true;
+    if (followingPage.pending) saveFollowing({ ...followingPage, pending: undefined });
+  }
   if (followingRefresh) return followingRefresh;
   followingRefresh = (async () => {
     const before = followingRevision;
@@ -191,10 +198,11 @@ async function refreshFollowing(silent = false) {
     if (before === followingRevision) {
       followingRevision++;
       const next = { ...page, loaded: true, at: Date.now() };
-      saveFollowing(silent && followingPage.loaded && (page.posts.map(post => post.id).join() !== followingPage.posts.slice(0, page.posts.length).map(post => post.id).join() || !page.nextCursor && page.posts.length !== followingPage.posts.length) ? { ...followingPage, at: next.at, pending: next } : { ...next, posts: silent && followingPage.loaded ? followingPage.posts.map(post => page.posts.find(next => next.id === post.id) ?? post) : next.posts });
+      saveFollowing(silent && !followingManualRefreshRequested && followingPage.loaded && (page.posts.map(post => post.id).join() !== followingPage.posts.slice(0, page.posts.length).map(post => post.id).join() || !page.nextCursor && page.posts.length !== followingPage.posts.length) ? { ...followingPage, at: next.at, pending: next } : { ...next, posts: silent && !followingManualRefreshRequested && followingPage.loaded ? followingPage.posts.map(post => page.posts.find(next => next.id === post.id) ?? post) : next.posts });
     }
   })().finally(() => {
     followingRefresh = undefined;
+    followingManualRefreshRequested = false;
   });
   return followingRefresh;
 }
@@ -260,6 +268,10 @@ export function refreshUserPosts(
   silent = false
 ): Promise<void> {
   if (scope === "following") return refreshFollowing(silent);
+  if (!silent) {
+    manualRefreshRequested = true;
+    if (value.pending) save({ ...value, pending: undefined });
+  }
   if (refreshing) return refreshing;
   refreshing = (async () => {
     await initialize();
@@ -268,10 +280,11 @@ export function refreshUserPosts(
     if (before === revision) {
       revision++;
       const next = { ...page, loaded: true, at: Date.now() };
-      save(silent && value.loaded && (page.posts.map(post => post.id).join() !== value.posts.slice(0, page.posts.length).map(post => post.id).join() || !page.nextCursor && page.posts.length !== value.posts.length) ? { ...value, at: next.at, pending: next } : { ...next, posts: silent && value.loaded ? value.posts.map(post => page.posts.find(next => next.id === post.id) ?? post) : next.posts });
+      save(silent && !manualRefreshRequested && value.loaded && (page.posts.map(post => post.id).join() !== value.posts.slice(0, page.posts.length).map(post => post.id).join() || !page.nextCursor && page.posts.length !== value.posts.length) ? { ...value, at: next.at, pending: next } : { ...next, posts: silent && !manualRefreshRequested && value.loaded ? value.posts.map(post => page.posts.find(next => next.id === post.id) ?? post) : next.posts });
     }
   })().finally(() => {
     refreshing = undefined;
+    manualRefreshRequested = false;
   });
   return refreshing;
 }

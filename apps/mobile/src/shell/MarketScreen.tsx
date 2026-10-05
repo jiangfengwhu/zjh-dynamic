@@ -1,8 +1,6 @@
 import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
 import { ActivityIndicator } from "react-native";
-import { dataChanged } from "./pageCache";
-import { NewDataNotice } from "./NewDataNotice";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, ScrollView, TextInput, View } from "react-native";
@@ -260,7 +258,6 @@ function MarketDiscovery({
   const { colors } = useTheme();
   const focused = useIsFocused() && active;
   const [view, setView] = useState<MarketView>(() => cachedMarketView(marketViewKey("", "")) ?? empty);
-  const [pendingView, setPendingView] = useState<MarketView>();
   const [installed, setInstalled] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -338,8 +335,7 @@ function MarketDiscovery({
         at: Date.now(),
         offset: reset && manual ? 0 : before.offset,
       };
-      if (reset && !manual && before.at && dataChanged(before.applications, next.applications, ["latest"])) { setPendingView(next); rememberMarketView(key, next); }
-      else { apply(next); setPendingView(undefined); }
+      apply(next);
       if (reset && manual)
         list.current?.scrollToOffset({ offset: 0, animated: false });
       return true;
@@ -366,7 +362,6 @@ function MarketDiscovery({
       "market.filters",
       JSON.stringify({ category, query: search })
     );
-    setPendingView(undefined);
     if (current.current.key !== key) {
       current.current = { key, view: empty };
       setView(empty);
@@ -415,7 +410,6 @@ function MarketDiscovery({
   const installedIds = useMemo(() => new Set(installed), [installed]);
   return (
     <View style={[styles.screen, { backgroundColor: colors.canvas }]}>
-      {pendingView ? <NewDataNotice top={52} label="查看新作品" onPress={() => { apply({ ...pendingView, offset: 0 }); setPendingView(undefined); list.current?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
       <View style={styles.discovery}>
         <ScrollView
           horizontal

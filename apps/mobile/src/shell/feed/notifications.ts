@@ -15,7 +15,7 @@ export type Notice = {
   commentId: string;
   body: string;
   postPreview: string;
-  kind: "comment" | "reply" | "work-success" | "work-failure" | "work-submitted";
+  kind: "like" | "comment" | "reply" | "work-success" | "work-failure" | "work-submitted";
   appId?: string;
   createdAt: number;
   read: boolean;
@@ -26,23 +26,27 @@ export function noticeHeading(notice: Notice) {
   if (notice.kind === "work-failure") return "Jolly · 制作失败";
   return (
     notice.actor.name +
-    (notice.kind === "reply" ? " 回复了你的评论" : " 评论了你的动态")
+    (notice.kind === "like" ? " 赞了你的动态" : notice.kind === "reply" ? " 回复了你的评论" : " 评论了你的动态")
   );
 }
-export type NoticePage = {
+type CategoryCounts = { creation: number; interaction: number };
+type NoticeCounts = { unreadCount: number; unreadByCategory?: CategoryCounts };
+export type NoticePage = NoticeCounts & {
   notices: Notice[];
   nextCursor: string | null;
-  unreadCount: number;
 };
 let owner: string | undefined;
 let count = 0;
+let categoryCounts: CategoryCounts = { creation: 0, interaction: 0 };
 let revision = 0;
 let syncing: Promise<void> | undefined;
 const listeners = new Set<(count: number) => void>();
-function emit(value: number) {
+function emit(value: number, categories?: CategoryCounts) {
   const next = Math.max(0, value);
-  if (next === count) return;
+  const nextCategories = categories ?? (next === 0 ? { creation: 0, interaction: 0 } : categoryCounts);
+  if (next === count && nextCategories.creation === categoryCounts.creation && nextCategories.interaction === categoryCounts.interaction) return;
   count = next;
+  categoryCounts = nextCategories;
   listeners.forEach((listener) => listener(count));
 }
 function identity(id?: string) {
@@ -86,10 +90,10 @@ export function syncNotificationCount(): Promise<void> {
     identity(await currentAccountId());
     if (!owner) return;
     const before = revision;
-    const result = await request<{ unreadCount: number }>(
+    const result = await request<NoticeCounts>(
       "/v1/notifications/unread"
     );
-    if (before === revision) emit(result.unreadCount);
+    if (before === revision) emit(result.unreadCount, result.unreadByCategory);
   })();
   const next: Promise<void> = operation.finally(() => {
     if (syncing === next) syncing = undefined;
@@ -110,13 +114,13 @@ export async function readNotifications(
       ...(category ? { category } : {}),
     })}`
   );
-  if (before === revision) emit(result.unreadCount);
+  if (before === revision) emit(result.unreadCount, result.unreadByCategory);
   return result;
 }
 export async function markNotificationsRead(ids?: string[]) {
   identity(await currentAccountId());
   const before = ++revision;
-  const result = await request<{ unreadCount: number; before: number }>(
+  const result = await request<NoticeCounts & { before: number }>(
     "/v1/notifications/read",
     {
       method: "POST",
@@ -124,7 +128,7 @@ export async function markNotificationsRead(ids?: string[]) {
       body: JSON.stringify({ ids }),
     }
   );
-  if (before === revision) emit(result.unreadCount);
+  if (before === revision) emit(result.unreadCount, result.unreadByCategory);
   return result;
 }
 export function useNotificationCount() {
@@ -136,6 +140,16 @@ export function useNotificationCount() {
     return () => {
       listeners.delete(update);
     };
+  }, []);
+  return value;
+}
+export function useNotificationCategoryCounts() {
+  const [value, setValue] = useState(categoryCounts);
+  useEffect(() => {
+    const update = () => startTransition(() => setValue(categoryCounts));
+    listeners.add(update);
+    update();
+    return () => { listeners.delete(update); };
   }, []);
   return value;
 }

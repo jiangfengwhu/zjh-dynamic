@@ -1,6 +1,5 @@
 import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
-import { NewDataNotice } from "./NewDataNotice";
 import { dataChanged } from "./pageCache";
 import { ActivityIndicator } from "react-native";
 import { PixelAlert as Alert } from "./PixelAlert";
@@ -87,7 +86,6 @@ export function MarketDetailScreen(
   const ready = useRouteContentReady();
   const focused = useIsFocused();
   const [item, setItem] = useState(props.item);
-  const [pending, setPending] = useState<MarketApplication>();
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -96,12 +94,12 @@ export function MarketDetailScreen(
     void fetchPublicMarketApplication(props.item.manifest.appId).then(next => {
       if (!live) return;
       setError(false);
-      if (dataChanged(item, next, ["latest"])) setPending(next);
+      if (dataChanged(item, next, ["latest"])) setItem(next);
     }, () => { if (live) setError(true); });
     return () => { live = false; };
   }, [ready, focused, props.item.manifest.appId, props.item.owned, attempt]);
   // The list already supplies a complete public detail snapshot.
-  return <View style={{ flex: 1 }}><LoadedMarketDetail {...props} item={item} />{pending ? <NewDataNotice top={56} label="查看作品最新信息" onPress={() => { setItem(pending); setPending(undefined); }} /> : error ? <NewDataNotice top={56} label="同步未完成 · 重试" onPress={() => { setError(false); setAttempt(value => value + 1); }} /> : null}</View>;
+  return <View style={{ flex: 1 }}><LoadedMarketDetail {...props} item={item} />{error ? <Pressy accessibilityRole="button" accessibilityLabel="重试作品同步" onPress={() => { setError(false); setAttempt(value => value + 1); }}><Text>同步未完成 · 重试</Text></Pressy> : null}</View>;
 }
 function LoadedMarketDetail(props: Parameters<typeof MarketDetailContent>[0]) {
   const theme = usePixelTheme();

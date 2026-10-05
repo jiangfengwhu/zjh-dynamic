@@ -1,4 +1,4 @@
-import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "../pageCache";
+import { cachedPage, rememberPage, pageCacheKey } from "../pageCache";
 import { readShellValueSync } from "../shellStorage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
@@ -73,8 +73,6 @@ export function useProgress(
   const cacheKey = pageCacheKey(`progress:${appId}:${round.session ?? ""}:${round.submissionId ?? ""}:${round.startedAt ?? ""}`);
   const initial = cachedPage<ProgressSnapshot>(cacheKey);
   const [snapshot, setSnapshot] = useState<ProgressSnapshot | undefined>(initial);
-  const [pendingSnapshot, setPendingSnapshot] = useState<ProgressSnapshot>();
-  const latestSnapshot = useRef(snapshot); latestSnapshot.current = snapshot;
   const [checking, setChecking] = useState(false);
   const [loaded, setLoaded] = useState(!!initial);
   const initialRead = useRef(false);
@@ -102,7 +100,7 @@ export function useProgress(
     };
   }, []);
 
-  const refresh = useCallback((manual = true) => {
+  const refresh = useCallback(() => {
     if (flight.current) return flight.current;
     if (!valid() || !service || !appId) return Promise.resolve();
     setChecking(true);
@@ -145,8 +143,7 @@ export function useProgress(
           at: Date.now(),
         };
         rememberPage(pageCacheKey(`progress:${appId}:${currentSession}:${run?.submissionId ?? ""}:${run?.startedAt ?? ""}`), next);
-        if (!manual && latestSnapshot.current && dataChanged(latestSnapshot.current.detail, next.detail, ["stale"])) setPendingSnapshot(next);
-        else { setSnapshot(next); setPendingSnapshot(undefined); }
+        setSnapshot(next);
         setLoaded(true);
         setError("");
       } catch (cause) {
@@ -172,7 +169,7 @@ export function useProgress(
     const task = requestIdleCallback(() => {
       initialRead.current = true;
       if (appId && valid()) context.storage.set("workshopTarget", appId);
-      void refresh(false);
+      void refresh();
     });
     return () => cancelIdleCallback(task);
   }, [active, service, refresh, loaded]);
@@ -227,8 +224,6 @@ export function useProgress(
   }, [active, appId, snapshot, scope, service]);
   return {
     snapshot,
-    pendingSnapshot,
-    acceptSnapshot: () => { if (pendingSnapshot) { setSnapshot(pendingSnapshot); setPendingSnapshot(undefined); } },
     checking,
     error,
     loaded,

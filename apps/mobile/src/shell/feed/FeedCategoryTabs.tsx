@@ -4,7 +4,7 @@ import Animated, {
   useAnimatedStyle,
   type SharedValue,
 } from "react-native-reanimated";
-import { TabLabel, TabOutline } from "../TabAppearance";
+import { TabLabel } from "../TabAppearance";
 import { usePixelTheme } from "./pixelTheme";
 import type { FeedCategory } from "./useFeedPager";
 
@@ -59,7 +59,7 @@ export function FeedCategoryTabs({
         style={[
           {
             position: "absolute",
-            bottom: 1,
+            bottom: 0,
             left: 0,
             width: width / 3,
             alignItems: "center",
@@ -76,7 +76,6 @@ export function FeedCategoryTabs({
           }}
         />
       </Animated.View>
-      <TabOutline />
     </View>
   );
 }

@@ -145,7 +145,7 @@ async function openNotice(notice: Notice) {
     return true;
   }
   if (!shellNavigationRef.isReady()) return false;
-  shellNavigationRef.navigate("noticePost", { postId: notice.postId, commentId: notice.commentId });
+  shellNavigationRef.navigate("noticePost", { postId: notice.postId, commentId: notice.commentId || undefined });
   return true;
 }
 

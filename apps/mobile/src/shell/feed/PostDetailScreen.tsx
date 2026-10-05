@@ -1,8 +1,6 @@
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { PixelText as Text } from "./PixelText";
-import { NewDataNotice } from "../NewDataNotice";
-import { dataChanged } from "../pageCache";
 import { ActivityIndicator } from "react-native";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { PixelAlert as Alert } from "../PixelAlert";
@@ -12,7 +10,7 @@ import { FormField as TextInput } from "../FormField";
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { KeyboardViewport } from "../KeyboardViewport";
-import { usePreventRemove } from "@react-navigation/native";
+import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 import { readShellValue, writeShellValue, removeShellValue } from "../shellStorage";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
@@ -34,7 +32,7 @@ export function PostDetailScreen(props: Parameters<typeof PostDetailContent>[0])
 }
 function PostDetailContent({ initialPost, initialCommentId, initialDetail: providedDetail, onBack, onApplication, onAuthor }: { initialPost: UserPost; initialCommentId?: string; initialDetail?: PostDetail; onBack: () => void; onApplication: (appId: string) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {
   const initialDetail = providedDetail ?? cachedPostDetail(initialPost.id, initialCommentId);
-  const [pendingDetail, setPendingDetail] = useState<PostDetail>();
+  const focused = useIsFocused();
   const scrollY = useSharedValue(0);
   const trackScroll = useAnimatedScrollHandler(event => { scrollY.value = Math.max(0, event.contentOffset.y); });
   const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => load(false, true) });
@@ -45,7 +43,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   const [loading, setLoading] = useState(!initialDetail); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState(""); const [text, setText] = useState("");
   const [reply, setReply] = useState<UserComment | null>(null); const [sending, setSending] = useState(false); const [deleting, setDeleting] = useState<string | null>(null);
   const alive = useRef(true); const version = useRef(0); const loaded = useRef(!!initialDetail); const reading = useRef(false); const writing = useRef(false); const input = useRef<NativeTextInput>(null);
-  const skipInitial = useRef(!!providedDetail); const identity = useRef(user?.id); const list = useRef<FlatList<UserComment>>(null); const headerHeight = useRef(0); const jumped = useRef(false);
+  const identity = useRef(user?.id); const list = useRef<FlatList<UserComment>>(null); const headerHeight = useRef(0); const jumped = useRef(false);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const count = Array.from(text).length;
   const draftKey = `social.comment-draft.${user?.id || "guest"}.${initialPost.id}`;
@@ -69,14 +67,12 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   }, [draftKey]);
   useEffect(() => { if (draftReady && loadedDraftKey.current === draftKey) { if (text) writeShellValue(draftKey, text); else removeShellValue(draftKey); } }, [text, draftReady, draftKey]);
   function fail(title: string, cause: unknown) { Toast.show({ type: "error", text1: title, text2: cause instanceof Error ? cause.message : "请稍后重试" }); }
-  async function load(more = false, manual = false, silent = false) {
+  async function load(more = false, manual = false) {
     if (reading.current || writing.current || (more && !cursor)) return false;
     reading.current = true; setLoading(true); setRefreshing(manual); const before = version.current;
     try {
       const result = await fetchPostDetail(initialPost.id, more ? cursor! : undefined, more ? undefined : initialCommentId);
       if (!alive.current || before !== version.current) return;
-      if (silent && loaded.current && dataChanged(comments, result.comments)) { setPendingDetail(result); setError(""); return true; }
-      setPendingDetail(undefined);
       loaded.current = true; setFallback(result.post); updateUserPost(result.post); setCursor(result.nextCursor); setError("");
       setComments(previous => (more ? [...previous, ...result.comments.filter(item => !previous.some(old => old.id === item.id))] : result.comments).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)));
       return true;
@@ -85,11 +81,11 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   }
   useEffect(() => () => { alive.current = false; }, []);
   // Comment mounts and timeline broadcasts must not compete with the entrance animation.
-  useEffect(() => { if (!entered) return; version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setPendingDetail(undefined); setFallback(previous => ({ ...previous, liked: false })); setReply(null); } if (skipInitial.current) { skipInitial.current = false; updateUserPost(initialDetail!.post); } else void load(false, false, !!initialDetail); }, [entered, user?.id]);
+  useEffect(() => { if (!entered || !focused) return; version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } void load(); }, [entered, focused, user?.id]);
   function updated(post: UserPost) { version.current++; setFallback(post); }
   async function send() {
     if (!draftReady || writing.current || !text.trim() || count > 1000) return;
-    writing.current = true; setPendingDetail(undefined); setSending(true); version.current++;
+    writing.current = true; setSending(true); version.current++;
     try {
       if (!await requireAccount() || !alive.current) return;
       const signature = JSON.stringify([text.trim(), reply?.id]);
@@ -103,7 +99,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   }
   function remove(comment: UserComment) {
     Alert.alert("删除评论？", "删除后无法恢复。", [{ text: "取消", style: "cancel" }, { text: "删除", style: "destructive", onPress: () => { void (async () => {
-      if (writing.current) return; writing.current = true; setPendingDetail(undefined); version.current++; setDeleting(comment.id);
+      if (writing.current) return; writing.current = true;  version.current++; setDeleting(comment.id);
       try { const result = await deletePostComment(post.id, comment.id); if (alive.current) { setFallback(result.post); setComments(previous => previous.filter(item => item.id !== comment.id)); if (reply?.id === comment.id) setReply(null); } }
       catch (cause) { if (alive.current) fail("删除未完成", cause); }
       finally { writing.current = false; if (alive.current) setDeleting(null); }
@@ -128,7 +124,6 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
           </View></View>}
         ListFooterComponent={<View style={{ padding: error || cursor ? 16 : 0 }}>{error ? <Pressable onPress={() => void load()}><Text style={{ color: colors.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressable> : null}{cursor ? <Pressable disabled={loading} onPress={() => void load(true)} style={{ padding: 12 }}>{loading ? <ActivityIndicator color={colors.accent} /> : <Text style={{ color: colors.accentText, textAlign: "center" }}>查看更多评论</Text>}</Pressable> : null}</View>} />
       </PullRefreshSurface>
-      {pendingDetail ? <NewDataNotice label="查看新评论" onPress={() => { version.current++; setFallback(pendingDetail.post); updateUserPost(pendingDetail.post); setComments(pendingDetail.comments); setCursor(pendingDetail.nextCursor); setPendingDetail(undefined); }} /> : null}
       </View>
       <View style={{ padding: 12, backgroundColor: colors.canvas, borderTopWidth: 0.5, borderTopColor: colors.line, gap: 8 }}>
         {reply ? <Pressable disabled={sending} onPress={() => setReply(null)}><Text style={{ color: colors.accentText }}>回复 {reply.author.name} · 取消</Text></Pressable> : null}

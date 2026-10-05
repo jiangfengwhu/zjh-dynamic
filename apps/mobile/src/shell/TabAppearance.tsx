@@ -6,7 +6,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { PixelIcon, type PixelSymbol } from "./feed/PixelKit";
 import { PixelText } from "./feed/PixelText";
-import { usePixelTheme } from "./feed/pixelTheme";
 
 const AnimatedPixelText = Animated.createAnimatedComponent(PixelText);
 
@@ -59,19 +58,5 @@ export function TabLabel({
         {label}
       </AnimatedPixelText>
     </View>
-  );
-}
-
-/** An overlay keeps the frame from changing the pager's measured slot widths. */
-export function TabOutline() {
-  const { colors } = usePixelTheme();
-  return (
-    <View
-      pointerEvents="none"
-      style={[
-        StyleSheet.absoluteFill,
-        { borderWidth: 1, borderColor: colors.lineStrong, borderRadius: 4 },
-      ]}
-    />
   );
 }

@@ -10,7 +10,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import type { PixelSymbol } from "./feed/PixelKit";
-import { TabLabel, TabOutline } from "./TabAppearance";
+import { TabLabel } from "./TabAppearance";
 import { usePixelTheme } from "./feed/pixelTheme";
 
 /** A shared pixel-cut switch: one UI-thread selection surface, no nested pill. */
@@ -125,7 +125,6 @@ export function CompactTabs<T extends string>({
           />
         </Pressy>
       ))}
-      <TabOutline />
     </View>
   );
 }

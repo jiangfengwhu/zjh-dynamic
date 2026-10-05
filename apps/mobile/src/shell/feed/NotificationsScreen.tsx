@@ -1,7 +1,6 @@
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
-import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "../pageCache";
-import { NewDataNotice } from "../NewDataNotice";
+import { cachedPage, rememberPage, pageCacheKey } from "../pageCache";
 import { ActivityIndicator, FlatList } from "react-native";
 import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -28,6 +27,7 @@ import {
   readNotifications,
   noticeHeading,
   useNotificationCount,
+  useNotificationCategoryCounts,
   type Notice,
   type NoticePage,
   type NoticeCategory,
@@ -65,6 +65,8 @@ function NotificationsPage(props: Props) {
   const [category, setCategory] = useState<NoticeCategory>("creation");
   const [marking, setMarking] = useState(false);
   const count = useNotificationCount();
+  const counts = useNotificationCategoryCounts();
+  const tabLabel = (label: string, unread: number) => unread ? `${label} (${unread > 99 ? "99+" : unread})` : label;
   const pager = useRef<PagerView>(null);
   const localPosition = useSharedValue(0);
   const position = props.drawerPaging?.position || localPosition;
@@ -156,8 +158,8 @@ function NotificationsPage(props: Props) {
               position={position}
               tone="mint"
               options={[
-                { id: "creation", label: "制作" },
-                { id: "interaction", label: "互动" },
+                { id: "creation", label: tabLabel("制作", counts.creation) },
+                { id: "interaction", label: tabLabel("互动", counts.interaction) },
               ]}
               onChange={(value) =>
                 pager.current?.setPage(value === "creation" ? 0 : 1)
@@ -225,12 +227,13 @@ function NotificationsContent({
 }: Props & { category: NoticeCategory; active: boolean }) {
   const { colors } = useTheme();
   const { user } = useAccount();
-  const count = useNotificationCount();
+  const totalCount = useNotificationCount();
+  const counts = useNotificationCategoryCounts();
+  const count = counts[category];
   const focused = useIsFocused() && active;
   const seenCount = useRef(count);
   const cacheKey = pageCacheKey(`notices:${category}`);
   const [page, setPage] = useState<NoticePage>(() => cachedPage<NoticePage>(cacheKey) ?? { notices: [], nextCursor: null, unreadCount: 0 });
-  const [pendingPage, setPendingPage] = useState<NoticePage>();
   const [loading, setLoading] = useState(Boolean(user));
   const [loaded, setLoaded] = useState(() => !!cachedPage(cacheKey));
   const [loadingMore, setLoadingMore] = useState(false);
@@ -244,7 +247,7 @@ function NotificationsContent({
   const loadedOwner = useRef<string | undefined>(undefined);
   const reload = useRef<() => Promise<void | boolean>>(async () => {});
   const again = useRef(false);
-  reload.current = () => load(false, false);
+  reload.current = () => load(false);
   const list = useRef<FlatList<Notice>>(null);
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((event) => {
@@ -268,7 +271,7 @@ function NotificationsContent({
     rememberPage(cacheKey, next);
     setPage(next);
   }
-  async function load(more = false, manual = true) {
+  async function load(more = false) {
     if (!user || writing.current || (more && !page.nextCursor)) return false;
     if (reading.current) {
       if (!more) again.current = true;
@@ -308,8 +311,6 @@ function NotificationsContent({
       )
         return false;
       if (!more) firstCursor.current = result.nextCursor;
-      if (!manual && !more && loaded && dataChanged(page.notices, result.notices)) { setPendingPage(result); setError(""); return true; }
-      setPendingPage(undefined);
       setLoaded(true);
       setPage((previous) => {
         const next = more
@@ -364,7 +365,7 @@ function NotificationsContent({
     return () => cancelIdleCallback(idle);
   }, [page, user?.id, category]);
   useEffect(() => {
-    if (count === 0)
+    if (totalCount === 0)
       setPage((previous) =>
         previous.notices.some((item) => !item.read)
           ? {
@@ -377,7 +378,7 @@ function NotificationsContent({
             }
           : previous
       );
-  }, [count]);
+  }, [totalCount]);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -388,7 +389,6 @@ function NotificationsContent({
     revision.current++;
     const cached = cachedPage<NoticePage>(cacheKey);
     setPage(cached ?? { notices: [], nextCursor: null, unreadCount: 0 });
-    setPendingPage(undefined);
     firstCursor.current = cached?.nextCursor ?? null;
     loadedOwner.current = cached ? user?.id : undefined;
     setLoading(Boolean(user));
@@ -399,7 +399,7 @@ function NotificationsContent({
   useEffect(() => {
     if (!focused) return;
     const idle = requestIdleCallback(() => {
-      void load(false, false);
+      void load(false);
     });
     return () => cancelIdleCallback(idle);
   }, [focused, user?.id]);
@@ -415,7 +415,6 @@ function NotificationsContent({
   async function act(notice?: Notice) {
     if (writing.current || !user) return;
     writing.current = true;
-    setPendingPage(undefined);
     setActing(true);
     revision.current++;
     const owner = user.id;
@@ -429,6 +428,7 @@ function NotificationsContent({
       remember({
         ...page,
         unreadCount: result.unreadCount,
+        unreadByCategory: result.unreadByCategory,
         notices: page.notices.map((item) =>
           (!notice || item.id === notice.id) && item.createdAt <= result.before
             ? { ...item, read: true }
@@ -453,7 +453,6 @@ function NotificationsContent({
   }
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
-      {pendingPage ? <NewDataNotice label="查看新通知" onPress={() => { firstCursor.current = pendingPage.nextCursor; remember(pendingPage); setPendingPage(undefined); list.current?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
       <GestureDetector gesture={gesture}>
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PullIndicator pull={pull} phase={phase} />
@@ -555,7 +554,7 @@ function NotificationsContent({
                         {user
                           ? category === "creation"
                             ? "制作完成或失败，会在这里通知你"
-                            : "评论和回复会出现在这里"
+                            : "点赞、评论和回复会出现在这里"
                           : "请登录后查看通知"}
                       </Text>
                     )}
