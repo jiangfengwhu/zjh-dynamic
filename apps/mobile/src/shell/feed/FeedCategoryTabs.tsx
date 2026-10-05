@@ -4,7 +4,7 @@ import Animated, {
   useAnimatedStyle,
   type SharedValue,
 } from "react-native-reanimated";
-import { PixelText } from "./PixelText";
+import { TabLabel, TabOutline } from "../TabAppearance";
 import { usePixelTheme } from "./pixelTheme";
 import type { FeedCategory } from "./useFeedPager";
 
@@ -30,27 +30,28 @@ export function FeedCategoryTabs({
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       style={{ flex: 1, height: 44, flexDirection: "row" }}
     >
-      {categories.map((category) => (
+      {categories.map((category, index) => (
         <Pressable
           key={category}
           accessibilityRole="tab"
+          accessibilityLabel={
+            category === "installed" ? "我的应用"
+              : category === "recommended" ? "为你推荐" : "正在关注"
+          }
           accessibilityState={{ selected: category === selected }}
           onPress={() => onSelect(category)}
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
-          <PixelText
-            style={{
-              color: selected === category ? colors.ink1 : colors.ink3,
-              fontSize: 13,
-              fontWeight: "700",
-            }}
-          >
-            {category === "installed"
-              ? "我的应用"
-              : category === "recommended"
-              ? "为你推荐"
-              : "正在关注"}
-          </PixelText>
+          <TabLabel
+            label={
+              category === "installed" ? "我的应用"
+                : category === "recommended" ? "为你推荐" : "正在关注"
+            }
+            index={index}
+            position={position}
+            activeColor={colors.ink1}
+            inactiveColor={colors.ink3}
+          />
         </Pressable>
       ))}
       <Animated.View
@@ -58,7 +59,7 @@ export function FeedCategoryTabs({
         style={[
           {
             position: "absolute",
-            bottom: 0,
+            bottom: 1,
             left: 0,
             width: width / 3,
             alignItems: "center",
@@ -75,6 +76,7 @@ export function FeedCategoryTabs({
           }}
         />
       </Animated.View>
+      <TabOutline />
     </View>
   );
 }

@@ -9,8 +9,8 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
-import { PixelText } from "./feed/PixelText";
-import { PixelIcon, type PixelSymbol } from "./feed/PixelKit";
+import type { PixelSymbol } from "./feed/PixelKit";
+import { TabLabel, TabOutline } from "./TabAppearance";
 import { usePixelTheme } from "./feed/pixelTheme";
 
 /** A shared pixel-cut switch: one UI-thread selection surface, no nested pill. */
@@ -34,15 +34,19 @@ export function CompactTabs<T extends string>({
     0,
     options.findIndex((item) => item.id === value),
   );
-  const x = useSharedValue(0);
+  const localPosition = useSharedValue(index);
+  const progress = position ?? localPosition;
   useEffect(() => {
-    x.value = withTiming(index * slot, {
+    if (position) return;
+    localPosition.value = withTiming(index, {
       duration: 180,
       reduceMotion: ReduceMotion.Never,
     });
-  }, [index, slot, x]);
+  }, [index, position, localPosition]);
   const motion = useAnimatedStyle(() => ({
-    transform: [{ translateX: position ? position.value * slot : x.value }],
+    transform: [{
+      translateX: Math.max(0, Math.min(options.length - 1, progress.value)) * slot,
+    }],
   }));
   const fill =
     tone === "mint"
@@ -92,7 +96,7 @@ export function CompactTabs<T extends string>({
           </Svg>
         </Animated.View>
       ) : null}
-      {options.map((item) => (
+      {options.map((item, itemIndex) => (
         <Pressy
           key={item.id}
           scale={1}
@@ -111,26 +115,17 @@ export function CompactTabs<T extends string>({
             gap: 6,
           }}
         >
-          {item.icon ? (
-            <PixelIcon
-              name={item.icon}
-              size={14}
-              color={item.id === value ? colors.onAccent : colors.ink3}
-            />
-          ) : null}
-          <PixelText
-            style={{
-              color: item.id === value ? colors.onAccent : colors.ink3,
-              fontSize: 13,
-              lineHeight: 20,
-              fontWeight: item.id === value ? "700" : "500",
-              textAlign: "center",
-            }}
-          >
-            {item.label}
-          </PixelText>
+          <TabLabel
+            label={item.label}
+            icon={item.icon}
+            index={itemIndex}
+            position={progress}
+            activeColor={colors.onAccent}
+            inactiveColor={colors.ink3}
+          />
         </Pressy>
       ))}
+      <TabOutline />
     </View>
   );
 }

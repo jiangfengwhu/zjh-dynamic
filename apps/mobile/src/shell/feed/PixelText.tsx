@@ -1,18 +1,19 @@
+import { forwardRef, type ComponentRef } from "react";
 import { Text, type TextProps } from "react-native";
 import { useTheme } from "../../../../../packages/ui/theme";
 
 /** APK 1.4 registers this font. Native text preserves selection, inline links,
  * wrapping, accessibility and system font scaling. */
-export function PixelText({
-  style,
-  pixel,
-  ...props
-}: TextProps & { pixel?: boolean }) {
+export const PixelText = forwardRef<
+  ComponentRef<typeof Text>,
+  TextProps & { pixel?: boolean }
+>(function PixelText({ style, pixel, ...props }, ref) {
   const { colors } = useTheme();
   const enabled = pixel ?? true;
   return (
     <Text
       {...props}
+      ref={ref}
       style={[
         { color: colors.ink1 },
         style,
@@ -24,4 +25,4 @@ export function PixelText({
       ]}
     />
   );
-}
+});
