@@ -5,69 +5,24 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import { Linking, View, useWindowDimensions } from "react-native";
+import { Linking, Text, View, useWindowDimensions } from "react-native";
 import RenderHtml, {
   IMGElement,
+  defaultSystemFonts,
   useIMGElementProps,
   type RenderHTMLProps,
   type CustomBlockRenderer,
+  type CustomMixedRenderer,
 } from "@native-html/render";
 import { ErrorBoundary } from "react-error-boundary";
 import Toast from "react-native-toast-message";
 import { useTheme } from "../../../../../packages/ui/theme";
 import { PixelText } from "./PixelText";
 import { htmlByteLength } from "./postDraft";
-import { htmlNativeStyles, prepareHtmlElement } from "./htmlStyles";
+import { htmlNativeStyles, htmlTextLayout, prepareHtmlElement } from "./htmlStyles";
 
 const font = "Fusion Pixel 12px Proportional SC";
-const fonts = [font];
-const allowedStyles = [
-  "color",
-  "background",
-  "backgroundColor",
-  "border",
-  "fontSize",
-  "fontWeight",
-  "fontStyle",
-  "letterSpacing",
-  "textAlign",
-  "textDecorationLine",
-  "lineHeight",
-  "padding",
-  "paddingLeft",
-  "paddingRight",
-  "paddingTop",
-  "paddingBottom",
-  "margin",
-  "marginLeft",
-  "marginRight",
-  "marginTop",
-  "marginBottom",
-  "borderColor",
-  "borderWidth",
-  "borderStyle",
-  "borderRadius",
-  ...["Top", "Right", "Bottom", "Left"].flatMap((side) => [
-    `border${side}Color`, `border${side}Width`,
-  ]),
-  "borderTopLeftRadius",
-  "borderTopRightRadius",
-  "borderBottomLeftRadius",
-  "borderBottomRightRadius",
-  "width",
-  "height",
-  "maxWidth",
-  "minWidth",
-  "flex",
-  "flexGrow",
-  "flexShrink",
-  "flexBasis",
-  "display",
-  "flexDirection",
-  "flexWrap",
-  "alignItems",
-  "justifyContent",
-] as NonNullable<RenderHTMLProps["allowedStyles"]>;
+const fonts = [...defaultSystemFonts, font, "sans-serif", "serif", "monospace"];
 const tags = new Set([
   "html",
   "body",
@@ -116,10 +71,24 @@ const ignoreNode: NonNullable<RenderHTMLProps["ignoreDomNode"]> = (
   return false;
 };
 const defaultTextProps = { selectable: false };
-const domVisitors = { onElement: prepareHtmlElement };
-function PostHtmlBlock(props: ComponentProps<CustomBlockRenderer>) {
-  const { TDefaultRenderer, tnode } = props;
-  return <TDefaultRenderer {...props} style={[props.style, htmlNativeStyles(tnode.attributes.style ?? "")]} />;
+function PostHtmlElement(props: ComponentProps<CustomMixedRenderer>) {
+  const { InternalRenderer, TDefaultRenderer, TNodeChildrenRenderer, tnode } = props;
+  const css = tnode.attributes.style ?? "";
+  const native = htmlNativeStyles(css, tnode.attributes);
+  const textLayout = htmlTextLayout(css, tnode.attributes);
+  const style = [props.style, native];
+  if (props.type === "block" && InternalRenderer === TDefaultRenderer &&
+      (textLayout.numberOfLines || native.textShadowColor) &&
+      tnode.children.every(child => child.type === "text" || child.type === "phrasing")) {
+    return <InternalRenderer {...props} style={style}>
+      <Text {...props.textProps} {...textLayout} style={[tnode.styles.nativeTextFlow, {
+        textShadowColor: native.textShadowColor, textShadowOffset: native.textShadowOffset, textShadowRadius: native.textShadowRadius,
+      }]}>
+        <TNodeChildrenRenderer tnode={tnode} propsForChildren={props.propsForChildren} />
+      </Text>
+    </InternalRenderer>;
+  }
+  return <InternalRenderer {...props} style={style} textProps={{ ...props.textProps, ...textLayout }} />;
 }
 
 /** A document is rendered directly, independently of installed application bundles. */
@@ -138,6 +107,9 @@ export const HtmlPostContent = memo(function HtmlPostContent({
   const window = useWindowDimensions();
   const [measuredWidth, setWidth] = useState(0);
   const width = measuredWidth || Math.max(1, window.width - 104);
+  const domVisitors = useMemo(() => ({
+    onElement: (element: Parameters<typeof prepareHtmlElement>[0]) => prepareHtmlElement(element, { width, height: window.height }),
+  }), [width, window.height]);
   const source = useMemo(
     () => ({
       html:
@@ -149,7 +121,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
   );
   const renderers = useMemo<NonNullable<RenderHTMLProps["renderers"]>>(
     () => ({
-      div: PostHtmlBlock,
+      ...Object.fromEntries([...tags].filter(tag => !["img", "html", "body"].includes(tag)).map(tag => [tag, PostHtmlElement])),
       img: function PostHtmlImage(props: ComponentProps<CustomBlockRenderer>) {
         const image = useIMGElementProps(props);
         return (
@@ -231,7 +203,6 @@ export const HtmlPostContent = memo(function HtmlPostContent({
           baseStyle={baseStyle}
           tagsStyles={tagsStyles}
           systemFonts={fonts}
-          allowedStyles={allowedStyles}
           ignoreDomNode={ignoreNode}
           domVisitors={domVisitors}
           defaultTextProps={defaultTextProps}
