@@ -21,8 +21,9 @@ export function Screen({ style, children, ...rest }: ViewProps) {
   const edge = useContext(EdgeContext);
   const keyboard = useKeyboardOpen();
   const hasBar = Children.toArray(children).some((child) => isValidElement(child) && (child.type === ScreenBar || Boolean((child.type as { providesBar?: boolean }).providesBar)));
+  const hasBottomBar = Children.toArray(children).some((child) => isValidElement(child) && (child.type === ScreenBottomBar || Boolean((child.type as { providesBottomBar?: boolean }).providesBottomBar)));
   const paddingTop = hasBar ? 0 : insets.top;
-  const paddingBottom = edge.bottom && !keyboard ? insets.bottom : 0;
+  const paddingBottom = edge.bottom && !hasBottomBar && !keyboard ? insets.bottom : 0;
   return (
     <BarContext.Provider value={insets.top}>
       <View {...rest} collapsable={false} style={[styles.fill, style, { paddingTop, paddingBottom }]}>
@@ -46,6 +47,21 @@ export function ScreenBar({ style, children, ...rest }: ViewProps) {
       {children}
     </View>
   );
+}
+
+/** 贴底栏的背景延伸到系统导航区，内容只避让一次安全区。放在 Screen 的直接子级。 */
+export function ScreenBottomBar({ style, children, hideOnKeyboard = true, ...rest }: ViewProps & { hideOnKeyboard?: boolean }) {
+  const { bottom } = useSafeAreaInsets();
+  const edge = useContext(EdgeContext);
+  const keyboard = useKeyboardOpen();
+  const flat = StyleSheet.flatten(style);
+  const inner = typeof flat?.paddingBottom === "number"
+    ? flat.paddingBottom
+    : typeof flat?.paddingVertical === "number"
+      ? flat.paddingVertical
+      : typeof flat?.padding === "number" ? flat.padding : 0;
+  if (hideOnKeyboard && keyboard) return null;
+  return <View {...rest} style={[style, { paddingBottom: inner + (edge.bottom && !keyboard ? bottom : 0) }]}>{children}</View>;
 }
 
 /** 弹层窗口铺满状态栏和导航栏，遮罩不用每个弹窗再设一次。 */
