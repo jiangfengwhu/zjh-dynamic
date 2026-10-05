@@ -1,51 +1,16 @@
-# 紫金花应用 SDK
+# 云端应用 Agent SDK 指引
 
-## 必读指引
+本文供云端应用 Agent 开发应用使用；参数以已安装 SDK 的公共类型为准，下表按功能查阅。
 
-Node.js ≥22.11.0。插件根目录 npm ci；任务与交付规则见 AGENTS.md。
+入口 `src/index.ts` 默认导出 `defineApp({ main: () => require("./app").default })`。API 从 `@zijinhua/app-sdk` 导入，UI 从其 `/ui` 导入；宿主能力通过 `getAppContext()` 使用。
 
-入口默认导出 defineApp({main})，main 返回页面组件。API 用 @zijinhua/app-sdk，UI 用其 /ui；参数查公共类型，下文按需查阅。
+共享库直接导入，入口与版本查安装包 `dist/libraries.md`；不引用私有路径，不重复安装共享库或使用 overrides。额外纯 JS 依赖写应用 `package.json`，根目录 `npm install` 更新锁文件。不引入 APK 未提供的原生能力。
 
-共享入口/版本查 dist/platform.json、dist/libraries.md；禁止私有路径、重复安装共享库和 overrides。额外纯 JS 依赖写应用 package.json，npm install 更新根锁文件；原生能力需配套 APK。
-
-新应用 authorize→init，已有应用仅 authorize。源码提交由 Jules 完成，publish 负责构建和候选发布；授权与兼容校验不可绕过。
-
-```sh
-npx --no-install zjh-app authorize <id> '<grant>'
-npx --no-install zjh-app init <id>
-npx --no-install zjh-app publish <id>
-```
-
-## 全屏布局
-
-根容器 flex: 1，背景延伸到屏幕边缘；宿主不添加安全区 padding，但设备 inset 仍存在，文字和按钮应避让。SDK Screen、ScreenBar 已处理相应安全区，不重复叠加 SafeAreaView 或固定系统栏高度，不自行隐藏系统栏。
-
-宿主已挂载 GestureHandlerRootView、SafeAreaProvider、KeyboardProvider、BottomSheetModalProvider 和 Toast。使用 app.toast；独立导航用 NavigationIndependentTree 包裹 NavigationContainer。权限仅由用户操作触发。
-
-## 资源与媒体
-
-资源放 assets/，用 getAppContext().assets.uri(name)，不用 require 图片。存储与文件用 AppContext，按应用 ID 隔离；文件路径必须相对应用目录，下载仅 HTTPS，不读取宿主凭据；共享 JS 环境不构成安全沙箱。
-
-选图、图片、正文优先用 /ui 的 MediaPicker、AppImage、RichMarkdown。头像裁剪传 cropping/cropperCircleOverlay/width/height；取消错误为 E_PICKER_CANCELLED。选图临时文件上传或复制草稿后 cleanSingle，不作永久地址，不删相册原件。Markdown 流式传 markdown/streaming；默认链接支持 HTTP(S)、mailto、tel，自定义路由用 onLinkPress。
-
-## 用户动态
-
-用户点击才调用 feed.share({ body, html, requestId })；需要编辑则 feed.compose。作者由登录账号确定，取消登录不发布。SDK 2.0 不支持 cards 和旧 feed.publish/upsert/remove/recordChange，旧应用须重建。
-
-body ≤2000 字、html ≤32 KB，至少一项。HTML 保存快照，支持基础文本标签、a/img 和内联文字、颜色、间距、边框、圆角、尺寸、简单布局；支持 div/p/span/h1-h4、strong/b/em/i/u/s、br/hr、ul/ol/li、blockquote/pre/code。不支持样式表、复杂选择器、脚本、事件属性、iframe、外部字体；服务端清理不支持内容。媒体须稳定公开 HTTPS 地址，不用本地文件、临时签名或模板变量；链接可用 zijinhua://app/<appId>。不导入宿主内部 @native-html/render。
-
-失败重试复用 requestId；新操作换 ID，格式为 8–100 位字母、数字或短横线。PostFrame 只自绘 content 内容区，不重复头像、姓名时间或交互栏；content=null 留空，省略保留默认正文，body/children 兼容。
-
-## 版本与市场信息
-
-application.json 填 title（≤60 字）、summary（≤300 字）、mark、accent、version、releaseNotes；每轮写真实更新日志。像素图标用 defineApp 的 avatar，遵守 AppAvatarProps 的尺寸与圆角；图片走资源 API。未加载时用 mark/accent，占位不会执行 avatar；图标图片和截图不自动上传，分类及截图由作者上架时选择。
-
-## AI 与制作
-
-AppContext.ai 提供 listProviders、complete、openSettings。密钥保存在宿主，不向应用暴露；失败保留输入、不自动重试，当前仅文本、非流式，不支持图片或工具调用。
-
-/creation 仅向宿主授权的 Jolly 开放，不授予普通应用制作权限；会话按 appId 隔离，缓存不代替实时鉴权。提交只创建任务；watchJulesSession 仅查一次，不轮询；进度手动刷新，交付通知由服务端负责。
-
-## 构建与兼容
-
-publish 仅上传候选，不自动上架，公开版本由作者选择。publish 自动构建；发布只接受 origin 为 jiangfengwhu/zjh-plugin 的干净源码；校验本轮授权、原子基线、RN/Hermes ABI、SDK 同主版本且宿主不低于需求、所用共享依赖精确版本。冲突或不兼容时保留源码并处理原因，不改清单绕过校验。
+| 功能 | 使用规则 |
+| --- | --- |
+| 页面 | 根容器 `flex: 1`，背景全屏，文字和按钮避让安全区；`Screen`、`ScreenBar` 已处理相应 inset，不叠加安全区或自行隐藏系统栏。宿主已提供手势、安全区、键盘、BottomSheet 和 Toast 容器；提示用 `app.toast`，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
+| 资源与存储 | 资源放 `assets/`，用 `app.assets.uri(name)`，不用 require 图片。文件与存储用 AppContext；文件路径相对应用目录，下载仅 HTTPS，不读取宿主凭据。 |
+| 图片与正文 | 使用 `MediaPicker`、`AppImage`、`RichMarkdown`。选图取消 `E_PICKER_CANCELLED` 不报错；临时文件上传或复制后 `cleanSingle`，不作永久地址、不删相册原件。Markdown 流式传 `markdown/streaming`，自定义链接用 `onLinkPress`。 |
+| 动态分享 | 用户点击才调用 `feed.share({ body, html, requestId })`，需先编辑用 `feed.compose`。body ≤2000 字、html ≤32 KB，至少一项；HTML 使用基础文本、a/img 和简单内联样式，不含脚本、事件属性、iframe、外部字体或样式表。媒体用稳定公开 HTTPS 地址；应用链接用 `zijinhua://app/<appId>`。失败重试复用 requestId，新操作换 ID（8–100 位字母、数字或短横线）。 |
+| 应用信息 | `application.json` 填 title（≤60 字）、summary（≤300 字）、mark、accent、version、releaseNotes，更新日志写真实改动。图标用 `defineApp.avatar` 并遵守 `AppAvatarProps`；未加载时显示 mark/accent。分类和截图由作者上架时选择。 |
+| AI | `app.ai` 提供 `listProviders`、`complete`、`openSettings`；仅文本、非流式，不支持图片或工具调用。密钥不向应用暴露；失败保留输入，不自动重试。 |

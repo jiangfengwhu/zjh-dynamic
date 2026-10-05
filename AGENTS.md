@@ -7,11 +7,13 @@
 - 安装、构建和发布命令见 README.md。默认不单独运行类型检查、测试或预览。
 - 发布前提交源码，确保 source.commit 对应实际源码、source.dirty=false。
 - 不输出或提交凭证，不硬编码密钥，不擅自合入应用 PR。
-- 纯文档修改不发布。SDK 使用规则只维护在 packages/app-sdk/README.md，共享库清单只维护在 packages/app-sdk/libraries.md。
+- 纯文档修改不发布宿主动态包；SDK 指引随 SDK 包分发。SDK 使用规则只维护在 packages/app-sdk/README.md，共享库清单只维护在 packages/app-sdk/libraries.md。
 
 # 宿主交互原则
 
 - 同层级的大片 UI 切换，适合横划时必须同时支持点击与原生跟手横划。保留各页独立状态和滚动位置，指示器复用分页进度；与纵向滚动、抽屉手势按触摸起点仲裁。筛选、外观设置等即时修改不强行套分页。
 - 永远优先响应用户操作，非必要同步、预热和存储等响应后再执行。
 
-- 云端 Agent 指引只包含当前工作必需的信息；优先封装为最少命令，不要求重复构建或让 Agent 执行维护者流程。
+## 云端应用 Agent 文档
+
+- 操作流程只维护在 plugin AGENTS，开发规则只维护在 SDK README。只包含当前工作必需的信息，优先封装为最少命令，不要求重复构建或让 Agent 执行维护者流程。
