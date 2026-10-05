@@ -83,4 +83,4 @@ App 图标使用深紫底、金色五瓣像素紫金花及淡紫花芯，桌面�
 
 `theme.ts` 定义四套不可变主题，ThemeProvider 仅负责子树选择，不写存储；createThemedStyles 按主题对象缓存样式。primitives 提供原生属性与 ref 完整的基础交互，chrome 提供表面、图标和页面结构，feedback 提供加载、空状态和弹窗，composition 仅保留复用的输入组合。成熟共享库直接使用，不维护 beautiful／shadcn 演示集合。
 
-宿主 App 的 HostAppearance 持有偏好；外观页即时修改上下文，空闲时保存到 MMKV。皮肤切换不重载应用，不丢失草稿、路由和列表状态。外观页的组件预览覆盖两套皮肤、深浅模式和局部隔离。
+宿主 App 的 HostAppearance 持有偏好；外观页仅提供皮肤和显示模式选择，即时修改上下文，空闲时保存到 MMKV。皮肤切换不重载应用，不丢失草稿、路由和列表状态。应用模块入口为原生 Text、TextInput 及动画文字补充所属主题的默认字体，保留显式字体与原生属性，不修改 React Native 全局导出。动态 HTML 统一跟随皮肤字体，忽略内联 font-family，代码区域使用主题等宽字体。

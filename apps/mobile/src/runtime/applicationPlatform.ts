@@ -9,6 +9,7 @@ import { readShellValue, writeShellValue } from "../shell/shellStorage";
 import { openCreationComposer } from "../shell/creationComposer";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { runningApplication } from "./applications";
+import { applicationNativeModule, applicationReanimatedModule } from "./applicationTypography";
 
 const modules: Record<string, () => unknown> = {
   "react-native-enriched-markdown": () => require("react-native-enriched-markdown"),
@@ -32,7 +33,7 @@ const modules: Record<string, () => unknown> = {
   "lucide-react-native": () => require("lucide-react-native"),
   "react": () => require("react"),
   "react-error-boundary": () => require("react-error-boundary"),
-  "react-native": () => require("react-native"),
+  "react-native": applicationNativeModule,
   "react-native-calendars": () => require("react-native-calendars"),
   "react-native-gesture-handler": () => require("react-native-gesture-handler"),
   "react-native-gifted-charts": () => require("react-native-gifted-charts"),
@@ -45,7 +46,7 @@ const modules: Record<string, () => unknown> = {
   "react-native-pager-view": () => require("react-native-pager-view"),
   "react-native-pdf": () => require("react-native-pdf"),
   "react-native-qrcode-svg": () => require("react-native-qrcode-svg"),
-  "react-native-reanimated": () => require("react-native-reanimated"),
+  "react-native-reanimated": applicationReanimatedModule,
   "react-native-safe-area-context": () => require("react-native-safe-area-context"),
   "react-native-svg": () => require("react-native-svg"),
   "react-native-video": () => require("react-native-video"),

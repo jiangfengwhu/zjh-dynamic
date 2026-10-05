@@ -4,10 +4,10 @@ import { useTheme } from "../theme";
 
 export type TypographyRole = "body" | "title" | "caption" | "mono";
 export type TextInput = NativeTextInput;
-const TextParent = createContext<string | undefined>(undefined);
+export const TextFontContext = createContext<string | undefined>(undefined);
 export const Text = forwardRef<ComponentRef<typeof NativeText>, TextProps & { variant?: TypographyRole }>(function Text({ variant, style, children, ...props }, ref) {
   const { colors } = useTheme();
-  const parentFamily = useContext(TextParent);
+  const parentFamily = useContext(TextFontContext);
   const sizeRole = !variant || variant === "mono" ? "body" : variant;
   const flat = StyleSheet.flatten(style);
   const fontFamily = flat?.fontFamily ?? (variant === "mono" ? colors.typography.mono : !variant && parentFamily ? parentFamily : colors.typography.body);
@@ -15,7 +15,7 @@ export const Text = forwardRef<ComponentRef<typeof NativeText>, TextProps & { va
     (!parentFamily || variant) && { color: colors.ink1, fontFamily, fontSize: colors.typography.size[sizeRole], lineHeight: colors.typography.lineHeight[sizeRole] },
     style,
     fontFamily === "Fusion Pixel 12px Proportional SC" && { fontWeight: "normal", fontStyle: "normal" },
-  ]}><TextParent.Provider value={fontFamily}>{children}</TextParent.Provider></NativeText>;
+  ]}><TextFontContext.Provider value={fontFamily}>{children}</TextFontContext.Provider></NativeText>;
 });
 
 /** Native properties, selection, refs and accessibility remain available. */

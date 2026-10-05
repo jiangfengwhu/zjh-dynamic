@@ -33,6 +33,7 @@ import type { RelationKind } from "./social/api";
 import type { MarketApplication } from "./market";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
+const AnimatedThemeText = Animated.createAnimatedComponent(Text);
 
 export function MyProfileScreen(props: Parameters<typeof MyProfileContent>[0]) {
   const theme = useTheme();
@@ -200,7 +201,7 @@ function MyProfileContent({
             backgroundColor: colors.canvas,
           }}
         >
-          <Animated.Text
+          <AnimatedThemeText
             accessibilityRole="header"
             style={[
               { color: colors.ink1, fontSize: 21, fontWeight: "700" },
@@ -208,7 +209,7 @@ function MyProfileContent({
             ]}
           >
             我的
-          </Animated.Text>
+          </AnimatedThemeText>
           <Animated.View
             pointerEvents="none"
             style={[

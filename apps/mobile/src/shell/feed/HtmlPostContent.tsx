@@ -72,6 +72,8 @@ const ignoreNode: NonNullable<RenderHTMLProps["ignoreDomNode"]> = (
   return false;
 };
 const defaultTextProps = { selectable: false };
+const ignoredFontStyles: NonNullable<RenderHTMLProps["ignoredStyles"]> = ["fontFamily"];
+const ignoredPixelFontStyles: NonNullable<RenderHTMLProps["ignoredStyles"]> = ["fontFamily", "fontWeight", "fontStyle"];
 function PostHtmlElement(props: ComponentProps<CustomMixedRenderer>) {
   const { InternalRenderer, TDefaultRenderer, TNodeChildrenRenderer, tnode } = props;
   const css = tnode.attributes.style ?? "";
@@ -150,13 +152,17 @@ export const HtmlPostContent = memo(function HtmlPostContent({
   );
   const tagsStyles = useMemo(
     () => ({
+      ...Object.fromEntries([...tags].map(tag => [tag, {
+        fontFamily: colors.typography.body,
+        ...(colors.skin === "pixel-street" ? { fontWeight: "normal" as const, fontStyle: "normal" as const } : {}),
+      }])),
       body: { margin: 0 },
       p: { marginTop: 0, marginBottom: 6 },
       a: { color: colors.accentText },
       pre: { fontFamily: colors.typography.mono },
       code: { fontFamily: colors.typography.mono },
     }),
-    [colors.accentText, colors.typography.mono]
+    [colors.accentText, colors.typography.body, colors.typography.mono, colors.skin]
   );
   const openLink = useCallback(
     (_event: unknown, href: string) => {
@@ -203,6 +209,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
           source={source}
           baseStyle={baseStyle}
           tagsStyles={tagsStyles}
+          ignoredStyles={colors.skin === "pixel-street" ? ignoredPixelFontStyles : ignoredFontStyles}
           systemFonts={fonts}
           ignoreDomNode={ignoreNode}
           domVisitors={domVisitors}
