@@ -91,7 +91,7 @@ export async function buildApplication(repo: string, appId: string) {
   };
   const manifest = { ...body, releaseId: sha256Hex(JSON.stringify(body)) };
   await writeFile(path.join(output, "manifest.json"), JSON.stringify(manifest, null, 2));
-  console.log(JSON.stringify({ published: false, stage: "build", appId, releaseId: manifest.releaseId, bytes: bytes.length, output }));
+  console.log(JSON.stringify({ appId, releaseId: manifest.releaseId, bytes: bytes.length, output }));
   return { manifest, bundleFile, output };
 }
 
