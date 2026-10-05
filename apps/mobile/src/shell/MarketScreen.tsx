@@ -1,3 +1,4 @@
+import { EmptyState } from "./EmptyState";
 import { ActivityIndicator } from "react-native";
 import { dataChanged } from "./pageCache";
 import { NewDataNotice } from "./NewDataNotice";
@@ -457,7 +458,7 @@ function MarketDiscovery({
           maxToRenderPerBatch={10}
           windowSize={7}
           keyExtractor={(item) => item.manifest.appId}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, !view.applications.length && { flexGrow: 1 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           removeClippedSubviews={false}
@@ -563,11 +564,11 @@ function MarketDiscovery({
                 ))}
               </View>
             ) : (
-              <Text style={styles.empty}>
+              <EmptyState><Text style={styles.empty}>
                 {search || category
                   ? "没有找到匹配的应用，换个分类或关键词试试"
                   : "还没有公开的应用，来发布第一份作品吧"}
-              </Text>
+              </Text></EmptyState>
             )
           }
           ListFooterComponent={

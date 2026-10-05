@@ -1,3 +1,4 @@
+import { EmptyState } from "./EmptyState";
 import { NewDataNotice } from "./NewDataNotice";
 import { dataChanged } from "./pageCache";
 import { ActivityIndicator } from "react-native";
@@ -762,13 +763,13 @@ function MarketDetailContent({
     return (
       <Screen style={styles.screen}>
         <PageHeader variant="pixel" title="作品详情" onBack={onBack} />
-        <View style={styles.empty}>
+        <EmptyState style={styles.empty}>
           <PixelIcon name="mine" size={32} color={colors.orchidText} />
           <Text style={styles.copy}>请登录作品所属账号后查看。</Text>
           <Pressy onPress={() => void requireAccount()} style={styles.primary}>
             <Text style={styles.primaryText}>登录</Text>
           </Pressy>
-        </View>
+        </EmptyState>
       </Screen>
     );
   return (

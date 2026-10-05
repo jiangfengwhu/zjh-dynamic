@@ -1,3 +1,4 @@
+import { EmptyState } from "./EmptyState";
 import { useRouteContentReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
@@ -81,7 +82,7 @@ export function AppInfoScreen({ onBack }: Props) {
 
         <SectionTitle>原生扩展（技术详情）</SectionTitle>
         {!loading && !error && dexes.length === 0 ? (
-          <Text style={styles.empty}>还没有安装</Text>
+          <EmptyState style={{ minHeight: 120, flexGrow: 0 }}><Text style={styles.empty}>还没有安装</Text></EmptyState>
         ) : (
           <Surface style={styles.group}>
             {dexes.map((item, index) => (

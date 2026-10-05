@@ -1,3 +1,4 @@
+import { EmptyState } from "./EmptyState";
 import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "./pageCache";
 import { NewDataNotice } from "./NewDataNotice";
 import { ActivityIndicator } from "react-native";
@@ -428,6 +429,7 @@ export function MyApplicationsScreen({
               paddingBottom: 24,
             },
             profileScroll.contentStyle,
+            !(scope === "works" ? visibleWorks.length : visibleApps.length) && profileScroll.emptyContentStyle,
           ]}
           bounces={false}
           overScrollMode="never"
@@ -740,9 +742,7 @@ export function MyApplicationsScreen({
           }}
           ListEmptyComponent={
             !busy && !error ? (
-              <View
-                style={{ paddingVertical: 24, gap: 12, alignItems: "center" }}
-              >
+              <EmptyState>
                 <PixelIcon name="box" size={32} color={colors.orchidText} />
                 <Text style={{ color: colors.ink3, fontSize: 13 }}>
                   {term
@@ -758,7 +758,7 @@ export function MyApplicationsScreen({
                     </Text>
                   </Pressy>
                 ) : null}
-              </View>
+              </EmptyState>
             ) : null
           }
         />

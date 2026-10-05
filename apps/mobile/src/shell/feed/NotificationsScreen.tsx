@@ -1,3 +1,4 @@
+import { EmptyState } from "../EmptyState";
 import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "../pageCache";
 import { NewDataNotice } from "../NewDataNotice";
 import { ActivityIndicator, FlatList } from "react-native";
@@ -461,6 +462,7 @@ function NotificationsContent({
               <Animated.FlatList<Notice>
                 ref={list}
                 data={user ? page.notices : []}
+                contentContainerStyle={!user || !page.notices.length ? { flexGrow: 1 } : undefined}
                 keyExtractor={(item) => item.id}
                 onScroll={onScroll}
                 scrollEventThrottle={16}
@@ -565,7 +567,7 @@ function NotificationsContent({
                   </Pressy>
                 )}
                 ListEmptyComponent={
-                  <View style={{ padding: 16, alignItems: "center" }}>
+                  <EmptyState style={user && loading && !loaded ? { flexGrow: 0, alignItems: "stretch", padding: 16 } : undefined}>
                     {user && loading && !loaded ? (
                       <PageSkeleton rows={4} />
                     ) : (
@@ -591,7 +593,7 @@ function NotificationsContent({
                         </Text>
                       </Pressy>
                     ) : null}
-                  </View>
+                  </EmptyState>
                 }
                 ListFooterComponent={
                   page.nextCursor ? (

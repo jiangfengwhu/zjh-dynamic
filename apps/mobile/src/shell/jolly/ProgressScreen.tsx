@@ -1,3 +1,4 @@
+import { EmptyState } from "../EmptyState";
 import { NewDataNotice } from "../NewDataNotice";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { useEffect, useRef, useState } from "react";
@@ -163,6 +164,7 @@ function ProgressContent({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
+          flexGrow: empty ? 1 : 0,
           paddingHorizontal: 16,
           paddingTop: 8,
           paddingBottom: 24,
@@ -170,7 +172,7 @@ function ProgressContent({
         }}
       >
         {empty ? (
-          <View style={{ alignItems: "center", paddingVertical: 48, gap: 16 }}>
+          <EmptyState style={{ gap: 16 }}>
             <JollyPortrait size={88} animated={false} />
             <Text style={{ fontSize: 20 }}>暂无制作任务</Text>
             <Text
@@ -184,7 +186,7 @@ function ProgressContent({
             >
               从「我的 → 作品」选择任务，即可在这里查看进度。
             </Text>
-          </View>
+          </EmptyState>
         ) : (
           <>
             <Text

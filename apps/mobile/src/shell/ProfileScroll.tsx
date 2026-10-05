@@ -150,6 +150,10 @@ export function useProfileScroll<T>(
           minHeight: context.viewport + PROFILE_RANGE,
         }
       : undefined,
+    emptyContentStyle: {
+      flexGrow: 1,
+      ...(context ? { minHeight: context.viewport } : {}),
+    },
     refreshOffset: context ? PROFILE_INSET : 0,
   };
 }

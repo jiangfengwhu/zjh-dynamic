@@ -1,3 +1,4 @@
+import { EmptyState } from "../EmptyState";
 import { ActivityIndicator } from "react-native";
 import {
   useCallback,
@@ -635,9 +636,9 @@ export function ComposePostScreen({
                   </Pressable>
                 ))
               ) : (
-                <Text style={{ color: colors.ink3, paddingVertical: 12 }}>
+                <EmptyState style={{ minHeight: 160, flexGrow: 0 }}><Text style={{ color: colors.ink3, textAlign: "center" }}>
                   还没有已上架应用。先在作品详情中发布到市场，就可以分享了。
-                </Text>
+                </Text></EmptyState>
               )}
             </ScrollView>
             <Pressable onPress={() => setPicking(false)} style={styles.add}>

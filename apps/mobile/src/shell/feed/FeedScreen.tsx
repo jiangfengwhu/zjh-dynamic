@@ -1,3 +1,4 @@
+import { EmptyState } from "../EmptyState";
 import { NewDataNotice } from "../NewDataNotice";
 import { PixelText as Text } from "./PixelText";
 import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
@@ -316,7 +317,7 @@ export const FeedScreen = memo(function FeedScreen({
                             contentContainerStyle={[
                               styles.content,
                               bottomSpace,
-                              { minHeight: viewportSize + headerSize },
+                              { minHeight: shortcuts.items.length ? viewportSize + headerSize : viewportSize, flexGrow: 1 },
                             ]}
                             showsVerticalScrollIndicator={false}
                             scrollEventThrottle={16}
@@ -355,13 +356,7 @@ export const FeedScreen = memo(function FeedScreen({
                               />
                             )}
                             ListEmptyComponent={
-                              <View
-                                style={{
-                                  padding: 24,
-                                  alignItems: "center",
-                                  gap: 12,
-                                }}
-                              >
+                              <EmptyState>
                                 <PixelIcon
                                   name="box"
                                   size={32}
@@ -374,7 +369,7 @@ export const FeedScreen = memo(function FeedScreen({
                                     ? "还没有安装应用，去应用市场发现作品吧"
                                     : "正在读取我的应用…"}
                                 </Text>
-                              </View>
+                              </EmptyState>
                             }
                           />
                         </FeedListGesture>
@@ -415,7 +410,7 @@ export const FeedScreen = memo(function FeedScreen({
                                   contentContainerStyle={[
                                     styles.content,
                                     bottomSpace,
-                                    { minHeight: viewportSize + headerSize },
+                                    { minHeight: visible.length ? viewportSize + headerSize : viewportSize, flexGrow: 1 },
                                   ]}
                                   showsVerticalScrollIndicator={false}
                                   scrollEventThrottle={16}
@@ -454,8 +449,7 @@ export const FeedScreen = memo(function FeedScreen({
                                         <PageSkeleton rows={4} />
                                       </View>
                                     ) : (
-                                      <View style={pageKind === "following" ? { minHeight: Math.max(0, viewportSize - headerSize - tabHeight.value - 16), justifyContent: "center" } : undefined}><View style={styles.empty}>
-                                        {pageKind !== "following" ? <PixelAvatar size={80} /> : null}
+                                      <EmptyState style={{ paddingHorizontal: 0 }}><View style={styles.empty}>
                                         <Text style={styles.emptyTitle}>
                                           {pageKind === "following"
                                             ? user
@@ -504,7 +498,7 @@ export const FeedScreen = memo(function FeedScreen({
                                               : "发第一条动态"}
                                           </Text>
                                         </Pressy>
-                                      </View></View>
+                                      </View></EmptyState>
                                     )
                                   }
                                   renderItem={renderPost}

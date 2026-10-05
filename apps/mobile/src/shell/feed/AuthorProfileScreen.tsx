@@ -1,3 +1,4 @@
+import { EmptyState } from "../EmptyState";
 import { NewDataNotice } from "../NewDataNotice";
 import { dataChanged } from "../pageCache";
 import { ActivityIndicator } from "react-native";
@@ -393,7 +394,7 @@ function AuthorProfileContent({
                 onScroll={tab === "posts" ? profileScroll.onScroll : appScroll}
                 onLayout={tab === "posts" ? profileScroll.onLayout : undefined}
                 onContentSizeChange={tab === "posts" ? profileScroll.onContentSizeChange : undefined}
-                contentContainerStyle={tab === "posts" ? profileScroll.contentStyle : undefined}
+                contentContainerStyle={[tab === "posts" ? profileScroll.contentStyle : undefined, !(tab === "posts" ? profile.posts.length : profile.applications.length) && (tab === "posts" ? profileScroll.emptyContentStyle : { flexGrow: 1 })]}
                 showsVerticalScrollIndicator={false}
                 scrollEventThrottle={16}
                 overScrollMode="never"
@@ -441,7 +442,7 @@ function AuthorProfileContent({
                 }}
                 ListEmptyComponent={
                   loaded && !error ? (
-                    <Text
+                    <EmptyState><Text
                       style={{
                         textAlign: "center",
                         padding: 16,
@@ -449,7 +450,7 @@ function AuthorProfileContent({
                       }}
                     >
                       {tab === "apps" ? "还没有公开作品" : "还没有公开动态"}
-                    </Text>
+                    </Text></EmptyState>
                   ) : !loaded && !error ? (
                     <View accessibilityLabel="正在加载作者内容" style={{ padding: 16, gap: 16 }}>
                       {[0, 1, 2].map(key => <View key={key} style={{ gap: 10, paddingVertical: 12 }}>
@@ -461,7 +462,7 @@ function AuthorProfileContent({
                   ) : null
                 }
                 ListFooterComponent={
-                  <View style={{ padding: 16 }}>
+                  <View style={{ padding: loaded && !(tab === "posts" && profile.nextCursor) ? 0 : 16 }}>
                     {contentReady && busy && !loaded ? (
                       <ActivityIndicator color={colors.accent} />
                     ) : tab === "posts" && profile.nextCursor ? (
