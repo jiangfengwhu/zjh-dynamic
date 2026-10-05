@@ -1,3 +1,5 @@
+import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
+import { useRoute } from "@react-navigation/native";
 import { PageSkeleton } from "./LoadingSkeleton";
 import { startTransition, useEffect, useRef, useState, type ReactNode } from "react";
 import { AppState, View } from "react-native";
@@ -79,7 +81,11 @@ function registerWarmup(key: symbol, prepare: () => void) {
 /** Retain each scene after its first foreground or idle preparation. */
 export function ShellTabScene({ children }: { children: ReactNode }) {
   const focused = useIsFocused();
-  const [ready, setReady] = useState(false);
+  const route = useRoute();
+  const cacheKey = pageCacheKey(`scene:${route.name}`);
+  const previouslyPrepared = !!cachedPage(cacheKey);
+  const [ready, setReady] = useState(focused && previouslyPrepared);
+  useEffect(() => { if (ready) rememberPage(cacheKey, true); }, [ready, cacheKey]);
   const key = useRef(Symbol("shell-tab")).current;
   const { colors } = useTheme();
   useEffect(() => {
@@ -97,7 +103,7 @@ export function ShellTabScene({ children }: { children: ReactNode }) {
   }, [focused, ready, key]);
   return ready ? children : (
     <View style={{ flex: 1, padding: 16, backgroundColor: colors.canvas }}>
-      {focused ? <PageSkeleton rows={4} /> : null}
+      {focused && !previouslyPrepared ? <PageSkeleton rows={4} /> : null}
     </View>
   );
 }

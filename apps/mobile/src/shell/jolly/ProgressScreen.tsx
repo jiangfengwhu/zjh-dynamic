@@ -1,3 +1,4 @@
+import { NewDataNotice } from "../NewDataNotice";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { useEffect, useRef, useState } from "react";
 import { cachedAccountId, subscribeAccountIdentity } from "../account";
@@ -157,6 +158,7 @@ function ProgressContent({
           active={query.active}
         />
       </ScreenBar>
+      {query.pendingSnapshot ? <NewDataNotice top={56} label="查看最新进度" onPress={query.acceptSnapshot} /> : null}
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

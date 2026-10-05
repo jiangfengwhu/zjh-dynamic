@@ -1,3 +1,5 @@
+import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "../pageCache";
+import { readShellValueSync } from "../shellStorage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
@@ -66,9 +68,16 @@ export function useProgress(
       AppState.currentState !== "inactive"
   );
   const active = focused && foreground && routeReady;
-  const [snapshot, setSnapshot] = useState<ProgressSnapshot>();
+  let round: { session?: string; submissionId?: string; startedAt?: number } = {};
+  try { round = JSON.parse(readShellValueSync(`shell.jules.apps.${appId}.run`) || "{}"); } catch {}
+  const cacheKey = pageCacheKey(`progress:${appId}:${round.session ?? ""}:${round.submissionId ?? ""}:${round.startedAt ?? ""}`);
+  const initial = cachedPage<ProgressSnapshot>(cacheKey);
+  const [snapshot, setSnapshot] = useState<ProgressSnapshot | undefined>(initial);
+  const [pendingSnapshot, setPendingSnapshot] = useState<ProgressSnapshot>();
+  const latestSnapshot = useRef(snapshot); latestSnapshot.current = snapshot;
   const [checking, setChecking] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(!!initial);
+  const initialRead = useRef(false);
   const [error, setError] = useState("");
   const [service] = useState(() =>
     appId ? getCreationService(appId, originalAppId) : undefined
@@ -93,7 +102,7 @@ export function useProgress(
     };
   }, []);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((manual = true) => {
     if (flight.current) return flight.current;
     if (!valid() || !service || !appId) return Promise.resolve();
     setChecking(true);
@@ -128,13 +137,16 @@ export function useProgress(
         )
           throw new Error("制作轮次已更新，正在同步最新进度");
         if (!detail) throw new Error("暂时无法读取制作进度，请重试");
-        setSnapshot({
+        const next: ProgressSnapshot = {
           session: currentSession,
           submissionId: run?.submissionId,
           startedAt: run?.startedAt,
           detail,
           at: Date.now(),
-        });
+        };
+        rememberPage(pageCacheKey(`progress:${appId}:${currentSession}:${run?.submissionId ?? ""}:${run?.startedAt ?? ""}`), next);
+        if (!manual && latestSnapshot.current && dataChanged(latestSnapshot.current.detail, next.detail)) setPendingSnapshot(next);
+        else { setSnapshot(next); setPendingSnapshot(undefined); }
         setLoaded(true);
         setError("");
       } catch (cause) {
@@ -156,10 +168,11 @@ export function useProgress(
   }, [service, appId, scope]);
 
   useEffect(() => {
-    if (!active || !service || loaded) return;
+    if (!active || !service || initialRead.current) return;
     const task = requestIdleCallback(() => {
+      initialRead.current = true;
       if (appId && valid()) context.storage.set("workshopTarget", appId);
-      void refresh();
+      void refresh(false);
     });
     return () => cancelIdleCallback(task);
   }, [active, service, refresh, loaded]);
@@ -214,6 +227,8 @@ export function useProgress(
   }, [active, appId, snapshot, scope, service]);
   return {
     snapshot,
+    pendingSnapshot,
+    acceptSnapshot: () => { if (pendingSnapshot) { setSnapshot(pendingSnapshot); setPendingSnapshot(undefined); } },
     checking,
     error,
     loaded,

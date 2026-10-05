@@ -1,11 +1,12 @@
+import { NewDataNotice } from "../NewDataNotice";
 import { PixelText as Text } from "./PixelText";
 import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
 import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, View, type FlatListProps } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, View, type FlatListProps } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -39,6 +40,7 @@ import { usePullToRefresh } from "./pullToRefresh";
 import {
   useUserPosts,
   refreshUserPosts,
+  acceptUserPosts,
   userPostsLoaded,
   shouldRefreshUserPosts,
   loadMoreUserPosts,
@@ -96,6 +98,7 @@ export const FeedScreen = memo(function FeedScreen({
   const userTimeline = useUserPosts();
   const followingTimeline = useUserPosts("following");
   const shortcuts = useInstalledShortcuts();
+  const lists = useRef<Partial<Record<FeedCategory, FlatList>> >({});
   const [loadingMore, setLoadingMore] = useState(false);
   const [timelineLoading, setTimelineLoading] = useState({
     recommended: true,
@@ -145,7 +148,7 @@ export const FeedScreen = memo(function FeedScreen({
       if (kind === "installed" || !shouldRefreshUserPosts(kind)) return;
       const task = requestIdleCallback(() => {
         setTimelineLoading((previous) => ({ ...previous, [kind]: true }));
-        void refreshUserPosts(kind)
+        void refreshUserPosts(kind, true)
           .then(
             () => setTimelineError(kind, ""),
             () => setTimelineError(kind, "用户动态暂时未能同步，下拉可重试")
@@ -391,6 +394,7 @@ export const FeedScreen = memo(function FeedScreen({
                                 pager={pager.nativeGesture}
                               >
                                 <FeedScrollSurface
+                                  onListReady={value => { lists.current[pageKind] = value ?? undefined; }}
                                   categoryKey={pageKind}
                                   activeCategory={activeCategory}
                                   hiddenHeader={hiddenHeader}
@@ -450,7 +454,7 @@ export const FeedScreen = memo(function FeedScreen({
                                         <PageSkeleton rows={4} />
                                       </View>
                                     ) : (
-                                      <View style={styles.empty}>
+                                      <View style={pageKind === "following" ? { minHeight: Math.max(0, viewportSize - headerSize - tabHeight.value - 16), justifyContent: "center" } : undefined}><View style={styles.empty}>
                                         {pageKind !== "following" ? <PixelAvatar size={80} /> : null}
                                         <Text style={styles.emptyTitle}>
                                           {pageKind === "following"
@@ -500,7 +504,7 @@ export const FeedScreen = memo(function FeedScreen({
                                               : "发第一条动态"}
                                           </Text>
                                         </Pressy>
-                                      </View>
+                                      </View></View>
                                     )
                                   }
                                   renderItem={renderPost}
@@ -529,9 +533,7 @@ export const FeedScreen = memo(function FeedScreen({
                                           }}
                                         >
                                           {loadingMore ? (
-                                            <LoadingSkeleton
-                                              color={colors.accentText}
-                                            />
+                                            <ActivityIndicator color={colors.accentText} />
                                           ) : (
                                             <Text
                                               style={{
@@ -565,6 +567,7 @@ export const FeedScreen = memo(function FeedScreen({
                         )
                       )}
                     </AnimatedPagerView>
+                    {kind !== "installed" && (kind === "following" ? followingTimeline : userTimeline).pending ? <NewDataNotice top={headerSize + 8} label="已发布 · 查看新动态" avatars={(kind === "following" ? followingTimeline : userTimeline).pending!.posts.map(post => post.author.avatarUrl).filter((uri): uri is string => !!uri).filter((uri, index, list) => list.indexOf(uri) === index)} onPress={() => { acceptUserPosts(kind); lists.current[kind]?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
                   </GestureDetector>
                 </View>
               </GestureDetector>
@@ -687,6 +690,7 @@ const FeedScrollSurface = memo(
   FeedScrollSurfaceImpl
 ) as typeof FeedScrollSurfaceImpl;
 function FeedScrollSurfaceImpl<Item>({
+  onListReady,
   categoryKey,
   activeCategory,
   hiddenHeader,
@@ -696,6 +700,7 @@ function FeedScrollSurfaceImpl<Item>({
   scrollY,
   ...props
 }: AnimatedProps<FlatListProps<Item>> & {
+  onListReady?: (value: FlatList<Item> | null) => void;
   categoryKey: string;
   activeCategory: SharedValue<string>;
   hiddenHeader: SharedValue<number>;
@@ -799,7 +804,7 @@ function FeedScrollSurfaceImpl<Item>({
   return (
     <Animated.FlatList
       {...props}
-      ref={ref}
+      ref={value => { ref(value); onListReady?.(value); }}
       onScroll={onScroll}
       onContentSizeChange={(_width, height) => {
         if (height > 0) ready.value = true;

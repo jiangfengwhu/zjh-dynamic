@@ -1,3 +1,5 @@
+import { NewDataNotice } from "../NewDataNotice";
+import { dataChanged } from "../pageCache";
 import { ActivityIndicator } from "react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouteContentReady } from "../useRouteContentReady";
@@ -85,6 +87,7 @@ function AuthorProfileContent({
     applications: [],
     nextCursor: null,
   }));
+  const [pendingProfile, setPendingProfile] = useState<AuthorProfile>();
   const [tab, setTab] = useState<"posts" | "apps">("posts");
   const pager = useRef<PagerView>(null);
   const position = useSharedValue(0);
@@ -142,7 +145,7 @@ function AuthorProfileContent({
   const list = profileScroll.ref;
   const postsRefresh = usePullToRefresh({ scrollY, onRefresh: () => load() });
   const appsRefresh = usePullToRefresh({ scrollY: appY, onRefresh: () => load() });
-  async function load(more = false) {
+  async function load(more = false, silent = false) {
     if (reading.current) {
       if (!more) rerun.current = true;
       return false;
@@ -157,6 +160,8 @@ function AuthorProfileContent({
         : await fetchAuthorProfile(initialAuthor.id);
       if (!alive.current || before !== revision.current) return false;
       if (!more) onProfileLoaded?.(result as AuthorProfile);
+      if (!more && silent && loaded && dataChanged(profile, result)) { setPendingProfile(result as AuthorProfile); setError(""); return true; }
+      setPendingProfile(undefined);
       setProfile((previous) =>
         more
           ? {
@@ -199,13 +204,12 @@ function AuthorProfileContent({
     revision.current++;
     if (identity.current !== user?.id) {
       identity.current = user?.id;
-      setProfile((previous) => ({
-        ...previous,
-        posts: previous.posts.map((post) => ({ ...post, liked: false })),
-      }));
+      setPendingProfile(undefined);
+      setProfile(cachedAuthorProfile(initialAuthor.id) ?? { author: initialAuthor, following: false, posts: [], applications: [], nextCursor: null });
+      setLoaded(!!cachedAuthorProfile(initialAuthor.id));
     }
     if (!focused) return;
-    const pending = requestIdleCallback(() => { void load(); });
+    const pending = requestIdleCallback(() => { void load(false, true); });
     return () => cancelIdleCallback(pending);
   }, [focused, user?.id]);
   function updated(post: UserPost) {
@@ -487,6 +491,7 @@ function AuthorProfileContent({
   };
   return (
     <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
+      {pendingProfile ? <NewDataNotice top={embedded ? 8 : 56} onPress={() => { setProfile(pendingProfile); setPendingProfile(undefined); }} /> : null}
       {!embedded ? (
         <PageHeader title="作者主页" variant="pixel" onBack={onBack} />
       ) : null}

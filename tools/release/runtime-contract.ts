@@ -4,13 +4,13 @@ import { bundleCdnBase, bundleEdgeBase } from './publish-bundle.js';
 import { sha256Hex } from './release-set.js';
 
 type BridgeSdk = { sha256: string; bytes: number };
-type RuntimeContract = { format: number; runtimeVersion: string; dynamicRepository: string; bridgeSdk: BridgeSdk; applications?: { engineAbi: string; sdk: string; shared: Record<string, string> } };
+type RuntimeContract = { apk: { versionCode: number; versionName: string }; format: number; runtimeVersion: string; dynamicRepository: string; bridgeSdk: BridgeSdk; applications?: { engineAbi: string; sdk: string; shared: Record<string, string> } };
 
 export async function fetchRuntimeContract(): Promise<RuntimeContract> {
   const response = await fetch(`${bundleEdgeBase()}/v1/runtime`);
   if (!response.ok) throw new Error(`读取 Android 运行时契约失败：${response.status}`);
   const contract = await response.json() as RuntimeContract;
-  if (contract.format !== 1 || !/^[a-f0-9]{64}$/.test(contract.runtimeVersion) || contract.dynamicRepository !== 'jiangfengwhu/zjh-dynamic' || !/^[a-f0-9]{64}$/.test(contract.bridgeSdk?.sha256) || !Number.isSafeInteger(contract.bridgeSdk.bytes) || contract.bridgeSdk.bytes <= 0) {
+  if (!Number.isSafeInteger(contract.apk?.versionCode) || contract.apk.versionCode < 1 || !contract.apk.versionName || contract.format !== 1 || !/^[a-f0-9]{64}$/.test(contract.runtimeVersion) || contract.dynamicRepository !== 'jiangfengwhu/zjh-dynamic' || !/^[a-f0-9]{64}$/.test(contract.bridgeSdk?.sha256) || !Number.isSafeInteger(contract.bridgeSdk.bytes) || contract.bridgeSdk.bytes <= 0) {
     throw new Error('Android 运行时契约无效');
   }
   return contract;

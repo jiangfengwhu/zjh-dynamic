@@ -1,4 +1,6 @@
-import { ActivityIndicator } from "react-native";
+import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "../pageCache";
+import { NewDataNotice } from "../NewDataNotice";
+import { ActivityIndicator, FlatList } from "react-native";
 import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
@@ -225,13 +227,11 @@ function NotificationsContent({
   const count = useNotificationCount();
   const focused = useIsFocused() && active;
   const seenCount = useRef(count);
-  const [page, setPage] = useState<NoticePage>({
-    notices: [],
-    nextCursor: null,
-    unreadCount: 0,
-  });
+  const cacheKey = pageCacheKey(`notices:${category}`);
+  const [page, setPage] = useState<NoticePage>(() => cachedPage<NoticePage>(cacheKey) ?? { notices: [], nextCursor: null, unreadCount: 0 });
+  const [pendingPage, setPendingPage] = useState<NoticePage>();
   const [loading, setLoading] = useState(Boolean(user));
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(() => !!cachedPage(cacheKey));
   const [loadingMore, setLoadingMore] = useState(false);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState("");
@@ -243,7 +243,8 @@ function NotificationsContent({
   const loadedOwner = useRef<string | undefined>(undefined);
   const reload = useRef<() => Promise<void | boolean>>(async () => {});
   const again = useRef(false);
-  reload.current = () => load();
+  reload.current = () => load(false, false);
+  const list = useRef<FlatList<Notice>>(null);
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -263,9 +264,10 @@ function NotificationsContent({
     [drawerGesture, gesture]
   );
   function remember(next: NoticePage) {
+    rememberPage(cacheKey, next);
     setPage(next);
   }
-  async function load(more = false) {
+  async function load(more = false, manual = true) {
     if (!user || writing.current || (more && !page.nextCursor)) return false;
     if (reading.current) {
       if (!more) again.current = true;
@@ -288,6 +290,7 @@ function NotificationsContent({
             if (Array.isArray(cached.notices)) {
               firstCursor.current = cached.nextCursor;
               setPage(cached);
+              rememberPage(cacheKey, cached);
               setLoaded(true);
             }
           } catch {}
@@ -304,6 +307,8 @@ function NotificationsContent({
       )
         return false;
       if (!more) firstCursor.current = result.nextCursor;
+      if (!manual && !more && loaded && dataChanged(page.notices, result.notices)) { setPendingPage(result); setError(""); return true; }
+      setPendingPage(undefined);
       setLoaded(true);
       setPage((previous) => {
         const next = more
@@ -317,6 +322,7 @@ function NotificationsContent({
               ],
             }
           : result;
+        rememberPage(cacheKey, next);
         return next;
       });
       setError("");
@@ -379,18 +385,20 @@ function NotificationsContent({
   }, []);
   useEffect(() => {
     revision.current++;
-    setPage({ notices: [], nextCursor: null, unreadCount: 0 });
-    firstCursor.current = null;
-    loadedOwner.current = undefined;
+    const cached = cachedPage<NoticePage>(cacheKey);
+    setPage(cached ?? { notices: [], nextCursor: null, unreadCount: 0 });
+    setPendingPage(undefined);
+    firstCursor.current = cached?.nextCursor ?? null;
+    loadedOwner.current = cached ? user?.id : undefined;
     setLoading(Boolean(user));
-    setLoaded(false);
+    setLoaded(!!cached);
     setLoadingMore(false);
     setError("");
   }, [user?.id]);
   useEffect(() => {
     if (!focused) return;
     const idle = requestIdleCallback(() => {
-      void load();
+      void load(false, false);
     });
     return () => cancelIdleCallback(idle);
   }, [focused, user?.id]);
@@ -406,6 +414,7 @@ function NotificationsContent({
   async function act(notice?: Notice) {
     if (writing.current || !user) return;
     writing.current = true;
+    setPendingPage(undefined);
     setActing(true);
     revision.current++;
     const owner = user.id;
@@ -443,12 +452,14 @@ function NotificationsContent({
   }
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+      {pendingPage ? <NewDataNotice label="查看新通知" onPress={() => { firstCursor.current = pendingPage.nextCursor; remember(pendingPage); setPendingPage(undefined); list.current?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
       <GestureDetector gesture={gesture}>
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PullIndicator pull={pull} phase={phase} />
           <Animated.View style={[{ flex: 1 }, lift]}>
             <GestureDetector gesture={scrollGesture}>
               <Animated.FlatList<Notice>
+                ref={list}
                 data={user ? page.notices : []}
                 keyExtractor={(item) => item.id}
                 onScroll={onScroll}
@@ -590,7 +601,7 @@ function NotificationsContent({
                       style={{ padding: 16 }}
                     >
                       {loadingMore ? (
-                        <LoadingSkeleton color={colors.accent} />
+                        <ActivityIndicator color={colors.accent} />
                       ) : (
                         <Text
                           style={{

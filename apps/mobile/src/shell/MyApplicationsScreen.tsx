@@ -1,3 +1,5 @@
+import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "./pageCache";
+import { NewDataNotice } from "./NewDataNotice";
 import { ActivityIndicator } from "react-native";
 import { PageSkeleton } from "./LoadingSkeleton";
 import { useEffect, useRef, useState } from "react";
@@ -81,9 +83,14 @@ export function MyApplicationsScreen({
   const focused = useIsFocused() && active;
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
-  const [works, setWorks] = useState<MyWork[]>([]);
-  const [installed, setInstalled] = useState<MarketApplication[]>([]);
-  const [owner, setOwner] = useState<string>();
+  const cacheKey = pageCacheKey(`applications:${scope}`);
+  type Snapshot = { works: MyWork[]; installed: MarketApplication[] };
+  const cached = cachedPage<Snapshot>(cacheKey);
+  const [loaded, setLoaded] = useState(!!cached);
+  const [pending, setPending] = useState<Snapshot>();
+  const [works, setWorks] = useState<MyWork[]>(cached?.works ?? []);
+  const [installed, setInstalled] = useState<MarketApplication[]>(cached?.installed ?? []);
+  const [owner, setOwner] = useState<string | undefined>(cached ? user?.id : undefined);
   const [updates, setUpdates] = useState<
     Record<string, PublicApplicationUpdate>
   >({});
@@ -115,14 +122,20 @@ export function MyApplicationsScreen({
         installedMarket(),
       ]);
       if (before !== generation.current) return;
-      setWorks(local);
-      setInstalled(apps);
+      if (manual || !loaded) { setWorks(local); setInstalled(apps); }
+      setLoaded(true);
+      const localSnapshot = { works: local, installed: apps };
+      rememberPage(cacheKey, localSnapshot);
+      if (scope === "installed") { if (!manual && loaded && dataChanged(installed, apps)) setPending(localSnapshot); else { setInstalled(apps); setPending(undefined); } }
       setOwner(user?.id);
       if (scope === "works") {
         await restoreWorks(manual, true);
         const next = await readMyWorks();
         if (before !== generation.current) return;
-        setWorks(next);
+        const snapshot = { works: next, installed: apps };
+        rememberPage(cacheKey, snapshot);
+        if (!manual && loaded && dataChanged(works, next)) setPending(snapshot);
+        else { setWorks(next); setPending(undefined); }
         if (next.some((work) => work.stale)) {
           succeeded = false;
           setError("部分制作状态暂未同步，保留本机记录。下拉可重试。");
@@ -204,7 +217,7 @@ export function MyApplicationsScreen({
       if (idle !== undefined) cancelIdleCallback(idle);
       idle = requestIdleCallback(() => {
         idle = undefined;
-        void refresh();
+        void refresh(true);
       });
     };
     const appState = AppState.addEventListener("change", (state) => {
@@ -248,6 +261,7 @@ export function MyApplicationsScreen({
         authorAvatarUrl: user?.avatarUrl,
         originalAppId: null,
         owned: true,
+        sharing: work.sharing,
       });
   }
   async function update(item: MarketApplication) {
@@ -343,13 +357,7 @@ export function MyApplicationsScreen({
       onDetail(item);
       return;
     }
-    const before = generation.current;
-    try {
-      const latest = await fetchPublicMarketApplication(item.manifest.appId);
-      if (before === generation.current) onDetail(latest);
-    } catch {
-      if (before === generation.current) onDetail(item);
-    }
+    onDetail(item);
   }
   const term = query.trim().toLowerCase();
   const visibleWorks =
@@ -370,6 +378,7 @@ export function MyApplicationsScreen({
   type Row =
     | { type: "work"; work: MyWork }
     | { type: "app"; app: MarketApplication };
+  useEffect(() => { const next = cachedPage<Snapshot>(cacheKey); setWorks(next?.works ?? []); setInstalled(next?.installed ?? []); setOwner(next ? user?.id : undefined); setLoaded(!!next); setPending(undefined); }, [cacheKey]);
   const Root = embedded ? View : Screen;
   const actionStyle = {
     minHeight: 44,
@@ -380,6 +389,7 @@ export function MyApplicationsScreen({
   };
   return (
     <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
+      {pending ? <NewDataNotice label="查看作品新状态" onPress={() => { setWorks(pending.works); setInstalled(pending.installed); setPending(undefined); profileScroll.ref.current?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
       {!embedded ? (
         <PageHeader
           variant="pixel"
@@ -461,7 +471,7 @@ export function MyApplicationsScreen({
                   </Text>
                 </Pressy>
               ) : null}
-              {busy &&
+              {busy && !loaded &&
               !(scope === "works" ? works.length : installed.length) ? (
                 <PageSkeleton rows={3} />
               ) : null}

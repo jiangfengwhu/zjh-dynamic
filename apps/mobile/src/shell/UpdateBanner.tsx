@@ -16,6 +16,7 @@ type Props = {
 
 export function UpdateBanner({ items, busy, completed, error, onNow, onLater }: Props) {
   const { colors } = useTheme();
+  const apk = items.find(item => item.kind === "apk");
   const insets = useSafeAreaInsets();
   return (
     <Animated.View
@@ -29,9 +30,9 @@ export function UpdateBanner({ items, busy, completed, error, onNow, onLater }: 
             <Icon name="box" size={28} color={colors.accentText} />
           </View>
           <View style={styles.copy}>
-            <Text style={styles.title}>{completed ? "作品已准备好" : "有可用更新"}</Text>
+            <Text style={styles.title}>{apk ? `紫金花 ${apk.versionName} 可更新` : completed ? "作品已准备好" : "有可用更新"}</Text>
             <Text style={styles.detail}>
-              {completed
+              {apk ? "下载新版 APK 后覆盖安装，保留本机数据。" : completed
                 ? "加载这次的作品，即可体验。加载时会刷新应用。"
                 : `${items.length} 项更新已备好，加载后会刷新应用。`}
             </Text>
@@ -43,7 +44,7 @@ export function UpdateBanner({ items, busy, completed, error, onNow, onLater }: 
             <Text style={styles.laterText}>稍后体验</Text>
           </Pressy>
           <Pressy accessibilityRole="button" disabled={busy} onPress={onNow} style={[styles.now, busy && styles.nowBusy]}>
-            <Text style={styles.nowText}>{busy ? "正在加载更新…" : error ? "重试更新" : "加载更新"}</Text>
+            <Text style={styles.nowText}>{busy ? apk ? "正在打开下载…" : "正在加载更新…" : error ? "重试更新" : apk ? "下载 APK" : "加载更新"}</Text>
           </Pressy>
         </View>
       </Surface>

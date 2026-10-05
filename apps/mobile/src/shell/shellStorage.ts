@@ -21,3 +21,6 @@ export function removeShellValue(key: string) {
   store().remove(key);
 }
 export function shellKeys() { return store().getAllKeys(); }
+
+/** Small page snapshots can be restored before the first render. */
+export function readShellValueSync(key: string): string | undefined { return store().getString(key); }

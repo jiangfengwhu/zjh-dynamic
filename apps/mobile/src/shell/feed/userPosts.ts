@@ -1,3 +1,4 @@
+import { cachedPage, rememberPage, forgetPageFamily, pageCacheKey } from "../pageCache";
 import { useEffect, useState } from "react";
 import { edgeUrl } from "../evolveHost";
 import {
@@ -57,7 +58,7 @@ export type AuthorProfile = {
 const authorProfiles = new Map<string, AuthorProfile>();
 const authorFlights = new Map<string, Promise<AuthorProfile>>();
 function profileKey(id: string) { return `${cachedAccountId() ?? "guest"}:${id}`; }
-export function cachedAuthorProfile(id: string) { return authorProfiles.get(profileKey(id)); }
+export function cachedAuthorProfile(id: string) { return authorProfiles.get(profileKey(id)) ?? cachedPage<AuthorProfile>(pageCacheKey(`author:${id}`)); }
 export function fetchAuthorProfile(id: string) {
   const key = profileKey(id);
   const existing = authorFlights.get(key);
@@ -66,6 +67,7 @@ export function fetchAuthorProfile(id: string) {
     if (profileKey(id) === key) {
       authorProfiles.delete(key);
       authorProfiles.set(key, profile);
+      rememberPage(pageCacheKey(`author:${id}`), profile);
       if (authorProfiles.size > 12) authorProfiles.delete(authorProfiles.keys().next().value!);
     }
     return profile;
@@ -85,6 +87,7 @@ type Page = {
   unreadCount?: number;
   loaded?: boolean;
   at?: number;
+  pending?: Page;
 };
 type LikeSettlement = { post: UserPost; error?: unknown };
 type PendingLike = {
@@ -101,7 +104,7 @@ function withPendingLike(post: UserPost): UserPost {
     ? { ...post, liked: pending.optimistic.liked, likeCount: pending.optimistic.likeCount }
     : post;
 }
-let value: Page = { posts: [], nextCursor: null };
+let value: Page = cachedPage<Page>(pageCacheKey("feed:recommended")) ?? { posts: [], nextCursor: null };
 let initialization: Promise<void> | undefined;
 let initialized = false;
 let revision = 0;
@@ -110,6 +113,7 @@ let paging: Promise<void> | undefined;
 const listeners = new Set<(page: Page) => void>();
 function save(next: Page) {
   value = { ...next, posts: next.posts.map(withPendingLike), reactionOwnerId: cachedAccountId() };
+  rememberPage(pageCacheKey("feed:recommended"), value);
   writeShellValue("social.timeline.v1", JSON.stringify(value));
   listeners.forEach((listener) => listener(value));
 }
@@ -138,7 +142,7 @@ async function initialize() {
   await initialization;
 }
 export type FeedScope = "recommended" | "following";
-let followingPage: Page = { posts: [], nextCursor: null };
+let followingPage: Page = cachedPage<Page>(pageCacheKey("feed:following")) ?? { posts: [], nextCursor: null };
 let followingRevision = 0;
 let followingRefresh: Promise<void> | undefined;
 let followingPaging: Promise<void> | undefined;
@@ -152,6 +156,7 @@ export function shouldRefreshUserPosts(scope: FeedScope) {
 const followingListeners = new Set<(page: Page) => void>();
 function saveFollowing(page: Page) {
   followingPage = { ...page, posts: page.posts.map(withPendingLike) };
+  rememberPage(pageCacheKey("feed:following"), followingPage);
   followingListeners.forEach((listener) => listener(followingPage));
 }
 export async function setAuthorFollow(id: string, following: boolean) {
@@ -175,7 +180,7 @@ export async function setAuthorFollow(id: string, following: boolean) {
   });
   return result;
 }
-async function refreshFollowing() {
+async function refreshFollowing(silent = false) {
   if (followingRefresh) return followingRefresh;
   followingRefresh = (async () => {
     const before = followingRevision;
@@ -185,7 +190,8 @@ async function refreshFollowing() {
       updateNotificationCount(page.unreadCount, countBefore);
     if (before === followingRevision) {
       followingRevision++;
-      saveFollowing({ ...page, loaded: true, at: Date.now() });
+      const next = { ...page, loaded: true, at: Date.now() };
+      saveFollowing(silent && followingPage.loaded && (page.posts.map(post => post.id).join() !== followingPage.posts.slice(0, page.posts.length).map(post => post.id).join() || !page.nextCursor && page.posts.length !== followingPage.posts.length) ? { ...followingPage, at: next.at, pending: next } : { ...next, posts: silent && followingPage.loaded ? followingPage.posts.map(post => page.posts.find(next => next.id === post.id) ?? post) : next.posts });
     }
   })().finally(() => {
     followingRefresh = undefined;
@@ -250,9 +256,10 @@ async function requestPage(cursor?: string) {
   return page;
 }
 export function refreshUserPosts(
-  scope: FeedScope = "recommended"
+  scope: FeedScope = "recommended",
+  silent = false
 ): Promise<void> {
-  if (scope === "following") return refreshFollowing();
+  if (scope === "following") return refreshFollowing(silent);
   if (refreshing) return refreshing;
   refreshing = (async () => {
     await initialize();
@@ -260,7 +267,8 @@ export function refreshUserPosts(
     const page = await requestPage();
     if (before === revision) {
       revision++;
-      save({ ...page, loaded: true, at: Date.now() });
+      const next = { ...page, loaded: true, at: Date.now() };
+      save(silent && value.loaded && (page.posts.map(post => post.id).join() !== value.posts.slice(0, page.posts.length).map(post => post.id).join() || !page.nextCursor && page.posts.length !== value.posts.length) ? { ...value, at: next.at, pending: next } : { ...next, posts: silent && value.loaded ? value.posts.map(post => page.posts.find(next => next.id === post.id) ?? post) : next.posts });
     }
   })().finally(() => {
     refreshing = undefined;
@@ -323,6 +331,7 @@ export async function publishUserPost(
   revision++;
   save({
     ...value,
+    pending: undefined,
     posts: [
       result.post,
       ...value.posts.filter((post) => post.id !== result.post!.id),
@@ -344,8 +353,9 @@ export async function deleteUserPost(id: string): Promise<void> {
   }
   if ((await currentAccountId()) !== owner)
     throw new Error("账号已改变，请重新查看动态");
+  forgetPageFamily(pageCacheKey(`post:${id}:`));
   revision++;
-  save({ ...value, posts: value.posts.filter((post) => post.id !== id) });
+  save({ ...value, pending: undefined, posts: value.posts.filter((post) => post.id !== id) });
   followingRevision++;
   saveFollowing({
     ...followingPage,
@@ -372,11 +382,13 @@ export function updateUserPost(post: UserPost) {
     posts: followingPage.posts.map((item) =>
       item.id === post.id ? post : item
     ),
+    pending: followingPage.pending ? { ...followingPage.pending, posts: followingPage.pending.posts.map(item => item.id === post.id ? post : item) } : undefined,
   });
   revision++;
   save({
     ...value,
     posts: value.posts.map((item) => (item.id === post.id ? post : item)),
+    pending: value.pending ? { ...value.pending, posts: value.pending.posts.map(item => item.id === post.id ? post : item) } : undefined,
   });
 }
 export async function fetchPostDetail(
@@ -384,7 +396,8 @@ export async function fetchPostDetail(
   cursor?: string,
   commentId?: string
 ): Promise<PostDetail> {
-  return readSocial<PostDetail>(
+  const key = pageCacheKey(`post:${id}:${commentId ?? ""}`);
+  const result = await readSocial<PostDetail>(
     `/v1/posts/${id}${
       cursor
         ? `/comments?cursor=${encodeURIComponent(cursor)}`
@@ -393,6 +406,15 @@ export async function fetchPostDetail(
         : ""
     }`
   );
+  if (!cursor && key === pageCacheKey(`post:${id}:${commentId ?? ""}`)) rememberPage(key, result);
+  return result;
+}
+export function cachedPostDetail(id: string, commentId?: string) { return cachedPage<PostDetail>(pageCacheKey(`post:${id}:${commentId ?? ""}`)); }
+export function acceptUserPosts(scope: FeedScope) {
+  const page = scope === "following" ? followingPage : value;
+  if (!page.pending) return;
+  if (scope === "following") { followingRevision++; saveFollowing(page.pending); }
+  else { revision++; save(page.pending); }
 }
 // Every tap updates the UI first. A single worker per post serializes requests,
 // keeping the newest intent visible even when an older response arrives.
@@ -460,6 +482,7 @@ export async function publishPostComment(
       body: JSON.stringify({ body, requestId, replyTo }),
     }
   );
+  forgetPageFamily(pageCacheKey(`post:${id}:`));
   updateUserPost(result.post);
   return result;
 }
@@ -468,6 +491,7 @@ export async function deletePostComment(id: string, commentId: string) {
     `/v1/posts/${id}/comments/${commentId}`,
     { method: "DELETE" }
   );
+  forgetPageFamily(pageCacheKey(`post:${id}:`));
   updateUserPost(result.post);
   return result;
 }
@@ -476,7 +500,7 @@ subscribeAccountIdentity(() => {
   authorFlights.clear();
   pendingLikes.clear();
   followingRevision++;
-  saveFollowing({ posts: [], nextCursor: null });
+  saveFollowing(cachedPage<Page>(pageCacheKey("feed:following")) ?? { posts: [], nextCursor: null });
   void Promise.resolve(followingRefresh)
     .catch(() => {})
     .then(() => refreshFollowing())

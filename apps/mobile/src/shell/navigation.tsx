@@ -1,3 +1,4 @@
+import { isApplicationInstalledSync } from "./market";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
@@ -597,7 +598,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             )}
           </Stack.Screen>
           <Stack.Screen name="applicationLink">
-            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack}
+            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack} cacheKey={`link:${route.params.appId}:${isApplicationInstalledSync(route.params.appId) ? "installed" : "public"}`}
               load={async () => {
                 if (await isApplicationInstalled(route.params.appId)) {
                   await openFeature(route.params.appId);
@@ -611,7 +612,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             </AsyncRouteScreen>}
           </Stack.Screen>
           <Stack.Screen name="noticePost">
-            {({ route }) => <AsyncRouteScreen key={`${route.params.postId}:${route.params.commentId ?? ""}`} title="动态" onBack={goBack}
+            {({ route }) => <AsyncRouteScreen key={`${route.params.postId}:${route.params.commentId ?? ""}`} title="动态" onBack={goBack} cacheKey={`post:${route.params.postId}:${route.params.commentId ?? ""}`}
               load={() => fetchPostDetail(route.params.postId, undefined, route.params.commentId)}>
               {detail => <PostDetailScreen initialPost={detail.post} initialDetail={detail} initialCommentId={route.params.commentId}
                 onBack={goBack} onApplication={openPublicMarketApplication} onAuthor={openAuthor} />}

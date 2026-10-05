@@ -29,6 +29,7 @@ import {
 import { loadCatalog, subscribeCatalog } from "./catalog";
 import {
   readShellValue,
+  readShellValueSync,
   writeShellValue,
   removeShellValue,
 } from "./shellStorage";
@@ -43,6 +44,7 @@ import {
 import {
   fetchPublicMarketApplication,
   cachedSharing,
+  cachedSharingSync,
   loadSharing,
   editMarketApplication,
   withdrawMarketApplication,
@@ -79,7 +81,7 @@ export function MarketDetailScreen(
   props: Parameters<typeof MarketDetailContent>[0]
 ) {
   if (!props.item.latest && !props.item.owned) return (
-    <AsyncRouteScreen key={props.item.manifest.appId} title="应用详情" onBack={props.onBack}
+    <AsyncRouteScreen key={props.item.manifest.appId} title="应用详情" onBack={props.onBack} cacheKey={`market:${props.item.manifest.appId}`}
       load={() => fetchPublicMarketApplication(props.item.manifest.appId)}>
       {item => <LoadedMarketDetail {...props} item={item} />}
     </AsyncRouteScreen>
@@ -134,11 +136,13 @@ function MarketDetailContent({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [localReady, setLocalReady] = useState(false);
-  const [ownershipReady, setOwnershipReady] = useState(false);
-  const [ownerAccount, setOwnerAccount] = useState<string>();
+  const knownOwner = user?.id && readShellValueSync(`shell.jules.apps.${app.appId}.owner`) === user.id ? user.id : undefined;
+  const initialSharing = knownOwner ? item.sharing ?? cachedSharingSync(app.appId) : undefined;
+  const [ownershipReady, setOwnershipReady] = useState(true);
+  const [ownerAccount, setOwnerAccount] = useState<string | undefined>(knownOwner);
   const owner = !!ownerAccount && ownerAccount === user?.id;
-  const [sharing, setSharing] = useState<SharingState>();
-  const [sharingReady, setSharingReady] = useState(false);
+  const [sharing, setSharing] = useState<SharingState | undefined>(initialSharing);
+  const [sharingReady, setSharingReady] = useState(!!initialSharing);
   const [shareNotice, setShareNotice] = useState("");
   const [sharingAttempt, setSharingAttempt] = useState(0);
   const [draftOwner, setDraftOwner] = useState<string>();
@@ -217,8 +221,7 @@ function MarketDetailContent({
     if (!focused) return;
     let live = true;
     async function refresh() {
-      setSharingReady(false);
-      setOwnershipReady(false);
+      // Retain the known capability while the BFF revalidates it.
       const accountId = await currentAccountId();
       const owned =
         Boolean(accountId) &&
@@ -234,7 +237,7 @@ function MarketDetailContent({
         return;
       }
       const cached = await cachedSharing(app.appId);
-      if (live && cached) setSharing(cached);
+      if (live && cached) { setSharing(cached); setSharingReady(true); }
       try {
         const state = await loadSharing(app.appId);
         if (live) {

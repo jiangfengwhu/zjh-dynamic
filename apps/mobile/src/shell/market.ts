@@ -1,4 +1,5 @@
-import { accountFetch, currentAccountId } from "./account";
+import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
+import { accountFetch, currentAccountId, cachedAccountId } from "./account";
 import {
   fetchApplicationCatalog,
   runningApplication,
@@ -12,6 +13,7 @@ import { edgeUrl } from "./evolveHost";
 import { loadCatalog, saveCatalog } from "./catalog";
 import {
   readShellValue,
+  readShellValueSync,
   writeShellValue,
   removeShellValue,
   shellKeys,
@@ -38,6 +40,7 @@ export type MarketApplication = {
   publishedAt?: number;
   owned?: boolean;
   latest?: boolean;
+  sharing?: SharingState;
 };
 export const marketCategories = [
   { id: "", label: "全部" },
@@ -58,6 +61,11 @@ export type MarketPage = {
 };
 export type MarketView = MarketPage & { at: number; offset: number };
 const views = new Map<string, MarketView>();
+export function cachedMarketView(key: string): MarketView | undefined {
+  if (views.has(key)) return views.get(key);
+  try { const value = JSON.parse(readShellValueSync(`market.view.${encodeURIComponent(key)}`) || "null"); if (Array.isArray(value?.applications)) { const view = { ...value, at: value.at || 1 }; views.set(key, view); return view; } } catch {}
+  return undefined;
+}
 let marketRevision = 0;
 export const marketViewKey = (category: string, query: string) =>
   `${category}:${query.trim().toLowerCase()}`;
@@ -97,7 +105,7 @@ export async function readMarketView(
     if (Array.isArray(value?.applications)) {
       const view = {
         ...value,
-        at: 0,
+        at: value.at || 1,
         applications: value.applications
           .filter((item: MarketApplication) => item.manifest.appId !== "jolly")
           .map((item: MarketApplication) => ({
@@ -156,7 +164,9 @@ export async function fetchPublicMarketApplication(
     (item) => item.manifest?.appId === appId
   );
   if (!item) throw new Error("这个应用已撤回或暂未上架");
-  return { ...item, latest: true };
+  const next = { ...item, latest: true };
+  rememberPage(pageCacheKey(`market:${appId}`), next);
+  return next;
 }
 export async function cachedMarket(): Promise<MarketApplication[]> {
   try {
@@ -189,6 +199,16 @@ export async function fetchMarket(
     .map((item) => ({ ...item, latest: true }));
   if (!authorId) writeShellValue(CACHE, JSON.stringify(items));
   return items;
+}
+export function isApplicationInstalledSync(appId: string): boolean {
+  try {
+    const entries = JSON.parse(readShellValueSync("shell.bundles.v1") || "{}").entries ?? [];
+    if (!entries.some((entry: { id: string; trashedAt?: number; purged?: boolean }) => entry.id === appId && !entry.trashedAt && !entry.purged)) return false;
+    const pending = readShellValueSync(`application.pending.${appId}`);
+    if (!pending && !readShellValueSync(`application.install.${appId}`)) return false;
+    const access = JSON.parse(readShellValueSync(`application.${pending ? "pending.access" : "access"}.${appId}`) || "{}");
+    return !access.ownerId || access.ownerId === cachedAccountId();
+  } catch { return false; }
 }
 export async function isApplicationInstalled(appId: string): Promise<boolean> {
   const owner = await currentAccountId();
@@ -333,6 +353,9 @@ export type SharingState = {
   shared: MarketApplication | null;
   application: MarketApplication["manifest"] | null;
 };
+export function cachedSharingSync(appId: string): SharingState | undefined {
+  try { return JSON.parse(readShellValueSync(`shell.market.state.${appId}`) || "null") ?? undefined; } catch { return undefined; }
+}
 export async function cachedSharing(
   appId: string
 ): Promise<SharingState | undefined> {

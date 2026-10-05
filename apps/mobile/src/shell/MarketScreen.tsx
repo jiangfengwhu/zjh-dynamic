@@ -1,3 +1,6 @@
+import { ActivityIndicator } from "react-native";
+import { dataChanged } from "./pageCache";
+import { NewDataNotice } from "./NewDataNotice";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, ScrollView, TextInput, View } from "react-native";
@@ -29,6 +32,7 @@ import { readShellValue, writeShellValue } from "./shellStorage";
 import {
   fetchMarketPage,
   readMarketView,
+  cachedMarketView,
   rememberMarketView,
   marketViewKey,
   marketCategories,
@@ -254,7 +258,8 @@ function MarketDiscovery({
   });
   const { colors } = useTheme();
   const focused = useIsFocused() && active;
-  const [view, setView] = useState<MarketView>(empty);
+  const [view, setView] = useState<MarketView>(() => cachedMarketView(marketViewKey("", "")) ?? empty);
+  const [pendingView, setPendingView] = useState<MarketView>();
   const [installed, setInstalled] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -319,7 +324,7 @@ function MarketDiscovery({
       const known = new Set(
         before.applications.map((item) => item.manifest.appId)
       );
-      apply({
+      const next: MarketView = {
         applications: reset
           ? page.applications
           : [
@@ -331,7 +336,9 @@ function MarketDiscovery({
         nextCursor: page.nextCursor,
         at: Date.now(),
         offset: reset && manual ? 0 : before.offset,
-      });
+      };
+      if (reset && !manual && before.at && dataChanged(before.applications, next.applications)) { setPendingView(next); rememberMarketView(key, next); }
+      else { apply(next); setPendingView(undefined); }
       if (reset && manual)
         list.current?.scrollToOffset({ offset: 0, animated: false });
       return true;
@@ -358,6 +365,7 @@ function MarketDiscovery({
       "market.filters",
       JSON.stringify({ category, query: search })
     );
+    setPendingView(undefined);
     if (current.current.key !== key) {
       current.current = { key, view: empty };
       setView(empty);
@@ -406,6 +414,7 @@ function MarketDiscovery({
   const installedIds = useMemo(() => new Set(installed), [installed]);
   return (
     <View style={[styles.screen, { backgroundColor: colors.canvas }]}>
+      {pendingView ? <NewDataNotice top={52} label="查看新作品" onPress={() => { apply({ ...pendingView, offset: 0 }); setPendingView(undefined); list.current?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
       <View style={styles.discovery}>
         <ScrollView
           horizontal
@@ -515,9 +524,7 @@ function MarketDiscovery({
             />
           )}
           ListEmptyComponent={
-            view.applications.length || error ? null : busy ||
-              !ready ||
-              !view.at ? (
+            view.applications.length || error ? null : !view.at ? (
               <View accessibilityLabel="正在加载应用" style={{ gap: 1 }}>
                 {[0, 1, 2, 3, 4].map((id) => (
                   <View
@@ -564,8 +571,8 @@ function MarketDiscovery({
             )
           }
           ListFooterComponent={
-            busy && view.applications.length ? (
-              <LoadingSkeleton style={{ margin: 16 }} color={colors.accent} />
+            busy && view.applications.length && !pulling ? (
+              <ActivityIndicator style={{ margin: 16 }} color={colors.accent} />
             ) : view.nextCursor ? (
               <Pressy onPress={() => void load()}>
                 <Text style={styles.empty}>加载更多</Text>

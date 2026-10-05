@@ -8,7 +8,7 @@ import { Screen } from "../../../../packages/ui/edge";
 import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
 import { formatBytes, loadInstalledPackages, type InstalledPackage, type PackageKind } from "./packages";
 const { sdk } = require("../runtime/application-contract.json") as { sdk: string };
-const { buildId } = require("./build-identity.json") as { buildId: string };
+const { buildId, apk } = require("./build-identity.json") as { buildId: string; apk?: { versionName: string; versionCode: number } };
 
 type Props = {
   onBack: () => void;
@@ -66,7 +66,7 @@ export function AppInfoScreen({ onBack }: Props) {
     <Screen style={styles.screen}>
       <PageHeader title="应用信息" caption="本机正在使用的包" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Surface style={styles.version}><Text accessibilityRole="header" style={styles.brand}>紫金花</Text><View style={styles.metrics}><View style={styles.metric}><Text style={styles.empty}>平台版本</Text><Text style={styles.metricValue}>{sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>界面版本</Text><Text selectable style={styles.metricValue}>{buildId.slice(0, 8)}</Text></View></View><View style={styles.storage}><Text style={styles.empty}>本机安装文件</Text><View style={styles.storageValue}><View style={styles.loadingSlot}>{loading ? <ActivityIndicator size="small" color={colors.accent} /> : null}</View><Text style={styles.metricValue}>{cachedPackages !== undefined ? formatBytes(total) : error ? "未读取" : "读取中"}</Text></View></View></Surface>
+        <Surface style={styles.version}><Text accessibilityRole="header" style={styles.brand}>紫金花</Text><View style={styles.metrics}><View style={styles.metric}><Text style={styles.empty}>APK 版本</Text><Text style={styles.metricValue}>{apk?.versionName ?? sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>界面版本</Text><Text selectable style={styles.metricValue}>{buildId.slice(0, 8)}</Text></View></View><View style={styles.storage}><Text style={styles.empty}>本机安装文件</Text><View style={styles.storageValue}><View style={styles.loadingSlot}>{loading ? <ActivityIndicator size="small" color={colors.accent} /> : null}</View><Text style={styles.metricValue}>{cachedPackages !== undefined ? formatBytes(total) : error ? "未读取" : "读取中"}</Text></View></View></Surface>
         {error ? <Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)}><Text style={styles.error}>{error} · 重试</Text></Pressy> : null}
         <Text style={styles.empty}>页面运行包负责界面，原生扩展提供手机能力。下方体积为本机安装文件大小。</Text>
         <Pressy accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(value => !value)}><Text style={styles.total}>{details ? "收起技术详情" : "查看技术详情"}</Text></Pressy>

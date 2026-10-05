@@ -353,7 +353,7 @@ function ShellApp() {
     setUpdateBusy(true);
     try {
       removeShellValue("shell.updates.dismissed");
-      await applyPackageUpdates();
+      await applyPackageUpdates(updates);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "更新未完成，请重试";

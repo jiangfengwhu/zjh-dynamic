@@ -60,7 +60,7 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   const source = await readSource(repoRoot);
   if (options.publish && (source.dirty || !/^[a-f0-9]{40}$/.test(source.commit))) throw new Error("发布必须来自干净的 Git 提交，请先提交全部源码改动");
   source.buildId = randomUUID();
-  await writeFile(path.join(mobileDir, "src", "shell", "build-identity.json"), JSON.stringify({ buildId: source.buildId }));
+  await writeFile(path.join(mobileDir, "src", "shell", "build-identity.json"), JSON.stringify({ buildId: source.buildId, apk: contract.apk }));
   await mkdir(outDir, { recursive: true });
   const dependencyLock = JSON.parse(await readFile(path.join(mobileDir, "package-lock.json"), "utf8"));
   const publicModules = JSON.parse(await readFile(path.join(repoRoot, "tools/applications/public-modules.json"), "utf8"));

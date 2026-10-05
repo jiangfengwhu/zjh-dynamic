@@ -117,6 +117,7 @@ function createService(appId: string, originalAppId?: string) {
     const promise = (async () => {
       const value = (await workshop({
         action: "detail",
+        compact: true,
         session,
         applicationReleases: runningApplicationReleases(),
       })) as unknown as RawDetail;
@@ -125,6 +126,14 @@ function createService(appId: string, originalAppId?: string) {
       const run = await loadJulesRun();
       if (run?.submissionId && value.submissionId !== run.submissionId)
         throw new Error("当前轮次尚未同步，请稍后刷新");
+      // Compact status responses may arrive before history warming finishes.
+      // Preserve this round's last known messages instead of blanking them.
+      if (value.stale && !value.activities?.length) {
+        try {
+          const prior = latestDetail?.key === key ? latestDetail : JSON.parse((await readShellValue(`shell.workshop.detail.${await currentAccountId()}.${appId}`)) || "null");
+          if (prior?.key === key) value.activities = prior.value.activities;
+        } catch {}
+      }
       latestDetail = { key, at: Date.now(), value };
       const owner = await currentAccountId();
       writeShellValue(
@@ -455,6 +464,7 @@ function createService(appId: string, originalAppId?: string) {
     buildId?: string;
     applicationReleases?: Record<string, string>;
     pageToken?: string;
+    compact?: boolean;
   }): Promise<Record<string, unknown>> {
     const token = await readShellValue(APPROVAL_STORAGE);
     const response = await accountFetch(
