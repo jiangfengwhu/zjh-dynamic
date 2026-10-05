@@ -89,7 +89,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
         return <View style={{ flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-start", gap: 8 }}>
           <UserAvatar uri={mine ? query.user?.avatarUrl : query.data.peer.avatarUrl} authorId={item.senderId} size={32} />
           <View style={{ maxWidth: "80%", gap: 4, alignItems: mine ? "flex-end" : "flex-start" }}>
-            <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: 8, padding: 12 }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 15, lineHeight: 22 }}>{item.body}</Text></View>
+            <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: colors.components.controlRadius, padding: 12 }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 15, lineHeight: 22 }}>{item.body}</Text></View>
             <Text style={{ color: colors.ink3, fontSize: 10 }}>{new Date(item.createdAt).toLocaleString()}</Text>
           </View>
         </View>;
@@ -98,9 +98,9 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
     {query.user ? <View style={{ padding: 12, gap: 6, borderTopWidth: 0.5, borderTopColor: colors.line }}>
       <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10 }}>
         <FormField accessibilityLabel="私信内容" value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={4000} placeholder="写一条私信…" placeholderTextColor={colors.ink3}
-          style={{ flex: 1, minHeight: 44, maxHeight: 140, padding: 10, color: colors.ink1, backgroundColor: colors.surface, borderRadius: 6 }} />
+          style={{ flex: 1, minHeight: 44, maxHeight: 140, padding: 10, color: colors.ink1, backgroundColor: colors.surface, borderRadius: colors.components.controlRadius }} />
         <Pressy accessibilityRole="button" accessibilityLabel="发送私信" disabled={sending || !draftReady || !text.trim() || count > 2000} onPress={() => { void send(); }}
-          style={{ minHeight: 44, minWidth: 60, alignItems: "center", justifyContent: "center", backgroundColor: colors.orchid, borderRadius: 6, opacity: !text.trim() || count > 2000 ? 0.45 : 1 }}>
+          style={{ minHeight: 44, minWidth: 60, alignItems: "center", justifyContent: "center", backgroundColor: colors.orchid, borderRadius: colors.components.controlRadius, opacity: !text.trim() || count > 2000 ? 0.45 : 1 }}>
           {sending ? <ActivityIndicator color={colors.onOrchid} /> : <Text style={{ color: colors.onOrchid }}>发送</Text>}
         </Pressy>
       </View>{count > 1600 ? <Text style={{ color: count > 2000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 11 }}>{count}/2000</Text> : null}

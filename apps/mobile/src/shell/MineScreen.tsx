@@ -111,7 +111,7 @@ export const MineScreen = memo(function MineScreen({
           <Row
             icon={mode === "dark" ? "moon" : "sun"}
             title="外观"
-            hint="深浅主题，即时切换"
+            hint="皮肤与深浅模式，即时切换"
             value={mode === "dark" ? "深色" : "浅色"}
             onPress={onAppearance}
           />

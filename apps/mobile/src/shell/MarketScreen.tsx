@@ -733,7 +733,7 @@ const useStyles = createThemedStyles((base) => {
     chip: {
       minHeight: 44,
       justifyContent: "center",
-      borderRadius: 12,
+      borderRadius: t.radius.md,
       paddingHorizontal: 14,
       paddingVertical: 6,
       backgroundColor: t.surface,
@@ -750,7 +750,7 @@ const useStyles = createThemedStyles((base) => {
     mark: {
       width: 48,
       height: 48,
-      borderRadius: 12,
+      borderRadius: t.radius.md,
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
@@ -762,7 +762,7 @@ const useStyles = createThemedStyles((base) => {
       backgroundColor: t.orchidTint,
       fontSize: 10,
       fontWeight: "600",
-      borderRadius: 5,
+      borderRadius: t.radius.sm,
       paddingHorizontal: 5,
       paddingVertical: 2,
       overflow: "hidden",
@@ -771,7 +771,7 @@ const useStyles = createThemedStyles((base) => {
     openMark: {
       width: 42,
       minHeight: 42,
-      borderRadius: 12,
+      borderRadius: t.radius.md,
       alignItems: "center",
       justifyContent: "center",
       gap: 3,

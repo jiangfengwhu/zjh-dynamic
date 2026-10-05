@@ -570,8 +570,8 @@ export function ComposePostScreen({
           <View
             style={{
               backgroundColor: colors.canvas,
-              borderTopLeftRadius: 12,
-              borderTopRightRadius: 12,
+              borderTopLeftRadius: colors.components.dialogRadius,
+              borderTopRightRadius: colors.components.dialogRadius,
               borderTopWidth: 0.5,
               borderColor: colors.lineStrong,
               padding: 16,
@@ -658,14 +658,14 @@ const useStyles = createThemedStyles((base) => {
       fontSize: 15,
       lineHeight: 22,
       padding: 12,
-      borderRadius: 4,
-      backgroundColor: t.greenTint,
+      borderRadius: t.radius.xs,
+      backgroundColor: t.field,
     },
     photos: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
     photo: {
       width: "48%",
       aspectRatio: 1,
-      borderRadius: 14,
+      borderRadius: t.radius.md,
       overflow: "hidden",
       backgroundColor: t.surface,
     },

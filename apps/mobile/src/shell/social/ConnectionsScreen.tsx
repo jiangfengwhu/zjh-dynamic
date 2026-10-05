@@ -68,7 +68,7 @@ function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAut
         </View>
       </Pressy>
       {query.user?.id !== item.author.id ? <Pressy accessibilityRole="button" accessibilityLabel={item.following ? "取消关注" : "关注"} disabled={acting === item.author.id}
-        onPress={() => { void follow(item.author.id, !item.following); }} style={{ minHeight: 44, minWidth: 72, alignItems: "center", justifyContent: "center", paddingHorizontal: 10, backgroundColor: item.following ? colors.surface : colors.accent, borderRadius: 4 }}>
+        onPress={() => { void follow(item.author.id, !item.following); }} style={{ minHeight: 44, minWidth: 72, alignItems: "center", justifyContent: "center", paddingHorizontal: 10, backgroundColor: item.following ? colors.surface : colors.accent, borderRadius: colors.components.controlRadius }}>
         <Text style={{ color: item.following ? colors.ink3 : colors.onAccent }}>{acting === item.author.id ? "处理中" : item.following ? "已关注" : "+ 关注"}</Text>
       </Pressy> : null}
     </View>}

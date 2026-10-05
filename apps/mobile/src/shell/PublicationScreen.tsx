@@ -474,10 +474,10 @@ function CreateApplicationPage({
         style={{
           height: CREATION_INPUT_HEIGHT,
           padding: 14,
-          borderRadius: 4,
+          borderRadius: colors.components.controlRadius,
           borderWidth: 0.5,
           borderColor: colors.line,
-          backgroundColor: colors.greenTint,
+          backgroundColor: colors.field,
           color: colors.ink1,
           fontSize: 15,
           lineHeight: 23,
@@ -499,7 +499,7 @@ function CreateApplicationPage({
         onPress={() => void create()}
         style={{
           minHeight: 48,
-          borderRadius: 4,
+          borderRadius: colors.components.controlRadius,
           backgroundColor: colors.accent,
           flexDirection: "row",
           alignItems: "center",

@@ -247,7 +247,7 @@ const useStyles = createThemedStyles((t) => ({
     gap: 7,
     maxWidth: "58%",
     paddingHorizontal: 12,
-    borderRadius: 16,
+    borderRadius: t.components.controlRadius,
     backgroundColor: t.inset,
   },
   modelDot: {

@@ -285,7 +285,7 @@ function AuthorProfileContent({
                   minHeight: 44,
                   minWidth: 76,
                   paddingHorizontal: 12,
-                  borderRadius: 22,
+                  borderRadius: colors.components.controlRadius,
                   justifyContent: "center",
                   alignItems: "center",
                   backgroundColor: profile.following
@@ -309,7 +309,7 @@ function AuthorProfileContent({
               </Pressable>
             ) : null}
             {onMessage && user?.id !== author.id ? <Pressable accessibilityRole="button" accessibilityLabel={`给${author.name}发私信`} onPress={() => onMessage(author)}
-              style={{ minHeight: 44, minWidth: 58, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.orchid, borderRadius: 4 }}>
+              style={{ minHeight: 44, minWidth: 58, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.orchid, borderRadius: colors.components.controlRadius }}>
               <Text style={{ color: colors.onOrchid }}>私信</Text>
             </Pressable> : null}
           </View>

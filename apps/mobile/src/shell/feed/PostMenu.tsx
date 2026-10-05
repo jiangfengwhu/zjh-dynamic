@@ -76,7 +76,7 @@ export function PostMenu({
           alignItems: "center",
           gap: 10,
           paddingHorizontal: 12,
-          borderRadius: 8,
+          borderRadius: colors.components.controlRadius,
           backgroundColor: tint,
           opacity: pressed || busy ? 0.7 : 1,
         })}
@@ -111,8 +111,8 @@ export function PostMenu({
         overrideReduceMotion={ReduceMotion.System}
         backgroundStyle={{
           backgroundColor: colors.canvas,
-          borderTopLeftRadius: 12,
-          borderTopRightRadius: 12,
+          borderTopLeftRadius: colors.components.dialogRadius,
+          borderTopRightRadius: colors.components.dialogRadius,
           borderWidth: 0.5,
           borderColor: colors.lineStrong,
         }}

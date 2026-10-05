@@ -307,7 +307,7 @@ const useStyles = createThemedStyles((t) => ({
   badge: {
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: t.radius.sm,
   },
   badgeText: {
     fontSize: 11,
