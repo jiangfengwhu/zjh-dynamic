@@ -96,8 +96,8 @@ function createService(appId: string, originalAppId?: string) {
     stale: boolean;
     sharing?: { shared?: { manifest: { releaseId: string } } | null };
   };
-  let detailFlight: { key: string; promise: Promise<RawDetail> } | undefined;
-  let latestDetail: { key: string; at: number; value: RawDetail } | undefined;
+  let detailFlight: { key: string; compact: boolean; promise: Promise<RawDetail> } | undefined;
+  let latestDetail: { key: string; at: number; value: RawDetail; compact: boolean } | undefined;
   async function detailKey(session: string) {
     const owner = await currentAccountId();
     if (
@@ -109,15 +109,15 @@ function createService(appId: string, originalAppId?: string) {
       APPROVAL_STORAGE
     )}:${await readShellValue(RUN_STORAGE)}`;
   }
-  async function fetchDetail(session: string): Promise<RawDetail> {
+  async function fetchDetail(session: string, compact = false): Promise<RawDetail> {
     const key = await detailKey(session);
-    if (latestDetail?.key === key && Date.now() - latestDetail.at < 4000)
+    if (latestDetail?.key === key && latestDetail.compact === compact && Date.now() - latestDetail.at < 4000)
       return latestDetail.value;
-    if (detailFlight?.key === key) return detailFlight.promise;
+    if (detailFlight?.key === key && detailFlight.compact === compact) return detailFlight.promise;
     const promise = (async () => {
       const value = (await workshop({
         action: "detail",
-        compact: true,
+        compact,
         session,
         applicationReleases: runningApplicationReleases(),
       })) as unknown as RawDetail;
@@ -134,7 +134,7 @@ function createService(appId: string, originalAppId?: string) {
           if (prior?.key === key) value.activities = prior.value.activities;
         } catch {}
       }
-      latestDetail = { key, at: Date.now(), value };
+      latestDetail = { key, at: Date.now(), value, compact };
       const owner = await currentAccountId();
       writeShellValue(
         `shell.workshop.detail.${owner}.${appId}`,
@@ -142,7 +142,7 @@ function createService(appId: string, originalAppId?: string) {
       );
       return value;
     })();
-    detailFlight = { key, promise };
+    detailFlight = { key, compact, promise };
     try {
       return await promise;
     } finally {
@@ -181,9 +181,10 @@ function createService(appId: string, originalAppId?: string) {
   }
   async function readWorkshopDetail(
     session: string,
-    cachedOnly = false
+    cachedOnly = false,
+    compact = false
   ): Promise<WorkshopDetail | undefined> {
-    if (!cachedOnly) return detailView(await fetchDetail(session));
+    if (!cachedOnly) return detailView(await fetchDetail(session, compact));
     const key = await detailKey(session);
     const owner = await currentAccountId();
     try {

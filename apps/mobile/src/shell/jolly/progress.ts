@@ -127,7 +127,7 @@ export function useProgress(
           setError("");
           return;
         }
-        const detail = await service.readWorkshopDetail(currentSession);
+        const detail = await service.readWorkshopDetail(currentSession, false, true);
         if (!valid()) return;
         const latest = await service.loadJulesRun();
         if (!valid()) return;
