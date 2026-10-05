@@ -567,8 +567,8 @@ export const FeedScreen = memo(function FeedScreen({
                         )
                       )}
                     </AnimatedPagerView>
-                    {kind !== "installed" && (kind === "following" ? followingTimeline : userTimeline).pending ? <NewDataNotice top={headerSize + 8} label="已发布 · 查看新动态" avatars={(kind === "following" ? followingTimeline : userTimeline).pending!.posts.map(post => post.author.avatarUrl).filter((uri): uri is string => !!uri).filter((uri, index, list) => list.indexOf(uri) === index)} onPress={() => { acceptUserPosts(kind); lists.current[kind]?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
                   </GestureDetector>
+                    {kind !== "installed" && (kind === "following" ? followingTimeline : userTimeline).pending ? <NewDataNotice top={headerSize + 8} label="已发布 · 查看新动态" avatars={(kind === "following" ? followingTimeline : userTimeline).pending!.posts.map(post => post.author.avatarUrl).filter((uri): uri is string => !!uri).filter((uri, index, list) => list.indexOf(uri) === index)} onPress={() => { acceptUserPosts(kind); lists.current[kind]?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
                 </View>
               </GestureDetector>
             </View>
