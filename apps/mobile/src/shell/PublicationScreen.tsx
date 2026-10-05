@@ -1,7 +1,8 @@
+import { Text } from "../../../../packages/ui/primitives/Typography";
 import { ActivityIndicator } from "react-native";
 import { syncNotificationCount } from "./feed/notifications";
 import { useEffect, useRef, useState } from "react";
-import { Keyboard, Text, View } from "react-native";
+import { Keyboard, View } from "react-native";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
@@ -16,13 +17,13 @@ import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen, ScreenEdge } from "../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
-import { usePixelTheme } from "./feed/pixelTheme";
+
 import type { UserPostDraft } from "../../../../packages/app-sdk/src/index";
 import {
   type ComposePostControls,
   ComposePostScreen,
 } from "./feed/ComposePostScreen";
-import { PixelIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "./feed/PixelKit";
 import { CompactTabs } from "./CompactTabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FormField } from "./FormField";
@@ -41,7 +42,7 @@ const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 export function PublicationScreen(
   props: Parameters<typeof PublicationContent>[0]
 ) {
-  const theme = usePixelTheme();
+  const theme = useTheme();
   return (
     <ThemeContext.Provider value={theme}>
       <ScreenEdge bottom={false}>
@@ -423,7 +424,7 @@ function CreateApplicationPage({
             {polishing ? (
               <ActivityIndicator size="small" color={colors.orchidText} />
             ) : (
-              <PixelIcon name="spark" size={16} color={colors.orchidText} />
+              <SymbolIcon name="spark" size={16} color={colors.orchidText} />
             )}
             <Text style={{ color: colors.orchidText, fontSize: 13 }}>
               {polishing ? "取消润色" : "AI 润色"}
@@ -447,7 +448,7 @@ function CreateApplicationPage({
                 gap: 4,
               }}
             >
-              <PixelIcon name="back" size={14} color={colors.cyanText} />
+              <SymbolIcon name="back" size={14} color={colors.cyanText} />
               <Text style={{ color: colors.cyanText, fontSize: 12 }}>
                 回退原文
               </Text>
@@ -518,7 +519,7 @@ function CreateApplicationPage({
         {busy ? (
           <ActivityIndicator color={colors.onAccent} />
         ) : (
-          <PixelIcon name="spark" size={20} color={colors.onAccent} />
+          <SymbolIcon name="spark" size={20} color={colors.onAccent} />
         )}
         <Text
           style={{ color: colors.onAccent, fontSize: 15, fontWeight: "700" }}

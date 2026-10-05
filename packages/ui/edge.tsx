@@ -17,6 +17,7 @@ const BarContext = createContext(0);
  * 内容自动躲开系统栏。顶部如果放了 ScreenBar，状态栏就用顶栏自己的背景色。
  */
 export function Screen({ style, children, ...rest }: ViewProps) {
+
   const insets = useSafeAreaInsets();
   const edge = useContext(EdgeContext);
   const keyboard = useKeyboardOpen();

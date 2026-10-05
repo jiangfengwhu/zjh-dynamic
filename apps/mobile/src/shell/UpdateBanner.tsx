@@ -1,9 +1,10 @@
+import { Text } from "../../../../packages/ui/primitives/Typography";
 import type { ApkProgress } from "./apkUpdates";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import Animated, { FadeInUp, FadeOutUp, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, Pressy, Surface } from "../../../../packages/ui/chrome";
-import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
+import { createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import type { PendingPackage } from "./packageUpdates";
 
 type Props = {
@@ -17,6 +18,8 @@ type Props = {
 };
 
 export function UpdateBanner({ items, busy, completed, error, apkProgress: reportedProgress, onNow, onLater }: Props) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   const apk = items.find(item => item.kind === "apk");
   const insets = useSafeAreaInsets();
@@ -58,7 +61,7 @@ export function UpdateBanner({ items, busy, completed, error, apkProgress: repor
   );
 }
 
-const styles = themedStyleSheet((t) => ({
+const useStyles = createThemedStyles((t) => ({
   wrap: {
     position: "absolute",
     left: 16,

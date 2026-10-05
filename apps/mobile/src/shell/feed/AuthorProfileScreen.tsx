@@ -1,14 +1,11 @@
+import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { ActivityIndicator } from "react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouteContentReady } from "../useRouteContentReady";
 import { useIsFocused } from "@react-navigation/native";
-import {
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, View } from "react-native";
 import Animated, {
   useAnimatedRef,
   useAnimatedScrollHandler,
@@ -24,7 +21,7 @@ import type { RelationKind } from "../social/api";
 import { PageHeader } from "../../../../../packages/ui/chrome";
 import { Screen } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
-import { usePixelTheme } from "./pixelTheme";
+
 import { useAccount, requireAccount, currentAccountId } from "../account";
 import Toast from "react-native-toast-message";
 import { WorkCard } from "../WorkCard";
@@ -50,7 +47,7 @@ type ProfileRow =
 export function AuthorProfileScreen(
   props: Parameters<typeof AuthorProfileContent>[0],
 ) {
-  const theme = usePixelTheme();
+  const theme = useTheme();
   return (
     <ThemeContext.Provider value={theme}>
       <AuthorProfileContent {...props} />
@@ -313,7 +310,7 @@ function AuthorProfileContent({
             ) : null}
             {onMessage && user?.id !== author.id ? <Pressable accessibilityRole="button" accessibilityLabel={`给${author.name}发私信`} onPress={() => onMessage(author)}
               style={{ minHeight: 44, minWidth: 58, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.orchid, borderRadius: 4 }}>
-              <Text style={{ color: colors.onAccent }}>私信</Text>
+              <Text style={{ color: colors.onOrchid }}>私信</Text>
             </Pressable> : null}
           </View>
           <View style={{ flexDirection: "row", gap: 16 }}>

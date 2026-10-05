@@ -9,9 +9,9 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
-import type { PixelSymbol } from "./feed/PixelKit";
+import type { IconSymbol } from "./feed/PixelKit";
 import { TabLabel } from "./TabAppearance";
-import { usePixelTheme } from "./feed/pixelTheme";
+import { useTheme } from "../../../../packages/ui/theme";
 
 /** A shared pixel-cut switch: one UI-thread selection surface, no nested pill. */
 export function CompactTabs<T extends string>({
@@ -22,12 +22,12 @@ export function CompactTabs<T extends string>({
   position,
 }: {
   value: T;
-  options: readonly { id: T; label: string; icon?: PixelSymbol }[];
+  options: readonly { id: T; label: string; icon?: IconSymbol }[];
   onChange: (value: T) => void;
   tone?: "sun" | "mint" | "berry" | "violet";
   position?: SharedValue<number>;
 }) {
-  const { colors } = usePixelTheme();
+  const { colors, skin } = useTheme();
   const [width, setWidth] = useState(0);
   const slot = options.length ? width / options.length : 0;
   const index = Math.max(
@@ -40,7 +40,7 @@ export function CompactTabs<T extends string>({
     if (position) return;
     localPosition.value = withTiming(index, {
       duration: 180,
-      reduceMotion: ReduceMotion.Never,
+      reduceMotion: ReduceMotion.System,
     });
   }, [index, position, localPosition]);
   const motion = useAnimatedStyle(() => ({
@@ -49,7 +49,7 @@ export function CompactTabs<T extends string>({
     }],
   }));
   const fill =
-    tone === "mint"
+    skin === "soft" ? colors.accent : tone === "mint"
       ? colors.green
       : tone === "berry"
         ? colors.red
@@ -83,7 +83,7 @@ export function CompactTabs<T extends string>({
             motion,
           ]}
         >
-          <Svg
+          {skin === "soft" ? <View style={{ flex: 1, borderRadius: colors.components.controlRadius, backgroundColor: fill }} /> : <Svg
             width="100%"
             height="100%"
             viewBox={`0 0 ${slot} 34`}
@@ -93,7 +93,7 @@ export function CompactTabs<T extends string>({
               d={`M3 0H${slot - 3}V3H${slot}V31H${slot - 3}V34H3V31H0V3H3Z`}
               fill={fill}
             />
-          </Svg>
+          </Svg>}
         </Animated.View>
       ) : null}
       {options.map((item, itemIndex) => (

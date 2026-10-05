@@ -1,6 +1,7 @@
+import { Text } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
 import { memo, useEffect, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { useAccount } from "./account";
 import { Screen } from "../../../../packages/ui/edge";
@@ -11,11 +12,7 @@ import {
   SectionTitle,
   type IconName,
 } from "../../../../packages/ui/chrome";
-import {
-  themedStyleSheet,
-  useTheme,
-  type ThemeMode,
-} from "../../../../packages/ui/theme";
+import { createThemedStyles, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
 
 type CheckState = "idle" | "busy" | "ready" | "current" | "failed";
 type Props = {
@@ -41,6 +38,8 @@ export const MineScreen = memo(function MineScreen({
   onCheckUpdates,
   onAppearance,
 }: Props) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   const { user } = useAccount();
   const [check, setCheck] = useState<CheckState>("idle");
@@ -166,6 +165,8 @@ function Shortcut({
   onPress: () => void;
   primary?: boolean;
 }) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   return (
     <Pressy
@@ -210,6 +211,8 @@ function Row({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   return (
     <Pressy
@@ -246,7 +249,7 @@ function checkLabel(state: CheckState): string | undefined {
     } as Partial<Record<CheckState, string>>
   )[state];
 }
-const styles = themedStyleSheet((t) => ({
+const useStyles = createThemedStyles((t) => ({
   screen: { backgroundColor: t.canvas },
   content: { padding: 16, paddingTop: 12, gap: 12, paddingBottom: 24 },
   profile: {

@@ -8,7 +8,7 @@ import { KeyboardViewport } from "../KeyboardViewport";
 import { FormField } from "../FormField";
 import { UserAvatar } from "../UserAvatar";
 import { PixelText as Text } from "../feed/PixelText";
-import { usePixelTheme } from "../feed/pixelTheme";
+import { useTheme } from "../../../../../packages/ui/theme";
 import type { PublicAuthor } from "../feed/userPosts";
 import { readShellValue, writeShellValue, removeShellValue } from "../shellStorage";
 import { cachedAccountId, requireAccount } from "../account";
@@ -19,7 +19,7 @@ import { markMessagesRead, readMessages, reconnectMessages, sendMessage, useInbo
 import { SocialEmpty, SocialError, SocialFrame } from "./SocialLayout";
 
 export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () => void }) {
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const version = useInboxVersion(true);
   const query = useSocialPage<MessagePage>({ name: `messages:thread:${peer.id}`, authenticated: true, version,
     empty: { peer, messages: [], nextCursor: null }, read: cursor => readMessages(peer.id, cursor),
@@ -101,7 +101,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
           style={{ flex: 1, minHeight: 44, maxHeight: 140, padding: 10, color: colors.ink1, backgroundColor: colors.surface, borderRadius: 6 }} />
         <Pressy accessibilityRole="button" accessibilityLabel="发送私信" disabled={sending || !draftReady || !text.trim() || count > 2000} onPress={() => { void send(); }}
           style={{ minHeight: 44, minWidth: 60, alignItems: "center", justifyContent: "center", backgroundColor: colors.orchid, borderRadius: 6, opacity: !text.trim() || count > 2000 ? 0.45 : 1 }}>
-          {sending ? <ActivityIndicator color={colors.onAccent} /> : <Text style={{ color: colors.onAccent }}>发送</Text>}
+          {sending ? <ActivityIndicator color={colors.onOrchid} /> : <Text style={{ color: colors.onOrchid }}>发送</Text>}
         </Pressy>
       </View>{count > 1600 ? <Text style={{ color: count > 2000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 11 }}>{count}/2000</Text> : null}
     </View> : <Pressy accessibilityRole="button" onPress={() => { void requireAccount(); }} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accentText }}>登录后发送私信</Text></Pressy>}

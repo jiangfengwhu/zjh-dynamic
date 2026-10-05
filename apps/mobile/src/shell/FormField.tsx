@@ -1,13 +1,14 @@
 import { forwardRef, useState } from "react";
-import { TextInput, type TextInputProps } from "react-native";
+import type { TextInputProps } from "react-native";
+import { TextInput } from "../../../../packages/ui/primitives/Typography";
 import { useTheme } from "../../../../packages/ui/theme";
 
-/** Host fields share contrast, focus and selection treatment without changing form contracts. */
+/** Native layout is retained for bounded editors and inline chat composers. */
 export const FormField = forwardRef<TextInput, TextInputProps>(function FormField({ style, onFocus, onBlur, ...props }, ref) {
   const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
-  return <TextInput ref={ref} placeholderTextColor={colors.ink3} selectionColor={colors.accentText} {...props}
+  return <TextInput ref={ref} {...props}
     onFocus={event => { setFocused(true); onFocus?.(event); }}
     onBlur={event => { setFocused(false); onBlur?.(event); }}
-    style={[{ minHeight: 44, borderWidth: 1, borderColor: colors.lineStrong, borderRadius: colors.radius.sm, color: colors.ink1, backgroundColor: colors.field, paddingHorizontal: 12, paddingVertical: 10 }, style, focused && { borderColor: colors.accentText }]} />;
+    style={[{ minHeight: colors.components.controlHeight, borderWidth: 1, borderColor: colors.lineStrong, borderRadius: colors.components.controlRadius, backgroundColor: colors.field, paddingHorizontal: colors.spacing.control, paddingVertical: 10 }, style, focused && { borderColor: colors.accentText }]} />;
 });

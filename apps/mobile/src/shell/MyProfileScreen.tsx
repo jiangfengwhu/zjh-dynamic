@@ -1,6 +1,7 @@
+import { Text } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Text, View, useWindowDimensions } from "react-native";
+import { View, useWindowDimensions } from "react-native";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import Animated, {
@@ -19,12 +20,12 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useFocusEffect } from "@react-navigation/native";
 import { ProfileScrollContext, PROFILE_RANGE } from "./ProfileScroll";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
-import { usePixelTheme } from "./feed/pixelTheme";
+
 import { useAccount, requireAccount } from "./account";
 import { CompactTabs } from "./CompactTabs";
 import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
-import { PixelIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "./feed/PixelKit";
 import { useProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
 import { fetchAuthorProfile } from "./feed/userPosts";
 import type { UserPost, PublicAuthor } from "./feed/userPosts";
@@ -34,7 +35,7 @@ import type { MarketApplication } from "./market";
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 export function MyProfileScreen(props: Parameters<typeof MyProfileContent>[0]) {
-  const theme = usePixelTheme();
+  const theme = useTheme();
   return (
     <ThemeContext.Provider value={theme}>
       <MyProfileContent {...props} />
@@ -256,7 +257,7 @@ function MyProfileContent({
               justifyContent: "center",
             }}
           >
-            <PixelIcon name="more" size={20} color={colors.ink1} />
+            <SymbolIcon name="more" size={20} color={colors.ink1} />
           </Pressy>
         </View>
         <View

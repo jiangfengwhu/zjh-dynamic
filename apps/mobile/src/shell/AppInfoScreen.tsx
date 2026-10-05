@@ -1,14 +1,15 @@
+import { Text } from "../../../../packages/ui/primitives/Typography";
 import { pixelAssets } from "./feed/pixelAssets";
 import { Image } from "react-native";
 import { EmptyState } from "./EmptyState";
 import { useRouteContentReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
-import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
+import { createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import { formatBytes, loadInstalledPackages, type InstalledPackage, type PackageKind } from "./packages";
 const { sdk } = require("../runtime/application-contract.json") as { sdk: string };
 const { buildId, apk } = require("./build-identity.json") as { buildId: string; apk?: { versionName: string; versionCode: number } };
@@ -31,6 +32,8 @@ const kindLabel: Record<PackageKind, string> = {
 let cachedPackages: InstalledPackage[] | undefined;
 
 export function AppInfoScreen({ onBack }: Props) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   const contentReady = useRouteContentReady();
   const focused = useIsFocused() && contentReady;
@@ -99,6 +102,8 @@ export function AppInfoScreen({ onBack }: Props) {
 }
 
 function PackageRow({ item, last }: { item: InstalledPackage; last: boolean }) {
+  const styles = useStyles();
+
   useTheme();
   return (
     <View>
@@ -124,7 +129,7 @@ function titleOf(item: InstalledPackage): string {
   return item.id;
 }
 
-const styles = themedStyleSheet((t) => ({
+const useStyles = createThemedStyles((t) => ({
   screen: {
     flex: 1,
     backgroundColor: t.canvas,

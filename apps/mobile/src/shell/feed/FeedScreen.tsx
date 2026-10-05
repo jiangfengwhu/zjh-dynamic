@@ -30,12 +30,9 @@ import Animated, {
   type AnimatedProps,
 } from "react-native-reanimated";
 import { Pressy } from "../../../../../packages/ui/chrome";
-import {
-  ThemeContext,
-  themedStyleSheet,
-} from "../../../../../packages/ui/theme";
-import { pixelTheme, usePixelTheme } from "./pixelTheme";
-import { PixelIcon } from "./PixelKit";
+import { ThemeContext, createThemedStyles } from "../../../../../packages/ui/theme";
+import { useTheme } from "../../../../../packages/ui/theme";
+import { SymbolIcon } from "./PixelKit";
 import NativePluginHost from "../../NativePluginHost";
 import { useFeedChrome, SHELL_CHROME_THRESHOLD } from "./FeedChrome";
 import { useAccount } from "../account";
@@ -75,8 +72,10 @@ export const FeedScreen = memo(function FeedScreen({
   onApplication,
   onAuthor,
 }: FeedProps) {
+  const styles = useStyles();
+
   const { user } = useAccount();
-  const themeContext = usePixelTheme();
+  const themeContext = useTheme();
   const { colors, mode } = themeContext;
   const insets = useSafeAreaInsets();
   const {
@@ -356,7 +355,7 @@ export const FeedScreen = memo(function FeedScreen({
                             )}
                             ListEmptyComponent={
                               <EmptyState>
-                                <PixelIcon
+                                <SymbolIcon
                                   name="box"
                                   size={32}
                                   color={colors.orchidText}
@@ -479,7 +478,7 @@ export const FeedScreen = memo(function FeedScreen({
                                           }
                                           style={styles.compose}
                                         >
-                                          <PixelIcon
+                                          <SymbolIcon
                                             name={pageKind === "following" ? "search" : "plus"}
                                             size={14}
                                             color={colors.onAccent}
@@ -541,7 +540,7 @@ export const FeedScreen = memo(function FeedScreen({
                                       {visible.length > 0 &&
                                       !page.nextCursor ? (
                                         <View style={styles.end}>
-                                          <PixelIcon
+                                          <SymbolIcon
                                             name="spark"
                                             size={16}
                                             color={colors.accentText}
@@ -586,6 +585,8 @@ const UserTimelineItem = memo(function UserTimelineItem({
   onApplication: FeedProps["onApplication"];
   onAuthor: FeedProps["onAuthor"];
 }) {
+  const styles = useStyles();
+
   const own = author?.id === original.author.id;
   const post = useMemo(
     () => (own && author ? { ...original, author } : original),
@@ -614,7 +615,7 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
   tone: number;
   onOpen: FeedProps["onApplication"];
 }) {
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const Avatar = marketDefinition(app)?.avatar;
   const open = () => {
     void onOpen(app.manifest.appId).catch((cause) =>
@@ -827,6 +828,8 @@ function FeedListGesture({
   return <GestureDetector gesture={native}>{children}</GestureDetector>;
 }
 function FeedSeparator() {
+  const styles = useStyles();
+
   return <View style={styles.separator} />;
 }
 
@@ -842,8 +845,8 @@ function formatWhen(ms: number): string {
   return `${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
-const styles = themedStyleSheet((base) => {
-  const t = pixelTheme(base);
+const useStyles = createThemedStyles((base) => {
+  const t = base;
   return {
     container: { flex: 1, backgroundColor: t.canvas },
     floatingHeader: {
@@ -862,8 +865,8 @@ const styles = themedStyleSheet((base) => {
       paddingHorizontal: 12,
       alignItems: "center",
       backgroundColor: t.accent,
-      borderRadius: 0,
-      borderWidth: 2,
+      borderRadius: t.components.controlRadius,
+      borderWidth: t.components.surfaceBorder,
       borderColor: t.accentSoft,
     },
     profileControl: {

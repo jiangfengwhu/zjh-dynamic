@@ -25,11 +25,7 @@ import { FormField as TextInput } from "./FormField";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EdgeModal, Screen, ScreenEdge } from "../../../../packages/ui/edge";
-import {
-  ThemeContext,
-  themedStyleSheet,
-  useTheme,
-} from "../../../../packages/ui/theme";
+import { ThemeContext, createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import { loadCatalog, subscribeCatalog } from "./catalog";
 import {
   readShellValue,
@@ -61,15 +57,15 @@ import {
   type SharingState,
 } from "./market";
 import { PixelText as Text } from "./feed/PixelText";
-import { PixelIcon } from "./feed/PixelKit";
-import { pixelTheme, usePixelTheme } from "./feed/pixelTheme";
+import { SymbolIcon } from "./feed/PixelKit";
+
 import { KeyboardViewport } from "./KeyboardViewport";
 import { useRouteContentReady } from "./useRouteContentReady";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export function MarketPublicationScreen(
   props: Parameters<typeof MarketDetailContent>[0]
 ) {
-  const theme = usePixelTheme();
+  const theme = useTheme();
   return (
     <ThemeContext.Provider value={theme}>
       <MarketDetailContent
@@ -103,7 +99,7 @@ export function MarketDetailScreen(
   return <View style={{ flex: 1 }}><LoadedMarketDetail {...props} item={item} />{error ? <Pressy accessibilityRole="button" accessibilityLabel="重试作品同步" onPress={() => { setError(false); setAttempt(value => value + 1); }}><Text>同步未完成 · 重试</Text></Pressy> : null}</View>;
 }
 function LoadedMarketDetail(props: Parameters<typeof MarketDetailContent>[0]) {
-  const theme = usePixelTheme();
+  const theme = useTheme();
   return (
     <ThemeContext.Provider value={theme}>
       <MarketDetailContent key={props.item.manifest.appId} {...props} />
@@ -138,6 +134,8 @@ function MarketDetailContent({
   onOpen: (id: string) => void;
   onSharePost: (item: MarketApplication) => void;
 }) {
+  const styles = useStyles();
+
   const insets = useSafeAreaInsets();
   const { user } = useAccount();
   const { colors } = useTheme();
@@ -666,7 +664,7 @@ function MarketDetailContent({
               : "未公开 · 完成制作后即可上架"}
           </Text>
         </View>
-        <PixelIcon
+        <SymbolIcon
           name={shared ? "check" : "send"}
           size={20}
           color={shared ? colors.greenText : colors.orchidText}
@@ -716,7 +714,7 @@ function MarketDetailContent({
                 {option.label}
               </Text>
               {publishLatest === option.value ? (
-                <PixelIcon name="check" size={12} color={colors.onAccent} />
+                <SymbolIcon name="check" size={12} color={colors.onAccent} />
               ) : null}
             </Pressy>
           ))}
@@ -734,7 +732,7 @@ function MarketDetailContent({
       {!ownershipReady || (owner && !shareNotice) ? (
         <ActivityIndicator color={colors.orchidText} />
       ) : (
-        <PixelIcon name="mine" size={20} color={colors.orchidText} />
+        <SymbolIcon name="mine" size={20} color={colors.orchidText} />
       )}
       <Text style={[styles.copy, { flex: 1 }]}>
         {!ownershipReady
@@ -748,7 +746,7 @@ function MarketDetailContent({
           onPress={() => setSharingAttempt((value) => value + 1)}
           accessibilityLabel="重新读取市场信息"
         >
-          <PixelIcon name="refresh" size={18} color={colors.orchidText} />
+          <SymbolIcon name="refresh" size={18} color={colors.orchidText} />
         </Pressy>
       ) : null}
     </View>
@@ -765,7 +763,7 @@ function MarketDetailContent({
       <Screen style={styles.screen}>
         <PageHeader variant="pixel" title="作品详情" onBack={onBack} />
         <EmptyState style={styles.empty}>
-          <PixelIcon name="mine" size={32} color={colors.orchidText} />
+          <SymbolIcon name="mine" size={32} color={colors.orchidText} />
           <Text style={styles.copy}>请登录作品所属账号后查看。</Text>
           <Pressy onPress={() => void requireAccount()} style={styles.primary}>
             <Text style={styles.primaryText}>登录</Text>
@@ -801,7 +799,7 @@ function MarketDetailContent({
                   backgroundColor: colors.redTint,
                 }}
               >
-                <PixelIcon name="close" size={18} color={colors.redText} />
+                <SymbolIcon name="close" size={18} color={colors.redText} />
               </Pressy>
             ) : !publication && owner && onPublication ? (
               <Pressy
@@ -810,7 +808,7 @@ function MarketDetailContent({
                 scale={1}
                 style={{ width: 44, height: 44, alignItems: "center" }}
               >
-                <PixelIcon name="send" size={20} color={colors.orchidText} />
+                <SymbolIcon name="send" size={20} color={colors.orchidText} />
               </Pressy>
             ) : undefined
           }
@@ -938,7 +936,7 @@ function MarketDetailContent({
                             accessibilityLabel={`移除截图 ${index + 1}`}
                             style={styles.removeShot}
                           >
-                            <PixelIcon
+                            <SymbolIcon
                               name="close"
                               size={16}
                               color={colors.redText}
@@ -953,7 +951,7 @@ function MarketDetailContent({
                           accessibilityLabel="添加截图"
                           style={styles.addShot}
                         >
-                          <PixelIcon
+                          <SymbolIcon
                             name="photo"
                             size={24}
                             color={colors.orchidText}
@@ -1088,7 +1086,7 @@ function MarketDetailContent({
                       {authorName || "社区创作者"}
                     </Text>
                   </View>
-                  <PixelIcon name="arrow" size={16} color={colors.ink3} />
+                  <SymbolIcon name="arrow" size={16} color={colors.ink3} />
                 </Pressy>
                 <View style={styles.facts}>
                   <View style={styles.fact}>
@@ -1132,7 +1130,7 @@ function MarketDetailContent({
                     onPress={() => (owner ? void modify() : continueCreation())}
                     style={[styles.tool, { backgroundColor: colors.cyanTint }]}
                   >
-                    <PixelIcon
+                    <SymbolIcon
                       name={owner ? "edit" : "spark"}
                       size={18}
                       color={colors.cyanText}
@@ -1154,7 +1152,7 @@ function MarketDetailContent({
                       { backgroundColor: colors.orchidTint },
                     ]}
                   >
-                    <PixelIcon
+                    <SymbolIcon
                       name="share"
                       size={18}
                       color={colors.orchidText}
@@ -1174,7 +1172,7 @@ function MarketDetailContent({
                     onPress={uninstall}
                     style={[styles.tool, { backgroundColor: colors.redTint }]}
                   >
-                    <PixelIcon name="close" size={18} color={colors.redText} />
+                    <SymbolIcon name="close" size={18} color={colors.redText} />
                     <Text style={[styles.toolText, { color: colors.redText }]}>
                       卸载
                     </Text>
@@ -1187,7 +1185,7 @@ function MarketDetailContent({
                 accessibilityLiveRegion="polite"
                 style={[styles.note, { backgroundColor: colors.redTint }]}
               >
-                <PixelIcon name="alert" size={18} color={colors.redText} />
+                <SymbolIcon name="alert" size={18} color={colors.redText} />
                 <Text style={[styles.error, { flex: 1 }]}>{error}</Text>
               </View>
             ) : null}
@@ -1212,7 +1210,7 @@ function MarketDetailContent({
                   {busy ? (
                     <ActivityIndicator color={colors.onAccent} />
                   ) : (
-                    <PixelIcon name="check" size={18} color={colors.onAccent} />
+                    <SymbolIcon name="check" size={18} color={colors.onAccent} />
                   )}
                   <Text style={styles.primaryText}>
                     {busy
@@ -1239,7 +1237,7 @@ function MarketDetailContent({
                       onPress={() => void install()}
                       style={styles.updateButton}
                     >
-                      <PixelIcon
+                      <SymbolIcon
                         name="refresh"
                         size={18}
                         color={colors.orchidText}
@@ -1264,7 +1262,7 @@ function MarketDetailContent({
                     {busy ? (
                       <ActivityIndicator color={colors.onAccent} />
                     ) : (
-                      <PixelIcon name="box" size={18} color={colors.onAccent} />
+                      <SymbolIcon name="box" size={18} color={colors.onAccent} />
                     )}
                     <Text style={styles.primaryText}>
                       {busy ? "正在准备…" : primaryLabel}
@@ -1295,7 +1293,7 @@ function MarketDetailContent({
                 onPress={() => setPreview(undefined)}
                 style={{ width: 44, height: 44, alignItems: "center" }}
               >
-                <PixelIcon name="close" size={22} color={colors.ink1} />
+                <SymbolIcon name="close" size={22} color={colors.ink1} />
               </Pressy>
             </View>
             {preview ? (
@@ -1311,8 +1309,8 @@ function MarketDetailContent({
     </ScreenEdge>
   );
 }
-const styles = themedStyleSheet((base) => {
-  const t = pixelTheme(base);
+const useStyles = createThemedStyles((base) => {
+  const t = base;
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     content: {

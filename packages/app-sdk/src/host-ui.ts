@@ -1,9 +1,14 @@
 export * from "../../ui/chrome";
 export * from "../../ui/theme";
+export * from "../../ui/primitives";
+export { Skeleton, type SkeletonProps } from "../../ui/feedback/Skeleton";
+export { EmptyState } from "../../ui/feedback/EmptyState";
+export { Loading } from "../../ui/feedback/Loading";
+export { Dialog, ConfirmDialog, type DialogProps, type ConfirmDialogProps } from "../../ui/feedback/Dialog";
 export { PostFrame, PostBody, PostAttachment } from "../../ui/feed/kit";
 export type { FeedCardProps } from "../../ui/feed/store";
 export { EdgeModal, Screen, ScreenBar } from "../../ui/edge";
-export { PromptBar } from "../../ui/beautiful/PromptBar";
+export { PromptBar, type PromptBarProps, type PromptProvider } from "../../ui/composition/PromptBar";
 export { AppImage } from "../../ui/media/AppImage";
 export { RichMarkdown } from "../../ui/media/RichMarkdown";
 export type { RichMarkdownProps } from "../../ui/media/RichMarkdown";

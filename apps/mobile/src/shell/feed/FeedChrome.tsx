@@ -32,7 +32,7 @@ export function FeedChromeProvider({ children }: { children: ReactNode }) {
       hidden.value = withTiming(next, {
         duration: 180,
         easing: Easing.out(Easing.cubic),
-        reduceMotion: ReduceMotion.Never,
+        reduceMotion: ReduceMotion.System,
       });
     }
   );

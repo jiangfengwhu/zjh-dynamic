@@ -1,3 +1,4 @@
+import { Text } from "../../../../../packages/ui/primitives/Typography";
 import {
   memo,
   useCallback,
@@ -5,7 +6,7 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import { Linking, Text, View, useWindowDimensions } from "react-native";
+import { Linking, View, useWindowDimensions } from "react-native";
 import RenderHtml, {
   IMGElement,
   defaultSystemFonts,
@@ -141,21 +142,21 @@ export const HtmlPostContent = memo(function HtmlPostContent({
   const baseStyle = useMemo(
     () => ({
       color: colors.ink1,
-      fontFamily: font,
+      fontFamily: colors.typography.body,
       fontSize: 15,
       lineHeight: 22,
     }),
-    [colors.ink1]
+    [colors.ink1, colors.typography.body]
   );
   const tagsStyles = useMemo(
     () => ({
       body: { margin: 0 },
       p: { marginTop: 0, marginBottom: 6 },
       a: { color: colors.accentText },
-      pre: { fontFamily: font },
-      code: { fontFamily: font },
+      pre: { fontFamily: colors.typography.mono },
+      code: { fontFamily: colors.typography.mono },
     }),
-    [colors.accentText]
+    [colors.accentText, colors.typography.mono]
   );
   const openLink = useCallback(
     (_event: unknown, href: string) => {

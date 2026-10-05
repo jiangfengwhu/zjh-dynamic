@@ -1,3 +1,4 @@
+import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { ActivityIndicator } from "react-native";
@@ -8,15 +9,9 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  Keyboard,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Keyboard, Pressable, ScrollView, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
-import { PixelIcon } from "./PixelKit";
+import { SymbolIcon } from "./PixelKit";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { MediaPicker as ImagePicker } from "../../../../../packages/ui/media/MediaPicker";
@@ -25,7 +20,7 @@ import { usePreventRemove } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { EdgeModal, Screen, ScreenEdge } from "../../../../../packages/ui/edge";
-import { themedStyleSheet, useTheme } from "../../../../../packages/ui/theme";
+import { createThemedStyles, useTheme } from "../../../../../packages/ui/theme";
 import {
   cachedAccountId,
   currentAccountId,
@@ -45,7 +40,7 @@ import {
 import { HtmlPostContent } from "./HtmlPostContent";
 import { htmlByteLength } from "./postDraft";
 import type { UserPostDraft } from "../../../../../packages/app-sdk/src/index";
-import { pixelTheme } from "./pixelTheme";
+
 
 export type ComposePostControls = {
   canPublish: boolean;
@@ -69,6 +64,8 @@ export function ComposePostScreen({
   embedded?: boolean;
   onControlsChange?: (controls: ComposePostControls) => void;
 }) {
+  const styles = useStyles();
+
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { user } = useAccount();
@@ -485,7 +482,7 @@ export function ComposePostScreen({
               onPress={() => void choose()}
               style={styles.tool}
             >
-              <PixelIcon name="photo" size={18} color={colors.accentText} />
+              <SymbolIcon name="photo" size={18} color={colors.accentText} />
               <Text style={styles.addText}>
                 {choosing ? "处理图片…" : `图片 ${photos.length}/4`}
               </Text>
@@ -496,7 +493,7 @@ export function ComposePostScreen({
               onPress={() => void pickApplication()}
               style={styles.tool}
             >
-              <PixelIcon name="layers" size={18} color={colors.accentText} />
+              <SymbolIcon name="layers" size={18} color={colors.accentText} />
               <Text style={styles.addText}>
                 {application ? "更换应用" : "附带应用"}
               </Text>
@@ -584,9 +581,9 @@ export function ComposePostScreen({
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.orchidTint, alignItems: "center", justifyContent: "center" }}><PixelIcon name="box" size={18} color={colors.orchidText} /></View>
+              <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.orchidTint, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="box" size={18} color={colors.orchidText} /></View>
               <Text style={{ flex: 1, color: colors.ink1, fontSize: 16 }}>我的已上架应用</Text>
-              <Pressy scale={1} accessibilityLabel="关闭应用选择" onPress={() => setPicking(false)} style={{ width: 44, height: 44, alignItems: "center" }}><PixelIcon name="close" size={16} color={colors.ink3} /></Pressy>
+              <Pressy scale={1} accessibilityLabel="关闭应用选择" onPress={() => setPicking(false)} style={{ width: 44, height: 44, alignItems: "center" }}><SymbolIcon name="close" size={16} color={colors.ink3} /></Pressy>
             </View>
             <Text style={styles.counter}>仅分享应用市场里的公开版本</Text>
             <ScrollView keyboardShouldPersistTaps="handled">
@@ -643,8 +640,8 @@ export function ComposePostScreen({
     </Root></ScreenEdge>
   );
 }
-const styles = themedStyleSheet((base) => {
-  const t = pixelTheme(base);
+const useStyles = createThemedStyles((base) => {
+  const t = base;
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     fill: { flex: 1 },

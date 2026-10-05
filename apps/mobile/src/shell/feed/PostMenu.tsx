@@ -8,10 +8,10 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { ReduceMotion } from "react-native-reanimated";
-import { PixelIcon, type PixelSymbol } from "./PixelKit";
+import { SymbolIcon, type IconSymbol } from "./PixelKit";
 import { PixelText as Text } from "./PixelText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { usePixelTheme } from "./pixelTheme";
+import { useTheme } from "../../../../../packages/ui/theme";
 
 export function PostMenu({
   onDelete,
@@ -25,7 +25,7 @@ export function PostMenu({
   busy?: boolean;
 }) {
   const insets = useSafeAreaInsets();
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const modal = useRef<BottomSheetModal>(null);
   const pending = useRef<() => void>();
   const animation = useBottomSheetTimingConfigs({ duration: 180 });
@@ -60,7 +60,7 @@ export function PostMenu({
   }
   function row(
     label: string,
-    icon: PixelSymbol,
+    icon: IconSymbol,
     tone: string,
     tint: string,
     callback: () => void
@@ -81,7 +81,7 @@ export function PostMenu({
           opacity: pressed || busy ? 0.7 : 1,
         })}
       >
-        <PixelIcon name={icon} size={18} color={tone} />
+        <SymbolIcon name={icon} size={18} color={tone} />
         <Text style={{ color: tone, fontSize: 14 }}>{label}</Text>
       </Pressable>
     );
@@ -100,7 +100,7 @@ export function PostMenu({
           justifyContent: "center",
         }}
       >
-        <PixelIcon name="more" size={21} color={colors.ink3} />
+        <SymbolIcon name="more" size={21} color={colors.ink3} />
       </Pressable>
       <BottomSheetModal
         ref={modal}
@@ -108,7 +108,7 @@ export function PostMenu({
         backdropComponent={backdrop}
         onDismiss={dismissed}
         animationConfigs={animation}
-        overrideReduceMotion={ReduceMotion.Never}
+        overrideReduceMotion={ReduceMotion.System}
         backgroundStyle={{
           backgroundColor: colors.canvas,
           borderTopLeftRadius: 12,
@@ -119,7 +119,7 @@ export function PostMenu({
         handleIndicatorStyle={{
           width: 32,
           height: 4,
-          borderRadius: 0,
+          borderRadius: colors.radius.sm,
           backgroundColor: colors.accent,
         }}
       >
@@ -138,7 +138,7 @@ export function PostMenu({
               paddingBottom: 6,
             }}
           >
-            <PixelIcon name="feed" size={18} color={colors.orchidText} />
+            <SymbolIcon name="feed" size={18} color={colors.orchidText} />
             <Text style={{ color: colors.ink1, fontSize: 16 }}>动态操作</Text>
           </View>
           {row("复制文字", "layers", colors.cyanText, colors.cyanTint, onCopy)}

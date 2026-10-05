@@ -1,6 +1,7 @@
+import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { useEffect } from "react";
-import { Text } from "react-native";
-import { PixelIcon } from "./PixelKit";
+
+import { SymbolIcon } from "./PixelKit";
 import Animated, {
   Easing,
   Extrapolation,
@@ -13,7 +14,7 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
-import { themedStyleSheet, useTheme } from "../../../../../packages/ui/theme";
+import { createThemedStyles, useTheme } from "../../../../../packages/ui/theme";
 import { PULL_THRESHOLD, type PullPhase } from "./pullToRefresh";
 
 const LABEL: Record<PullPhase, string> = {
@@ -33,6 +34,8 @@ export function PullIndicator({
   pull: SharedValue<number>;
   phase: PullPhase;
 }) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   const spin = useSharedValue(0);
   useEffect(() => {
@@ -42,12 +45,12 @@ export function PullIndicator({
         withTiming(360, {
           duration: 1000,
           easing: Easing.linear,
-          reduceMotion: ReduceMotion.Never,
+          reduceMotion: ReduceMotion.System,
         }),
         -1,
         false,
         undefined,
-        ReduceMotion.Never
+        ReduceMotion.System
       );
     else spin.value = 0;
     return () => cancelAnimation(spin);
@@ -78,7 +81,7 @@ export function PullIndicator({
   return (
     <Animated.View pointerEvents="none" style={[styles.stage, stage]}>
       <Animated.View style={[styles.icon, rotation]}>
-        <PixelIcon
+        <SymbolIcon
           name={
             phase === "done"
               ? "check"
@@ -98,7 +101,7 @@ export function PullIndicator({
     </Animated.View>
   );
 }
-const styles = themedStyleSheet((t) => ({
+const useStyles = createThemedStyles((t) => ({
   stage: {
     position: "absolute",
     top: 0,

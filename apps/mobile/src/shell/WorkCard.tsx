@@ -5,8 +5,8 @@ import { View } from "react-native";
 import Toast from "react-native-toast-message";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { PixelText as Text } from "./feed/PixelText";
-import { PixelIcon } from "./feed/PixelKit";
-import { usePixelTheme } from "./feed/pixelTheme";
+import { SymbolIcon } from "./feed/PixelKit";
+import { useTheme } from "../../../../packages/ui/theme";
 
 /** Public profiles and the owner's gallery share one honest presentation. */
 export const WorkCard = memo(function WorkCard({
@@ -32,7 +32,7 @@ export const WorkCard = memo(function WorkCard({
   onOpen: () => void | Promise<unknown>;
   actions?: import("react").ReactNode;
 }) {
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const [busy, setBusy] = useState(false);
   const acting = useRef(false);
   const tints = [
@@ -109,7 +109,7 @@ export const WorkCard = memo(function WorkCard({
             {mark ? (
               <Text style={{ color: accent, fontSize: 26 }}>{mark}</Text>
             ) : (
-              <PixelIcon name="box" size={26} color={accent} />
+              <SymbolIcon name="box" size={26} color={accent} />
             )}
             {busy ? (
               <ActivityIndicator

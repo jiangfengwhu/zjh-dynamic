@@ -1,3 +1,4 @@
+import { TextInput as NativeTextInput } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { PixelText as Text } from "./PixelText";
@@ -5,7 +6,7 @@ import { ActivityIndicator } from "react-native";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { PixelAlert as Alert } from "../PixelAlert";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Pressable, TextInput as NativeTextInput, View } from "react-native";
+import { FlatList, Pressable, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import Clipboard from "@react-native-clipboard/clipboard";
@@ -21,13 +22,13 @@ import { deletePostComment, fetchPostDetail, cachedPostDetail, publishPostCommen
 import { UserPostCard } from "./UserPostCard";
 import { PullRefreshSurface } from "./PullRefreshSurface";
 import { usePullToRefresh } from "./pullToRefresh";
-import { usePixelTheme } from "./pixelTheme";
+
 import { useRouteContentReady } from "../useRouteContentReady";
 import { PostMenu } from "./PostMenu";
 
 const when = (at: number) => new Date(at).toLocaleString();
 export function PostDetailScreen(props: Parameters<typeof PostDetailContent>[0]) {
-  const theme = usePixelTheme();
+  const theme = useTheme();
   return <ThemeContext.Provider value={theme}><PostDetailContent {...props} /></ThemeContext.Provider>;
 }
 function PostDetailContent({ initialPost, initialCommentId, initialDetail: providedDetail, onBack, onApplication, onAuthor }: { initialPost: UserPost; initialCommentId?: string; initialDetail?: PostDetail; onBack: () => void; onApplication: (appId: string) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {

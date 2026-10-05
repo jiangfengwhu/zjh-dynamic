@@ -28,8 +28,8 @@ import {
 } from "../../../../packages/ui/edge";
 import { ThemeContext } from "../../../../packages/ui/theme";
 import { PixelText as Text } from "./feed/PixelText";
-import { PixelIcon } from "./feed/PixelKit";
-import { usePixelTheme } from "./feed/pixelTheme";
+import { SymbolIcon } from "./feed/PixelKit";
+import { useTheme } from "../../../../packages/ui/theme";
 import {
   currentPixelAlert,
   finishPixelAlert,
@@ -44,7 +44,7 @@ function FeedbackToast({
   onPress,
   hide,
 }: ToastConfigParams<unknown>) {
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const success = type === "success";
   const error = type === "error";
@@ -68,7 +68,7 @@ function FeedbackToast({
       accessibilityLiveRegion={error ? "assertive" : "polite"}
       style={{
         width: Math.min(width - 32, 420),
-        borderRadius: 12,
+        borderRadius: colors.components.dialogRadius,
         backgroundColor: colors.canvas,
         borderWidth: 0.5,
         borderColor: colors.lineStrong,
@@ -79,7 +79,7 @@ function FeedbackToast({
         gap: 8,
         shadowColor: colors.ink1,
         shadowOpacity: 0.12,
-        shadowRadius: 0,
+        shadowRadius: colors.skin === "pixel-street" ? 0 : 16,
         shadowOffset: { width: 0, height: 3 },
         elevation: 4,
       }}
@@ -88,13 +88,13 @@ function FeedbackToast({
         style={{
           width: 34,
           height: 34,
-          borderRadius: 8,
+          borderRadius: colors.components.controlRadius,
           backgroundColor: tint,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <PixelIcon
+        <SymbolIcon
           name={success ? "check" : error || warning ? "alert" : "info"}
           size={18}
           color={tone}
@@ -143,7 +143,7 @@ function FeedbackToast({
           justifyContent: "center",
         }}
       >
-        <PixelIcon name="close" size={14} color={colors.ink3} />
+        <SymbolIcon name="close" size={14} color={colors.ink3} />
       </Pressable>
     </View>
   );
@@ -196,7 +196,7 @@ export function PixelToasts({ modal = false }: { modal?: boolean }) {
   );
 }
 function Confirmation({ request }: { request: PixelAlertRequest }) {
-  const theme = usePixelTheme();
+  const theme = useTheme();
   const { colors } = theme;
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -220,7 +220,7 @@ function Confirmation({ request }: { request: PixelAlertRequest }) {
     progress.value = withTiming(1, {
       duration: 180,
       easing: Easing.out(Easing.cubic),
-      reduceMotion: ReduceMotion.Never,
+      reduceMotion: ReduceMotion.System,
     });
     AccessibilityInfo.announceForAccessibility(
       [request.title, request.message].filter(Boolean).join("。")
@@ -241,7 +241,7 @@ function Confirmation({ request }: { request: PixelAlertRequest }) {
       {
         duration: 140,
         easing: Easing.in(Easing.cubic),
-        reduceMotion: ReduceMotion.Never,
+        reduceMotion: ReduceMotion.System,
       },
       (finished) => {
         if (finished) runOnJS(finish)();
@@ -309,14 +309,14 @@ function Confirmation({ request }: { request: PixelAlertRequest }) {
                   height - insets.top - insets.bottom - 48
                 ),
                 backgroundColor: colors.canvas,
-                borderRadius: 12,
+                borderRadius: colors.components.dialogRadius,
                 borderWidth: 0.5,
                 borderColor: colors.lineStrong,
                 overflow: "hidden",
                 shadowColor: colors.ink1,
                 shadowOpacity: 0.2,
-                shadowRadius: 0,
-                shadowOffset: { width: 4, height: 4 },
+                shadowRadius: colors.skin === "pixel-street" ? 0 : 16,
+                shadowOffset: colors.skin === "pixel-street" ? { width: 4, height: 4 } : { width: 0, height: 6 },
                 elevation: 8,
               },
               motion,
@@ -341,13 +341,13 @@ function Confirmation({ request }: { request: PixelAlertRequest }) {
                 style={{
                   width: 36,
                   height: 36,
-                  borderRadius: 8,
+                  borderRadius: colors.components.controlRadius,
                   backgroundColor: tint,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <PixelIcon
+                <SymbolIcon
                   name={danger ? "alert" : "info"}
                   size={20}
                   color={tone}
@@ -400,7 +400,7 @@ function Confirmation({ request }: { request: PixelAlertRequest }) {
                     minHeight: 44,
                     paddingHorizontal: 12,
                     paddingVertical: 10,
-                    borderRadius: 8,
+                    borderRadius: colors.components.controlRadius,
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor:

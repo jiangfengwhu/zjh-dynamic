@@ -1,6 +1,7 @@
+import { Text } from "../../primitives/Typography";
 import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { themedStyleSheet, useTheme } from "../../theme";
+import { StyleSheet, View } from "react-native";
+import { createThemedStyles, useTheme } from "../../theme";
 import type { FeedFriend } from "../store";
 
 /** 一位朋友在动态里的身份：名字、字标、主色，以及可选的自绘头像。 */
@@ -8,6 +9,8 @@ export type Friend = FeedFriend;
 
 /** 头像。朋友自己画了头像就用它，没有就用主色底加一个字。 */
 export function FriendAvatar({ friend, size }: { friend: Friend; size: number }) {
+  const styles = useStyles();
+
   useTheme();
   const { Avatar } = friend;
   if (Avatar) {
@@ -74,7 +77,7 @@ export function FriendRing({
   );
 }
 
-const styles = themedStyleSheet((t) => ({
+const useStyles = createThemedStyles((t) => ({
   mark: {
     alignItems: "center",
     justifyContent: "center",

@@ -8,7 +8,8 @@
 
 | 功能 | 使用规则 |
 | --- | --- |
-| 页面 | 普通页面用 `Screen`、`ScreenBar`；自定义底栏直接用 `View` 和 `react-native-safe-area-context` 管理布局。系统导航栏已透明：贴底栏背景延伸至屏幕下沿，按钮内容只加一次底部 inset，下沿不留圆角；悬浮栏外侧与系统导航区保持页面背景色。不要重复安全区或隐藏系统栏。宿主统一避让键盘，不再套 KeyboardAvoidingView；长表单用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘、BottomSheet 和 Toast 容器；提示用 `app.toast`，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
+| 外观 | 默认继承用户皮肤；从 `/ui` 使用 `Text`、`Icon`、`Button`、`Input`、`Field`、`Surface`、`Dialog`、`ConfirmDialog`、`EmptyState`、`Loading`、`Skeleton`。自绘区域用 `useTheme().colors` 的颜色、typography、spacing、radius、components、motion，不硬编码整页字体和配色。需要独立品牌时用局部 `ThemeProvider skin="soft" mode="light"`，仅影响子树；不改全局 Text 或 TextInput。成熟功能直接使用共享库。 |
+| 页面 | 普通页面用 `Screen`、`ScreenBar`；自定义底栏用 `View` 和安全区库。导航栏已透明：贴底背景延伸至屏幕下沿，内容只加一次底部 inset；悬浮栏外侧与导航区用页面背景。不要重复安全区或隐藏系统栏。宿主统一避让键盘，不再套 KeyboardAvoidingView；长表单用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘、BottomSheet、Toast 容器；提示用 `app.toast`，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
 | 资源与存储 | 资源放 `assets/`，用 `app.assets.uri(name)`，不用 require 图片。文件与存储用 AppContext；文件路径相对应用目录，下载仅 HTTPS，不读取宿主凭据。 |
 | 图片与正文 | 使用 `MediaPicker`、`AppImage`、`RichMarkdown`。选图取消 `E_PICKER_CANCELLED` 不报错；临时文件上传或复制后 `cleanSingle`，不作永久地址、不删相册原件。Markdown 流式传 `markdown/streaming`，自定义链接用 `onLinkPress`。 |
 | 动态分享 | 用户点击才调用 `feed.share({ body, html, requestId })`，需先编辑用 `feed.compose`。body ≤2000 字、html ≤32 KB，至少一项；HTML 使用基础文本、a/img 和简单内联样式，不含脚本、事件属性、iframe、外部字体或样式表。媒体用稳定公开 HTTPS 地址；应用链接用 `zijinhua://app/<appId>`。失败重试复用 requestId，新操作换 ID（8–100 位字母、数字或短横线）。 |

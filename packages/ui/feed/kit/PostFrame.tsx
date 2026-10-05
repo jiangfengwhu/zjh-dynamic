@@ -19,10 +19,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { RichMarkdown } from "../../media/RichMarkdown";
 import { Pressy } from "../../chrome";
-import { themedStyleSheet, useTheme, type Theme } from "../../theme";
+import { createThemedStyles, useTheme, type Theme } from "../../theme";
 import type { FeedCardProps, FeedSlot } from "../store";
 import { FriendAvatar } from "./FriendAvatar";
-import { HeartGlyph } from "./glyphs";
+import { SymbolIcon } from "../../chrome/SymbolIcon";
 
 export const KIND_LABEL: Record<FeedSlot, string> = {
   welcome: "新朋友",
@@ -136,10 +136,10 @@ export function LikeButton({
       style={styles.action}
     >
       <Animated.View style={animated}>
-        <HeartGlyph
+        <SymbolIcon
+          name={liked ? "heart" : "heartOutline"}
           size={19}
           color={liked ? colors.red : colors.ink3}
-          filled={liked}
         />
       </Animated.View>
       <Text style={[styles.actionText, liked && { color: colors.red }]}>
@@ -157,7 +157,7 @@ export function PostBody({ post }: Pick<FeedCardProps, "post">) {
   return post.kind === "summary" ? (
     <RichMarkdown
       markdown={post.body}
-      fontFamily={compact ? "Fusion Pixel 12px Proportional SC" : colors.sans}
+      fontFamily={colors.typography.body}
       fontSize={13.5}
       lineHeight={19.5}
     />
@@ -263,10 +263,10 @@ const styleFactory = (t: Theme) => ({
     fontWeight: "500",
     color: t.ink3,
   },
-});
+} as const);
 
-const regularStyles = themedStyleSheet(styleFactory);
-const compactStyles = themedStyleSheet((t) => {
+const useRegularStyles = createThemedStyles(styleFactory);
+const useCompactStyles = createThemedStyles((t) => {
   const original = styleFactory(t);
   return Object.fromEntries(
     Object.entries(original).map(([name, style]) => [
@@ -283,5 +283,7 @@ const compactStyles = themedStyleSheet((t) => {
   ) as typeof original;
 });
 function useFeedStyles() {
+  const regularStyles = useRegularStyles();
+  const compactStyles = useCompactStyles();
   return useCompactFeed() ? compactStyles : regularStyles;
 }

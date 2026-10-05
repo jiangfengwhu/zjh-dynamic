@@ -5,7 +5,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { TabLabel } from "../TabAppearance";
-import { usePixelTheme } from "./pixelTheme";
+import { useTheme } from "../../../../../packages/ui/theme";
 import type { FeedCategory } from "./useFeedPager";
 
 const categories = ["installed", "recommended", "following"] as const;
@@ -18,7 +18,7 @@ export function FeedCategoryTabs({
   position: SharedValue<number>;
   onSelect: (category: FeedCategory) => void;
 }) {
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const [width, setWidth] = useState(0);
   const indicator = useAnimatedStyle(() => ({
     transform: [

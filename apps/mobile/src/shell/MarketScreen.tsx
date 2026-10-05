@@ -1,9 +1,10 @@
+import { TextInput } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
 import { ActivityIndicator } from "react-native";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, ScrollView, TextInput, View } from "react-native";
+import { FlatList, ScrollView, View } from "react-native";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
@@ -20,11 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
-import {
-  ThemeContext,
-  themedStyleSheet,
-  useTheme,
-} from "../../../../packages/ui/theme";
+import { ThemeContext, createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { loadCatalog, subscribeCatalog } from "./catalog";
 import { readShellValue, writeShellValue } from "./shellStorage";
@@ -42,8 +39,8 @@ import {
 } from "./market";
 import { CompactTabs } from "./CompactTabs";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
-import { PixelIcon } from "./feed/PixelKit";
-import { usePixelTheme, pixelTheme } from "./feed/pixelTheme";
+import { SymbolIcon } from "./feed/PixelKit";
+
 import { usePullToRefresh } from "./feed/pullToRefresh";
 import { PullRefreshSurface } from "./feed/PullRefreshSurface";
 import { useProfileDrawer } from "./ProfileDrawer";
@@ -62,7 +59,7 @@ type MarketProps = {
   onOpen: (id: string) => void;
 };
 export function MarketScreen(props: MarketProps) {
-  const theme = usePixelTheme();
+  const theme = useTheme();
   return (
     <ThemeContext.Provider value={theme}>
       <MarketContent {...props} />
@@ -70,6 +67,8 @@ export function MarketScreen(props: MarketProps) {
   );
 }
 function MarketContent(props: MarketProps) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   const [discoveryQuery, setDiscoveryQuery] = useState("");
   const [installedQuery, setInstalledQuery] = useState("");
@@ -128,7 +127,7 @@ function MarketContent(props: MarketProps) {
             onPress={props.onBack}
             style={{ width: 44 }}
           >
-            <PixelIcon name="back" size={20} color={colors.ink1} />
+            <SymbolIcon name="back" size={20} color={colors.ink1} />
           </Pressy>
         ) : null}
         <Text
@@ -138,7 +137,7 @@ function MarketContent(props: MarketProps) {
           应用市场
         </Text>
         <View style={[styles.searchBox, { flex: 1, minWidth: 0 }]}>
-          <PixelIcon name="search" size={15} color={colors.ink3} />
+          <SymbolIcon name="search" size={15} color={colors.ink3} />
           <TextInput
             accessibilityLabel={
               section === "discover" ? "搜索应用或用途" : "搜索已安装应用"
@@ -166,7 +165,7 @@ function MarketContent(props: MarketProps) {
               }}
               style={styles.clear}
             >
-              <PixelIcon name="close" size={14} color={colors.ink3} />
+              <SymbolIcon name="close" size={14} color={colors.ink3} />
             </Pressy>
           ) : null}
         </View>
@@ -233,6 +232,8 @@ function MarketDiscovery({
   onQueryChange: (query: string) => void;
   queryEdited: { current: boolean };
 }) {
+  const styles = useStyles();
+
   const { gesture: drawerGesture } = useProfileDrawer();
   const scrollY = useSharedValue(0);
   const lastSave = useSharedValue(0);
@@ -592,6 +593,8 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
   onOpen: (item: MarketApplication) => void;
   onAuthor: MarketProps["onAuthor"];
 }) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   const app = item.manifest;
   const Avatar = marketDefinition(item)?.avatar;
@@ -672,7 +675,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
           { backgroundColor: installed ? colors.greenTint : colors.cyanTint },
         ]}
       >
-        <PixelIcon
+        <SymbolIcon
           name={installed ? "check" : "arrow"}
           size={16}
           color={installed ? colors.greenText : colors.cyanText}
@@ -689,8 +692,8 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
     </Pressy>
   );
 });
-const styles = themedStyleSheet((base) => {
-  const t = pixelTheme(base);
+const useStyles = createThemedStyles((base) => {
+  const t = base;
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     caption: { fontSize: 11, lineHeight: 16, color: t.ink3 },

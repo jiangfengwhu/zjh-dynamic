@@ -1,34 +1,58 @@
-import { ScrollView, Text, View } from "react-native";
+import { useState } from "react";
+import { ScrollView, View } from "react-native";
+import { Text } from "../../../../packages/ui/primitives/Typography";
+import { Button } from "../../../../packages/ui/primitives/Button";
+import { Input } from "../../../../packages/ui/primitives/Input";
+import { Switch } from "../../../../packages/ui/primitives/Switch";
+import { Skeleton } from "../../../../packages/ui/feedback/Skeleton";
+import { ConfirmDialog } from "../../../../packages/ui/feedback/Dialog";
+import { EmptyState } from "../../../../packages/ui/feedback/EmptyState";
 import { Icon, PageHeader, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
-import { themedStyleSheet, useTheme, type ThemeMode } from "../../../../packages/ui/theme";
+import { skins, ThemeProvider, useTheme } from "../../../../packages/ui/theme";
 import { CompactTabs } from "./CompactTabs";
-
-type Props = { mode: ThemeMode; onMode: (mode: ThemeMode) => void; onBack: () => void };
-const options = [{ id: "dark", label: "深色" }, { id: "light", label: "浅色" }] as const;
-
-export function AppearanceScreen({ mode, onMode, onBack }: Props) {
-  const { colors } = useTheme();
-  return <Screen style={styles.screen}>
-    <PageHeader title="外观" caption="石墨、银灰与酸橙色" onBack={onBack} />
-    <ScrollView contentContainerStyle={styles.content}>
-      <CompactTabs value={mode} options={options} onChange={onMode} />
-      <Surface style={styles.preview}>
-        <View style={styles.previewHeading}><Icon name={mode === "dark" ? "moon" : "sun"} color={colors.accentText} size={24} /><View style={styles.copy}><Text accessibilityRole="header" style={styles.title}>{mode === "dark" ? "石墨深色" : "冷白浅色"}</Text><Text style={styles.hint}>当前配色即时应用到所有页面</Text></View><Icon name="check" size={18} color={colors.accentText} /></View>
-        <View style={styles.palette}>{[colors.canvas, colors.surface, colors.surfaceRaised, colors.ink1, colors.accent].map((color, index) => <View key={index} accessibilityLabel={["画布", "内容表面", "浮层", "正文", "强调色"][index]} style={[styles.swatch, { backgroundColor: color }]} />)}</View>
-        <Text style={styles.sampleTitle}>清晰的层级，紧凑的节奏</Text>
-        <Text style={styles.sampleBody}>用边界和字重区分内容，给动态、作品与操作留出恰好的空间。</Text>
-        <View style={styles.sampleRow}><Text style={styles.hint}>正文与次要信息</Text><Text style={styles.link}>操作强调</Text></View>
-      </Surface>
-      <Text style={styles.hint}>动效遵循手机的「减少动态效果」设置。</Text>
+const modes = [{ id: "system", label: "跟随系统" }, { id: "light", label: "浅色" }, { id: "dark", label: "深色" }] as const;
+export function AppearanceScreen({ onBack }: { onBack: () => void }) {
+  const { colors, skin, preference, setSkin, setMode } = useTheme();
+  return <Screen style={{ backgroundColor: colors.canvas }}>
+    <PageHeader title="外观" onBack={onBack} />
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: colors.spacing.page, gap: colors.spacing.section }}>
+      <Text variant="title">选择你的风格</Text>
+      <View style={{ gap: 8 }}>{skins.map(item => <Surface key={item.id}>
+        <Button label={item.title + (item.id === skin ? " · 已选择" : "")} intent={item.id === skin ? "brand" : "neutral"} variant="ghost" onPress={() => setSkin(item.id)} accessibilityState={{ selected: item.id === skin }} />
+        <Text variant="caption" style={{ paddingHorizontal: 16, paddingBottom: 12, color: colors.ink3 }}>{item.description}</Text>
+      </Surface>)}</View>
+      <Text variant="caption">显示模式</Text>
+      <CompactTabs value={preference} options={modes} onChange={setMode} />
+      <Text variant="title">组件预览</Text>
+      <ComponentPreview />
+      <Text variant="caption" style={{ color: colors.ink3 }}>局部风格预览 · 不改变你的外观设置</Text>
+      <ThemeProvider skin={skin === "soft" ? "pixel-street" : "soft"}><LocalPreview /></ThemeProvider>
+      <Text variant="caption" style={{ color: colors.ink3 }}>外观即时切换，动效遵循手机的减少动态效果设置。</Text>
     </ScrollView>
   </Screen>;
 }
-const styles = themedStyleSheet(t => ({
-  screen: { backgroundColor: t.canvas }, content: { padding: 16, gap: 12 },
-  preview: { padding: 16, gap: 12 }, previewHeading: { flexDirection: "row", alignItems: "center", gap: 12 }, copy: { flex: 1, gap: 2 },
-  title: { fontSize: 16, lineHeight: 22, fontWeight: "700", color: t.ink1 }, hint: { fontSize: 12, lineHeight: 18, color: t.ink3 },
-  palette: { flexDirection: "row", gap: 4 }, swatch: { flex: 1, height: 36, borderRadius: t.radius.xs, borderWidth: 0.5, borderColor: t.lineStrong },
-  sampleTitle: { fontSize: 21, lineHeight: 28, letterSpacing: -0.5, color: t.ink1, fontWeight: "700" }, sampleBody: { fontSize: 14, lineHeight: 21, color: t.ink2 },
-  sampleRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8, borderTopWidth: 0.5, borderTopColor: t.line, paddingTop: 12 }, link: { color: t.accentText, fontSize: 12, fontWeight: "600" },
-}));
+function LocalPreview() {
+  const { colors, skin } = useTheme();
+  return <Surface style={{ padding: 16, gap: 8 }}><View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}><Icon name="sun" color={colors.accentText} /><Text variant="title">{skin === "soft" ? "Soft" : "Pixel Street"}</Text></View><Text>同一组件，可拥有独立的局部外观。</Text></Surface>;
+}
+function ComponentPreview() {
+  const { colors } = useTheme();
+  const [draft, setDraft] = useState(""), [enabled, setEnabled] = useState(true), [open, setOpen] = useState(false), [message, setMessage] = useState("");
+  return <Surface style={{ padding: 16, gap: 16 }}>
+    <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}><Icon name="engine" color={colors.accentText} /><Text variant="title">清晰的层次与可靠的交互</Text></View>
+    <Text>字体、图标、轮廓和颜色共同跟随当前风格。</Text>
+    <Input label="输入预览" placeholder="试试输入，切换外观后内容仍会保留" value={draft} onChangeText={setDraft} helperText="支持系统字号与原生输入行为" />
+    <Switch checked={enabled} onCheckedChange={setEnabled} label="启用预览" />
+    <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+      <Button label="打开确认" onPress={() => setOpen(true)} />
+      <Button label="次要操作" variant="outline" intent="neutral" onPress={() => setMessage("已点击次要操作")} />
+      <Button label="不可用" disabled /><Button label="处理中" busy />
+    </View>
+    {message ? <Text accessibilityLiveRegion="polite" style={{ color: colors.greenText }}>{message}</Text> : null}
+    <View style={{ flexDirection: "row", gap: 4 }}>{[colors.canvas, colors.surface, colors.accent, colors.red, colors.green].map((color, index) => <View key={index} accessibilityLabel={["画布", "内容表面", "主动作", "错误", "成功"][index]} style={{ flex: 1, height: 24, backgroundColor: color, borderRadius: colors.radius.sm }} />)}</View>
+    <Skeleton width="72%" height={12} animated={false} />
+    <EmptyState style={{ padding: 8 }}><Text variant="caption" style={{ color: colors.ink3 }}>空状态预览</Text></EmptyState>
+    <ConfirmDialog open={open} onClose={() => setOpen(false)} title="确认预览操作" description="确认后展示操作完成反馈。" confirmLabel="确认" intent="brand" onConfirm={() => setMessage("预览操作已完成")} />
+  </Surface>;
+}

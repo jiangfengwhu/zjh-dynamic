@@ -26,12 +26,12 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { ThemeContext } from "../../../../packages/ui/theme";
-import { usePixelTheme } from "./feed/pixelTheme";
+import { useTheme } from "../../../../packages/ui/theme";
 
 const timing = {
   duration: 220,
   easing: Easing.out(Easing.cubic),
-  reduceMotion: ReduceMotion.Never,
+  reduceMotion: ReduceMotion.System,
 };
 let reveal: (() => void) | undefined;
 export function showProfileDrawer() {
@@ -72,7 +72,7 @@ export function ProfileDrawer({
   render: (close: () => void, dismiss: () => void) => ReactNode;
 }) {
   const { width: screenWidth } = useWindowDimensions();
-  const theme = usePixelTheme();
+  const theme = useTheme();
   const { colors } = theme;
   const drawerTheme = useMemo(
     () => ({ ...theme, colors: { ...colors, surface: colors.canvas } }),

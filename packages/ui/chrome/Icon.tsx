@@ -1,4 +1,4 @@
-import { PixelIcon, type PixelSymbol } from "./PixelIcon";
+import { SymbolIcon, type IconSymbol } from "./SymbolIcon";
 
 export type IconName =
   | "feed"
@@ -23,7 +23,7 @@ export type IconName =
   | "sun"
   | "moon";
 
-const names: Record<IconName, PixelSymbol> = {
+const names: Record<IconName, IconSymbol> = {
   feed: "feed",
   workshop: "spark",
   mine: "mine",
@@ -51,11 +51,12 @@ export function Icon({
   name,
   size = 22,
   color,
+  strokeWidth,
 }: {
   name: IconName;
   size?: number;
   color: string;
   strokeWidth?: number;
 }) {
-  return <PixelIcon name={names[name]} size={size} color={color} />;
+  return <SymbolIcon name={names[name]} size={size} color={color} strokeWidth={strokeWidth} />;
 }

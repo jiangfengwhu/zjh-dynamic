@@ -1,5 +1,4 @@
 export { FriendAvatar, FriendRing, type Friend } from "./FriendAvatar";
-export { BubbleGlyph, HeartGlyph } from "./glyphs";
 export {
   KIND_LABEL,
   LikeButton,

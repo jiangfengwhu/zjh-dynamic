@@ -1,9 +1,12 @@
+import { Text } from "../primitives/Typography";
 import type { ReactNode } from "react";
-import { Text, View } from "react-native";
-import { themedStyleSheet, useTheme } from "../theme";
+import { View } from "react-native";
+import { createThemedStyles, useTheme } from "../theme";
 
 /** 分组标题。句首大写、常规字重，不做大写字母和装饰。 */
 export function SectionTitle({ children, aside }: { children: string; aside?: ReactNode }) {
+  const styles = useStyles();
+
   useTheme();
   return (
     <View style={styles.row}>
@@ -13,7 +16,7 @@ export function SectionTitle({ children, aside }: { children: string; aside?: Re
   );
 }
 
-const styles = themedStyleSheet((t) => ({
+const useStyles = createThemedStyles((t) => ({
   row: {
     flexDirection: "row",
     alignItems: "center",

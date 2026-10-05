@@ -42,9 +42,9 @@ import { restoreWorks } from "./workRecovery";
 import { readMyWorks, workLabels, type MyWork } from "./works";
 import { WorkCard } from "./WorkCard";
 import { marketDefinition } from "./market";
-import { PixelIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "./feed/PixelKit";
 import { PixelText as Text } from "./feed/PixelText";
-import { usePixelTheme } from "./feed/pixelTheme";
+import { useTheme } from "../../../../packages/ui/theme";
 
 /** One collection per surface: creations on profiles, installs in the market. */
 export function MyApplicationsScreen({
@@ -79,7 +79,7 @@ export function MyApplicationsScreen({
     onRefresh: () => refresh(true),
   });
   const { user } = useAccount();
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const focused = useIsFocused() && active;
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
@@ -502,7 +502,7 @@ export function MyApplicationsScreen({
                             alignItems: "center",
                           }}
                         >
-                          <PixelIcon
+                          <SymbolIcon
                             name="send"
                             size={18}
                             color={colors.cyanText}
@@ -531,7 +531,7 @@ export function MyApplicationsScreen({
                         }}
                         style={{ width: 44, height: 44, alignItems: "center" }}
                       >
-                        <PixelIcon
+                        <SymbolIcon
                           name="edit"
                           size={18}
                           color={colors.orchidText}
@@ -547,7 +547,7 @@ export function MyApplicationsScreen({
                             alignItems: "center",
                           }}
                         >
-                          <PixelIcon
+                          <SymbolIcon
                             name="share"
                             size={18}
                             color={colors.redText}
@@ -564,7 +564,7 @@ export function MyApplicationsScreen({
                             alignItems: "center",
                           }}
                         >
-                          <PixelIcon
+                          <SymbolIcon
                             name="box"
                             size={18}
                             color={colors.greenText}
@@ -704,7 +704,7 @@ export function MyApplicationsScreen({
                         />
                       ) : (
                         <>
-                          <PixelIcon
+                          <SymbolIcon
                             name="refresh"
                             size={16}
                             color={colors.onAccent}
@@ -725,7 +725,7 @@ export function MyApplicationsScreen({
                     onPress={() => void installedDetail(app)}
                     style={{ width: 44, height: 44, alignItems: "center" }}
                   >
-                    <PixelIcon name="more" size={18} color={colors.ink3} />
+                    <SymbolIcon name="more" size={18} color={colors.ink3} />
                   </Pressy>
                 </View>
               </View>
@@ -734,7 +734,7 @@ export function MyApplicationsScreen({
           ListEmptyComponent={
             loaded || (!busy && !error) ? (
               <EmptyState>
-                <PixelIcon name="box" size={32} color={colors.orchidText} />
+                <SymbolIcon name="box" size={32} color={colors.orchidText} />
                 <Text style={{ color: colors.ink3, fontSize: 13 }}>
                   {term
                     ? "没有找到匹配的内容"

@@ -1,13 +1,16 @@
+import { Text } from "../primitives/Typography";
 import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { ScreenBar } from "../edge";
-import { themedStyleSheet, useTheme } from "../theme";
+import { createThemedStyles, useTheme } from "../theme";
 import { Icon } from "./Icon";
 import { Pressy } from "./Pressy";
-import { PixelIcon } from "./PixelIcon";
+import { SymbolIcon } from "./SymbolIcon";
 
 /** 返回键保持 44 点触控区域，与紧凑顶栏对齐。 */
 export function BackChip({ onPress }: { onPress: () => void }) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   return (
     <Pressy
@@ -36,6 +39,8 @@ export function PageHeader({
   right?: ReactNode;
   variant?: "default" | "pixel";
 }) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   return (
     <ScreenBar
@@ -58,7 +63,7 @@ export function PageHeader({
             scale={1}
             style={styles.back}
           >
-            <PixelIcon name="back" size={20} color={colors.ink1} />
+            <SymbolIcon name="back" size={20} color={colors.ink1} />
           </Pressy>
         ) : (
           <BackChip onPress={onBack} />
@@ -70,7 +75,7 @@ export function PageHeader({
           style={[
             styles.title,
             variant === "pixel" && {
-              fontFamily: colors.mono,
+              fontFamily: colors.typography.body,
               fontSize: 21,
               color: colors.ink1,
             },
@@ -93,7 +98,7 @@ export function PageHeader({
 /** 告诉 Screen：状态栏这一段由顶栏自己铺，页面根容器不必再留顶部安全区。 */
 PageHeader.providesBar = true;
 
-const styles = themedStyleSheet((t) => ({
+const useStyles = createThemedStyles((t) => ({
   bar: {
     flexDirection: "row",
     alignItems: "center",

@@ -2,12 +2,12 @@ import { ActivityIndicator } from "react-native";
 import { PixelText as Text } from "./PixelText";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import { PixelIcon } from "./PixelKit";
+import { SymbolIcon } from "./PixelKit";
 import Toast from "react-native-toast-message";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { useTheme } from "../../../../../packages/ui/theme";
 import type { ApplicationLink } from "./userPosts";
-import { pixelTheme } from "./pixelTheme";
+
 import { isApplicationInstalled } from "../market";
 import { subscribeCatalog } from "../catalog";
 import { useAccount } from "../account";
@@ -25,7 +25,7 @@ export function ApplicationPostCard({
   const inPixelFeed = ["#171322", "#F1EDF8", "#19152C", "#FFF9ED"].includes(
     context.colors.canvas
   );
-  const colors = inPixelFeed ? pixelTheme(context.colors) : context.colors;
+  const colors = inPixelFeed ? context.colors : context.colors;
   const [busy, setBusy] = useState(false);
   const [installed, setInstalled] = useState(false);
   const { user } = useAccount();
@@ -124,7 +124,7 @@ export function ApplicationPostCard({
         busy ? (
           <ActivityIndicator size="small" color={colors.accent} />
         ) : (
-          <PixelIcon name="arrow" size={18} color={colors.ink3} />
+          <SymbolIcon name="arrow" size={18} color={colors.ink3} />
         )
       ) : null}
     </Pressy>

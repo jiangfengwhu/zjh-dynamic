@@ -3,8 +3,8 @@ import { Pressable, View } from "react-native";
 import { MediaPicker } from "../../../../packages/ui/media/MediaPicker";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
 import { PixelText as Text } from "./feed/PixelText";
-import { PixelIcon } from "./feed/PixelKit";
-import { usePixelTheme } from "./feed/pixelTheme";
+import { SymbolIcon } from "./feed/PixelKit";
+import { useTheme } from "../../../../packages/ui/theme";
 import {
   retainDraftImage,
   existingDraftImages,
@@ -171,7 +171,7 @@ export function CreationImages({
   images: ReturnType<typeof useCreationImages>;
   disabled: boolean;
 }) {
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   return (
     <View style={{ gap: 8 }}>
       <View
@@ -206,7 +206,7 @@ export function CreationImages({
             opacity: disabled || images.photos.length >= 3 ? 0.5 : 1,
           }}
         >
-          <PixelIcon name="photo" size={16} color={colors.cyanText} />
+          <SymbolIcon name="photo" size={16} color={colors.cyanText} />
           <Text style={{ color: colors.cyanText, fontSize: 13 }}>
             {images.picking ? "正在选择…" : "添加图片"}
           </Text>
@@ -246,7 +246,7 @@ export function CreationImages({
                   gap: 5,
                 }}
               >
-                <PixelIcon name="close" size={10} color={colors.ink3} />
+                <SymbolIcon name="close" size={10} color={colors.ink3} />
                 <Text style={{ color: colors.ink3, fontSize: 11 }}>移除</Text>
               </Pressable>
             </View>

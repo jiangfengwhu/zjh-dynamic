@@ -6,7 +6,7 @@ import { Pressy } from "../../../../../packages/ui/chrome";
 import { CompactTabs } from "../CompactTabs";
 import { UserAvatar } from "../UserAvatar";
 import { PixelText as Text } from "../feed/PixelText";
-import { usePixelTheme } from "../feed/pixelTheme";
+import { useTheme } from "../../../../../packages/ui/theme";
 import { setAuthorFollow, type PublicAuthor } from "../feed/userPosts";
 import { usePullToRefresh } from "../feed/pullToRefresh";
 import { PullRefreshSurface } from "../feed/PullRefreshSurface";
@@ -37,7 +37,7 @@ export function ConnectionsScreen({ author, initialKind, onBack, onAuthor }: {
   </SocialFrame>;
 }
 function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAuthor; kind: RelationKind; active: boolean; onAuthor: (author: PublicAuthor) => void }) {
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const query = useSocialPage<RelationPage>({ name: `connections:${author.id}:${kind}`, empty: { authors: [], nextCursor: null }, active,
     read: cursor => readRelations(author.id, kind, cursor),
     merge: (previous, next, more) => more ? { ...next, authors: [...previous.authors, ...next.authors.filter(item => !previous.authors.some(old => old.author.id === item.author.id))] } : next });

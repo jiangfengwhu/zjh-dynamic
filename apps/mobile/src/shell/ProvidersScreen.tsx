@@ -1,16 +1,17 @@
+import { Text } from "../../../../packages/ui/primitives/Typography";
 import { useRouteContentReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
 import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { useDiscardChanges, confirmDiscard } from "./useDiscardChanges";
 import Toast from "react-native-toast-message";
 import { Icon, PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
-import { Input } from "../../../../packages/ui/shadcn/Input";
-import { Switch } from "../../../../packages/ui/shadcn/Switch";
-import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
+import { Input } from "../../../../packages/ui/primitives/Input";
+import { Switch } from "../../../../packages/ui/primitives/Switch";
+import { createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import {
   shellDeleteProvider,
   shellProviders,
@@ -36,6 +37,8 @@ const empty = {
 let cachedProviders: AiProvider[] | undefined;
 
 export function ProvidersScreen({ onBack }: Props) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   const [items, setItems] = useState<AiProvider[]>(() => cachedProviders ?? []);
   const [draft, setDraft] = useState(empty);
@@ -236,7 +239,7 @@ export function ProvidersScreen({ onBack }: Props) {
               <Text style={styles.defaultLabel}>设为默认引擎</Text>
               <Text style={styles.defaultHint}>创作和动态小结默认使用它</Text>
             </View>
-            <Switch disabled={busy} checked={draft.isDefault} onCheckedChange={(isDefault) => setDraft((current) => ({ ...current, isDefault }))} />
+            <Switch accessibilityLabel="设为默认引擎" disabled={busy} checked={draft.isDefault} onCheckedChange={(isDefault) => setDraft((current) => ({ ...current, isDefault }))} />
           </View>
 
           {error ? (
@@ -256,7 +259,7 @@ export function ProvidersScreen({ onBack }: Props) {
   );
 }
 
-const styles = themedStyleSheet((t) => ({
+const useStyles = createThemedStyles((t) => ({
   screen: {
     flex: 1,
     backgroundColor: t.canvas,

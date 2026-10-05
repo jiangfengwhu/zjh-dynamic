@@ -1,3 +1,4 @@
+import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { reconnectMessages } from "../social/api";
 import { useLiveVersion } from "../liveEvents";
 import { UserAvatar } from "../UserAvatar";
@@ -11,7 +12,7 @@ import { ActivityIndicator, FlatList } from "react-native";
 import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -38,7 +39,7 @@ import {
   type NoticePage,
   type NoticeCategory,
 } from "./notifications";
-import { usePixelTheme } from "./pixelTheme";
+
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
 
@@ -47,7 +48,7 @@ import PagerView, {
   type PagerViewOnPageSelectedEvent,
 } from "react-native-pager-view";
 import { CompactTabs } from "../CompactTabs";
-import { PixelIcon } from "./PixelKit";
+import { SymbolIcon } from "./PixelKit";
 const AnimatedPager = Animated.createAnimatedComponent(PagerView);
 type Props = {
   drawerGesture?: ReturnType<typeof Gesture.Pan>;
@@ -60,7 +61,7 @@ type Props = {
   onMessage: (peer: PublicAuthor) => void;
 };
 export function NotificationsScreen(props: Props) {
-  const theme = usePixelTheme();
+  const theme = useTheme();
   return (
     <ThemeContext.Provider value={theme}>
       <NotificationsPage {...props} />
@@ -148,7 +149,7 @@ function NotificationsPage(props: Props) {
               onPress={props.onBack}
               style={{ width: 44, height: 44, justifyContent: "center" }}
             >
-              <PixelIcon name="back" size={20} color={colors.ink1} />
+              <SymbolIcon name="back" size={20} color={colors.ink1} />
             </Pressy>
           ) : (
             <Text
@@ -191,7 +192,7 @@ function NotificationsPage(props: Props) {
             {marking ? (
               <ActivityIndicator color={colors.accent} />
             ) : (
-              <PixelIcon
+              <SymbolIcon
                 name="check"
                 size={20}
                 color={count ? colors.accentText : colors.ink3}

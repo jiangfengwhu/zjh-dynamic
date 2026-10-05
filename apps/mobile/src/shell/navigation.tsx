@@ -21,7 +21,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import type { MaterialTopTabBarProps } from "@react-navigation/material-top-tabs";
 import { TabBar, type ShellTabId } from "./TabBar";
-import { pixelTheme } from "./feed/pixelTheme";
+
 import { FeedScreen } from "./feed/FeedScreen";
 import {
   FeedChromeProvider,
@@ -57,11 +57,7 @@ import { AccountScreen } from "./AccountScreen";
 import { ProvidersScreen } from "./ProvidersScreen";
 import { AppInfoScreen } from "./AppInfoScreen";
 import { AppearanceScreen } from "./AppearanceScreen";
-import {
-  palettes,
-  useTheme,
-  type ThemeMode,
-} from "../../../../packages/ui/theme";
+import { useTheme, type ThemeMode, type ThemePreference } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { AsyncRouteScreen } from "./AsyncRouteScreen";
 import { cachedFeature, openFeature } from "../../../../packages/features/src/registry";
@@ -279,6 +275,7 @@ function BundlePage({ id, render }: {
   id: string;
   render: (id: string, onBack: () => void) => ReactNode;
 }) {
+
   // The runtime cache already enforces account access and quarantines failed packages.
   // Reopening an evaluated package must not replay the entrance loading state.
   const cachedOnEntry = useRef(Boolean(cachedFeature(id))).current;
@@ -327,7 +324,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
       }}
       style={[
         {
-          backgroundColor: pixelTheme(colors).canvas,
+          backgroundColor: colors.canvas,
           paddingBottom: keyboard
             ? 0
             : Math.max(SHELL_BOTTOM_PADDING, insets.bottom),
@@ -364,7 +361,7 @@ export type ShellNavigatorProps = {
   /** 在动态里对某位朋友说一句：去工坊，带着 TA 的名字起个头。 */
   onReplyToFriend: (id: string) => void;
   onCheckUpdates: () => Promise<boolean>;
-  onMode: (mode: ThemeMode) => void;
+  onMode: (mode: ThemePreference) => void;
   renderBundle: (id: string, onBack: () => void) => ReactNode;
 };
 
@@ -375,9 +372,10 @@ export function ShellNavigator(props: ShellNavigatorProps) {
     [props.listed]
   );
   const previous = useRef({ label: "", depth: 1 });
-  const colors = palettes[props.mode];
-  const theme = {
+  const { colors } = useTheme();
+  const theme = useMemo(() => ({
     ...DefaultTheme,
+    dark: props.mode === "dark",
     colors: {
       ...DefaultTheme.colors,
       background: colors.canvas,
@@ -386,7 +384,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
       border: colors.line,
       primary: colors.accent,
     },
-  };
+  }), [colors, props.mode]);
 
   useEffect(
     () => subscribePackageValue(SHELL_NAV_REQUEST, handleShellRequest),
@@ -763,11 +761,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
 
           <Stack.Screen name="appearance">
             {() => (
-              <AppearanceScreen
-                mode={props.mode}
-                onMode={props.onMode}
-                onBack={goBack}
-              />
+              <AppearanceScreen onBack={goBack} />
             )}
           </Stack.Screen>
           <Stack.Screen name="info">

@@ -11,9 +11,9 @@ import {
 } from "../../../../../packages/app-sdk/src/host-ui";
 import { JollyVideoPlayer } from "./ui/video";
 import { JollyPortrait } from "./ui/portrait";
-import { PixelIcon } from "../../../../../packages/ui/chrome/PixelIcon";
+import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
 import { PixelText as Text } from "../feed/PixelText";
-import { usePixelTheme as useProgressTheme } from "../../../../../packages/ui/pixelTheme";
+import { useTheme as useProgressTheme } from "../../../../../packages/ui/theme";
 import {
   progressLabels,
   progressState,
@@ -141,7 +141,7 @@ function ProgressContent({
             justifyContent: "center",
           }}
         >
-          <PixelIcon name="back" color={colors.ink1} />
+          <SymbolIcon name="back" color={colors.ink1} />
         </Pressable>
         <Text
           accessibilityRole="header"
@@ -238,7 +238,7 @@ function ProgressContent({
                         gap: 6,
                       }}
                     >
-                      <PixelIcon
+                      <SymbolIcon
                         name={
                           ready
                             ? "check"
@@ -322,7 +322,7 @@ function ProgressContent({
                         borderColor: current ? foreground : colors.line,
                       }}
                     >
-                      <PixelIcon
+                      <SymbolIcon
                         name={
                           done
                             ? "check"
@@ -355,7 +355,7 @@ function ProgressContent({
                 <View
                   style={{ flexDirection: "row", gap: 7, alignItems: "center" }}
                 >
-                  <PixelIcon name="info" size={14} color={colors.cyanText} />
+                  <SymbolIcon name="info" size={14} color={colors.cyanText} />
                   <Text style={{ color: colors.cyanText, fontSize: 12 }}>
                     进度暂未同步
                   </Text>
@@ -484,7 +484,7 @@ function RefreshButton({
           ],
         }}
       >
-        <PixelIcon name="refresh" size={18} color={colors.cyanText} />
+        <SymbolIcon name="refresh" size={18} color={colors.cyanText} />
       </Animated.View>
     </Pressable>
   );
@@ -502,7 +502,7 @@ function LoadingPanel({ failed }: { failed: boolean }) {
       }}
     >
       {failed ? (
-        <PixelIcon name="alert" size={24} color={colors.redText} />
+        <SymbolIcon name="alert" size={24} color={colors.redText} />
       ) : (
         <PageSkeleton rows={2} />
       )}

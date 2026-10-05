@@ -7,7 +7,7 @@ import { Screen } from "../../../../packages/ui/edge";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { ThemeContext } from "../../../../packages/ui/theme";
 import { PixelText as Text } from "./feed/PixelText";
-import { usePixelTheme } from "./feed/pixelTheme";
+import { useTheme } from "../../../../packages/ui/theme";
 import { PageSkeleton } from "./LoadingSkeleton";
 import { useRouteContentReady } from "./useRouteContentReady";
 
@@ -20,7 +20,7 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
   onBack: () => void;
 }) {
   useAccount();
-  const theme = usePixelTheme();
+  const theme = useTheme();
   const ready = useRouteContentReady();
   const focused = useIsFocused();
   const loader = useRef(load);

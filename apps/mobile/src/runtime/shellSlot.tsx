@@ -1,5 +1,6 @@
+import { Text } from "../../../../packages/ui/primitives/Typography";
 import { useSyncExternalStore, type ComponentType } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 type ShellComponent = ComponentType<Record<string, never>>;
 

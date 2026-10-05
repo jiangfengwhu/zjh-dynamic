@@ -8,13 +8,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
-import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
+import { createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import {
   useNotificationCount,
 } from "./feed/notifications";
 import { useMessageCount, useMessagesSync } from "./social/api";
-import { PixelIcon } from "./feed/PixelKit";
-import { pixelTheme } from "./feed/pixelTheme";
+import { SymbolIcon } from "./feed/PixelKit";
+
 
 export const SHELL_TABS = [
   { id: "feed", title: "动态", icon: "feed" },
@@ -33,7 +33,9 @@ export function TabBar({
   onChange: (id: ShellTabId) => void;
   onCompose: () => void;
 }) {
-  const colors = pixelTheme(useTheme().colors);
+  const styles = useStyles();
+
+  const colors = useTheme().colors;
   const unread = useNotificationCount() + useMessageCount();
   useMessagesSync();
   return (
@@ -55,14 +57,14 @@ export function TabBar({
         style={{
           width: 48,
           height: 48,
-          borderRadius: 24,
+          borderRadius: colors.components.controlRadius,
           alignSelf: "center",
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: colors.orchid,
         }}
       >
-        <PixelIcon name="plus" size={22} color={colors.onAccent} />
+        <SymbolIcon name="plus" size={22} color={colors.onOrchid} />
       </Pressy>
       {SHELL_TABS.slice(2).map((item) => (
         <Tab
@@ -87,13 +89,15 @@ function Tab({
   unread: number;
   onPress: () => void;
 }) {
+  const styles = useStyles();
+
   const theme = useTheme();
-  const colors = pixelTheme(theme.colors);
+  const colors = theme.colors;
   const progress = useSharedValue(active ? 1 : 0);
   useEffect(() => {
     progress.value = withTiming(active ? 1 : 0, {
       duration: 150,
-      reduceMotion: ReduceMotion.Never,
+      reduceMotion: ReduceMotion.System,
     });
   }, [active, progress]);
   const motion = useAnimatedStyle(() => ({
@@ -110,7 +114,7 @@ function Tab({
     >
       <Animated.View pointerEvents="none" style={[styles.selected, motion]} />
       <View style={styles.icon}>
-        <PixelIcon
+        <SymbolIcon
           name={item.icon}
           size={20}
           color={active ? colors.onAccent : colors.ink3}
@@ -125,7 +129,6 @@ function Tab({
         ) : null}
       </View>
       <Text
-        pixel
         numberOfLines={1}
         style={[
           styles.label,
@@ -137,14 +140,14 @@ function Tab({
     </Pressy>
   );
 }
-const styles = themedStyleSheet((base) => {
-  const t = pixelTheme(base);
+const useStyles = createThemedStyles((base) => {
+  const t = base;
   return {
     bar: {
       flexDirection: "row",
       backgroundColor: "transparent",
       marginHorizontal: 12,
-      borderRadius: 20,
+      borderRadius: t.radius.lg,
       paddingHorizontal: 8,
       paddingVertical: 8,
       gap: 8,
@@ -164,7 +167,7 @@ const styles = themedStyleSheet((base) => {
       bottom: 0,
       left: 0,
       right: 0,
-      borderRadius: 12,
+      borderRadius: t.radius.md,
       borderWidth: 0.5,
       borderColor: t.accentSoft,
       backgroundColor: t.accent,

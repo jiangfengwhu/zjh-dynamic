@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
-import { PixelIcon } from "../../chrome/PixelIcon";
+import { SymbolIcon } from "../../chrome/SymbolIcon";
 import { Pressy } from "../../chrome";
 import { useTheme } from "../../theme";
 import { FeedText } from "./FeedPresentation";
@@ -56,7 +56,7 @@ export function FeedActionBar({
         hitSlop={{ top: 6, bottom: 6 }}
         style={action}
       >
-        <PixelIcon name="chat" size={18} color={colors.ink3} />
+        <SymbolIcon name="chat" size={18} color={colors.ink3} />
         {comments ? (
           <FeedText style={{ fontSize: 12, color: colors.ink3 }}>
             {comments}
@@ -91,7 +91,7 @@ export function FeedActionBar({
         hitSlop={{ top: 6, bottom: 6 }}
         style={action}
       >
-        <PixelIcon name="share" size={18} color={colors.ink3} />
+        <SymbolIcon name="share" size={18} color={colors.ink3} />
       </Pressy>
     </View>
   );
@@ -183,7 +183,7 @@ function LikeGlyph({ liked, busy }: { liked: boolean; busy: boolean }) {
         </>
       }
       <Animated.View style={[heart, busy && { opacity: 0.35 }]}>
-        <PixelIcon
+        <SymbolIcon
           name={liked ? "heart" : "heartOutline"}
           size={18}
           color={liked ? colors.redText : colors.ink3}

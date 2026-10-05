@@ -4,7 +4,7 @@ import Animated, {
   useAnimatedStyle,
   type SharedValue,
 } from "react-native-reanimated";
-import { PixelIcon, type PixelSymbol } from "./feed/PixelKit";
+import { SymbolIcon, type IconSymbol } from "./feed/PixelKit";
 import { PixelText } from "./feed/PixelText";
 
 const AnimatedPixelText = Animated.createAnimatedComponent(PixelText);
@@ -19,7 +19,7 @@ export function TabLabel({
   inactiveColor,
 }: {
   label: string;
-  icon?: PixelSymbol;
+  icon?: IconSymbol;
   index: number;
   position: SharedValue<number>;
   activeColor: string;
@@ -45,9 +45,9 @@ export function TabLabel({
     >
       {icon ? (
         <View>
-          <PixelIcon name={icon} size={14} color={inactiveColor} />
+          <SymbolIcon name={icon} size={14} color={inactiveColor} />
           <Animated.View style={[StyleSheet.absoluteFill, iconStyle]}>
-            <PixelIcon name={icon} size={14} color={activeColor} />
+            <SymbolIcon name={icon} size={14} color={activeColor} />
           </Animated.View>
         </View>
       ) : null}

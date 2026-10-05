@@ -9,8 +9,7 @@ export type PressyProps = Omit<PressableProps, "style"> & { style?: StyleProp<Vi
 export function Pressy({ style, scale = 0.98, onPressIn, onPressOut, children, disabled, accessibilityState, ...rest }: PressyProps) {
   const { colors } = useTheme();
   const flat = StyleSheet.flatten(style);
-  // Older SDK consumers supply only the accent fill. Keep safe defaults, but
-  // explicit caller spacing and radius always win, including shorthand padding.
+  // Explicit caller spacing and radius always win, including shorthand padding.
   const primaryDefaults = flat?.backgroundColor === colors.accent ? {
     borderRadius: colors.radius.sm,
     paddingHorizontal: flat.paddingHorizontal ?? flat.padding ?? 12,
@@ -21,7 +20,7 @@ export function Pressy({ style, scale = 0.98, onPressIn, onPressOut, children, d
   return <AnimatedPressable accessibilityRole="button" {...rest} disabled={disabled}
     accessibilityState={{ ...accessibilityState, disabled: Boolean(disabled || accessibilityState?.disabled) }}
     onPressIn={(event: GestureResponderEvent) => {
-      pressed.value = withTiming(Math.max(0.9, Math.min(1, scale)), { duration: 90, reduceMotion: ReduceMotion.System });
+      pressed.value = withTiming(Math.max(0.9, Math.min(1, scale)), { duration: colors.motion.press, reduceMotion: ReduceMotion.System });
       onPressIn?.(event);
     }}
     onPressOut={(event: GestureResponderEvent) => {

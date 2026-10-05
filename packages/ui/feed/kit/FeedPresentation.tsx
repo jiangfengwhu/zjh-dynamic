@@ -1,5 +1,6 @@
+import { Text } from "../../primitives/Typography";
 import { createContext, useContext, type ComponentType } from "react";
-import { Text, type TextProps } from "react-native";
+import { type TextProps } from "react-native";
 
 /** Shared list edge for compact items and their separators. */
 export const COMPACT_FEED_INSET = 7;

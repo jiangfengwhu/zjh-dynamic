@@ -4,9 +4,9 @@ import { View } from "react-native";
 import { PixelText as Text } from "./PixelText";
 
 export {
-  PixelIcon,
-  type PixelSymbol,
-} from "../../../../../packages/ui/chrome/PixelIcon";
+  SymbolIcon,
+  type IconSymbol,
+} from "../../../../../packages/ui/chrome/SymbolIcon";
 
 export const mascotImage = defaultAvatarSource;
 export const PixelAvatar = memo(function PixelAvatar({ size = 48 }: { size?: number }) {

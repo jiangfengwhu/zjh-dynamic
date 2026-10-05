@@ -1,7 +1,7 @@
 import { useIsFocused } from "@react-navigation/native";
 import { View, type ActivityIndicatorProps } from "react-native";
-import { Skeleton } from "../../../../packages/ui/shadcn/Skeleton";
-import { usePixelTheme } from "./feed/pixelTheme";
+import { Skeleton } from "../../../../packages/ui/feedback/Skeleton";
+import { useTheme } from "../../../../packages/ui/theme";
 
 /** Shared compact busy placeholder for buttons and incremental loading. */
 export function LoadingSkeleton({
@@ -13,7 +13,7 @@ export function LoadingSkeleton({
   hidesWhenStopped: _hidesWhenStopped,
   ...props
 }: ActivityIndicatorProps) {
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const focused = useIsFocused();
   if (!animating) return null;
   return (
@@ -35,7 +35,7 @@ export function LoadingSkeleton({
 }
 
 export function PageSkeleton({ rows = 3 }: { rows?: number }) {
-  const { colors } = usePixelTheme();
+  const { colors } = useTheme();
   const focused = useIsFocused();
   return (
     <View

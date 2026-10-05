@@ -1,19 +1,22 @@
+import { Text } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
 import { ActivityIndicator } from "react-native";
 import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
 import { useRouteContentReady } from "./useRouteContentReady";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { FormField as TextInput } from "./FormField";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
-import { themedStyleSheet, useTheme } from "../../../../packages/ui/theme";
+import { createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import Toast from "react-native-toast-message";
 const toast = { success: (text: string) => Toast.show({ type: "success", text1: text }), error: (text: string) => Toast.show({ type: "error", text1: "操作未完成", text2: text, visibilityTime: 5000 }) };
 import { finishLoginRequest, chooseAccountAvatar, loginWithCode, logoutAccount, removeAccountAvatar, saveAccountName, sendLoginCode, useAccount } from "./account";
 
 export function AccountScreen({ onBack }: { onBack: () => void }) {
+  const styles = useStyles();
+
   const { colors } = useTheme();
   const { user, ready, storageError } = useAccount();
   const contentReady = useRouteContentReady();
@@ -76,7 +79,7 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
     {busy ? <View pointerEvents="none" style={{ position: "absolute", left: 24, right: 24, bottom: 24, padding: 16, backgroundColor: colors.surfaceRaised, flexDirection: "row", gap: 12, borderRadius: 16 }}><ActivityIndicator color={colors.accent} /><Text style={{ color: colors.ink1 }}>{uploadStatus || "正在处理，请稍候…"}</Text></View> : null}
   </Screen>;
 }
-const styles = themedStyleSheet(t => ({
+const useStyles = createThemedStyles(t => ({
   screen: { flex: 1, backgroundColor: t.canvas }, content: { padding: 16, paddingBottom: 12, gap: 12 },
   panel: { padding: 12, gap: 8, backgroundColor: t.surface, borderRadius: t.radius.md, borderWidth: 0.5, borderColor: t.line }, label: { color: t.ink1, fontSize: 13, fontWeight: "600" },
   hint: { color: t.muted, fontSize: 12, lineHeight: 18 }, message: { color: t.ink1, fontSize: 15, lineHeight: 24 },

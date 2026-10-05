@@ -1,24 +1,19 @@
-import {
-  createContext,
-  createElement,
-  useContext,
-  useMemo,
-  type ReactNode,
-} from "react";
-import { StyleSheet } from "react-native";
-import {
-  readPackageValue,
-  subscribePackageValue,
-  writePackageValue,
-} from "./packageLink";
+import { createContext, createElement, useContext, useMemo, type ReactNode } from "react";
+import { StyleSheet, useColorScheme } from "react-native";
 
 export type ThemeMode = "dark" | "light";
+export type ThemePreference = ThemeMode | "system";
+export type SkinId = "pixel-street" | "soft";
+export const skins: readonly { id: SkinId; title: string; description: string }[] = [
+  { id: "pixel-street", title: "Pixel Street", description: "像素字体、利落轮廓与多巴胺亮色" },
+  { id: "soft", title: "Soft", description: "系统字体、柔和圆角与清晰层次" },
+];
 
-export const fonts = {
+const fonts = {
   mono: "Fusion Pixel 12px Proportional SC",
   sans: "Fusion Pixel 12px Proportional SC",
   serif: "Fusion Pixel 12px Proportional SC",
-} as const;
+};
 
 const radius = {
   xs: 4,
@@ -31,8 +26,8 @@ const radius = {
   pill: 999,
 } as const;
 
-export type Theme = {
-  // Legacy / shell compatibility tokens
+type BaseTheme = {
+  // Semantic colors shared by the host and application UI.
   ink: string;
   inkRaised: string;
   line: string;
@@ -103,7 +98,7 @@ export type Theme = {
   radius: typeof radius;
 };
 
-export const palettes: Record<ThemeMode, Theme> = {
+const basePalettes: Record<ThemeMode, BaseTheme> = {
   dark: {
     // 石墨与银灰，酸橙仅用于主操作和选中状态。
     ink: "#141517",
@@ -234,91 +229,105 @@ export const palettes: Record<ThemeMode, Theme> = {
   },
 };
 
-const THEME_KEY = "theme.mode";
 
-let activeMode: ThemeMode = "dark";
-
-export const theme: Theme = { ...palettes.dark };
-
-function applyThemeMode(mode: ThemeMode) {
-  activeMode = mode;
-  Object.assign(theme, palettes[mode]);
+function pixelPalette(mode: ThemeMode): BaseTheme {
+  const dark = mode === "dark";
+  return {
+    ...basePalettes[mode],
+    canvas: dark ? "#19152C" : "#FFF9ED",
+    surface: dark ? "#25203A" : "#FFFFFF",
+    surfaceRaised: dark ? "#332B49" : "#F4ECFF",
+    inset: dark ? "#223C39" : "#E9F8F0",
+    line: dark ? "#42394D" : "#E9DFD7",
+    lineStrong: dark ? "#665575" : "#D2BFCF",
+    ink1: dark ? "#FFF6E8" : "#30233F",
+    ink2: dark ? "#DED2EC" : "#54455D",
+    ink3: dark ? "#BDB0CC" : "#796A7F",
+    accent: "#FFD337",
+    onAccent: "#30233F",
+    accentText: dark ? "#FFD337" : "#885400",
+    accentTint: dark ? "#493B20" : "#FFF0B5",
+    accentSoft: dark ? "#E79C35" : "#F4B83D",
+    red: "#F15B93",
+    redText: dark ? "#FF8DB8" : "#B82F65",
+    redTint: dark ? "#49263F" : "#FFE3EE",
+    green: "#42D7A1",
+    greenText: dark ? "#74E6B7" : "#087B57",
+    greenTint: dark ? "#223C39" : "#DFF8ED",
+    cyan: "#4E8DFF",
+    cyanText: dark ? "#91B9FF" : "#315CC4",
+    cyanTint: dark ? "#26324E" : "#E5EEFF",
+    orchid: "#AB76F5",
+    orchidText: dark ? "#C5A0FF" : "#7941B6",
+    orchidTint: dark ? "#35254A" : "#F1E5FF",
+  };
 }
 
-export function setActiveThemeMode(mode: ThemeMode) {
-  applyThemeMode(mode);
-  writePackageValue(THEME_KEY, mode);
-}
-
-const storedTheme = readPackageValue(THEME_KEY);
-if (storedTheme === "light" || storedTheme === "dark")
-  applyThemeMode(storedTheme);
-
-subscribePackageValue(THEME_KEY, (value) => {
-  if ((value === "light" || value === "dark") && value !== activeMode)
-    applyThemeMode(value);
-});
-
-export function getActiveThemeMode(): ThemeMode {
-  return activeMode;
-}
-
-export type ThemeContextValue = {
-  mode: ThemeMode;
-  colors: Theme;
-  setMode: (mode: ThemeMode) => void;
+export type Theme = BaseTheme & {
+  skin: SkinId; mode: ThemeMode; sans: string; onDanger: string; onOrchid: string;
+  typography: { body: string; mono: string; size: { body: number; title: number; caption: number }; lineHeight: { body: number; title: number; caption: number } };
+  spacing: { page: number; control: number; item: number; section: number };
+  motion: { press: number; transition: number };
+  components: { controlRadius: number; dialogRadius: number; surfaceBorder: number; controlHeight: number };
 };
-
-export const ThemeContext = createContext<ThemeContextValue>({
-  mode: "dark",
-  colors: palettes.dark,
-  setMode: (next: ThemeMode) => {
-    setActiveThemeMode(next);
-  },
-});
-
-export function ThemeProvider({
-  mode,
-  onMode,
-  children,
-}: {
-  mode: ThemeMode;
-  onMode: (mode: ThemeMode) => void;
-  children: ReactNode;
+const cache = new Map<string, Theme>();
+function freeze<T extends object>(value: T): T {
+  for (const child of Object.values(value)) if (child && typeof child === "object" && !Object.isFrozen(child)) freeze(child);
+  return Object.freeze(value);
+}
+export function getTheme(skin: SkinId, mode: ThemeMode): Theme {
+  const key = skin + ":" + mode;
+  const existing = cache.get(key);
+  if (existing) return existing;
+  const pixel = skin === "pixel-street", dark = mode === "dark";
+  const base = pixel ? pixelPalette(mode) : { ...basePalettes[mode],
+    canvas: dark ? "#141722" : "#F4F5FA", surface: dark ? "#1E2230" : "#FFFFFF",
+    surfaceRaised: dark ? "#292E40" : "#EDF0F8", field: dark ? "#242938" : "#FFFFFF", inset: dark ? "#191D29" : "#E9ECF4",
+    ink1: dark ? "#F3F4FC" : "#22283B", ink2: dark ? "#C7CCDE" : "#505A73", ink3: dark ? "#A5ADC7" : "#626C84",
+    line: dark ? "#353D54" : "#DBE0ED", lineStrong: dark ? "#59647E" : "#929CB3",
+    accent: dark ? "#B1A4FF" : "#6954CD", onAccent: dark ? "#211B3D" : "#FFFFFF", accentText: dark ? "#C9BEFF" : "#5942B8",
+    accentTint: dark ? "#34304E" : "#EEE9FF", accentSoft: dark ? "#7666BB" : "#C3B6F3", hover: dark ? "#34304E" : "#EEE9FF",
+    mono: "monospace", serif: "sans-serif", radius: { xs: 4, sm: 10, md: 14, lg: 18, xl: 22, xxl: 26, window: 22, pill: 999 },
+  };
+  const colors = freeze({ ...base, skin, mode, sans: pixel ? fonts.sans : "sans-serif", text: base.ink1, muted: base.ink3, ink: base.canvas, inkRaised: base.surfaceRaised,
+    gold: base.accent, goldDim: base.accentSoft, danger: base.red,
+    onDanger: dark || pixel ? "#30233F" : "#FFFFFF", onOrchid: dark || pixel ? "#30233F" : "#FFFFFF",
+    field: pixel ? base.surface : base.field, hover: pixel ? base.accentTint : base.hover,
+    mono: pixel ? fonts.mono : "monospace", serif: pixel ? fonts.serif : "sans-serif",
+    radius: pixel ? { xs: 0, sm: 0, md: 0, lg: 0, xl: 0, xxl: 0, window: 0, pill: 999 } : base.radius,
+    typography: { body: pixel ? fonts.sans : "sans-serif", mono: pixel ? fonts.mono : "monospace",
+      size: { body: 15, title: 21, caption: 12 }, lineHeight: { body: 23, title: 29, caption: 18 } },
+    spacing: { page: 16, control: 12, item: 8, section: 20 }, motion: { press: 90, transition: 180 },
+    components: { controlRadius: pixel ? 0 : 12, dialogRadius: pixel ? 0 : 22, surfaceBorder: pixel ? 1 : StyleSheet.hairlineWidth, controlHeight: 44 },
+  }) as Theme;
+  cache.set(key, colors);
+  return colors;
+}
+export type ThemeContextValue = {
+  mode: ThemeMode; preference: ThemePreference; skin: SkinId; colors: Theme;
+  setMode: (mode: ThemePreference) => void; setSkin: (skin: SkinId) => void;
+};
+const defaultTheme: ThemeContextValue = { mode: "dark", preference: "dark", skin: "pixel-street", colors: getTheme("pixel-street", "dark"), setMode: () => {}, setSkin: () => {} };
+export const ThemeContext = createContext<ThemeContextValue>(defaultTheme);
+export function ThemeProvider({ mode, skin, onMode, onSkin, children }: {
+  mode?: ThemePreference; skin?: SkinId; onMode?: (mode: ThemePreference) => void; onSkin?: (skin: SkinId) => void; children: ReactNode;
 }) {
-  setActiveThemeMode(mode);
-
-  const value = useMemo<ThemeContextValue>(
-    () => ({
-      mode,
-      colors: palettes[mode],
-      setMode: (next: ThemeMode) => {
-        setActiveThemeMode(next);
-        onMode(next);
-      },
-    }),
-    [mode, onMode]
-  );
-
+  const parent = useContext(ThemeContext), system = useColorScheme();
+  const preference = mode ?? parent.preference, activeSkin = skin ?? parent.skin;
+  const resolvedMode = preference === "system" ? (system === "light" ? "light" : "dark") : preference;
+  const value = useMemo<ThemeContextValue>(() => ({ mode: resolvedMode, preference, skin: activeSkin, colors: getTheme(activeSkin, resolvedMode),
+    setMode: onMode ?? (mode === undefined ? parent.setMode : () => {}),
+    setSkin: onSkin ?? (skin === undefined ? parent.setSkin : () => {}),
+  }), [resolvedMode, preference, activeSkin, onMode, onSkin, mode, skin, parent.setMode, parent.setSkin]);
   return createElement(ThemeContext.Provider, { value }, children);
 }
-
-export function useTheme(): ThemeContextValue {
-  return useContext(ThemeContext);
-}
-
-export function themedStyleSheet<
-  T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>
->(factory: (t: Theme) => T): T {
-  const cache: Partial<Record<ThemeMode, T>> = {};
-  return new Proxy({} as T, {
-    get(_, prop: string | symbol) {
-      const m = activeMode;
-      if (!cache[m]) {
-        Object.assign(theme, palettes[m]);
-        cache[m] = StyleSheet.create(factory(palettes[m]));
-      }
-      return (cache[m] as any)[prop];
-    },
-  });
+export function useTheme(): ThemeContextValue { return useContext(ThemeContext); }
+export function createThemedStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>>(factory: (theme: Theme) => T): () => T {
+  const styles = new WeakMap<Theme, T>();
+  return function useStyles() {
+    const { colors } = useTheme();
+    let value = styles.get(colors);
+    if (!value) { value = StyleSheet.create(factory(colors)); styles.set(colors, value); }
+    return value;
+  };
 }

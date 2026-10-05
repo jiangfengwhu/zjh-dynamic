@@ -1,3 +1,6 @@
+import Toast from "react-native-toast-message";
+import { Text } from "../../packages/ui/primitives/Typography";
+import { useTheme } from "../../packages/ui/theme";
 import type { ApkProgress } from "./src/shell/apkUpdates";
 import { ActivityIndicator } from "react-native";
 import { openCreationComposer } from "./src/shell/creationComposer";
@@ -10,7 +13,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { StatusBar, Text, View } from "react-native";
+import { StatusBar, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -33,20 +36,12 @@ import {
 import { openShellBundle, ShellNavigator } from "./src/shell/navigation";
 import { Icon, Pressy } from "../../packages/ui/chrome";
 import { BackButton } from "./src/shell/BackButton";
-import {
-  readPackageValue,
-  subscribePackageValue,
-} from "../../packages/ui/packageLink";
-import {
-  theme,
-  palettes,
-  themedStyleSheet,
-  type ThemeMode,
-} from "../../packages/ui/theme";
+import { createThemedStyles, type SkinId, type ThemePreference } from "../../packages/ui/theme";
 import { ThemeProvider } from "../../packages/ui/ThemeProvider";
-import { shellAppearance } from "../../packages/platform/src/shellCapabilities";
+
 import {
   readShellValue,
+  readShellValueSync,
   removeShellValue,
   writeShellValue,
 } from "./src/shell/shellStorage";
@@ -100,7 +95,17 @@ class FeatureBoundary extends Component<BoundaryProps, BoundaryState> {
 
   render() {
     if (this.state.error) {
-      return (
+      return <FeatureFailure {...this.props} />;
+    }
+    return this.props.children;
+  }
+}
+
+function FeatureFailure(props: BoundaryProps) {
+  const styles = useStyles();
+  const { colors: theme } = useTheme();
+
+  return (
         <View style={styles.boot}>
           <Icon name="alert" size={28} color={theme.accentText} />
           <Text accessibilityRole="header" style={styles.stateTitle}>
@@ -110,18 +115,37 @@ class FeatureBoundary extends Component<BoundaryProps, BoundaryState> {
             可以重新加载页面，或返回继续浏览。
           </Text>
           <View style={styles.recoveryActions}>
-            <Pressy onPress={this.props.onRetry} style={styles.retry}>
+            <Pressy onPress={props.onRetry} style={styles.retry}>
               <Text style={styles.retryText}>重新加载</Text>
             </Pressy>
-            <Pressy onPress={this.props.onBack} style={styles.backAction}>
+            <Pressy onPress={props.onBack} style={styles.backAction}>
               <Text style={styles.stateHint}>返回</Text>
             </Pressy>
           </View>
         </View>
-      );
-    }
-    return this.props.children;
-  }
+  );
+}
+
+type Appearance = { skin: SkinId; mode: ThemePreference };
+function storedAppearance(): Appearance {
+  try {
+    const value = JSON.parse(readShellValueSync("appearance.v2") ?? "null");
+    if (value && ["pixel-street", "soft"].includes(value.skin) && ["system", "light", "dark"].includes(value.mode)) return value;
+  } catch {}
+  return { skin: "pixel-street", mode: "system" };
+}
+function HostAppearance({ children }: { children: ReactNode }) {
+  const [appearance, setAppearance] = useState<Appearance>(storedAppearance);
+  useEffect(() => {
+    const idle = requestIdleCallback(() => {
+      try { writeShellValue("appearance.v2", JSON.stringify(appearance)); }
+      catch { Toast.show({ type: "error", text1: "外观设置未保存", text2: "当前外观仍可使用，请稍后重试" }); }
+    }, { timeout: 1000 });
+    return () => cancelIdleCallback(idle);
+  }, [appearance]);
+  return <ThemeProvider skin={appearance.skin} mode={appearance.mode}
+    onSkin={skin => setAppearance(current => ({ ...current, skin }))}
+    onMode={mode => setAppearance(current => ({ ...current, mode }))}>{children}</ThemeProvider>;
 }
 
 function App() {
@@ -134,7 +158,7 @@ function App() {
           preserveEdgeToEdge
         >
           <BottomSheetModalProvider>
-            <ShellApp />
+            <HostAppearance><ShellApp /></HostAppearance>
           </BottomSheetModalProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>
@@ -143,16 +167,19 @@ function App() {
 }
 
 function ShellApp() {
+  const styles = useStyles();
+  const { colors: theme } = useTheme();
+
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [pluginsReady, setPluginsReady] = useState(false);
   const [featureKey, setFeatureKey] = useState(0);
-  const [mode, setMode] = useState<ThemeMode>(storedThemeMode);
+  const { mode, setMode } = useTheme();
   const [updates, setUpdates] = useState<PendingPackage[]>([]);
   const [updateBusy, setUpdateBusy] = useState(false);
   const updateWorking = useRef(false);
   const [updateError, setUpdateError] = useState("");
   const [apkProgress, setApkProgress] = useState<ApkProgress>();
-  const appearanceWorking = useRef(false);
+
   useEffect(() => {
     const utils = (
       globalThis as {
@@ -208,22 +235,11 @@ function ShellApp() {
     };
   }, [pluginsReady]);
 
-  useEffect(() => {
-    return subscribePackageValue("theme.mode", (value) => {
-      if (value !== "light" && value !== "dark") return;
-      setMode((current) => (current === value ? current : value));
-    });
-  }, []);
 
   useEffect(() => {
     void (async () => {
       const started = Date.now();
       try {
-        const appearance = await shellAppearance().catch(() => ({
-          mode: "dark" as const,
-        }));
-        const nextMode = appearance.mode === "light" ? "light" : "dark";
-        setMode(nextMode);
         let stored = await loadCatalog();
         await restoreApplications();
         if (!(await readShellValue("application.bootstrap.v1"))) {
@@ -304,25 +320,6 @@ function ShellApp() {
     openCreationComposer({ appId: id, title });
   }
 
-  async function changeMode(next: ThemeMode) {
-    if (appearanceWorking.current) return;
-    appearanceWorking.current = true;
-    const previous = mode;
-    setMode(next);
-    try {
-      const result = await shellAppearance(next);
-      if (!result.ok) throw new Error("配色保存失败");
-    } catch (error) {
-      setMode(previous);
-      Toast.show({
-        type: "error",
-        text1: "配色未保存，已恢复",
-        text2: error instanceof Error ? error.message : "请重试",
-      });
-    } finally {
-      appearanceWorking.current = false;
-    }
-  }
 
   async function refreshUpdates(
     force = false,
@@ -379,9 +376,9 @@ function ShellApp() {
   }
 
   return (
-    <ThemeProvider mode={mode} onMode={(next) => void changeMode(next)}>
+    <>
       <View
-        style={[styles.container, { backgroundColor: palettes[mode].canvas }]}
+        style={[styles.container, { backgroundColor: theme.canvas }]}
       >
         <StatusBar
           barStyle={mode === "light" ? "dark-content" : "light-content"}
@@ -390,12 +387,12 @@ function ShellApp() {
           <View style={styles.boot}>
             <Text
               accessibilityRole="header"
-              style={[styles.stateTitle, { color: palettes[mode].ink1 }]}
+              style={[styles.stateTitle, { color: theme.ink1 }]}
             >
               紫金花
             </Text>
             <ActivityIndicator color={theme.accentText} />
-            <Text style={{ color: palettes[mode].ink3, fontSize: 12 }}>
+            <Text style={{ color: theme.ink3, fontSize: 12 }}>
               正在打开应用空间…
             </Text>
           </View>
@@ -409,7 +406,7 @@ function ShellApp() {
               const ready = await refreshUpdates(true, true);
               return ready.length > 0;
             }}
-            onMode={(next) => void changeMode(next)}
+            onMode={setMode}
             renderBundle={(id, onBack) => (
               <FeatureBoundary
                 resetKey={featureKey}
@@ -444,7 +441,7 @@ function ShellApp() {
         ) : null}
       </View>
       <PixelFeedback />
-    </ThemeProvider>
+    </>
   );
 }
 
@@ -457,6 +454,9 @@ function FeatureHost({
   onBack?: () => void;
   onError?: (message: string) => void;
 }) {
+  const styles = useStyles();
+  const { colors: theme } = useTheme();
+
   const [opened, setOpened] = useState<{
     id: string;
     component?: FeatureComponent;
@@ -556,10 +556,6 @@ function upsert(
   return [...entries.filter((item) => item.id !== id), nextEntry];
 }
 
-function storedThemeMode(): ThemeMode {
-  const value = readPackageValue("theme.mode");
-  return value === "light" ? "light" : "dark";
-}
 
 async function syncPlugins() {
   try {
@@ -573,7 +569,7 @@ async function syncPlugins() {
   }
 }
 
-const styles = themedStyleSheet(() => ({
+const useStyles = createThemedStyles((theme) => ({
   container: {
     flex: 1,
     backgroundColor: theme.canvas,
