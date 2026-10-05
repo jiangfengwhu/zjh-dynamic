@@ -1,4 +1,5 @@
 import { UserAvatar } from "../UserAvatar";
+import { JollyPortrait } from "../jolly/ui/portrait";
 import { EmptyState } from "../EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "../pageCache";
 import { ActivityIndicator, FlatList } from "react-native";
@@ -501,7 +502,11 @@ function NotificationsContent({
                         : colors.accentTint,
                     }}
                   >
-                    <UserAvatar uri={item.actor.avatarUrl} authorId={item.actor.id} size={40} />
+                    {item.kind.startsWith("work-") ? (
+                      <JollyPortrait size={40} />
+                    ) : (
+                      <UserAvatar uri={item.actor.avatarUrl} authorId={item.actor.id} size={40} />
+                    )}
                     <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                       <Text style={{ color: colors.ink1, fontSize: 14 }}>
                         {noticeHeading(item)}
