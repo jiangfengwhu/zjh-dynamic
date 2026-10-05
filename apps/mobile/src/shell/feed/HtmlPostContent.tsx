@@ -17,15 +17,19 @@ import Toast from "react-native-toast-message";
 import { useTheme } from "../../../../../packages/ui/theme";
 import { PixelText } from "./PixelText";
 import { htmlByteLength } from "./postDraft";
+import { htmlNativeStyles, prepareHtmlElement } from "./htmlStyles";
 
 const font = "Fusion Pixel 12px Proportional SC";
 const fonts = [font];
 const allowedStyles = [
   "color",
+  "background",
   "backgroundColor",
+  "border",
   "fontSize",
   "fontWeight",
   "fontStyle",
+  "letterSpacing",
   "textAlign",
   "textDecorationLine",
   "lineHeight",
@@ -43,9 +47,21 @@ const allowedStyles = [
   "borderWidth",
   "borderStyle",
   "borderRadius",
+  ...["Top", "Right", "Bottom", "Left"].flatMap((side) => [
+    `border${side}Color`, `border${side}Width`,
+  ]),
+  "borderTopLeftRadius",
+  "borderTopRightRadius",
+  "borderBottomLeftRadius",
+  "borderBottomRightRadius",
   "width",
   "height",
   "maxWidth",
+  "minWidth",
+  "flex",
+  "flexGrow",
+  "flexShrink",
+  "flexBasis",
   "display",
   "flexDirection",
   "flexWrap",
@@ -100,6 +116,11 @@ const ignoreNode: NonNullable<RenderHTMLProps["ignoreDomNode"]> = (
   return false;
 };
 const defaultTextProps = { selectable: false };
+const domVisitors = { onElement: prepareHtmlElement };
+function PostHtmlBlock(props: ComponentProps<CustomBlockRenderer>) {
+  const { TDefaultRenderer, tnode } = props;
+  return <TDefaultRenderer {...props} style={[props.style, htmlNativeStyles(tnode.attributes.style ?? "")]} />;
+}
 
 /** A document is rendered directly, independently of installed application bundles. */
 export const HtmlPostContent = memo(function HtmlPostContent({
@@ -128,6 +149,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
   );
   const renderers = useMemo<NonNullable<RenderHTMLProps["renderers"]>>(
     () => ({
+      div: PostHtmlBlock,
       img: function PostHtmlImage(props: ComponentProps<CustomBlockRenderer>) {
         const image = useIMGElementProps(props);
         return (
@@ -211,6 +233,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
           systemFonts={fonts}
           allowedStyles={allowedStyles}
           ignoreDomNode={ignoreNode}
+          domVisitors={domVisitors}
           defaultTextProps={defaultTextProps}
           renderersProps={renderersProps}
           renderers={renderers}

@@ -414,6 +414,7 @@ export function ComposePostScreen({
                 <TextInput
                   accessibilityLabel="HTML 源码"
                   multiline
+                  scrollEnabled
                   editable={draftReady && !busy}
                   value={html}
                   onChangeText={(value) => {
@@ -422,7 +423,7 @@ export function ComposePostScreen({
                   }}
                   maxLength={32768}
                   placeholder='<p style="color:#806020">分享你的创造</p>'
-                  style={styles.input}
+                  style={[styles.input, { height: 224 }]}
                   textAlignVertical="top"
                   autoCapitalize="none"
                   autoCorrect={false}
