@@ -1,6 +1,6 @@
 import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { reconnectMessages } from "../social/api";
-import { useLiveVersion } from "../liveEvents";
+import { dispatchLiveEvent, useLiveVersion } from "../liveEvents";
 import { UserAvatar } from "../UserAvatar";
 import { InboxContent } from "../social/InboxContent";
 import { useMessageCount } from "../social/api";
@@ -8,7 +8,7 @@ import type { PublicAuthor } from "./userPosts";
 import { JollyPortrait } from "../jolly/ui/portrait";
 import { EmptyState } from "../EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "../pageCache";
-import { ActivityIndicator, FlatList } from "react-native";
+import { ActivityIndicator, AppState, FlatList, type ViewToken } from "react-native";
 import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
@@ -121,6 +121,7 @@ function NotificationsPage(props: Props) {
     setMarking(true);
     try {
       await markNotificationsRead();
+      dispatchLiveEvent({ type: "notification" });
     } catch (cause) {
       Toast.show({
         type: "error",
@@ -240,10 +241,21 @@ function NotificationsContent({
 }: Props & { category: NoticeCategory; active: boolean }) {
   const { colors } = useTheme();
   const { user } = useAccount();
-  const totalCount = useNotificationCount();
   const focused = useIsFocused() && active;
+  const [foreground, setForeground] = useState(AppState.currentState === "active");
+  const visible = useRef(new Set<string>());
+  const seen = useRef(new Set<string>());
+  const readFlight = useRef(false);
+  const readTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const readVisible = useRef<() => void>(() => {});
+  const viewabilityConfig = useRef({ minimumViewTime: 600, itemVisiblePercentThreshold: 50 }).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken<Notice>[] }) => {
+    visible.current = new Set(viewableItems.filter(item => item.isViewable).map(item => item.item.id));
+    readVisible.current();
+  }).current;
   const cacheKey = pageCacheKey(`notices:${category}`);
   const [page, setPage] = useState<NoticePage>(() => cachedPage<NoticePage>(cacheKey) ?? { notices: [], nextCursor: null, unreadCount: 0 });
+  const pageRef = useRef(page); pageRef.current = page;
   const [loading, setLoading] = useState(Boolean(user));
   const [loaded, setLoaded] = useState(() => !!cachedPage(cacheKey));
   const [loadingMore, setLoadingMore] = useState(false);
@@ -278,12 +290,30 @@ function NotificationsContent({
         : Gesture.Native().requireExternalGestureToFail(gesture),
     [drawerGesture, gesture]
   );
-  function remember(next: NoticePage) {
-    rememberPage(cacheKey, next);
-    setPage(next);
-  }
+  readVisible.current = () => {
+    if (!focused || !foreground || !user || readFlight.current || readTimer.current !== undefined) return;
+    const owner = user.id;
+    const before = revision.current;
+    readTimer.current = setTimeout(() => {
+      readTimer.current = undefined;
+      if (!alive.current || before !== revision.current) return;
+      const ids = pageRef.current.notices.filter(item => !item.read && !seen.current.has(item.id) && visible.current.has(item.id)).map(item => item.id).slice(0, 100);
+      if (!ids.length) return;
+      readFlight.current = true;
+      void markNotificationsRead(ids).then(async result => {
+        if (!alive.current || before !== revision.current || await currentAccountId() !== owner) return;
+        ids.forEach(id => seen.current.add(id));
+        setPage(previous => {
+          const next = { ...previous, unreadCount: result.unreadCount, unreadByCategory: result.unreadByCategory,
+            notices: previous.notices.map(item => seen.current.has(item.id) ? { ...item, read: true } : item) };
+          rememberPage(cacheKey, next);
+          return next;
+        });
+      }).then(() => { readFlight.current = false; readVisible.current(); }, () => { readFlight.current = false; });
+    }, 200);
+  };
   async function load(more = false) {
-    if (!user || writing.current || (more && !page.nextCursor)) return false;
+    if (!user || (more && !page.nextCursor)) return false;
     if (reading.current) {
       if (!more) again.current = true;
       return false;
@@ -335,6 +365,7 @@ function NotificationsContent({
               ],
             }
           : result;
+        next.notices = next.notices.map(item => seen.current.has(item.id) ? { ...item, read: true } : item);
         rememberPage(cacheKey, next);
         return next;
       });
@@ -376,20 +407,13 @@ function NotificationsContent({
     return () => cancelIdleCallback(idle);
   }, [page, user?.id, category]);
   useEffect(() => {
-    if (totalCount === 0)
-      setPage((previous) =>
-        previous.notices.some((item) => !item.read)
-          ? {
-              ...previous,
-              unreadCount: 0,
-              notices: previous.notices.map((item) => ({
-                ...item,
-                read: true,
-              })),
-            }
-          : previous
-      );
-  }, [totalCount]);
+    const subscription = AppState.addEventListener("change", state => setForeground(state === "active"));
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (focused && foreground) readVisible.current();
+    return () => { if (readTimer.current !== undefined) clearTimeout(readTimer.current); readTimer.current = undefined; };
+  }, [focused, foreground, page]);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -398,6 +422,8 @@ function NotificationsContent({
   }, []);
   useEffect(() => {
     revision.current++;
+    seen.current.clear();
+    visible.current.clear();
     const cached = cachedPage<NoticePage>(cacheKey);
     setPage(cached ?? { notices: [], nextCursor: null, unreadCount: 0 });
     firstCursor.current = cached?.nextCursor ?? null;
@@ -408,35 +434,18 @@ function NotificationsContent({
     setError("");
   }, [user?.id]);
   useEffect(() => {
-    if (!focused) return;
+    if (!user || !foreground) return;
     const idle = requestIdleCallback(() => {
       void load(false);
     });
     return () => cancelIdleCallback(idle);
-  }, [focused, user?.id, noticeVersion]);
-  async function act(notice?: Notice) {
+  }, [focused, foreground, user?.id, noticeVersion]);
+  async function act(notice: Notice) {
     if (writing.current || !user) return;
     writing.current = true;
     setActing(true);
-    revision.current++;
-    const owner = user.id;
     try {
-      if (notice && !(await onOpen(notice))) return;
-      if (!alive.current || (await currentAccountId()) !== owner) return;
-      const result = await markNotificationsRead(
-        notice ? [notice.id] : undefined
-      );
-      if (!alive.current || (await currentAccountId()) !== owner) return;
-      remember({
-        ...page,
-        unreadCount: result.unreadCount,
-        unreadByCategory: result.unreadByCategory,
-        notices: page.notices.map((item) =>
-          (!notice || item.id === notice.id) && item.createdAt <= result.before
-            ? { ...item, read: true }
-            : item
-        ),
-      });
+      await onOpen(notice);
     } catch (cause) {
       if (alive.current)
         Toast.show({
@@ -465,6 +474,8 @@ function NotificationsContent({
                 data={user ? page.notices : []}
                 contentContainerStyle={!user || !page.notices.length ? { flexGrow: 1 } : undefined}
                 keyExtractor={(item) => item.id}
+                viewabilityConfig={viewabilityConfig}
+                onViewableItemsChanged={onViewableItemsChanged}
                 onScroll={onScroll}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}

@@ -62,10 +62,15 @@ export function useMessagesSync() {
   const { user } = useAccount();
   useEffect(() => {
     let live = true, socket: WebSocket | undefined, opening = false;
+    let retry: ReturnType<typeof setTimeout> | undefined, attempt = 0;
     let lastVersion = 0;
     let fallbackUsed = false;
     const fallback = () => { if (!live || cachedAccountId() !== user?.id || fallbackUsed) return; fallbackUsed = true; syncUnread(); void syncNotificationCount().catch(() => {}); };
     const valid = (next: WebSocket) => live && socket === next && cachedAccountId() === user?.id && AppState.currentState === "active";
+    const scheduleReconnect = () => {
+      if (!live || !user || retry !== undefined || cachedAccountId() !== user.id || AppState.currentState !== "active") return;
+      retry = setTimeout(() => { retry = undefined; void connect(); }, Math.min(30000, 1000 * 2 ** Math.min(attempt++, 5)));
+    };
     const connect = async () => {
       if (!user || !live || AppState.currentState !== "active" || opening || socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) return;
       opening = true;
@@ -74,7 +79,7 @@ export function useMessagesSync() {
         if (!live || cachedAccountId() !== user.id || AppState.currentState !== "active") { next.close(); return; }
         socket = next;
         fallbackUsed = false;
-        next.onopen = () => {}; // The server sends one authoritative initial snapshot.
+        next.onopen = () => { attempt = 0; }; // The server sends one authoritative initial snapshot.
         next.onmessage = event => {
           if (!valid(next)) return;
           try {
@@ -93,16 +98,16 @@ export function useMessagesSync() {
           } catch {}
         };
         next.onerror = () => { if (valid(next)) fallback(); };
-        next.onclose = event => { if (socket !== next) return; socket = undefined; if (live && event.code === 1000 && event.reason === "Reconnect") void connect(); };
-      } catch { fallback(); } finally { opening = false; }
+        next.onclose = () => { if (socket !== next) return; socket = undefined; fallback(); scheduleReconnect(); };
+      } catch { fallback(); scheduleReconnect(); } finally { opening = false; }
     };
     const ensure = () => { void connect(); };
     reconnect = ensure;
     ensure();
     const subscription = AppState.addEventListener("change", state => {
-      if (state === "active") ensure();
-      else { socket?.close(); socket = undefined; }
+      if (state === "active") { attempt = 0; ensure(); }
+      else { if (retry !== undefined) clearTimeout(retry); retry = undefined; const previous = socket; socket = undefined; previous?.close(); }
     });
-    return () => { live = false; socket?.close(); subscription.remove(); if (reconnect === ensure) reconnect = undefined; };
+    return () => { live = false; if (retry !== undefined) clearTimeout(retry); socket?.close(); subscription.remove(); if (reconnect === ensure) reconnect = undefined; };
   }, [user?.id]);
 }

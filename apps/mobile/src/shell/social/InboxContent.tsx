@@ -14,7 +14,7 @@ import { SocialEmpty, SocialError } from "./SocialLayout";
 export function InboxContent({ active, onMessage, drawerGesture }: { active: boolean; onMessage: (peer: PublicAuthor) => void; drawerGesture?: ReturnType<typeof Gesture.Pan> }) {
   const { colors } = useTheme();
   const version = useInboxVersion();
-  const query = useSocialPage<InboxPage>({ name: "messages:inbox", authenticated: true, active, version,
+  const query = useSocialPage<InboxPage>({ name: "messages:inbox", authenticated: true, backgroundRefresh: true, active, version,
     empty: { conversations: [], unreadCount: 0, nextCursor: null }, read: readInbox,
     merge: (previous, next, more) => more ? { ...next, conversations: [...previous.conversations, ...next.conversations.filter(item => !previous.conversations.some(old => old.peer.id === item.peer.id))] } : next });
   const scrollY = useSharedValue(0), scroll = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
