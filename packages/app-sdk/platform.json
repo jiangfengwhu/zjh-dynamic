@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "sdk": "3.0.0",
+  "sdk": "4.0.0",
   "engineAbi": "rn-0.87.1-hermes-250829098.0.17",
   "shared": {
     "@react-native-community/blur": "4.4.1",
@@ -22,7 +22,6 @@
     "react-native-gifted-charts": "1.4.78",
     "react-native-image-crop-picker": "0.52.0",
     "react-native-keyboard-controller": "1.22.5",
-    "react-native-linear-gradient": "2.8.3",
     "react-native-nitro-image": "0.15.2",
     "react-native-pager-view": "9.0.5",
     "react-native-pdf": "7.0.5",
@@ -40,9 +39,10 @@
     "react/jsx-dev-runtime": "19.2.3",
     "react-native-enriched-markdown": "1.1.0",
     "react-native-nitro-web-image": "0.15.2",
-    "tamagui": "2.7.7",
     "react-hook-form": "7.89.0",
-    "@tanstack/react-query": "5.104.1"
+    "@tanstack/react-query": "5.104.1",
+    "react-native-audio-api": "0.13.6",
+    "react-native-vision-camera-barcode-scanner": "5.2.3"
   },
   "reservedModules": {
     "jolly": 2000000

@@ -1,8 +1,12 @@
 export { Icon, type IconName } from "../../ui/chrome/Icon";
-export type { ApplicationTamaguiConfig, ApplicationThemeName } from "./tamagui-config";
+export { Pressy, type PressyProps } from "../../ui/chrome/Pressy";
+export { Surface, type SurfaceTone } from "../../ui/chrome/Surface";
 export { useTheme, ThemeProvider, createThemedStyles, getTheme, skins, type Theme, type ThemeMode, type ThemePreference, type SkinId, type ThemeContextValue } from "../../ui/theme";
+export * from "../../ui/primitives";
 export { Skeleton, type SkeletonProps } from "../../ui/feedback/Skeleton";
 export { EmptyState } from "../../ui/feedback/EmptyState";
+export { Loading } from "../../ui/feedback/Loading";
+export { Dialog, ConfirmDialog, type DialogProps, type ConfirmDialogProps } from "../../ui/feedback/Dialog";
 export { AppImage } from "../../ui/media/AppImage";
 export { RichMarkdown } from "../../ui/media/RichMarkdown";
 export type { RichMarkdownProps } from "../../ui/media/RichMarkdown";

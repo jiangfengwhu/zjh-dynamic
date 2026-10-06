@@ -1,6 +1,5 @@
 import type { ComponentType } from "react";
 import type { AiService } from "./ai-types";
-export type { ApplicationTamaguiConfig, ApplicationThemeName } from "./tamagui-config";
 export type {
   AiProvider,
   AiMessage,

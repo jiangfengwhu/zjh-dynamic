@@ -8,7 +8,7 @@ import { useTheme } from "../theme";
 export type DialogProps = { open: boolean; onClose: () => void; title: string; children?: ReactNode; footer?: ReactNode; dismissible?: boolean };
 export function Dialog({ open, onClose, title, children, footer, dismissible = true }: DialogProps) {
   const { colors } = useTheme();
-  return <DialogFrame open={open} title={title} onClose={onClose} dismissible={dismissible}>
+  return <DialogFrame open={open} onClose={onClose} dismissible={dismissible}>
     <View style={{ gap: colors.spacing.item }}>
       <Text variant="title" accessibilityRole="header">{title}</Text>
       {children}

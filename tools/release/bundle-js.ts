@@ -306,8 +306,7 @@ async function vendorInputs(mobileDir: string): Promise<string> {
 }
 
 const earlyPackages = new Set(["react-native-get-random-values", "react-native-gesture-handler", "react-native-reanimated"]);
-// Installed only to satisfy Tamagui's web peer dependency; native entry points do not need the DOM renderer.
-const toolingPackages = new Set(["react-dom"]);
+const toolingPackages = new Set<string>();
 
 /** 扫出仓库里所有第三方引用，写成 vendor-libs.js。vendor 借它把这些库全部收进来，app 里就不再带任何第三方模块。 */
 async function writeVendorLibs(repoRoot: string, mobileDir: string) {
@@ -332,7 +331,7 @@ async function collectPackageSpecifiers(dir: string, specifiers: Set<string>) {
     return;
   }
   for (const name of names) {
-    if (name === "node_modules") continue;
+    if (name === "node_modules" || name === "dist" || name === ".git") continue;
     const full = path.join(dir, name);
     const info = await stat(full);
     if (info.isDirectory()) {

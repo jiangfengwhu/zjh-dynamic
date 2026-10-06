@@ -1,4 +1,5 @@
-import { notify as Toast, NotificationProvider } from "../../packages/ui/feedback/Toasts";
+import { notify as Toast } from "../../packages/ui/feedback/Toasts";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { ApplicationQueries } from "../../packages/app-sdk/src/query-runtime";
 import { Text } from "../../packages/ui/primitives/Typography";
 import { useTheme } from "../../packages/ui/theme";
@@ -157,7 +158,7 @@ function App() {
           navigationBarTranslucent
           preserveEdgeToEdge
         >
-            <HostAppearance><NotificationProvider><ApplicationQueries appId="__host"><ShellApp /></ApplicationQueries></NotificationProvider></HostAppearance>
+            <HostAppearance><BottomSheetModalProvider><ApplicationQueries appId="__host"><ShellApp /></ApplicationQueries></BottomSheetModalProvider></HostAppearance>
         </KeyboardProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

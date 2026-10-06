@@ -39,8 +39,6 @@ export const phone = {
     shell<{ ok: boolean; items: { name: string; address: string; rssi: number }[] }>("bluetoothScan", { seconds }),
   nfcStatus: () => shell<{ ok: boolean; present: boolean; enabled: boolean }>("nfcStatus"),
   nfcRead: (seconds = 20) => shell<{ ok: boolean; id: string; text: string }>("nfcRead", { seconds }),
-  recordStart: () => shell<{ ok: boolean; path: string }>("recordStart"),
-  recordStop: () => shell<{ ok: boolean; path: string; bytes: number; ms: number }>("recordStop"),
   smsList: (box: "inbox" | "sent" = "inbox", limit = 30) =>
     shell<{ ok: boolean; items: { address: string; body: string; dateMs: number }[] }>("smsList", { box, limit }),
   smsSend: (to: string, body: string) => shell("smsSend", { to, body }),

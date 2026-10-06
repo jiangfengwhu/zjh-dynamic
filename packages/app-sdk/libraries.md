@@ -8,8 +8,8 @@
 - Markdown：Enriched Markdown 提供原生渲染与流式展示。
 - 列表：普通列表用 `FlatList`，大量内容可用 FlashList；PagerView 提供分页手势，导航 tab 负责路由。
 - 绘图：SVG 适合矢量内容，Skia 适合画布；图表库提供现成图表。
-- 选择器：普通选项使用 Tamagui Select；日期时间、照片裁剪是独立能力，文件导入使用 SDK。
-- UI：Tamagui 提供布局、表单和交互组件，宿主已接入皮肤；复杂原生能力仍按需使用专用库。
+- 选择器：普通选项使用原生控件；日期时间、照片裁剪是独立能力，文件导入使用 SDK。
+- UI：SDK 提供可选的皮肤与基础控件；成熟专业库按需直接使用。
 
 | 标准 import 入口                         | 固定版本 |
 | ---------------------------------------- | -------- |
@@ -33,7 +33,8 @@
 | `react-native-gifted-charts`             | 1.4.78   |
 | `react-native-image-crop-picker`         | 0.52.0   |
 | `react-native-keyboard-controller`       | 1.22.5   |
-| `react-native-linear-gradient`           | 2.8.3    |
+| `react-native-audio-api`                 | 0.13.6   |
+| `react-native-vision-camera-barcode-scanner` | 5.2.3 |
 | `react-native-nitro-image`               | 0.15.2   |
 | `react-native-nitro-web-image`           | 0.15.2   |
 | `react-native-pager-view`                | 9.0.5    |
@@ -48,7 +49,6 @@
 | `react-native-webview`                   | 14.0.1   |
 | `react-native-worklets`                  | 0.13.0   |
 | `zod`                                    | 4.6.5    |
-| `tamagui`                                | 2.7.7    |
 | `react/jsx-runtime`                      | 19.2.3   |
 | `react/jsx-dev-runtime`                  | 19.2.3   |
 | `react-hook-form` | 7.89.0 |

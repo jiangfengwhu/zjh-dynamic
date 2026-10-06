@@ -14,7 +14,6 @@ import { applicationNativeModule, applicationReanimatedModule, applicationCalend
 const modules: Record<string, () => unknown> = {
   "react-hook-form": () => require("react-hook-form"),
   "@tanstack/react-query": () => require("@tanstack/react-query"),
-  "tamagui": () => require("tamagui"),
   "react-native-enriched-markdown": () => require("react-native-enriched-markdown"),
   "react-native-nitro-web-image": () => require("react-native-nitro-web-image"),
   "@react-native-community/blur": () => require("@react-native-community/blur"),
@@ -36,7 +35,8 @@ const modules: Record<string, () => unknown> = {
   "react-native-gifted-charts": () => require("react-native-gifted-charts"),
   "react-native-image-crop-picker": () => require("react-native-image-crop-picker"),
   "react-native-keyboard-controller": () => require("react-native-keyboard-controller"),
-  "react-native-linear-gradient": () => require("react-native-linear-gradient"),
+  "react-native-audio-api": () => require("react-native-audio-api"),
+  "react-native-vision-camera-barcode-scanner": () => require("react-native-vision-camera-barcode-scanner"),
   "react-native-nitro-image": () => require("react-native-nitro-image"),
   "react-native-pager-view": () => require("react-native-pager-view"),
   "react-native-pdf": () => require("react-native-pdf"),

@@ -52,7 +52,7 @@ components:
 
 ## Typography
 
-Pixel Street 正文使用 Fusion Pixel 12px Proportional SC，Soft 使用系统字体，等宽角色使用主题的 mono。字体由 Tamagui 主题与 `packages/ui/primitives/Typography.tsx` 宿主适配提供，尊重显式 fontFamily，保留原生 ref、字号缩放、选择和可访问语义；不替换 React Native 全局 Text 或 TextInput。字体文件及授权在 `apps/mobile/src/shell/feed/assets/font`，遵守 OFL；不将正文转成位图。
+Pixel Street 正文使用 Fusion Pixel 12px Proportional SC，Soft 使用系统字体，等宽角色使用主题的 mono。字体由皮肤主题与 `packages/ui/primitives/Typography.tsx` 宿主适配提供，尊重显式 fontFamily，保留原生 ref、字号缩放、选择和可访问语义；不替换 React Native 全局 Text 或 TextInput。字体文件及授权在 `apps/mobile/src/shell/feed/assets/font`，遵守 OFL；不将正文转成位图。
 
 ## Layout
 
@@ -72,7 +72,7 @@ Pixel Street 框架默认直角，Soft 使用主题定义的柔和圆角。按�
 
 App 图标使用深紫底、金色五瓣像素紫金花及淡紫花芯，桌面图标、启动页和应用信息共用同一形象；用户默认头像仍使用像素伙伴。Jolly 头像统一使用 jolly_idle 内置首帧，制作通知按类型识别 Jolly，静态头像不加载视频。
 
-语义颜色、字体、Icon／SymbolIcon 和共享媒体组件由 packages/ui 统一提供。Pixel Glyph 与线性图标由皮肤选择；基础组件统一使用 Tamagui；宿主内部适配按钮意图、输入标签、确认行为与皮肤形状。SDK 仅暴露主题、图标、EmptyState、Skeleton 和媒体能力。皮肤不得改变权限、数据状态、禁用语义或触控热区。复用已有按钮、确认弹窗、toast、分页、刷新指示器与 NewDataNotice，不为同一能力另造组件。关注／粉丝与私信沿用像素字体、统一头像和连续行列表；自己的私信使用亮黄气泡，发送与私信入口用兰紫，关注用亮黄，未读会话以淡兰紫提示。共享切换栏不加整体外框，保留黄色、薄荷绿等多巴胺亮色选中背景，标签颜色同步跟随分页进度。可点击目标至少 44 点；视觉图标可以更小，热区仍需完整。
+语义颜色、字体、Icon／SymbolIcon 和共享媒体组件由 packages/ui 统一提供。Pixel Glyph 与线性图标由皮肤选择；基础组件保留原生布局和交互；宿主内部适配按钮意图、输入标签、确认行为与皮肤形状。SDK 提供可选基础控件、主题、图标、EmptyState、Skeleton 和媒体能力。皮肤不得改变权限、数据状态、禁用语义或触控热区。复用已有按钮、确认弹窗、toast、分页、刷新指示器与 NewDataNotice，不为同一能力另造组件。关注／粉丝与私信沿用像素字体、统一头像和连续行列表；自己的私信使用亮黄气泡，发送与私信入口用兰紫，关注用亮黄，未读会话以淡兰紫提示。共享切换栏不加整体外框，保留黄色、薄荷绿等多巴胺亮色选中背景，标签颜色同步跟随分页进度。可点击目标至少 44 点；视觉图标可以更小，热区仍需完整。
 
 ## Do's and Don'ts
 
@@ -81,10 +81,10 @@ App 图标使用深紫底、金色五瓣像素紫金花及淡紫花芯，桌面�
 
 ## Runtime ownership
 
-`theme.ts` 定义四套不可变主题，ThemeProvider 仅负责子树选择，不写存储；createThemedStyles 按主题对象缓存样式。primitives 通过 Tamagui 提供原生属性与 ref 完整的宿主基础交互，chrome 提供表面、图标和页面结构，feedback 提供加载、空状态和弹窗。成熟共享库直接使用，不维护 beautiful／shadcn 演示集合。
+`theme.ts` 定义四套不可变主题，ThemeProvider 仅负责子树选择，不写存储；createThemedStyles 按主题对象缓存样式。primitives 提供原生属性与 ref 完整的宿主基础交互，chrome 提供表面、图标和页面结构，feedback 提供加载、空状态和弹窗。成熟共享库直接使用，不维护 beautiful／shadcn 演示集合。
 
 宿主 App 的 HostAppearance 持有偏好；外观页仅提供皮肤和显示模式选择，即时修改上下文，空闲时保存到 MMKV。皮肤切换不重载应用，不丢失草稿、路由和列表状态。应用模块入口为原生 Text、TextInput 及动画文字补充所属主题的默认字体，保留显式字体与原生属性，不修改 React Native 全局导出。动态 HTML 统一跟随皮肤字体，忽略内联 font-family，代码区域使用主题等宽字体。
 
 SDK 公共 UI 只提供主题令牌、图标、空态、骨架与有实际能力的媒体适配，不提供宿主顶栏、返回按钮、安全区容器、动态卡片或制作输入栏。布局与成熟功能交给原生组件和共享库，不保留旧应用兼容入口。
 
-基础交互、卡片、Dialog、Sheet、Slider、Select 和 Toast 统一由 Tamagui 实现。宿主配置主题、手势、安全区、键盘、ToastProvider 与 Viewport；应用无需重复配置。表单状态使用 React Hook Form，请求与内存页面缓存使用 TanStack Query，持久化仍由既有存储承担。
+基础交互与反馈恢复原生组件和既有皮肤实现。表单状态使用 React Hook Form，请求与内存页面缓存使用 TanStack Query，持久化仍由既有存储承担。
