@@ -54,3 +54,4 @@
 | `react-hook-form` | 7.89.0 |
 | `@tanstack/react-query` | 5.104.1 |
 | `react-native-permissions` | 5.6.2 |
+| `@gorhom/bottom-sheet` | 5.2.14 |

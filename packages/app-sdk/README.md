@@ -11,7 +11,7 @@
 | 功能 | 使用规则 |
 | --- | --- |
 | 外观 | 布局、顶栏和交互自由设计，可选用 `/ui` 的主题、基础控件、图标、空态、骨架和媒体适配。默认继承用户皮肤，自绘样式用 `useTheme().colors` 的语义令牌；局部外观可用 ThemeProvider。不修改全局 Text 或 TextInput。 |
-| 页面 | 需要独立路由时可使用导航库，退出应用用 `app.navigation.back()`。安全区由布局处理一次；系统栏已透明，背景铺到屏幕边缘，底部内容避让 inset。宿主应用页面已避让键盘，独立原生 Modal 需自行处理；长表单可用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘容器；弹层可用 SDK Dialog 或原生 Modal，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
+| 页面 | 需要独立路由时可使用导航库，退出应用用 `app.navigation.back()`。安全区由布局处理一次；系统栏已透明，背景铺到屏幕边缘，底部内容避让 inset。宿主应用页面已避让键盘，独立原生 Modal 需自行处理；长表单可用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘容器；弹层可用 SDK Dialog、原生 Modal 或 `@gorhom/bottom-sheet`；使用 BottomSheetModal 时在应用内提供 BottomSheetModalProvider，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
 | 表单与请求 | 表单用 `react-hook-form` 的 Controller 连接输入组件；Zod 按需校验。请求用 `@tanstack/react-query`，宿主已提供按应用和账号隔离的 QueryClient，不再创建 Provider。queryFn 使用 signal；默认无轮询、自动重试、聚焦或联网刷新。缓存回访保留内容，需更新时手动 refetch／invalidateQueries；切换账号取消请求并清理内存缓存。 |
 | 反馈与系统能力 | 简单提示用 `app.toast.show`。复制与触觉用 `app.clipboard`、`app.haptics`，不另引入同类库。 |
 | 资源与存储 | 资源放 `assets/`，用 `app.assets.uri(name)`，不用 require 图片。默认数据保存在本机、跨账号共用；需账号隔离用 `app.scope("account")`，设备共享用 `app.scope("device")`，两者均提供 storage、secureStorage、files。账号作用域随登录切换，游客独立；订阅自动更新，异步操作遇到账号切换失败，勿应用旧结果。文件路径相对应用目录、不能含 `..`；下载仅 HTTPS。 |

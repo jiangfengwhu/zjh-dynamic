@@ -1,7 +1,5 @@
 import { pluginCall } from "./pluginHost";
 
-export type ForegroundType = "dataSync" | "mediaPlayback" | "location" | "camera" | "microphone" | "connectedDevice";
-
 export function shellCapabilities() {
   return pluginCall<{ ok: boolean; methods: string[] }>("shell", "capabilities", {});
 }
@@ -26,14 +24,6 @@ export function shellSchedules() {
   );
 }
 
-export function shellStartForeground(input: { title: string; body?: string; type?: ForegroundType }) {
-  return pluginCall("shell", "startForeground", input);
-}
-
-export function shellStopForeground() {
-  return pluginCall("shell", "stopForeground", {});
-}
-
 export function shellShare(input: { text?: string; title?: string; path?: string; mime?: string }) {
   return pluginCall("shell", "share", input);
 }
@@ -50,12 +40,8 @@ export function shellLocation(accuracy: "fine" | "coarse" = "fine") {
   );
 }
 
-export function shellPick(kind: "image" | "video" | "audio" | "file" = "file") {
-  return pluginCall<{ ok: boolean; path?: string; name?: string; error?: string }>("shell", "pick", { kind });
-}
-
-export function shellCapturePhoto() {
-  return pluginCall<{ ok: boolean; path?: string; error?: string }>("shell", "capturePhoto", {});
+export function shellPick(mime = "*/*") {
+  return pluginCall<{ ok: boolean; path?: string; name?: string; error?: string }>("shell", "pick", { kind: "file", mime });
 }
 
 export function shellInstallPackage(path: string) {

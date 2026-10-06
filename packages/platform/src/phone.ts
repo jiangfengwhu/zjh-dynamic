@@ -1,5 +1,4 @@
 import { pluginCall } from "./pluginHost";
-import Clipboard from "@react-native-clipboard/clipboard";
 
 export type ShellResult = { ok: boolean; error?: string };
 
@@ -9,8 +8,6 @@ export function shell<T extends ShellResult>(method: string, payload: Record<str
 
 export const phone = {
   device: () => shell<{ ok: boolean; brand: string; model: string; sdk: number; battery: number; charging: boolean }>("device"),
-  clipboardGet: async () => ({ ok: true, text: await Clipboard.getString() }),
-  clipboardSet: async (text: string) => { Clipboard.setString(text); return { ok: true }; },
   contacts: (query = "", limit = 40) =>
     shell<{ ok: boolean; items: { name: string; number: string }[] }>("contacts", { query, limit }),
   calendarEvents: (fromMs: number, toMs: number) =>
