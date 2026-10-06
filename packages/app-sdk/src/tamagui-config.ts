@@ -8,7 +8,6 @@ type Palette = {
   ink1: string; ink2: string; ink3: string; line: string; lineStrong: string;
   accent: string; onAccent: string; accentText: string; accentTint: string;
   hover: string; redText: string; greenText: string; sans: string; mono: string;
-  components: { controlRadius: number; dialogRadius: number };
 };
 export type ApplicationThemeName = "light_pixel" | "dark_pixel" | "light_soft" | "dark_soft";
 
@@ -42,7 +41,6 @@ function palette(p: Palette) {
     accent: p.accent, onAccent: p.onAccent, accentText: p.accentText,
     danger: p.redText, success: p.greenText,
     body: p.sans, heading: p.sans, mono: p.mono,
-    controlRadius: p.components.controlRadius, dialogRadius: p.components.dialogRadius,
   };
 }
 
@@ -84,10 +82,8 @@ function configuration(palettes: Record<ApplicationThemeName, Palette>): Configu
     settings: { defaultFont: "body", styleCompat: "react-native" } as const,
     defaultProps: {
       Text: { fontFamily: "$body", color: "$color" },
-      Button: { borderRadius: "$controlRadius" },
-      Input: { borderRadius: "$controlRadius" },
-      TextArea: { borderRadius: "$controlRadius" },
-      Card: { borderRadius: "$dialogRadius" },
+      Input: { placeholderTextColor: "$placeholderColor", selectionColor: "$accent" },
+      TextArea: { placeholderTextColor: "$placeholderColor", selectionColor: "$accent" },
     },
   };
 }
