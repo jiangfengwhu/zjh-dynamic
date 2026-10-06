@@ -1,6 +1,6 @@
 {
   "name": "@zijinhua/app-sdk",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Zijinhua application SDK and independent build/publish tools",
   "type": "commonjs",
   "main": "dist/index.js",
@@ -99,6 +99,10 @@
     "zod": "4.6.5",
     "react-native-enriched-markdown": "1.1.0",
     "react-native-nitro-web-image": "0.15.2",
-    "@native-html/render": "1.0.3"
+    "@native-html/render": "1.0.3",
+    "tamagui": "2.7.7",
+    "react-dom": "19.2.3",
+    "@tamagui/animations-react-native": "2.7.7",
+    "@tamagui/core": "2.7.7"
   }
 }

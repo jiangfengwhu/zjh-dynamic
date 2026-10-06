@@ -9,6 +9,7 @@
 - 列表：普通列表用 `FlatList`，大量内容可用 FlashList；PagerView 提供分页手势，导航 tab 负责路由。
 - 绘图：SVG 适合矢量内容，Skia 适合画布；图表库提供现成图表。
 - 选择器：日期时间、普通选项、照片裁剪和文档选择是不同能力，按需求使用。
+- UI：Tamagui 提供布局、表单和交互组件，宿主已接入皮肤；复杂原生能力仍按需使用专用库。
 
 | 标准 import 入口                         | 固定版本 |
 | ---------------------------------------- | -------- |
@@ -55,5 +56,6 @@
 | `react-native-webview`                   | 14.0.1   |
 | `react-native-worklets`                  | 0.13.0   |
 | `zod`                                    | 4.6.5    |
+| `tamagui`                                | 2.7.7    |
 | `react/jsx-runtime`                      | 19.2.3   |
 | `react/jsx-dev-runtime`                  | 19.2.3   |

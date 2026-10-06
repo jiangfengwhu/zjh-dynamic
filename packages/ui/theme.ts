@@ -1,5 +1,8 @@
 import { createContext, createElement, useContext, useMemo, type ReactNode } from "react";
 import { StyleSheet, useColorScheme } from "react-native";
+import { TamaguiProvider } from "tamagui";
+import { createApplicationTamaguiConfig } from "../app-sdk/src/tamagui-config";
+import "./tamagui-native";
 
 export type ThemeMode = "dark" | "light";
 export type ThemePreference = ThemeMode | "system";
@@ -307,6 +310,10 @@ export type ThemeContextValue = {
   mode: ThemeMode; preference: ThemePreference; skin: SkinId; colors: Theme;
   setMode: (mode: ThemePreference) => void; setSkin: (skin: SkinId) => void;
 };
+const tamaguiConfig = createApplicationTamaguiConfig({
+  light_pixel: getTheme("pixel-street", "light"), dark_pixel: getTheme("pixel-street", "dark"),
+  light_soft: getTheme("soft", "light"), dark_soft: getTheme("soft", "dark"),
+});
 const defaultTheme: ThemeContextValue = { mode: "dark", preference: "dark", skin: "pixel-street", colors: getTheme("pixel-street", "dark"), setMode: () => {}, setSkin: () => {} };
 export const ThemeContext = createContext<ThemeContextValue>(defaultTheme);
 export function ThemeProvider({ mode, skin, onMode, onSkin, children }: {
@@ -319,7 +326,8 @@ export function ThemeProvider({ mode, skin, onMode, onSkin, children }: {
     setMode: onMode ?? (mode === undefined ? parent.setMode : () => {}),
     setSkin: onSkin ?? (skin === undefined ? parent.setSkin : () => {}),
   }), [resolvedMode, preference, activeSkin, onMode, onSkin, mode, skin, parent.setMode, parent.setSkin]);
-  return createElement(ThemeContext.Provider, { value }, children);
+  return createElement(ThemeContext.Provider, { value },
+    createElement(TamaguiProvider, { config: tamaguiConfig, defaultTheme: `${resolvedMode}_${activeSkin === "pixel-street" ? "pixel" : "soft"}` }, children));
 }
 export function useTheme(): ThemeContextValue { return useContext(ThemeContext); }
 export function createThemedStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>>(factory: (theme: Theme) => T): () => T {

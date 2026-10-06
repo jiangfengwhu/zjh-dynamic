@@ -12,6 +12,7 @@ import { runningApplication } from "./applications";
 import { applicationNativeModule, applicationReanimatedModule, applicationCalendarsModule } from "./applicationTypography";
 
 const modules: Record<string, () => unknown> = {
+  "tamagui": () => require("tamagui"),
   "react-native-enriched-markdown": () => require("react-native-enriched-markdown"),
   "react-native-nitro-web-image": () => require("react-native-nitro-web-image"),
   "@d11/react-native-fast-image": () => require("@d11/react-native-fast-image"),

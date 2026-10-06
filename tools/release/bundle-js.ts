@@ -306,6 +306,8 @@ async function vendorInputs(mobileDir: string): Promise<string> {
 }
 
 const earlyPackages = new Set(["react-native-get-random-values", "react-native-gesture-handler", "react-native-reanimated"]);
+// Installed only to satisfy Tamagui's web peer dependency; native entry points do not need the DOM renderer.
+const toolingPackages = new Set(["react-dom"]);
 
 /** 扫出仓库里所有第三方引用，写成 vendor-libs.js。vendor 借它把这些库全部收进来，app 里就不再带任何第三方模块。 */
 async function writeVendorLibs(repoRoot: string, mobileDir: string) {
@@ -315,7 +317,7 @@ async function writeVendorLibs(repoRoot: string, mobileDir: string) {
   for (const root of roots) await collectPackageSpecifiers(root, specifiers);
   collectFromSource(await readIfExists(path.join(mobileDir, "App.tsx")).then((bytes) => bytes.toString("utf8")), specifiers);
   const lines = [...specifiers]
-    .filter((item) => item.length > 0 && !item.startsWith(".") && !item.startsWith("@zijinhua/") && !earlyPackages.has(item))
+    .filter((item) => item.length > 0 && !item.startsWith(".") && !item.startsWith("@zijinhua/") && !earlyPackages.has(item) && !toolingPackages.has(item))
     .sort();
   const body = `globalThis.__zijinhuaVendorLibraries = {\n${lines.map((item) => `${JSON.stringify(item)}: () => require(${JSON.stringify(item)}),`).join("\n")}\n};`;
   await writeFile(path.join(mobileDir, "vendor-libs.js"), `${body}\n`);

@@ -9,6 +9,7 @@
 | 功能 | 使用规则 |
 | --- | --- |
 | 外观 | 布局、顶栏、交互和组件自由设计，直接使用 React Native 与共享库；`/ui` 的基础组件和媒体适配均可选。默认继承用户皮肤，自绘样式用 `useTheme().colors` 的语义令牌；品牌区域可用局部 `ThemeProvider`。不修改全局 Text 或 TextInput。 |
+| Tamagui | 从 `tamagui` 直接导入组件，可用 `styled` 自由组合；宿主已配置主题、字体、动画和 Portal，不再创建配置或 Provider、不加编译插件。颜色用 `$background`、`$surface`、`$color`、`$muted`、`$accent`、`$onAccent`，圆角用 `$controlRadius`、`$dialogRadius`，字体用 `$body`、`$heading`、`$mono`，均随皮肤更新；强调区可用 `<Theme name="accent">`。尺寸令牌 `$1`–`$10`、默认 `$true`，动画 `fast` / `medium` / `slow`。 |
 | 页面 | 需要独立路由时可使用导航库，退出应用用 `app.navigation.back()`。安全区由布局处理一次；系统栏已透明，背景铺到屏幕边缘，底部内容避让 inset。宿主应用页面已避让键盘，独立原生 Modal 需自行处理；长表单可用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘、BottomSheet、Toast 容器，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
 | 资源与存储 | 资源放 `assets/`，用 `app.assets.uri(name)`，不用 require 图片。默认数据保存在本机、跨账号共用；需账号隔离用 `app.scope("account")`，设备共享用 `app.scope("device")`，两者均提供 storage、secureStorage、files。账号作用域随登录切换，游客独立；订阅自动更新，异步操作遇到账号切换失败，勿应用旧结果。文件路径相对应用目录、不能含 `..`；下载仅 HTTPS。 |
 | 导入导出与分享 | 用户点击后调用 `files.importFile(path, { mime })` 选择并复制文件；`files.exportFile(path, { name, mime })` 打开系统另存为；`files.share(path, { mime })` 分享文件，`app.share({ text })` 分享文字。取消返回 `code: "CANCELLED"`，不提示失败；检查 `ok`。系统分享不发布动态。 |

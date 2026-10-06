@@ -1,4 +1,5 @@
 export { Icon, type IconName } from "../../ui/chrome/Icon";
+export type { ApplicationTamaguiConfig, ApplicationThemeName } from "./tamagui-config";
 export { Pressy, type PressyProps } from "../../ui/chrome/Pressy";
 export { Surface, type SurfaceTone } from "../../ui/chrome/Surface";
 export { useTheme, ThemeProvider, createThemedStyles, getTheme, skins, type Theme, type ThemeMode, type ThemePreference, type SkinId, type ThemeContextValue } from "../../ui/theme";
