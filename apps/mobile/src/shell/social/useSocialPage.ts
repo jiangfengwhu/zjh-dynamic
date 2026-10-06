@@ -20,7 +20,7 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
   const config = useRef({ read, merge }); config.current = { read, merge };
   const identity = useRef(key); identity.current = key;
   const alive = useRef(true), focusedRef = useRef(focused); focusedRef.current = focused;
-  const flight = useRef<{ key: string }>(), again = useRef(false);
+  const flight = useRef<{ key: string } | undefined>(undefined), again = useRef(false);
   const reload = useRef<(more?: boolean) => Promise<boolean>>(async () => false);
   const commit = (next: T) => { rememberPage(key, next); dataRef.current = next; setState({ key, data: next }); };
   const load = async (more = false): Promise<boolean> => {

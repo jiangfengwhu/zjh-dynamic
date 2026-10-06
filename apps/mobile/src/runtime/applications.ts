@@ -7,15 +7,8 @@ import { restoreWorks } from "../shell/workRecovery";
 import { loadCatalog, saveCatalog } from "../shell/catalog";
 import type { PendingPackage } from "../shell/packageUpdates";
 
-export type ApplicationManifest = {
-  format: number; appId: string; releaseId: string; title: string; summary: string; mark: string; accent: string;
-  releaseNotes?: string;
-  requires: { engineAbi: string; sdk: string; shared: Record<string, string> };
-  modules: { base: number; size: number };
-  bundle: { sha256: string; bytes: number };
-  assets: Array<{ name: string; sha256: string; bytes: number }>;
-  source: { commit: string; dirty: boolean };
-};
+import type { ApplicationManifest } from "../../../../packages/app-sdk/src/index";
+export type { ApplicationManifest } from "../../../../packages/app-sdk/src/index";
 
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 const hostBuildId = (require("../shell/build-identity.json") as { buildId: string }).buildId;

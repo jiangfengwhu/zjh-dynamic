@@ -30,8 +30,8 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
   const [text, setText] = useState(""), [sending, setSending] = useState(false), [draftReady, setDraftReady] = useState(false);
   const draftKey = `social.message-draft.${query.user?.id ?? "guest"}.${peer.id}`;
   const sendingRef = useRef(false), alive = useRef(true), list = useRef<FlatList<Message>>(null), atBottom = useRef(true);
-  const request = useRef<{ body: string; id: string }>();
-  const loadedDraftKey = useRef<string>();
+  const request = useRef<{ body: string; id: string } | undefined>(undefined);
+  const loadedDraftKey = useRef<string | undefined>(undefined);
   const ownerRef = useRef(query.user?.id); ownerRef.current = query.user?.id;
   const scrollY = useSharedValue(0);
   const recordBottom = (bottom: boolean) => { atBottom.current = bottom; };

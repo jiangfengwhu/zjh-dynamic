@@ -140,7 +140,7 @@ export const FeedScreen = memo(function FeedScreen({
     paddingBottom: tabHeight.value + 16,
   }));
   useEffect(() => {
-    runOnUI((key: string) => {
+    runOnUI((key: typeof selectedKey) => {
       "worklet";
       activeCategory.value = key;
       bottomTravel.value = 0;
@@ -693,10 +693,10 @@ function FeedScrollSurfaceImpl<Item>({
   bottomTravel,
   scrollY,
   ...props
-}: AnimatedProps<FlatListProps<Item>> & {
+}: Omit<AnimatedProps<FlatListProps<Item>>, "CellRendererComponent"> & {
   onListReady?: (value: FlatList<Item> | null) => void;
   categoryKey: string;
-  activeCategory: SharedValue<string>;
+  activeCategory: SharedValue<"recommended" | "following" | "installed">;
   hiddenHeader: SharedValue<number>;
   headerHeight: SharedValue<number>;
   chromeHidden: SharedValue<number>;

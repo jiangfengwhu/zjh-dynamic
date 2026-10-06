@@ -162,9 +162,9 @@ function MarketDetailContent({
   const draftKey = `market.edit-draft.${draftOwner}.${app.appId}`;
   const [publishLatest, setPublishLatest] = useState(false);
   const [baseline, setBaseline] = useState("");
-  const initializedOwner = useRef<string>();
-  const pendingDraft = useRef<{ key: string; value: string }>();
-  const draftTimer = useRef<ReturnType<typeof setTimeout>>();
+  const initializedOwner = useRef<string | undefined>(undefined);
+  const pendingDraft = useRef<{ key: string; value: string } | undefined>(undefined);
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [shareTitle, setShareTitle] = useState(item.title || app.title);
   const [shareSummary, setShareSummary] = useState(item.summary || app.summary);
   const [shareCategory, setShareCategory] = useState(item.category || "other");

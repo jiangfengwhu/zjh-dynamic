@@ -11,6 +11,6 @@ export async function retainDraftImage(path: string): Promise<string> {
 }
 export async function removeDraftImage(path?: string) { if (isDraftImage(path)) await BlobUtil.fs.unlink(path).catch(() => {}); }
 export async function existingDraftImages<T extends { path?: string }>(photos: T[]): Promise<T[]> {
-  const valid = await Promise.all(photos.map(async photo => photo && isDraftImage(photo.path) && await BlobUtil.fs.exists(photo.path).catch(() => false) ? photo : undefined));
-  return valid.filter((photo): photo is T => !!photo);
+  const valid = await Promise.all(photos.map(async photo => isDraftImage(photo.path) && await BlobUtil.fs.exists(photo.path).catch(() => false)));
+  return photos.filter((_photo, index) => valid[index]);
 }

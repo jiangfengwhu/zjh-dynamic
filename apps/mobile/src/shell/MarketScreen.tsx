@@ -271,7 +271,7 @@ function MarketDiscovery({
   const generation = useRef(0);
   const loading = useRef(false);
   const current = useRef({ key: "", view: empty });
-  const restoreOffset = useRef<number | undefined>();
+  const restoreOffset = useRef<number | undefined>(undefined);
   const key = marketViewKey(category, search);
   useEffect(() => {
     let live = true;

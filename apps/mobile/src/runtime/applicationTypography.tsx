@@ -62,10 +62,10 @@ export function applicationCalendarsModule() {
   const replacements: Record<string, unknown> = {};
   for (const name of ["Calendar", "CalendarList", "NewCalendarList", "Agenda", "ExpandableCalendar", "WeekCalendar", "AgendaList", "CalendarProvider"] as const) {
     const Component = original[name];
-    const Adapted = forwardRef<unknown, { theme?: CalendarTheme; [key: string]: unknown }>(function ApplicationCalendar({ theme, ...props }, ref) {
+    const Adapted = forwardRef<unknown, { theme?: CalendarTheme }>(function ApplicationCalendar({ theme, ...props }, ref) {
       const { colors } = useTheme();
       const themed = useMemo(() => {
-        const value = { ...theme };
+        const value: CalendarTheme = { ...(theme ?? {}) };
         for (const [familyKey, weightKey] of [
           ["textDayFontFamily", "textDayFontWeight"],
           ["textMonthFontFamily", "textMonthFontWeight"],

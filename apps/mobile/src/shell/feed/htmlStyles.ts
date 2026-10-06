@@ -106,7 +106,7 @@ export function prepareHtmlElement(element: HtmlElement, viewport?: Viewport) {
     else if (height && /^\d*\.?\d+$/.test(height)) lineHeight = { value: Number(height), ratio: true };
     else if (height) {
       const pixels = length(height, fontSize, fontSize);
-      if (pixels !== undefined && pixels >= 0 || /^\d*\.?\d+%$/.test(value)) lineHeight = { value: pixels, ratio: false };
+      if (pixels !== undefined && pixels >= 0) lineHeight = { value: pixels, ratio: false };
     }
     if (node === element) styles = resolved;
   }

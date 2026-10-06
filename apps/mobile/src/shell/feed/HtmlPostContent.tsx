@@ -6,7 +6,7 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import { Linking, View, useWindowDimensions } from "react-native";
+import { Linking, StyleSheet, View, useWindowDimensions } from "react-native";
 import RenderHtml, {
   IMGElement,
   defaultSystemFonts,
@@ -62,11 +62,11 @@ const ignoreNode: NonNullable<RenderHTMLProps["ignoreDomNode"]> = (
     ancestor = ancestor.parent
   )
     if (++depth > 20) return true;
-  if (!("name" in node)) return false;
+  if (!("name" in node) || typeof node.name !== "string" || !("attribs" in node)) return false;
   if (!tags.has(node.name)) return true;
   if (
     node.name === "img" &&
-    !/^https:\/\/[^\s]+$/i.test(node.attribs.src ?? "")
+    !/^https:\/\/[^\s]+$/i.test((node.attribs as Record<string, string>).src ?? "")
   )
     return true;
   return false;
@@ -79,17 +79,17 @@ function PostHtmlElement(props: ComponentProps<CustomMixedRenderer>) {
   const css = tnode.attributes.style ?? "";
   const native = htmlNativeStyles(css, tnode.attributes);
   const textLayout = htmlTextLayout(css, tnode.attributes);
-  const style = [props.style, native];
+  const style = StyleSheet.flatten([props.style, native]);
   if (props.type === "block" && InternalRenderer === TDefaultRenderer &&
       (textLayout.numberOfLines || native.textShadowColor) &&
       tnode.children.every(child => child.type === "text" || child.type === "phrasing")) {
-    return <InternalRenderer {...props} style={style}>
+    return <TDefaultRenderer {...props} style={style}>
       <Text {...props.textProps} {...textLayout} style={[tnode.styles.nativeTextFlow, {
         textShadowColor: native.textShadowColor, textShadowOffset: native.textShadowOffset, textShadowRadius: native.textShadowRadius,
       }]}>
-        <TNodeChildrenRenderer tnode={tnode} propsForChildren={props.propsForChildren} />
+        <TNodeChildrenRenderer tnode={tnode} propsForChildren={props.propsFromParent} />
       </Text>
-    </InternalRenderer>;
+    </TDefaultRenderer>;
   }
   return <InternalRenderer {...props} style={style} textProps={{ ...props.textProps, ...textLayout }} />;
 }

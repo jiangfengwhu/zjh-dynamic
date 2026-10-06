@@ -83,7 +83,7 @@ export function useProgress(
   const alive = useRef(true);
   const activeRef = useRef(active);
   activeRef.current = active;
-  const flight = useRef<Promise<void>>();
+  const flight = useRef<Promise<void> | undefined>(undefined);
   const wish = useRef("");
   const valid = () =>
     alive.current &&
