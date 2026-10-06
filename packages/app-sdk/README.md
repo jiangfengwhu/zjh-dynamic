@@ -6,6 +6,8 @@
 
 共享库直接导入，入口与版本查安装包 `dist/libraries.md`；不引用私有路径，不重复安装共享库或使用 overrides。额外纯 JS 依赖写应用 `package.json`，根目录 `npm install` 更新锁文件。不引入 APK 未提供的原生能力。
 
+权限检查与请求统一用 `react-native-permissions`；仅在用户操作后请求，按 `RESULTS` 处理结果，永久拒绝时由用户点击 `openSettings()`。通知可用 `app.phone.requestNotifications()`；Health Connect 使用宿主专用健康授权。
+
 | 功能 | 使用规则 |
 | --- | --- |
 | 外观 | 布局、顶栏和交互自由设计，可选用 `/ui` 的主题、基础控件、图标、空态、骨架和媒体适配。默认继承用户皮肤，自绘样式用 `useTheme().colors` 的语义令牌；局部外观可用 ThemeProvider。不修改全局 Text 或 TextInput。 |
@@ -16,7 +18,7 @@
 | 导入导出与分享 | 用户点击后调用 `files.importFile(path, { mime })` 选择并复制文件；`files.exportFile(path, { name, mime })` 打开系统另存为；`files.share(path, { mime })` 分享文件，`app.share({ text })` 分享文字。取消返回 `code: "CANCELLED"`，不提示失败；检查 `ok`。系统分享不发布动态。 |
 | 提醒 | 用户开启提醒时调用 `app.phone.requestNotifications()` 检查 granted。`schedule(id, title, body, atMs)` 创建或替换提醒，`cancelSchedule(id)` 取消提醒及已显示通知，`schedules()` 查询当前应用待触发提醒。ID 在应用内唯一，使用字母、数字、点、短横线或下划线；含应用前缀总长 ≤80。检查 `ok`；系统权限或省电策略可能影响送达时间。 |
 | 图片与正文 | 渲染器按需选择，见 `dist/libraries.md`。`MediaPicker` 提供方向修正、压缩与安全临时文件；取消 `E_PICKER_CANCELLED` 不报错，上传或复制后 `cleanSingle`，不作永久地址、不删相册原件。`RichMarkdown` 提供皮肤字体与流式显示，亦可直接使用 Markdown 库自行配置。 |
-| 渐变、扫码与录音 | 渐变用 Skia，现有图表库的渐变已接入 Skia。扫码用 `react-native-vision-camera-barcode-scanner`，相机权限由点击触发，离开页面停止采集。录音用 `react-native-audio-api` 的 AudioRecorder，点击后通过 AudioManager 请求录音权限；启用文件输出后 start，stop 取得文件结果并检查 status，离开页面停止录音。持续保存的录音使用应用自己的文件目录。 |
+| 渐变、扫码与录音 | 渐变用 Skia，现有图表库的渐变已接入 Skia。扫码用 `react-native-vision-camera-barcode-scanner`，相机权限由点击触发，离开页面停止采集。录音用 `react-native-audio-api` 的 AudioRecorder，点击后通过 react-native-permissions 请求 RECORD_AUDIO 权限；启用文件输出后 start，stop 取得文件结果并检查 status，离开页面停止录音。持续保存的录音使用应用自己的文件目录。 |
 | 动态分享 | 用户点击才调用 `app.feed.share({ body, html, requestId })`，需先编辑用 `app.feed.compose`。body ≤2000 字、html ≤32 KB，至少一项；HTML 支持基础文本、a/img 和内联样式，不含脚本、事件属性、iframe 或外部样式表；样式效果受客户端渲染器支持范围限制，字体跟随用户皮肤。媒体用稳定公开 HTTPS 地址；应用链接用 `zijinhua://app/<appId>`。失败重试复用 requestId，新操作换 ID（8–100 位字母、数字或短横线）。 |
 | 应用信息 | `application.json` 填 title（≤60 字）、summary（≤300 字）、mark、accent、version、releaseNotes，更新日志写真实改动。图标用 `defineApp({ main, avatar })` 并遵守 `AppAvatarProps`；未加载时显示 mark/accent。分类和截图由作者上架时选择。 |
 | AI | `app.ai.complete(request, { signal })` 返回文本；`app.ai.stream(request, { signal, onText })` 逐步回调累计文本，两者返回相同结果。用 AbortController 取消，离开页面时 abort；取消返回 `code: "CANCELLED"`，部分文本由应用决定保留。仅文本，不支持图片或工具调用。引擎由 `listProviders` 查询、`openSettings` 配置；密钥不暴露。检查 `result.ok`，失败保留输入，不自动重试。 |

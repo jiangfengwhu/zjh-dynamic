@@ -25,14 +25,10 @@ export const phone = {
   healthSummary: (fromMs: number, toMs: number) =>
     shell<{ ok: boolean; steps: number; heartRate: number; sleepMinutes: number }>("healthSummary", { fromMs, toMs }),
   requestHealth: () => shell<{ ok: boolean; granted: boolean }>("requestHealth"),
-  vibrate: (ms = 40) => shell("vibrate", { ms }),
   motion: () => shell<{ ok: boolean; x: number; y: number; z: number }>("motion"),
   torch: (on: boolean) => shell("torch", { on }),
   keepAwake: (on: boolean) => shell("keepAwake", { on }),
   speak: (text: string) => shell("speak", { text }),
-  fileRead: (path: string) => shell<{ ok: boolean; text: string }>("fileRead", { path }),
-  fileWrite: (path: string, text: string) => shell<{ ok: boolean; bytes: number }>("fileWrite", { path, text }),
-  fileList: (path = "") => shell<{ ok: boolean; items: { name: string; dir: boolean; bytes: number }[] }>("fileList", { path }),
   bluetoothState: () => shell<{ ok: boolean; enabled: boolean }>("bluetoothState"),
   bluetoothDevices: () => shell<{ ok: boolean; items: { name: string; address: string }[] }>("bluetoothDevices"),
   bluetoothScan: (seconds = 4) =>

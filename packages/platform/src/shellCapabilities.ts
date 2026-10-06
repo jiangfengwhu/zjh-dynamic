@@ -1,37 +1,9 @@
 import { pluginCall } from "./pluginHost";
 
-export type ShellPermission =
-  | "notifications"
-  | "camera"
-  | "microphone"
-  | "location"
-  | "locationCoarse"
-  | "locationBackground"
-  | "photos"
-  | "videos"
-  | "audio"
-  | "contacts"
-  | "contactsWrite"
-  | "calendar"
-  | "calendarWrite"
-  | "activity"
-  | "bluetooth"
-  | "bluetoothScan"
-  | "bluetoothAdvertise"
-  | "phone";
-
 export type ForegroundType = "dataSync" | "mediaPlayback" | "location" | "camera" | "microphone" | "connectedDevice";
 
 export function shellCapabilities() {
-  return pluginCall<{ ok: boolean; permissions: string[]; methods: string[] }>("shell", "capabilities", {});
-}
-
-export function shellPermissions() {
-  return pluginCall<{ ok: boolean; items: Record<string, boolean> }>("shell", "permissions", {});
-}
-
-export function requestShellPermission(name: ShellPermission) {
-  return pluginCall<{ ok: boolean; name: string; granted: boolean }>("shell", "requestPermission", { name });
+  return pluginCall<{ ok: boolean; methods: string[] }>("shell", "capabilities", {});
 }
 
 export function shellNotify(input: { id: string; title: string; body?: string }) {

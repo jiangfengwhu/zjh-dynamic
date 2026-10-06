@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Vibration } from "react-native";
+import HapticFeedback from "react-native-haptic-feedback";
 import { Gesture } from "react-native-gesture-handler";
 import { ReduceMotion, cancelAnimation, runOnJS, withSpring, withTiming, type SharedValue, useSharedValue } from "react-native-reanimated";
 
@@ -84,7 +84,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
   }, [pull, setPhase]);
 
   const beginRefresh = useCallback(() => { notifyPhase("refreshing"); void finish(); }, [finish, notifyPhase]);
-  const readyFeedback = useCallback(() => Vibration.vibrate(12), []);
+  const readyFeedback = useCallback(() => HapticFeedback.trigger("selection", { enableVibrateFallback: true, ignoreAndroidSystemSettings: false }), []);
   const start = useSharedValue({ x: 0, y: 0 });
   const dragging = useSharedValue(false);
   const gesture = useMemo(

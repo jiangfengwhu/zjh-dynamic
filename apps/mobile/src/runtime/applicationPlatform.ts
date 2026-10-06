@@ -35,6 +35,7 @@ const modules: Record<string, () => unknown> = {
   "react-native-gifted-charts": () => require("react-native-gifted-charts"),
   "react-native-image-crop-picker": () => require("react-native-image-crop-picker"),
   "react-native-keyboard-controller": () => require("react-native-keyboard-controller"),
+  "react-native-permissions": () => require("react-native-permissions"),
   "react-native-audio-api": () => require("react-native-audio-api"),
   "react-native-vision-camera-barcode-scanner": () => require("react-native-vision-camera-barcode-scanner"),
   "react-native-nitro-image": () => require("react-native-nitro-image"),

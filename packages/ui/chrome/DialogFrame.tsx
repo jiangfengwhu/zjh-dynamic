@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +8,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EdgeModal } from "../edge";
 import { ThemeContext } from "../theme";
@@ -61,7 +60,7 @@ export function DialogFrame({
         onRequestClose={dismissible ? onClose : () => {}}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior="padding"
           style={{
             flex: 1,
             justifyContent: "center",

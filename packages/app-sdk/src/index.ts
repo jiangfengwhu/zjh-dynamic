@@ -111,10 +111,9 @@ export type AppContext = AppData & {
     create: (prompt?: string) => void;
   };
   phone: {
-    vibrate: (ms?: number) => Promise<ShellResult>;
     speak: (text: string) => Promise<ShellResult>;
     /** Request notification permission only from a user action. */
-    requestNotifications: () => Promise<{ ok: boolean; granted?: boolean; error?: string }>;
+    requestNotifications: () => Promise<{ ok: boolean; granted?: boolean; status?: "unavailable" | "denied" | "blocked" | "granted" | "limited"; error?: string }>;
     notify: (id: string, title: string, body: string) => Promise<ShellResult>;
     schedule: (
       id: string,

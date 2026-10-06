@@ -1,6 +1,7 @@
 const bootstrap = require("../../../tools/applications/bootstrap.json");
 import type { AppContext, AppDefinition, AppData, DataScope } from "./index";
 import { createElement, useEffect } from "react";
+import { requestNotifications, RESULTS } from "react-native-permissions";
 import { writePackageValue } from "../../ui/packageLink";
 import { applicationCapabilities } from "./capabilities";
 import { applicationData, fileAction } from "./data";
@@ -117,9 +118,8 @@ export function applicationContext(appId: string): AppContext {
       create: (prompt) => creationNavigation(appId, prompt),
     },
     phone: {
-      vibrate: phone.vibrate,
       speak: phone.speak,
-      requestNotifications: () => shell("requestPermission", { name: "notifications" }),
+      requestNotifications: async () => { const { status } = await requestNotifications(["alert", "sound", "badge"]); return { ok: true, granted: status === RESULTS.GRANTED, status }; },
       notify: (id, title, body) => phone.notify(reminderId(id), title, body),
       schedule: (id, title, body, atMs) =>
         phone.schedule(reminderId(id), title, body, atMs),
