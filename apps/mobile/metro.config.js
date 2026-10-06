@@ -24,7 +24,7 @@ const config = {
       if (moduleName.startsWith("@zijinhua/")) throw new Error("宿主不能通过应用入口引用 SDK");
       // Shared providers and hooks must resolve to one physical module across
       // the vendor's require() entries and the host's ES imports.
-      const sharedContext = moduleName === 'react-hook-form' || moduleName.startsWith('@tanstack/')
+      const sharedContext = moduleName === 'react-hook-form' || moduleName === 'react-native-permissions' || moduleName.startsWith('@tanstack/')
         ? { ...context, isESMImport: false } : context;
       const resolved = context.resolveRequest(sharedContext, moduleName, platform);
       if (resolved.type !== 'sourceFile') return resolved;
