@@ -120,7 +120,7 @@ export const WorkCard = memo(function WorkCard({
           </View>
           <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
             <Text
-              numberOfLines={2}
+              numberOfLines={1}
               style={{
                 color: colors.ink1,
                 fontSize: 16,
@@ -132,7 +132,7 @@ export const WorkCard = memo(function WorkCard({
             </Text>
             {summary ? (
               <Text
-                numberOfLines={2}
+                numberOfLines={1}
                 style={{ color: colors.ink2, fontSize: 12, lineHeight: 18 }}
               >
                 {summary}
