@@ -13,6 +13,7 @@ import {
 import { currentAccountId, uploadCreationImage } from "./account";
 import {
   readShellValue,
+  readShellValueSync,
   writeShellValue,
   removeShellValue,
 } from "./shellStorage";
@@ -150,11 +151,16 @@ export function useCreationImages(owner: string | undefined, scope: string) {
     return urls;
   }
   function clear() {
+    // A newer composer may already have edited these images while the previous
+    // submission was running. Never remove its files or overwrite its draft.
+    const current = readShellValueSync(key);
+    if (current && current !== JSON.stringify(latest.current.photos)) return false;
     for (const photo of latest.current.photos)
       void removeDraftImage(photo.path);
     latest.current = { key, photos: [], ready: false };
     removeShellValue(key);
-    setPhotos([]);
+    if (alive.current) setPhotos([]);
+    return true;
   }
   function remove(index: number) {
     const photo = photos[index];

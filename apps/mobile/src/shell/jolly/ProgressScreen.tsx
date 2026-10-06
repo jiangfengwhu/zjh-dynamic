@@ -4,11 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { cachedAccountId, subscribeAccountIdentity } from "../account";
 import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
 import {
-  Screen,
-  ScreenBar,
   ThemeContext,
   useTheme,
-} from "../../../../../packages/app-sdk/src/host-ui";
+} from "../../../../../packages/ui/theme";
+import { Screen, ScreenBar } from "../../../../../packages/ui/edge";
 import { JollyVideoPlayer } from "./ui/video";
 import { JollyPortrait } from "./ui/portrait";
 import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";

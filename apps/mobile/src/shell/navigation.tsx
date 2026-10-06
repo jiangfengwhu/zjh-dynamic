@@ -706,7 +706,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     route.params?.creation
                   );
                 }}
-                onCreated={() => {
+                onSubmitting={() => {
                   if (shellNavigationRef.getCurrentRoute()?.key !== route.key)
                     return;
                   goBack();

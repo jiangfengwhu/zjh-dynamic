@@ -110,7 +110,7 @@ export async function submitCreationPrompt(
     }
     const fork = !!intent && !owned;
     let sourceRelease = intent?.releaseId;
-    if (fork) {
+    if (fork && !sourceRelease) {
       const source = await fetchPublicMarketApplication(intent!.appId);
       sourceRelease = intent!.releaseId || source.manifest.releaseId;
     }

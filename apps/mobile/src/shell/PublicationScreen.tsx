@@ -58,7 +58,7 @@ function PublicationContent({
   initialMode = "post",
   creation,
   onCreate,
-  onCreated,
+  onSubmitting,
 }: {
   onBack: () => void;
   initialApplication?: MarketApplication;
@@ -66,7 +66,7 @@ function PublicationContent({
   initialMode?: "post" | "create";
   creation?: CreationIntent;
   onCreate: (input: CreationInput) => Promise<string>;
-  onCreated?: (appId: string) => void;
+  onSubmitting?: () => void;
 }) {
   const lockedCreation = Boolean(creation);
   const [mode, setMode] = useState(lockedCreation ? "create" : initialMode);
@@ -104,7 +104,7 @@ function PublicationContent({
       intent={creation}
       active={lockedCreation || mode === "create"}
       onCreate={onCreate}
-      onCreated={onCreated}
+      onSubmitting={onSubmitting}
       busy={creating}
       setBusy={setCreating}
     />
@@ -174,7 +174,7 @@ function CreateApplicationPage({
   busy,
   setBusy,
   onCreate,
-  onCreated,
+  onSubmitting,
   intent,
 }: {
   active: boolean;
@@ -182,7 +182,7 @@ function CreateApplicationPage({
   setBusy: (busy: boolean) => void;
   intent?: CreationIntent;
   onCreate: (input: CreationInput) => Promise<string>;
-  onCreated?: (appId: string) => void;
+  onSubmitting?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -332,13 +332,18 @@ function CreateApplicationPage({
       if ((await currentAccountId()) !== owner)
         throw new Error("账号已改变，请重新打开制作页");
       setSubmitStatus("正在提交需求…");
-      const createdAppId = await onCreate({
+      const submission = onCreate({
         prompt: submittedText,
         images: uploaded,
       });
+      // The request owns its promise after the composer leaves. Do not make the
+      // user wait for Jules to create/continue a session or for notification sync.
+      setBusy(false);
+      Toast.show({ type: "info", text1: "正在后台提交制作需求", text2: "提交结果会提示你，失败时草稿保留" });
+      requestAnimationFrame(() => { if (alive.current) onSubmitting?.(); });
+      const createdAppId = await submission;
       if (!createdAppId) throw new Error("需求未能提交，草稿已保留");
       if ((await currentAccountId()) !== owner) {
-        setBusy(false);
         return;
       }
       if ((await currentAccountId()) === owner) {
@@ -348,20 +353,17 @@ function CreateApplicationPage({
           text2: "Jolly 已收到，完成或失败都会通知你",
         });
         requestIdleCallback(() => void syncNotificationCount().catch(() => {}));
-        images.clear();
-        if ((await readShellValue(draftKey))?.trim() === submittedText)
+        if ((!alive.current || latestDraft.current.text.trim() === submittedText) &&
+          (await readShellValue(draftKey))?.trim() === submittedText && images.clear()) {
           writeShellValue(draftKey, "");
-        if (alive.current) {
-          changePrompt("");
-          setBeforePolish(undefined);
+          if (alive.current) {
+            changePrompt("");
+            setBeforePolish(undefined);
+          }
         }
       }
-      setBusy(false);
-      requestAnimationFrame(() => {
-        if (alive.current) onCreated?.(createdAppId);
-      });
     } catch (cause) {
-      if (alive.current)
+      if ((await currentAccountId()) === owner)
         Toast.show({
           type: "error",
           text1: "制作未能开始",
