@@ -268,7 +268,9 @@ async function load(appId: string) {
 export function validateApplication(manifest: ApplicationManifest) { assertCompatible(manifest, manifest.appId); }
 
 function assertCompatible(manifest: ApplicationManifest, appId: string) {
-  if (manifest.format !== 1 || manifest.appId !== appId || !/^[a-f0-9]{64}$/.test(manifest.releaseId) || !/^[a-f0-9]{64}$/.test(manifest.bundle?.sha256) || manifest.source.dirty) throw new Error("应用清单无效");
+  if (manifest.format !== 1 || manifest.appId !== appId || !/^[a-f0-9]{64}$/.test(manifest.releaseId) || !/^[a-f0-9]{64}$/.test(manifest.bundle?.sha256)) throw new Error("应用清单无效");
+  const source = manifest.source;
+  if (!source || typeof source.dirty !== "boolean" || !/^[a-f0-9]{40}$/.test(source.commit) || ((source.dirty || source.tree !== undefined) && !/^[a-f0-9]{40}$/.test(source.tree ?? ""))) throw new Error("应用源码快照无效，请重新发布");
   if (manifest.requires.engineAbi !== contract.engineAbi || !sdkCompatible(manifest.requires.sdk, contract.sdk)) throw new Error(`应用需要不同的平台版本：${appId}`);
   for (const [name, version] of Object.entries(manifest.requires.shared)) {
     if (contract.shared[name] !== version) throw new Error(`应用依赖不兼容：${name} 需要 ${version}，当前为 ${contract.shared[name] ?? "未提供"}`);

@@ -17,6 +17,9 @@ export async function buildApplication(repo: string, appId: string) {
   const output = path.join(repo, "dist/applications", appId);
   const config = JSON.parse(await readFile(path.join(root, "application.json"), "utf8"));
   if (config.appId !== appId || !/^\d+\.\d+\.\d+$/.test(config.version)) throw new Error("应用配置无效");
+  if (typeof config.title !== "string" || !config.title.trim() || config.title.length > 60 || config.title.trim() === "新作品") throw new Error("请在 application.json 中按应用用途填写名称（1–60 字），不要保留模板名称");
+  if (typeof config.summary !== "string" || !config.summary.trim() || config.summary.length > 300) throw new Error("请在 application.json 中填写实际用途与功能简介（1–300 字）");
+  if (typeof config.mark !== "string" || !config.mark.trim() || typeof config.accent !== "string" || !/^#[a-fA-F0-9]{6}$/.test(config.accent)) throw new Error("请在 application.json 中填写与应用主题相符的 mark 和六位十六进制 accent 配色");
   const sdkDirectory = import.meta.dirname;
   const platform = JSON.parse(await readFile(path.join(sdkDirectory, "platform.json"), "utf8"));
   await assertApplicationDependencies(repo, sdkDirectory, platform.shared);
