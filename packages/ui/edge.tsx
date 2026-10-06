@@ -44,7 +44,8 @@ export function ScreenBar({ style, children, ...rest }: ViewProps) {
       : 0;
   return (
     <View {...rest} style={[style, { paddingTop: top + inner }]}>
-      {children}
+      {/* This bar consumed the inset; nested chrome must not add it again. */}
+      <BarContext.Provider value={0}>{children}</BarContext.Provider>
     </View>
   );
 }

@@ -2,6 +2,14 @@
 
 公共共享入口与固定版本如下，以已安装 SDK 的 dist/platform.json 为准。开发规则见该 SDK 包根目录的 README.md。
 
+按功能选择即可，不需要同时使用同类库：
+
+- 图片：普通展示用 React Native `Image`；Nitro Image 支持解码、缩放与编码，Nitro Web Image 提供网络加载，FastImage 提供缓存与请求优先级。
+- Markdown：Enriched Markdown 提供原生渲染与流式展示；Markdown Display 提供 JS 渲染器定制。
+- 列表：普通列表用 `FlatList`，大量内容可用 FlashList；PagerView 提供分页手势，导航 tab 负责路由。
+- 绘图：SVG 适合矢量内容，Skia 适合画布；图表库提供现成图表。
+- 选择器：日期时间、普通选项、照片裁剪和文档选择是不同能力，按需求使用。
+
 | 标准 import 入口                         | 固定版本 |
 | ---------------------------------------- | -------- |
 | `@d11/react-native-fast-image`           | 8.13.0   |
