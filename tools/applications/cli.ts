@@ -10,8 +10,12 @@ const root = process.cwd();
 if (!appId || !/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("用法：zjh-app <authorize|init|build|publish> <appId>");
 if (command === "authorize") await authorizeApplication(root, appId, argument ?? "");
 else if (command === "build") await buildApplication(root, appId);
-else if (command === "publish") await publishApplication(root, appId);
+else if (command === "publish") {
+  if (argument) await authorizeApplication(root, appId, argument);
+  await publishApplication(root, appId);
+}
 else if (command === "init") {
+  if (argument) await authorizeApplication(root, appId, argument);
   const platform = JSON.parse(await readFile(path.join(import.meta.dirname, "platform.json"), "utf8"));
   await mkdir(path.join(root, "apps"), { recursive: true });
   const url = `${process.env.BUNDLE_EDGE_BASE || platform.edge}/v1/application-allocation/${appId}`;

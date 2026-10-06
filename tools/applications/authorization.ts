@@ -16,6 +16,6 @@ export async function authorizeApplication(root: string, appId: string, token: s
 export async function applicationPublisher(root: string, appId: string): Promise<string> {
   try { return (await readFile(path.join(directory(root), appId), "utf8")).trim(); } catch {}
   const token = process.env.OFFICIAL_PUBLISH_TOKEN?.trim();
-  if (!token) throw new Error("请先使用 zjh-app authorize 保存本应用本轮授权；维护者可配置 OFFICIAL_PUBLISH_TOKEN");
+  if (!token) throw new Error("请执行任务提供的初始化或发布命令，附带本轮授权；维护者可配置 OFFICIAL_PUBLISH_TOKEN");
   return token;
 }
