@@ -6,19 +6,19 @@
 
 共享库直接导入，入口与版本查安装包 `dist/libraries.md`；不引用私有路径，不重复安装共享库或使用 overrides。额外纯 JS 依赖写应用 `package.json`，根目录 `npm install` 更新锁文件。不引入 APK 未提供的原生能力。
 
-权限检查与请求统一用 `react-native-permissions`；仅在用户操作后请求，按 `RESULTS` 处理结果，永久拒绝时由用户点击 `openSettings()`。通知可用 `app.phone.requestNotifications()`；Health Connect 使用宿主专用健康授权。
+权限检查与请求统一用 `react-native-permissions`；仅在用户操作后请求，按 `RESULTS` 处理结果，永久拒绝时由用户点击 `openSettings()`。通知用 `app.phone.requestNotifications()`。
 
 | 功能 | 使用规则 |
 | --- | --- |
 | 外观 | 布局、顶栏和交互自由设计，可选用 `/ui` 的主题、基础控件、图标、空态、骨架和媒体适配。默认继承用户皮肤，自绘样式用 `useTheme().colors` 的语义令牌；局部外观可用 ThemeProvider。不修改全局 Text 或 TextInput。 |
-| 页面 | 需要独立路由时可使用导航库，退出应用用 `app.navigation.back()`。安全区由布局处理一次；系统栏已透明，背景铺到屏幕边缘，底部内容避让 inset。宿主应用页面已避让键盘，独立原生 Modal 需自行处理；长表单可用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘容器；弹层可用 SDK Dialog、原生 Modal 或 `@gorhom/bottom-sheet`；使用 BottomSheetModal 时在应用内提供 BottomSheetModalProvider，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
-| 表单与请求 | 表单用 `react-hook-form` 的 Controller 连接输入组件；Zod 按需校验。请求用 `@tanstack/react-query`，宿主已提供按应用和账号隔离的 QueryClient，不再创建 Provider。queryFn 使用 signal；默认无轮询、自动重试、聚焦或联网刷新。缓存回访保留内容，需更新时手动 refetch／invalidateQueries；切换账号取消请求并清理内存缓存。 |
+| 页面 | 需要独立路由时可使用导航库，退出应用用 `app.navigation.back()`。安全区由布局处理一次；系统栏已透明，背景铺到屏幕边缘，底部内容避让 inset。宿主应用页面已避让键盘，独立原生 Modal 需自行处理；长表单可用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘容器；弹层可用 SDK Dialog、原生 Modal 或 `@gorhom/bottom-sheet`；使用 BottomSheetModal 时在应用内提供 BottomSheetModalProvider，独立导航用 `NavigationIndependentTree`。 |
+| 表单与请求 | 简单输入可用本地状态；复杂表单可用 `react-hook-form` 的 Controller，Zod 按需校验。缓存读取可用 `@tanstack/react-query`；宿主已提供按应用和账号隔离的 QueryClient，不再创建 Provider，queryFn 将 signal 传入请求。默认 staleTime 为 60 秒，未使用缓存保留 20 分钟；重新挂载过期查询会保留旧内容并后台刷新，无轮询、自动重试、聚焦或联网刷新。手动更新用 refetch／invalidateQueries。缓存仅在内存中，跨进程保存需使用 storage；宿主在切换账号时取消请求并清理缓存。AI 流式调用可直接使用 SDK。 |
 | 反馈与系统能力 | 简单提示用 `app.toast.show`。复制与触觉用 `app.clipboard`、`app.haptics`，不另引入同类库。 |
-| 资源与存储 | 资源放 `assets/`，用 `app.assets.uri(name)`，不用 require 图片。默认数据保存在本机、跨账号共用；需账号隔离用 `app.scope("account")`，设备共享用 `app.scope("device")`，两者均提供 storage、secureStorage、files。账号作用域随登录切换，游客独立；订阅自动更新，异步操作遇到账号切换失败，勿应用旧结果。文件路径相对应用目录、不能含 `..`；下载仅 HTTPS。 |
-| 导入导出与分享 | 用户点击后调用 `files.importFile(path, { mime })` 选择并复制文件；`files.exportFile(path, { name, mime })` 打开系统另存为；`files.share(path, { mime })` 分享文件，`app.share({ text })` 分享文字。取消返回 `code: "CANCELLED"`，不提示失败；检查 `ok`。系统分享不发布动态。 |
-| 提醒 | 用户开启提醒时调用 `app.phone.requestNotifications()` 检查 granted。`schedule(id, title, body, atMs)` 创建或替换提醒，`cancelSchedule(id)` 取消提醒及已显示通知，`schedules()` 查询当前应用待触发提醒。ID 在应用内唯一，使用字母、数字、点、短横线或下划线；含应用前缀总长 ≤80。检查 `ok`；系统权限或省电策略可能影响送达时间。 |
-| 图片与正文 | 渲染器按需选择，见 `dist/libraries.md`。`MediaPicker` 提供方向修正、压缩与安全临时文件；取消 `E_PICKER_CANCELLED` 不报错，上传或复制后 `cleanSingle`，不作永久地址、不删相册原件。`RichMarkdown` 提供皮肤字体与流式显示，亦可直接使用 Markdown 库自行配置。 |
-| 渐变、扫码与录音 | 渐变用 Skia，现有图表库的渐变已接入 Skia。扫码用 `react-native-vision-camera-barcode-scanner`，相机权限由点击触发，离开页面停止采集。录音用 `react-native-audio-api` 的 AudioRecorder，点击后通过 react-native-permissions 请求 RECORD_AUDIO 权限；启用文件输出后 start，stop 取得文件结果并检查 status，离开页面停止录音。持续保存的录音使用应用自己的文件目录。 |
+| 资源与存储 | 资源放 `assets/`，名称相对该目录，如 `assets/logo.webp` 用 `app.assets.uri("logo.webp")`，不用 require 图片。默认数据保存在本机、跨账号共用；需账号隔离用 `app.scope("account")`，设备共享用 `app.scope("device")`，两者均提供 storage、secureStorage、files。账号作用域随登录切换，游客独立；订阅自动更新，异步操作遇到账号切换失败，勿应用旧结果。文件路径相对应用目录、不能含 `..`；下载仅 HTTPS。 |
+| 导入导出与分享 | 先取 `const { files } = app.scope("account")`（设备共享可选 device）。用户点击后调用 `files.importFile("imports/data.csv", { mime: "text/csv" })` 选择并复制文件，第一个参数是应用内目标相对路径。`files.exportFile(path, { name, mime })` 另存已有文件；`files.share(path, { mime })` 分享已有文件，`app.share({ text })` 分享文字。检查返回的 ok；取消返回 `code: "CANCELLED"`，不提示失败。系统分享不发布动态。 |
+| 提醒 | 用户开启提醒时调用 `app.phone.requestNotifications()` 检查 granted。`app.phone.schedule(id, title, body, atMs)` 创建或替换提醒，`app.phone.cancelSchedule(id)` 取消提醒及已显示通知，`app.phone.schedules()` 查询当前应用待触发提醒。ID 在应用内唯一，使用字母、数字、点、短横线或下划线；含应用前缀总长 ≤80。检查 ok；系统权限或省电策略可能影响送达时间。 |
+| 图片与正文 | 渲染器按需选择，见 `dist/libraries.md`。`MediaPicker` 提供方向修正、压缩与安全临时文件；取消 `E_PICKER_CANCELLED` 不报错，上传或复制后调用 `MediaPicker.cleanSingle`，不作永久地址、不删相册原件。`RichMarkdown` 提供皮肤字体与流式显示，亦可直接使用 Markdown 库自行配置。 |
+| 渐变、扫码与录音 | 渐变用 Skia，现有图表库的渐变已接入 Skia。扫码用 `react-native-vision-camera-barcode-scanner`，需 CAMERA 权限，离开页面停止采集。录音用 `react-native-audio-api` 的 AudioRecorder，需 RECORD_AUDIO 权限；启用文件输出后 start，stop 取得文件结果并检查 status，离开页面停止录音。持续保存的录音使用应用自己的文件目录。 |
 | 动态分享 | 用户点击才调用 `app.feed.share({ body, html, requestId })`，需先编辑用 `app.feed.compose`。body ≤2000 字、html ≤32 KB，至少一项；HTML 支持基础文本、a/img 和内联样式，不含脚本、事件属性、iframe 或外部样式表；样式效果受客户端渲染器支持范围限制，字体跟随用户皮肤。媒体用稳定公开 HTTPS 地址；应用链接用 `zijinhua://app/<appId>`。失败重试复用 requestId，新操作换 ID（8–100 位字母、数字或短横线）。 |
-| 应用信息 | `application.json` 填 title（≤60 字）、summary（≤300 字）、mark、accent、version、releaseNotes，更新日志写真实改动。图标用 `defineApp({ main, avatar })` 并遵守 `AppAvatarProps`；未加载时显示 mark/accent。分类和截图由作者上架时选择。 |
-| AI | `app.ai.complete(request, { signal })` 返回文本；`app.ai.stream(request, { signal, onText })` 逐步回调累计文本，两者返回相同结果。用 AbortController 取消，离开页面时 abort；取消返回 `code: "CANCELLED"`，部分文本由应用决定保留。仅文本，不支持图片或工具调用。引擎由 `listProviders` 查询、`openSettings` 配置；密钥不暴露。检查 `result.ok`，失败保留输入，不自动重试。 |
+| 应用信息 | 必须根据应用性质、用途、目标用户和实际功能生成 `application.json`：title（≤60 字）清楚命名，summary（≤300 字）说明用途，mark 与 accent 契合应用主题；不得保留模板占位名称、空简介或无关标记与配色。version 与 releaseNotes 对应本次真实版本和改动，保留初始化分配的应用身份字段。图标用 `defineApp({ main, avatar })` 并遵守 `AppAvatarProps`；未加载时显示 mark/accent。分类和截图由作者上架时选择。 |
+| AI | `app.ai.complete(request, { signal })` 与 `app.ai.stream(request, { signal, onText })` 都返回结果对象；成功为 `{ ok: true, text, providerId, model }`，失败为 `{ ok: false, code, error }`，先判断 ok 再读取 text。stream 的 onText 回调累计文本。用 AbortController 取消，离开页面时 abort；取消 code 为 `CANCELLED`，部分文本由应用决定保留。仅文本，不支持图片或工具调用。引擎由 `app.ai.listProviders()` 查询、`app.ai.openSettings()` 配置；密钥不暴露。失败保留输入，不自动重试。 |
