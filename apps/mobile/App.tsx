@@ -1,4 +1,5 @@
-import Toast from "react-native-toast-message";
+import { notify as Toast, NotificationProvider } from "../../packages/ui/feedback/Toasts";
+import { ApplicationQueries } from "../../packages/app-sdk/src/query-runtime";
 import { Text } from "../../packages/ui/primitives/Typography";
 import { useTheme } from "../../packages/ui/theme";
 import type { ApkProgress } from "./src/shell/apkUpdates";
@@ -17,7 +18,6 @@ import { StatusBar, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { PixelFeedback } from "./src/shell/PixelFeedback";
 import {
   bundles,
@@ -157,9 +157,7 @@ function App() {
           navigationBarTranslucent
           preserveEdgeToEdge
         >
-          <BottomSheetModalProvider>
-            <HostAppearance><ShellApp /></HostAppearance>
-          </BottomSheetModalProvider>
+            <HostAppearance><NotificationProvider><ApplicationQueries appId="__host"><ShellApp /></ApplicationQueries></NotificationProvider></HostAppearance>
         </KeyboardProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

@@ -2,7 +2,7 @@ import { UserAvatar } from "./UserAvatar";
 import { ActivityIndicator } from "react-native";
 import { memo, useRef, useState } from "react";
 import { View } from "react-native";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { PixelText as Text } from "./feed/PixelText";
 import { SymbolIcon } from "./feed/PixelKit";

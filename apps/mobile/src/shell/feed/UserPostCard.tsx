@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import Clipboard from "@react-native-clipboard/clipboard";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { useTheme, type Theme } from "../../../../../packages/ui/theme";
 import { cachedAccountId, requireAccount } from "../account";
 import { deleteUserPost, togglePostLike, type UserPost } from "./userPosts";

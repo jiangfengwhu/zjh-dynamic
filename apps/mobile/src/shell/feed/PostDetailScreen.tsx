@@ -13,7 +13,7 @@ import Clipboard from "@react-native-clipboard/clipboard";
 import { KeyboardViewport } from "../KeyboardViewport";
 import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 import { readShellValue, writeShellValue, removeShellValue } from "../shellStorage";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { Screen, ScreenEdge } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";

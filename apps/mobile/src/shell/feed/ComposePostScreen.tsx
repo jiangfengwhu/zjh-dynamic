@@ -17,7 +17,7 @@ import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { MediaPicker as ImagePicker } from "../../../../../packages/ui/media/MediaPicker";
 import { KeyboardViewport } from "../KeyboardViewport";
 import { usePreventRemove } from "@react-navigation/native";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { EdgeModal, Screen, ScreenEdge } from "../../../../../packages/ui/edge";
 import { createThemedStyles, useTheme } from "../../../../../packages/ui/theme";

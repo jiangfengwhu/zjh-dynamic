@@ -23,7 +23,7 @@ import { Screen } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
 
 import { useAccount, requireAccount, currentAccountId } from "../account";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { WorkCard } from "../WorkCard";
 import { UserPostCard } from "./UserPostCard";
 import { usePullToRefresh } from "./pullToRefresh";

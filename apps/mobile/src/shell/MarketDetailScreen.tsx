@@ -20,7 +20,7 @@ import {
 import { useIsFocused, usePreventRemove } from "@react-navigation/native";
 import { MediaPicker as ImagePicker } from "../../../../packages/ui/media/MediaPicker";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { FormField as TextInput } from "./FormField";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

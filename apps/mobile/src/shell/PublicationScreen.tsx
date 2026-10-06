@@ -13,7 +13,7 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen, ScreenEdge } from "../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";

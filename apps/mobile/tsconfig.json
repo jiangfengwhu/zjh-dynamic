@@ -20,9 +20,6 @@
       "react-native-safe-area-context": [
         "./node_modules/react-native-safe-area-context"
       ],
-      "react-native-markdown-display": [
-        "./node_modules/react-native-markdown-display"
-      ],
       "@zijinhua/app-sdk": [
         "../../packages/app-sdk/src/index.ts"
       ],

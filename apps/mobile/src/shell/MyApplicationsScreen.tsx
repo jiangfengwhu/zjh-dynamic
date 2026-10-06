@@ -12,7 +12,7 @@ import { PullRefreshSurface } from "./feed/PullRefreshSurface";
 import { useProfileScroll } from "./ProfileScroll";
 import { Gesture } from "react-native-gesture-handler";
 import { useIsFocused } from "@react-navigation/native";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";

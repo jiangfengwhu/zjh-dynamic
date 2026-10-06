@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { View, type StyleProp, type ViewStyle } from "react-native";
+import { type StyleProp, type ViewStyle } from "react-native";
 import { useTheme } from "../theme";
+import { Card } from "tamagui";
 
 export type SurfaceTone = "base" | "raised" | "inset";
 
@@ -23,7 +24,7 @@ export function Surface({
   const background = tone === "raised" ? colors.surfaceRaised : tone === "inset" ? colors.inset : colors.surface;
   const round = radius ?? colors.radius.lg;
   return (
-    <View
+    <Card unstyled
       style={[
         {
           backgroundColor: background,
@@ -39,6 +40,6 @@ export function Surface({
       ]}
     >
       {children}
-    </View>
+    </Card>
   );
 }

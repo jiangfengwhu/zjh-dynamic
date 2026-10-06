@@ -14,7 +14,7 @@ import { useSocialPage } from "./useSocialPage";
 import { readRelations, type RelationKind, type RelationPage } from "./api";
 import { SocialEmpty, SocialError, SocialFrame } from "./SocialLayout";
 import { requireAccount, useAccount } from "../account";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 const AnimatedPager = Animated.createAnimatedComponent(PagerView);
 export function ConnectionsScreen({ author, initialKind, onBack, onAuthor }: {
   author: PublicAuthor; initialKind: RelationKind; onBack: () => void; onAuthor: (author: PublicAuthor) => void;

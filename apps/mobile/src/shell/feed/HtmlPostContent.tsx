@@ -16,7 +16,7 @@ import RenderHtml, {
   type CustomMixedRenderer,
 } from "@native-html/render";
 import { ErrorBoundary } from "react-error-boundary";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { useTheme } from "../../../../../packages/ui/theme";
 import { PixelText } from "./PixelText";
 import { htmlByteLength } from "./postDraft";

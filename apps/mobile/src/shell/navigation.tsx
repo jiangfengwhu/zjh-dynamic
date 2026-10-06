@@ -61,7 +61,7 @@ import { useTheme, type ThemeMode, type ThemePreference } from "../../../../pack
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { AsyncRouteScreen } from "./AsyncRouteScreen";
 import { cachedFeature, openFeature } from "../../../../packages/features/src/registry";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { PublicationScreen } from "./PublicationScreen";
 import { MyProfileScreen } from "./MyProfileScreen";
 import { submitCreationPrompt } from "./creationDraft";

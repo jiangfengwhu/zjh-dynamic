@@ -9,6 +9,7 @@ import { registerFeature } from "../../features/src/featureHost";
 import { phone } from "../../platform/src/phone";
 import { applicationAi } from "./ai";
 import { KeyboardViewport } from "../../ui/keyboard";
+import { ApplicationQueries, changeQueryAccount } from "./query-runtime";
 
 const definitions = new Map<string, AppDefinition>();
 const activated = new Set<string>();
@@ -48,6 +49,7 @@ export function setApplicationAccountScope(id: string | null) {
   if (!/^[a-zA-Z0-9-]{1,100}$/.test(next)) throw new Error("账号作用域无效");
   if (next !== accountScope) {
     accountScope = next;
+    changeQueryAccount(next);
     scopeListeners.forEach((listener) => listener());
   }
 }
@@ -160,7 +162,7 @@ export function registerApplication(appId: string, definition: AppDefinition) {
     pageAttempt(appId);
     Page ??= definition.main();
     if (!Page) throw new Error(`应用页面无效：${appId}`);
-    return createElement(KeyboardViewport, { reserveBottom: false, children: createElement(Page) });
+    return createElement(ApplicationQueries, { appId, children: createElement(KeyboardViewport, { reserveBottom: false, children: createElement(Page) }) });
   }
   registerFeature(appId, ApplicationPage);
 }

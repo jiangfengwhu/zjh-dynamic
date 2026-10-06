@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { useDiscardChanges, confirmDiscard } from "./useDiscardChanges";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { Icon, PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { Input } from "../../../../packages/ui/primitives/Input";

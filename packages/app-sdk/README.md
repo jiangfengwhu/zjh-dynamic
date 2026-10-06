@@ -8,9 +8,11 @@
 
 | 功能 | 使用规则 |
 | --- | --- |
-| 外观 | 布局、顶栏、交互和组件自由设计，直接使用 React Native 与共享库；`/ui` 的基础组件和媒体适配均可选。默认继承用户皮肤，自绘样式用 `useTheme().colors` 的语义令牌；品牌区域可用局部 `ThemeProvider`。不修改全局 Text 或 TextInput。 |
-| Tamagui | 从 `tamagui` 直接导入组件，可用 `styled` 自由组合；宿主已配置主题、字体、动画和 Portal，不再创建配置或 Provider、不加编译插件。颜色用 `$background`、`$surface`、`$color`、`$muted`、`$accent`、`$onAccent`，字体用 `$body`、`$heading`、`$mono`；强调区可用 `<Theme name="accent">`。皮肤圆角使用 SDK `useTheme().colors.components` 的 controlRadius / dialogRadius 数值。尺寸令牌 `$1`–`$10`、默认 `$true`，动画 `fast` / `medium` / `slow`。 |
-| 页面 | 需要独立路由时可使用导航库，退出应用用 `app.navigation.back()`。安全区由布局处理一次；系统栏已透明，背景铺到屏幕边缘，底部内容避让 inset。宿主应用页面已避让键盘，独立原生 Modal 需自行处理；长表单可用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘、BottomSheet、Toast 容器，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
+| 外观 | 布局、顶栏和交互自由设计，基础组件直接使用 Tamagui；`/ui` 只提供主题、图标、空态、骨架和媒体适配。默认继承用户皮肤，自绘样式用 `useTheme().colors` 的语义令牌；品牌区域可用局部 `ThemeProvider`。不修改全局 Text 或 TextInput。 |
+| Tamagui | 从 `tamagui` 直接导入组件，可用 `styled` 自由组合；宿主已配置主题、字体、动画和 Portal，不再创建配置或 Provider、不加编译插件。颜色用 `$background`、`$surface`、`$color`、`$muted`、`$accent`、`$onAccent`，字体用 `$body`、`$heading`、`$mono`；强调区可用 `<Theme name="accent">`。皮肤圆角使用 SDK `useTheme().colors.components` 的 controlRadius / dialogRadius 数值。尺寸令牌 `$1`–`$10`、默认 `$true`，过渡用 `transition="fast"` / `"medium"` / `"slow"`。 |
+| 页面 | 需要独立路由时可使用导航库，退出应用用 `app.navigation.back()`。安全区由布局处理一次；系统栏已透明，背景铺到屏幕边缘，底部内容避让 inset。宿主应用页面已避让键盘，独立原生 Modal 需自行处理；长表单可用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘和 Tamagui Toast 容器；弹层直接用 Dialog／Sheet，独立导航用 `NavigationIndependentTree`。权限由用户操作触发。 |
+| 表单与请求 | 表单用 `react-hook-form` 的 Controller 连接输入组件；Zod 按需校验。请求用 `@tanstack/react-query`，宿主已提供按应用和账号隔离的 QueryClient，不再创建 Provider。queryFn 使用 signal；默认无轮询、自动重试、聚焦或联网刷新。缓存回访保留内容，需更新时手动 refetch／invalidateQueries；切换账号取消请求并清理内存缓存。 |
+| 反馈与系统能力 | 简单提示用 `app.toast.show`，自定义提示用 Tamagui `useToastController`；不要再创建 ToastProvider 或 Viewport。复制与触觉用 `app.clipboard`、`app.haptics`，不另引入同类库。 |
 | 资源与存储 | 资源放 `assets/`，用 `app.assets.uri(name)`，不用 require 图片。默认数据保存在本机、跨账号共用；需账号隔离用 `app.scope("account")`，设备共享用 `app.scope("device")`，两者均提供 storage、secureStorage、files。账号作用域随登录切换，游客独立；订阅自动更新，异步操作遇到账号切换失败，勿应用旧结果。文件路径相对应用目录、不能含 `..`；下载仅 HTTPS。 |
 | 导入导出与分享 | 用户点击后调用 `files.importFile(path, { mime })` 选择并复制文件；`files.exportFile(path, { name, mime })` 打开系统另存为；`files.share(path, { mime })` 分享文件，`app.share({ text })` 分享文字。取消返回 `code: "CANCELLED"`，不提示失败；检查 `ok`。系统分享不发布动态。 |
 | 提醒 | 用户开启提醒时调用 `app.phone.requestNotifications()` 检查 granted。`schedule(id, title, body, atMs)` 创建或替换提醒，`cancelSchedule(id)` 取消提醒及已显示通知，`schedules()` 查询当前应用待触发提醒。ID 在应用内唯一，使用字母、数字、点、短横线或下划线；含应用前缀总长 ≤80。检查 `ok`；系统权限或省电策略可能影响送达时间。 |

@@ -3,7 +3,7 @@ import { PixelText as Text } from "./PixelText";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { SymbolIcon } from "./PixelKit";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { useTheme } from "../../../../../packages/ui/theme";
 import type { ApplicationLink } from "./userPosts";

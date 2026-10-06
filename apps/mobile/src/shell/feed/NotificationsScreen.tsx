@@ -23,7 +23,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";

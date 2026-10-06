@@ -48,7 +48,7 @@ import {
   type UserPost,
 } from "./userPosts";
 import { UserPostCard } from "./UserPostCard";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import { requireAccount } from "../account";
 import { useInstalledShortcuts } from "./useInstalledShortcuts";

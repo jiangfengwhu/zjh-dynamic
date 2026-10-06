@@ -1,7 +1,7 @@
 import type { UserPostDraft } from "../../../../../packages/app-sdk/src/index";
 import { currentAccountId, requireAccount } from "../account";
 import { publishUserPost } from "./userPosts";
-import Toast from "react-native-toast-message";
+import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { htmlByteLength } from "./postDraft";
 
 const pending = new Map<string, Promise<{ id: string }>>();

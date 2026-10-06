@@ -1,17 +1,11 @@
 {
   "format": 1,
-  "sdk": "2.2.0",
+  "sdk": "3.0.0",
   "engineAbi": "rn-0.87.1-hermes-250829098.0.17",
   "shared": {
-    "@d11/react-native-fast-image": "8.13.0",
-    "@gorhom/bottom-sheet": "5.2.14",
-    "@react-native-clipboard/clipboard": "1.16.3",
     "@react-native-community/blur": "4.4.1",
     "@react-native-community/datetimepicker": "9.2.1",
     "@react-native-community/netinfo": "12.0.1",
-    "@react-native-community/slider": "5.2.1",
-    "@react-native-documents/picker": "12.0.2",
-    "@react-native-picker/picker": "2.11.4",
     "@react-navigation/material-top-tabs": "7.7.2",
     "@react-navigation/native": "7.4.1",
     "@react-navigation/native-stack": "7.19.2",
@@ -26,11 +20,9 @@
     "react-native-calendars": "1.1314.0",
     "react-native-gesture-handler": "3.3.0",
     "react-native-gifted-charts": "1.4.78",
-    "react-native-haptic-feedback": "3.0.0",
     "react-native-image-crop-picker": "0.52.0",
     "react-native-keyboard-controller": "1.22.5",
     "react-native-linear-gradient": "2.8.3",
-    "react-native-markdown-display": "7.0.2",
     "react-native-nitro-image": "0.15.2",
     "react-native-pager-view": "9.0.5",
     "react-native-pdf": "7.0.5",
@@ -48,18 +40,14 @@
     "react/jsx-dev-runtime": "19.2.3",
     "react-native-enriched-markdown": "1.1.0",
     "react-native-nitro-web-image": "0.15.2",
-    "tamagui": "2.7.7"
+    "tamagui": "2.7.7",
+    "react-hook-form": "7.89.0",
+    "@tanstack/react-query": "5.104.1"
   },
   "reservedModules": {
     "jolly": 2000000
   },
   "moduleRangeSize": 100000,
   "repository": "jiangfengwhu/zjh-plugin",
-  "edge": "https://zijinhua.297782.xyz",
-  "dependencyArtifacts": {
-    "react-native-markdown-display": {
-      "version": "7.0.2",
-      "url": "https://zjh-cdn.297782.xyz/v1/sdk/54cfd21437451fdf3c5347b76343a1d8dfabfa7df4158d42e91e338b08166806"
-    }
-  }
+  "edge": "https://zijinhua.297782.xyz"
 }

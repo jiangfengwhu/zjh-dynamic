@@ -22,7 +22,11 @@ const config = {
     nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
     resolveRequest: (context, moduleName, platform) => {
       if (moduleName.startsWith("@zijinhua/")) throw new Error("宿主不能通过应用入口引用 SDK");
-      const resolved = context.resolveRequest(context, moduleName, platform);
+      // Shared providers and hooks must resolve to one physical module across
+      // the vendor's require() entries and the host's ES imports.
+      const sharedContext = moduleName === 'react-hook-form' || moduleName.startsWith('@tanstack/')
+        ? { ...context, isESMImport: false } : context;
+      const resolved = context.resolveRequest(sharedContext, moduleName, platform);
       if (resolved.type !== 'sourceFile') return resolved;
       const normalized = resolved.filePath.replaceAll('\\', '/');
       if (!normalized.includes('/node_modules/zod/') || !resolved.filePath.endsWith('.js')) return resolved;

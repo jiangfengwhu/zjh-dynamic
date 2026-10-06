@@ -49,7 +49,7 @@ export type ApplicationTamaguiConfig = {
   themes: Record<ApplicationThemeName | `${ApplicationThemeName}_${string}`, ReturnType<typeof palette>>;
   fonts: Record<"body" | "heading" | "mono", typeof fontScale & { family: string }>;
   settings: { defaultFont: "body"; styleCompat: "react-native" };
-  animations: AnimationPresets;
+  animations: AnimationDriver<AnimationPresets>;
   media: {}; shorthands: {};
 };
 type Configuration = Omit<ApplicationTamaguiConfig, "animations" | "media" | "shorthands"> & {

@@ -4,24 +4,18 @@
 
 按功能选择即可，不需要同时使用同类库：
 
-- 图片：普通展示用 React Native `Image`；Nitro Image 支持解码、缩放与编码，Nitro Web Image 提供网络加载，FastImage 提供缓存与请求优先级。
-- Markdown：Enriched Markdown 提供原生渲染与流式展示；Markdown Display 提供 JS 渲染器定制。
+- 图片：普通展示用 React Native `Image`；Nitro Image 支持解码、缩放与编码，Nitro Web Image 提供网络加载、缓存与请求优先级。
+- Markdown：Enriched Markdown 提供原生渲染与流式展示。
 - 列表：普通列表用 `FlatList`，大量内容可用 FlashList；PagerView 提供分页手势，导航 tab 负责路由。
 - 绘图：SVG 适合矢量内容，Skia 适合画布；图表库提供现成图表。
-- 选择器：日期时间、普通选项、照片裁剪和文档选择是不同能力，按需求使用。
+- 选择器：普通选项使用 Tamagui Select；日期时间、照片裁剪是独立能力，文件导入使用 SDK。
 - UI：Tamagui 提供布局、表单和交互组件，宿主已接入皮肤；复杂原生能力仍按需使用专用库。
 
 | 标准 import 入口                         | 固定版本 |
 | ---------------------------------------- | -------- |
-| `@d11/react-native-fast-image`           | 8.13.0   |
-| `@gorhom/bottom-sheet`                   | 5.2.14   |
-| `@react-native-clipboard/clipboard`      | 1.16.3   |
 | `@react-native-community/blur`           | 4.4.1    |
 | `@react-native-community/datetimepicker` | 9.2.1    |
 | `@react-native-community/netinfo`        | 12.0.1   |
-| `@react-native-community/slider`         | 5.2.1    |
-| `@react-native-documents/picker`         | 12.0.2   |
-| `@react-native-picker/picker`            | 2.11.4   |
 | `@react-navigation/material-top-tabs`    | 7.7.2    |
 | `@react-navigation/native`               | 7.4.1    |
 | `@react-navigation/native-stack`         | 7.19.2   |
@@ -37,11 +31,9 @@
 | `react-native-calendars`                 | 1.1314.0 |
 | `react-native-gesture-handler`           | 3.3.0    |
 | `react-native-gifted-charts`             | 1.4.78   |
-| `react-native-haptic-feedback`           | 3.0.0    |
 | `react-native-image-crop-picker`         | 0.52.0   |
 | `react-native-keyboard-controller`       | 1.22.5   |
 | `react-native-linear-gradient`           | 2.8.3    |
-| `react-native-markdown-display`          | 7.0.2    |
 | `react-native-nitro-image`               | 0.15.2   |
 | `react-native-nitro-web-image`           | 0.15.2   |
 | `react-native-pager-view`                | 9.0.5    |
@@ -59,3 +51,5 @@
 | `tamagui`                                | 2.7.7    |
 | `react/jsx-runtime`                      | 19.2.3   |
 | `react/jsx-dev-runtime`                  | 19.2.3   |
+| `react-hook-form` | 7.89.0 |
+| `@tanstack/react-query` | 5.104.1 |

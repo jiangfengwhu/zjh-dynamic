@@ -9,8 +9,7 @@
     "build:sdk": "node scripts/build-sdk.mjs",
     "pack:sdk": "npm run build:sdk && npm pack ./packages/app-sdk --pack-destination dist",
     "publish:sdk": "npm run build:sdk && npm publish ./packages/app-sdk --access public",
-    "release:official": "tsx scripts/release-official.ts",
-    "build:markdown": "node scripts/build-markdown-dependency.mjs"
+    "release:official": "tsx scripts/release-official.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.896.0"
