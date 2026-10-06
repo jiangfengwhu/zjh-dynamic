@@ -424,7 +424,7 @@ export function ComposePostScreen({
             </Pressy>
           </View>
           {previewing ? (
-            <View style={{ gap: 12, minHeight: 144 }}>
+            <View style={{ gap: 8, minHeight: 144 }}>
               {htmlMode && caption ? <Text style={styles.previewText}>{caption}</Text> : null}
               {htmlMode ? <HtmlPostContent html={previewHtml} /> : <Text selectable style={styles.previewText}>{text || "还没有内容，点击编辑开始输入"}</Text>}
             </View>
@@ -656,11 +656,11 @@ const useStyles = createThemedStyles((base) => {
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     fill: { flex: 1 },
-    content: { padding: 16, paddingTop: 8, gap: 16, paddingBottom: 16 },
+    content: { paddingHorizontal: 16, paddingTop: 6, gap: 10, paddingBottom: 10 },
     previewText: { color: t.ink1, fontSize: 15, lineHeight: 22 },
     htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
     htmlAction: { minHeight: 44, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
-    publishDock: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: t.canvas },
+    publishDock: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: t.canvas },
     author: { flexDirection: "row", gap: 12, alignItems: "center" },
     avatar: { width: 36, height: 36, borderRadius: 18 },
     name: { color: t.ink1, fontSize: 16, fontWeight: "600" },

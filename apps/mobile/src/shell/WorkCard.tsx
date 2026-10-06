@@ -165,15 +165,15 @@ export const WorkCard = memo(function WorkCard({
           }}
         >
           <UserAvatar uri={authorAvatarUrl} size={22} />
-          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Text
               numberOfLines={1}
-              style={{ color: colors.ink3, fontSize: 11 }}
+              style={{ color: colors.ink3, fontSize: 11, flexShrink: 1 }}
             >
               {authorName || "创作者"}
             </Text>
             {status ? (
-              <Text numberOfLines={1} style={{ color: accent, fontSize: 10 }}>
+              <Text numberOfLines={1} style={{ color: accent, fontSize: 10, flexShrink: 0 }}>
                 {status}
               </Text>
             ) : null}

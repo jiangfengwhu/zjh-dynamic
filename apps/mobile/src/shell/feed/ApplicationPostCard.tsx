@@ -75,7 +75,8 @@ export function ApplicationPostCard({
       onPress={() => void open()}
       style={{
         marginTop: 3,
-        padding: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
         borderRadius: 12,
         borderWidth: 0.5,
         borderColor: colors.line,

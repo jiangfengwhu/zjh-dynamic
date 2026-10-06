@@ -129,8 +129,8 @@ export function FeedItemFrame({
       style={[
         {
           paddingHorizontal: frameInset,
-          paddingTop: compact ? 4 : 8,
-          paddingBottom: compact ? 3 : 6,
+          paddingTop: compact ? 4 : detail ? 6 : 8,
+          paddingBottom: compact ? 3 : detail ? 4 : 6,
         },
         style,
       ]}
@@ -166,7 +166,7 @@ export function FeedItemFrame({
           {!detail ? <><View style={{ gap: 3 }}>{content}</View>{actions}</> : null}
         </View>
       </View>
-      {detail ? <View style={{ gap: 12, paddingTop: 12 }}><View style={{ gap: 3 }}>{content}</View>{actions}</View> : null}
+      {detail ? <View style={{ gap: 6, paddingTop: 6 }}><View style={{ gap: 3 }}>{content}</View>{actions}</View> : null}
     </View>
   );
 }

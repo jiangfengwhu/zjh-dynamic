@@ -148,7 +148,7 @@ export function UserPostCard({
                 </Text>
               ) : null}
               {post.content?.format === "html" && post.content.version === 1 ? (
-                <View style={{ paddingTop: post.body ? 10 : 0 }}>
+                <View style={{ paddingTop: !post.body && !detail ? 5 : 0 }}>
                 <HtmlPostContent
                   html={post.content.html}
                   fallback={post.body}
