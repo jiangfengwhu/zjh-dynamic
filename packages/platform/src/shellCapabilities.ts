@@ -38,10 +38,6 @@ export function shellShare(input: { text?: string; title?: string; path?: string
   return pluginCall("shell", "share", input);
 }
 
-export function shellOpenSettings(target: "app" | "notifications" | "exactAlarms" = "app") {
-  return pluginCall("shell", "openSettings", { target });
-}
-
 export function shellAuthenticate(input?: { title?: string; subtitle?: string }) {
   return pluginCall<{ ok: boolean; error?: string }>("shell", "authenticate", input ?? {});
 }
