@@ -375,9 +375,10 @@ function CreateApplicationPage({
     }
   }
   return (
+    <View style={{ flex: 1 }}>
     <KeyboardAwareScrollView
-      // Reserve the multiline field and action even with the caret on its first line.
-      bottomOffset={CREATION_INPUT_HEIGHT + 64}
+      // The action dock stays outside the scrolling form.
+      bottomOffset={24}
       style={{ flex: 1 }}
       nestedScrollEnabled
       showsVerticalScrollIndicator={false}
@@ -487,6 +488,48 @@ function CreateApplicationPage({
         }}
       />
       <CreationImages images={images} disabled={busy} />
+
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <Text style={{ flex: 1, color: colors.ink3, fontSize: 12 }}>
+          {polishing
+            ? "正在润色，你仍可编辑或直接开始制作"
+            : "输入内容自动保存，AI 润色可选"}
+        </Text>
+        <Text style={{ color: colors.ink3, fontSize: 11 }}>
+          {prompt.length}/8000
+        </Text>
+      </View>
+      {polishError ? (
+        <View style={{ gap: 4 }}>
+          <Text style={{ color: colors.redText, fontSize: 12 }}>
+            {polishError}
+          </Text>
+          {/配置|引擎/.test(polishError) ? (
+            <Pressy
+              accessibilityRole="button"
+              onPress={() => applicationContext("jolly").ai.openSettings()}
+              style={{ minHeight: 44, justifyContent: "center" }}
+            >
+              <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+                配置 AI 引擎
+              </Text>
+            </Pressy>
+          ) : null}
+        </View>
+      ) : null}
+
+      <Text style={{ color: colors.ink3, fontSize: 12 }}>
+        点击后需求和参考图会交给制作服务；作品发布成功后会收到站内通知，制作进度可手动刷新。
+      </Text>
+    </KeyboardAwareScrollView>
+    <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 + insets.bottom, backgroundColor: colors.canvas }}>
       <Pressy
         accessibilityRole="button"
         accessibilityLabel="提交需求并开始制作"
@@ -529,45 +572,7 @@ function CreateApplicationPage({
           {busy ? submitStatus : "进入制作"}
         </Text>
       </Pressy>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
-        <Text style={{ flex: 1, color: colors.ink3, fontSize: 12 }}>
-          {polishing
-            ? "正在润色，你仍可编辑或直接开始制作"
-            : "输入内容自动保存，AI 润色可选"}
-        </Text>
-        <Text style={{ color: colors.ink3, fontSize: 11 }}>
-          {prompt.length}/8000
-        </Text>
-      </View>
-      {polishError ? (
-        <View style={{ gap: 4 }}>
-          <Text style={{ color: colors.redText, fontSize: 12 }}>
-            {polishError}
-          </Text>
-          {/配置|引擎/.test(polishError) ? (
-            <Pressy
-              accessibilityRole="button"
-              onPress={() => applicationContext("jolly").ai.openSettings()}
-              style={{ minHeight: 44, justifyContent: "center" }}
-            >
-              <Text style={{ color: colors.orchidText, fontSize: 13 }}>
-                配置 AI 引擎
-              </Text>
-            </Pressy>
-          ) : null}
-        </View>
-      ) : null}
-
-      <Text style={{ color: colors.ink3, fontSize: 12 }}>
-        点击后需求和参考图会交给制作服务，直接开始制作；完成或失败都会收到站内通知。
-      </Text>
-    </KeyboardAwareScrollView>
+    </View>
+    </View>
   );
 }

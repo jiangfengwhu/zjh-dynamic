@@ -103,6 +103,7 @@ export function FeedItemFrame({
   content,
   actions,
   style,
+  detail = false,
 }: {
   avatar: ReactNode;
   name: string;
@@ -114,11 +115,12 @@ export function FeedItemFrame({
   content: ReactNode;
   actions: ReactNode;
   style?: StyleProp<ViewStyle>;
+  detail?: boolean;
 }) {
   const compact = useCompactFeed();
   const frameInset = useFeedFrameInset();
   const avatarSlot = (
-    <View style={{ width: 44, height: 44, alignItems: "center" }}>
+    <View style={{ width: detail ? 36 : 44, height: 44, alignItems: "center" }}>
       {avatar}
     </View>
   );
@@ -145,7 +147,7 @@ export function FeedItemFrame({
             accessibilityLabel={`查看${name}的主页`}
             onPress={onIdentity}
             scale={0.92}
-            style={{ width: 44, height: 44, justifyContent: "flex-start" }}
+            style={{ width: detail ? 36 : 44, height: 44, justifyContent: "flex-start" }}
           >
             {avatarSlot}
           </Pressy>
@@ -161,10 +163,10 @@ export function FeedItemFrame({
             onIdentity={onIdentity}
             menu={menu}
           />
-          <View style={{ gap: 3 }}>{content}</View>
-          {actions}
+          {!detail ? <><View style={{ gap: 3 }}>{content}</View>{actions}</> : null}
         </View>
       </View>
+      {detail ? <View style={{ gap: 12, paddingTop: 12 }}><View style={{ gap: 3 }}>{content}</View>{actions}</View> : null}
     </View>
   );
 }

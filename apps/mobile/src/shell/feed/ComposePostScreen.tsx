@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Keyboard, Pressable, ScrollView, View } from "react-native";
+import { Keyboard, Pressable, ScrollView, Switch, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
 import { SymbolIcon } from "./PixelKit";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -39,6 +39,8 @@ import {
 
 import { HtmlPostContent } from "./HtmlPostContent";
 import { htmlByteLength } from "./postDraft";
+import { polishPost } from "./polishPost";
+import { applicationContext } from "../../../../../packages/app-sdk/src/runtime";
 import type { UserPostDraft } from "../../../../../packages/app-sdk/src/index";
 
 
@@ -71,7 +73,7 @@ export function ComposePostScreen({
   const { user } = useAccount();
   const owner = useRef(cachedAccountId()).current;
   const [text, setText] = useState(
-    initialDraft?.body ??
+    initialDraft?.html ?? initialDraft?.body ??
       (initialApplication
         ? `我发布了《${
             initialApplication.title || initialApplication.manifest.title
@@ -89,9 +91,15 @@ export function ComposePostScreen({
   const [loadingApps, setLoadingApps] = useState(false);
   const [appsError, setAppsError] = useState("");
   const [applications, setApplications] = useState<MarketApplication[]>([]);
-  const [html, setHtml] = useState(initialDraft?.html ?? "");
+  const [caption, setCaption] = useState(initialDraft?.html ? initialDraft.body ?? "" : "");
   const [htmlMode, setHtmlMode] = useState(!!initialDraft?.html);
-  const [previewing, setPreviewing] = useState(false);
+  const [previewing, setPreviewing] = useState(!!initialDraft);
+  const [polishing, setPolishing] = useState(false);
+  const [polishError, setPolishError] = useState("");
+  const [beforePolish, setBeforePolish] = useState<string>();
+  const polishController = useRef<AbortController | undefined>(undefined);
+  const html = htmlMode ? text : "";
+  const body = htmlMode ? caption : text;
   const previewHtml = useDeferredValue(html);
   const content =
     htmlMode && html.trim()
@@ -110,7 +118,7 @@ export function ComposePostScreen({
   const request = useRef<{ signature: string; id: string } | undefined>(
     undefined,
   );
-  const count = Array.from(text).length;
+  const count = Array.from(body).length;
   const canPublish =
     draftReady &&
     (text.trim().length > 0 ||
@@ -150,14 +158,14 @@ export function ComposePostScreen({
             !revision.current &&
             (await currentAccountId()) === owner
           ) {
-            setText(typeof draft.body === "string" ? draft.body : "");
+            setText(typeof draft.editorText === "string" ? draft.editorText : draft.htmlMode && typeof draft.html === "string" ? draft.html : typeof draft.body === "string" ? draft.body : "");
+            setCaption(typeof draft.caption === "string" ? draft.caption : draft.htmlMode && typeof draft.body === "string" ? draft.body : "");
             setApplication(
               draft.application?.authorId === owner
                 ? draft.application
                 : initialApplication,
             );
             setPhotos(restored);
-            setHtml(typeof draft.html === "string" ? draft.html : "");
             setHtmlMode(!!draft.htmlMode);
           }
         }
@@ -171,6 +179,7 @@ export function ComposePostScreen({
     })();
     return () => {
       alive.current = false;
+      polishController.current?.abort();
       for (const path of files.current)
         void ImagePicker.cleanSingle(path).catch(() => {});
     };
@@ -179,7 +188,7 @@ export function ComposePostScreen({
     if (draftReady && owner && !published)
       writeShellValue(
         draftKey,
-        JSON.stringify({ body: text, application, photos, html, htmlMode }),
+        JSON.stringify({ body, editorText: text, caption, application, photos, html, htmlMode }),
       );
   }, [
     draftReady,
@@ -188,6 +197,7 @@ export function ComposePostScreen({
     photos,
     html,
     htmlMode,
+    caption,
     published,
     draftKey,
   ]);
@@ -196,12 +206,37 @@ export function ComposePostScreen({
     if (owner && draftReady)
       writeShellValue(
         draftKey,
-        JSON.stringify({ body, application: selected, photos, html, htmlMode }),
+        JSON.stringify({ body: htmlMode ? caption : body, editorText: body, caption, application: selected, photos, html: htmlMode ? body : "", htmlMode }),
       );
   }
   function change(value: string) {
+    polishController.current?.abort();
+    setPolishing(false);
+    setPolishError("");
+    setBeforePolish(undefined);
     setText(value);
     saveDraft(value, application);
+  }
+  async function polish() {
+    if (polishing || busy || !draftReady || !text.trim()) return;
+    const source = text;
+    const before = revision.current;
+    const controller = new AbortController();
+    polishController.current = controller;
+    setPolishing(true);
+    setPolishError("");
+    try {
+      const result = await polishPost(source, htmlMode ? "html" : "text", controller.signal);
+      if (!alive.current || controller.signal.aborted || before !== revision.current || await currentAccountId() !== owner) return;
+      setBeforePolish(source);
+      setText(result);
+      saveDraft(result, application);
+    } catch (cause) {
+      if (alive.current && !controller.signal.aborted && before === revision.current)
+        setPolishError(cause instanceof Error ? cause.message : "润色未完成，原文已保留");
+    } finally {
+      if (polishController.current === controller) { polishController.current = undefined; if (alive.current) setPolishing(false); }
+    }
   }
   function selectApplication(item?: MarketApplication) {
     setApplication(item);
@@ -292,6 +327,9 @@ export function ComposePostScreen({
   }
   async function publish() {
     if (working.current || !canPublish) return;
+    revision.current++;
+    polishController.current?.abort();
+    setPolishing(false);
     working.current = true;
     setBusy(true);
     try {
@@ -304,7 +342,7 @@ export function ComposePostScreen({
           }
         : undefined;
       const signature = JSON.stringify({
-        body: text.trim(),
+        body: body.trim(),
         paths: photos.map((photo) => photo.path),
         application: attached,
         content,
@@ -328,7 +366,7 @@ export function ComposePostScreen({
       }
       setStatus("正在发布…");
       await publishUserPost(
-        text.trim(),
+        body.trim(),
         uploaded.map((photo) => photo.id!),
         request.current!.id,
         attached,
@@ -378,64 +416,26 @@ export function ComposePostScreen({
             <UserAvatar uri={user?.avatarUrl} size={36} style={styles.avatar} />
             <Text style={styles.name}>{user?.name || "我"}</Text>
           </View>
-          <TextInput
-            accessibilityLabel="动态内容"
-            multiline
-            editable={draftReady && !busy}
-            value={text}
-            onChangeText={change}
-            maxLength={4000}
-            placeholder="分享此刻的想法…"
-            placeholderTextColor={colors.ink3}
-            style={styles.input}
-            textAlignVertical="top"
-          />
-          {htmlMode ? (
-            <View style={{ gap: 8 }}>
-              <View style={styles.htmlHeader}>
-                <Text style={styles.name}>HTML 内容</Text>
-                <Pressy
-                  accessibilityLabel={previewing ? "编辑 HTML" : "预览 HTML"}
-                  disabled={busy}
-                  onPress={() => setPreviewing((value) => !value)}
-                  style={styles.htmlAction}
-                >
-                  <Text style={styles.addText}>
-                    {previewing ? "编辑" : "预览"}
-                  </Text>
-                </Pressy>
-              </View>
-              {previewing ? (
-                <HtmlPostContent html={previewHtml} />
-              ) : (
-                <TextInput
-                  accessibilityLabel="HTML 源码"
-                  multiline
-                  scrollEnabled
-                  editable={draftReady && !busy}
-                  value={html}
-                  onChangeText={(value) => {
-                    revision.current++;
-                    setHtml(value);
-                  }}
-                  maxLength={32768}
-                  placeholder='<p style="color:#806020">分享你的创造</p>'
-                  style={[styles.input, { height: 224 }]}
-                  textAlignVertical="top"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              )}
-              <Text
-                style={[
-                  styles.counter,
-                  htmlBytes > 32768 && { color: colors.danger },
-                ]}
-              >
-                {htmlBytes}/32768 字节 · 支持简单内联样式
-              </Text>
+          <View style={styles.htmlHeader}>
+            <Text style={styles.name}>{htmlMode ? "HTML 动态" : "动态内容"}</Text>
+            <Pressy accessibilityLabel={previewing ? "编辑动态" : "预览动态"} disabled={busy}
+              onPress={() => { Keyboard.dismiss(); setPreviewing(value => !value); }} style={styles.htmlAction}>
+              <Text style={styles.addText}>{previewing ? "编辑" : "预览"}</Text>
+            </Pressy>
+          </View>
+          {previewing ? (
+            <View style={{ gap: 12, minHeight: 144 }}>
+              {htmlMode && caption ? <Text style={styles.previewText}>{caption}</Text> : null}
+              {htmlMode ? <HtmlPostContent html={previewHtml} /> : <Text selectable style={styles.previewText}>{text || "还没有内容，点击编辑开始输入"}</Text>}
             </View>
-          ) : null}
+          ) : (
+            <TextInput accessibilityLabel={htmlMode ? "HTML 动态源码" : "动态内容"} multiline scrollEnabled
+              editable={draftReady && !busy} value={text} onChangeText={change}
+              maxLength={htmlMode ? 32768 : 4000}
+              placeholder={htmlMode ? '<p style="color:#806020">分享你的创造</p>' : "分享此刻的想法…"}
+              placeholderTextColor={colors.ink3} style={[styles.input, { height: 224 }]} textAlignVertical="top"
+              autoCapitalize={htmlMode ? "none" : "sentences"} autoCorrect={!htmlMode} />
+          )}
           <View style={styles.photos}>
             {photos.map((photo, index) => (
               <View key={photo.path} style={styles.photo}>
@@ -460,22 +460,28 @@ export function ComposePostScreen({
             ))}
           </View>
           <View style={styles.tools}>
-            <Pressy
-              accessibilityLabel={
-                htmlMode ? "关闭 HTML 内容" : "添加 HTML 内容"
-              }
-              accessibilityState={{ selected: htmlMode }}
-              disabled={!draftReady || busy || choosing}
+            <View style={styles.tool}>
+              <Text style={styles.addText}>HTML</Text>
+              <Switch accessibilityLabel="作为 HTML 发布" value={htmlMode} disabled={!draftReady || busy}
+                trackColor={{ false: colors.lineStrong, true: colors.accent }}
+                onValueChange={value => {
+                  revision.current++;
+                  polishController.current?.abort();
+                  setPolishing(false); setBeforePolish(undefined); setPolishError("");
+                  setHtmlMode(value);
+                }} />
+            </View>
+            <Pressy accessibilityLabel={polishing ? "取消 AI 润色" : "AI 润色动态"}
+              disabled={!draftReady || busy || !text.trim()} style={styles.tool}
               onPress={() => {
-                revision.current++;
-                setHtmlMode((value) => !value);
-              }}
-              style={styles.tool}
-            >
-              <Text style={styles.addText}>
-                {htmlMode ? "HTML 已开启" : "HTML"}
-              </Text>
+                if (polishing) { polishController.current?.abort(); setPolishing(false); }
+                else void polish();
+              }}>
+              {polishing ? <ActivityIndicator color={colors.accentText} size="small" /> : <SymbolIcon name="spark" size={18} color={colors.accentText} />}
+              <Text style={styles.addText}>{polishing ? "取消润色" : "AI 润色"}</Text>
             </Pressy>
+            {beforePolish !== undefined ? <Pressy accessibilityLabel="撤销 AI 润色" style={styles.tool} disabled={busy}
+              onPress={() => change(beforePolish)}><Text style={styles.addText}>撤销润色</Text></Pressy> : null}
             <Pressy
               accessibilityLabel="添加图片，最多四张"
               disabled={!draftReady || busy || choosing || photos.length >= 4}
@@ -504,11 +510,16 @@ export function ComposePostScreen({
               {draftReady ? "草稿自动保存" : "正在读取草稿…"}
             </Text>
             <Text
-              style={[styles.counter, count > 2000 && { color: colors.danger }]}
+              style={[styles.counter, (htmlMode ? htmlBytes > 32768 : count > 2000) && { color: colors.danger }]}
             >
-              {count}/2000
+              {htmlMode ? `${htmlBytes}/32768 字节` : `${count}/2000`}
             </Text>
           </View>
+          {polishError ? <View style={{ gap: 4 }}>
+            <Text style={{ color: colors.danger, fontSize: 12 }}>{polishError}</Text>
+            {/配置|引擎/.test(polishError) ? <Pressy accessibilityLabel="配置 AI 引擎" style={styles.htmlAction}
+              onPress={() => applicationContext("jolly").ai.openSettings()}><Text style={styles.addText}>配置 AI 引擎</Text></Pressy> : null}
+          </View> : null}
           {application ? (
             <View>
               <ApplicationPostCard
@@ -646,6 +657,7 @@ const useStyles = createThemedStyles((base) => {
     screen: { flex: 1, backgroundColor: t.canvas },
     fill: { flex: 1 },
     content: { padding: 16, paddingTop: 8, gap: 16, paddingBottom: 16 },
+    previewText: { color: t.ink1, fontSize: 15, lineHeight: 22 },
     htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
     htmlAction: { minHeight: 44, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
     publishDock: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: t.canvas },

@@ -121,6 +121,7 @@ export function UserPostCard({
         style={styles.openArea}
       >
         <FeedItemFrame
+          detail={detail}
           avatar={avatar}
           name={post.author.name}
           time={time}
@@ -147,12 +148,14 @@ export function UserPostCard({
                 </Text>
               ) : null}
               {post.content?.format === "html" && post.content.version === 1 ? (
+                <View style={{ paddingTop: post.body ? 10 : 0 }}>
                 <HtmlPostContent
                   html={post.content.html}
                   fallback={post.body}
                   onApplication={onApplication}
                   onImage={setPreview}
                 />
+                </View>
               ) : null}
               {post.images.length ? (
                 <View style={styles.images}>

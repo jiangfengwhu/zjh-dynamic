@@ -1,6 +1,7 @@
 import { Children, createContext, isValidElement, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Keyboard, Modal, StyleSheet, View, type ModalProps, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { KeyboardViewport } from "./keyboard";
 
 const EdgeContext = createContext({ bottom: true });
 
@@ -59,7 +60,7 @@ export function setModalFeedbackRenderer(renderer: () => ReactNode) {
 }
 export function EdgeModal(props: ModalProps) {
   return <Modal {...props} statusBarTranslucent navigationBarTranslucent>
-    {props.children}
+    <KeyboardViewport independent reserveBottom={false}>{props.children}</KeyboardViewport>
     {props.visible ? modalFeedback?.() : null}
   </Modal>;
 }

@@ -1,11 +1,13 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Dimensions, Platform, useWindowDimensions } from "react-native";
 import Animated, { measure, runOnUI, useAnimatedRef, useAnimatedReaction, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+const KeyboardViewportContext = createContext(false);
 
 /** Reserve only keyboard overlap not already removed by the native window. */
-export function KeyboardViewport({ children, backgroundColor, reserveBottom = true }: { children: ReactNode; backgroundColor?: string; reserveBottom?: boolean }) {
+export function KeyboardViewport({ children, backgroundColor, reserveBottom = true, independent = false }: { children: ReactNode; backgroundColor?: string; reserveBottom?: boolean; independent?: boolean }) {
+  const parentAvoidsKeyboard = useContext(KeyboardViewportContext) && !independent;
   const { height, progress } = useReanimatedKeyboardAnimation();
   const { bottom } = useSafeAreaInsets();
   const window = useWindowDimensions();
@@ -27,14 +29,15 @@ export function KeyboardViewport({ children, backgroundColor, reserveBottom = tr
     // resize the window before JS receives the corresponding layout event.
     const layout = _WORKLET ? measure(ref) : null;
     const lowerEdge = layout ? layout.pageY + layout.height : edge.value;
-    const overlap = lowerEdge > 0 ? Math.max(0, lowerEdge - (screenHeight + height.value)) : 0;
+    const overlap = !parentAvoidsKeyboard && lowerEdge > 0 ? Math.max(0, lowerEdge - (screenHeight - Math.abs(height.value))) : 0;
     return { paddingBottom: Math.max(reserveBottom ? stableBottom.value * (1 - Math.max(0, Math.min(1, progress.value))) : 0, overlap) };
   });
-  return <Animated.View ref={ref} onLayout={() => {
+  return <Animated.View ref={ref} collapsable={false} onLayout={event => {
+    edge.value = event.nativeEvent.layout.y + event.nativeEvent.layout.height;
     runOnUI(() => {
       "worklet";
       const layout = measure(ref);
       if (layout) edge.value = layout.pageY + layout.height;
     })();
-  }} style={[{ flex: 1, backgroundColor }, inset]}>{children}</Animated.View>;
+  }} style={[{ flex: 1, backgroundColor }, inset]}><KeyboardViewportContext.Provider value={true}>{children}</KeyboardViewportContext.Provider></Animated.View>;
 }
