@@ -509,9 +509,14 @@ function NotificationsContent({
                       <UserAvatar uri={item.actor.avatarUrl} authorId={item.actor.id} size={40} />
                     )}
                     <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-                      <Text style={{ color: colors.ink1, fontSize: 14 }}>
-                        {noticeHeading(item)}
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Text numberOfLines={2} style={{ flex: 1, color: colors.ink1, fontSize: 14 }}>
+                          {noticeHeading(item)}
+                        </Text>
+                        <Text style={{ color: colors.ink3, fontSize: 11, fontFamily: colors.mono }}>
+                          {new Date(item.createdAt).toLocaleString()}
+                        </Text>
+                      </View>
                       <Text
                         numberOfLines={2}
                         style={{
@@ -527,15 +532,6 @@ function NotificationsContent({
                         style={{ color: colors.ink3, fontSize: 12 }}
                       >
                         {item.postPreview}
-                      </Text>
-                      <Text
-                        style={{
-                          color: colors.ink3,
-                          fontSize: 11,
-                          fontFamily: colors.mono,
-                        }}
-                      >
-                        {new Date(item.createdAt).toLocaleString()}
                       </Text>
                     </View>
                     {!item.read ? (

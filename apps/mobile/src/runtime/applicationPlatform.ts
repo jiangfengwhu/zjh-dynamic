@@ -9,7 +9,7 @@ import { readShellValue, writeShellValue } from "../shell/shellStorage";
 import { openCreationComposer } from "../shell/creationComposer";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { runningApplication } from "./applications";
-import { applicationNativeModule, applicationReanimatedModule } from "./applicationTypography";
+import { applicationNativeModule, applicationReanimatedModule, applicationCalendarsModule } from "./applicationTypography";
 
 const modules: Record<string, () => unknown> = {
   "react-native-enriched-markdown": () => require("react-native-enriched-markdown"),
@@ -34,7 +34,7 @@ const modules: Record<string, () => unknown> = {
   "react": () => require("react"),
   "react-error-boundary": () => require("react-error-boundary"),
   "react-native": applicationNativeModule,
-  "react-native-calendars": () => require("react-native-calendars"),
+  "react-native-calendars": applicationCalendarsModule,
   "react-native-gesture-handler": () => require("react-native-gesture-handler"),
   "react-native-gifted-charts": () => require("react-native-gifted-charts"),
   "react-native-haptic-feedback": () => require("react-native-haptic-feedback"),

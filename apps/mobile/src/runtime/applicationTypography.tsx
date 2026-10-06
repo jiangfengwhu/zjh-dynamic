@@ -1,4 +1,5 @@
-import { forwardRef, useContext } from "react";
+import { createElement, forwardRef, useContext, useMemo, type ElementType } from "react";
+import type { Theme as CalendarTheme } from "react-native-calendars/src/types";
 import type { Text as NativeTextRef, TextInput as NativeInputRef, TextProps, TextInputProps } from "react-native";
 import { TextFontContext } from "../../../../packages/ui/primitives/Typography";
 import { useTheme } from "../../../../packages/ui/theme";
@@ -52,4 +53,37 @@ export function applicationReanimatedModule() {
     TextInput: original.createAnimatedComponent(ApplicationInput),
   };
   return reanimatedModule = overlay(original, { ...typography, default: overlay(original.default, typography) });
+}
+
+let calendarsModule: typeof import("react-native-calendars") | undefined;
+export function applicationCalendarsModule() {
+  if (calendarsModule) return calendarsModule;
+  const original: typeof import("react-native-calendars") = require("react-native-calendars");
+  const replacements: Record<string, unknown> = {};
+  for (const name of ["Calendar", "CalendarList", "NewCalendarList", "Agenda", "ExpandableCalendar", "WeekCalendar", "AgendaList", "CalendarProvider"] as const) {
+    const Component = original[name];
+    const Adapted = forwardRef<unknown, { theme?: CalendarTheme; [key: string]: unknown }>(function ApplicationCalendar({ theme, ...props }, ref) {
+      const { colors } = useTheme();
+      const themed = useMemo(() => {
+        const value = { ...theme };
+        for (const [familyKey, weightKey] of [
+          ["textDayFontFamily", "textDayFontWeight"],
+          ["textMonthFontFamily", "textMonthFontWeight"],
+          ["textDayHeaderFontFamily", "textDayHeaderFontWeight"],
+          ["todayButtonFontFamily", "todayButtonFontWeight"],
+        ] as const) {
+          value[familyKey] ??= colors.typography.body;
+          if (value[familyKey] === "Fusion Pixel 12px Proportional SC") value[weightKey] = "normal";
+        }
+        return value;
+      }, [theme, colors.typography.body]);
+      return createElement(Component as ElementType, { ...props, ref, theme: themed });
+    });
+    // Keep public constants such as ExpandableCalendar.positions, without copying
+    // React's memo/forwardRef identity or a class component's lifecycle methods.
+    const reserved = new Set(["$$typeof", "render", "compare", "type", "prototype", "name", "length", "caller", "arguments", "getDerivedStateFromProps", "getDerivedStateFromError"]);
+    Object.defineProperties(Adapted, Object.fromEntries(Object.entries(Object.getOwnPropertyDescriptors(Component)).filter(([key]) => !reserved.has(key))));
+    replacements[name] = Adapted;
+  }
+  return calendarsModule = overlay(original, replacements);
 }

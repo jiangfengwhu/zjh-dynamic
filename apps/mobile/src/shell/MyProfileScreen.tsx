@@ -315,16 +315,17 @@ function MyProfileContent({
                     style={{
                       color: colors.ink1,
                       fontSize: 22,
+                      lineHeight: 28,
                       fontWeight: "700",
                     }}
                   >
                     {user?.name ?? "登录紫金花"}
                   </Text>
                   {author ? <View style={{ flexDirection: "row", gap: 12 }}>
-                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的关注" onPress={() => onConnections(author, "following")} style={{ minHeight: 44, justifyContent: "center" }}>
+                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的关注" hitSlop={{ top: 10, bottom: 10 }} onPress={() => onConnections(author, "following")} style={{ minHeight: 24, justifyContent: "center" }}>
                       <Text style={{ color: colors.greenText, fontSize: 12 }}>{stats?.id === user?.id ? stats?.following ?? "—" : "—"} 关注</Text>
                     </Pressy>
-                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的粉丝" onPress={() => onConnections(author, "followers")} style={{ minHeight: 44, justifyContent: "center" }}>
+                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的粉丝" hitSlop={{ top: 10, bottom: 10 }} onPress={() => onConnections(author, "followers")} style={{ minHeight: 24, justifyContent: "center" }}>
                       <Text style={{ color: colors.orchidText, fontSize: 12 }}>{stats?.id === user?.id ? stats?.followers ?? "—" : "—"} 粉丝</Text>
                     </Pressy>
                   </View> : <Text style={{ color: colors.ink3, fontSize: 12 }}>记录创造，收藏自己的作品</Text>}
