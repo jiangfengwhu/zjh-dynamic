@@ -76,7 +76,7 @@ export function ComposePostScreen({
     initialDraft?.html ?? initialDraft?.body ??
       (initialApplication
         ? `我发布了《${
-            initialApplication.title || initialApplication.manifest.title
+            initialApplication.title || initialApplication.manifest.appName
           }》，欢迎来体验。`
         : ""),
   );
@@ -526,8 +526,8 @@ export function ComposePostScreen({
                 preview
                 application={{
                   ...application.manifest,
-                  title: application.title || application.manifest.title,
-                  summary: application.summary ?? application.manifest.summary,
+                  title: application.title || application.manifest.appName,
+                  summary: application.summary ?? application.manifest.description,
                 }}
               />
               <Pressable
@@ -617,7 +617,7 @@ export function ComposePostScreen({
                   <Pressable
                     key={item.manifest.appId}
                     accessibilityLabel={`选择${
-                      item.title || item.manifest.title
+                      item.title || item.manifest.appName
                     }`}
                     onPress={() => selectApplication(item)}
                     style={{
@@ -627,10 +627,10 @@ export function ComposePostScreen({
                     }}
                   >
                     <Text style={styles.name}>
-                      {item.title || item.manifest.title}
+                      {item.title || item.manifest.appName}
                     </Text>
                     <Text numberOfLines={2} style={styles.counter}>
-                      {item.summary || item.manifest.summary}
+                      {item.summary || item.manifest.description}
                     </Text>
                   </Pressable>
                 ))

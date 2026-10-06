@@ -383,9 +383,9 @@ function AuthorProfileContent({
                         style={{ paddingHorizontal: 16, paddingVertical: 0 }}
                       >
                         <WorkCard
-                          title={item.title || item.manifest.title}
-                          summary={item.summary ?? item.manifest.summary}
-                          mark={item.manifest.mark}
+                          title={item.title || item.manifest.appName}
+                          summary={item.summary ?? item.manifest.description}
+
                           authorName={author.name}
                           authorAvatarUrl={author.avatarUrl}
                           visibility="public"

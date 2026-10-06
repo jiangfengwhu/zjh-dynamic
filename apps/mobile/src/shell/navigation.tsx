@@ -295,7 +295,7 @@ function MarketDetailPage({ item, onOpen }: {
     onBack={goBack}
     onOpen={onOpen}
     onModify={(manifest, ownerId, fork) => openCreationComposer({
-      appId: manifest.appId, title: manifest.title, releaseId: manifest.releaseId, ownerId, fork,
+      appId: manifest.appId, title: manifest.appName, releaseId: manifest.releaseId, ownerId, fork,
     })}
     onSharePost={application => shellNavigationRef.navigate("composePost", { application })}
     onAuthor={openAuthor}
@@ -645,7 +645,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 onModify={(manifest, ownerId, fork) =>
                   openCreationComposer({
                     appId: manifest.appId,
-                    title: manifest.title,
+                    title: manifest.appName,
                     releaseId: manifest.releaseId,
                     ownerId,
                     fork,

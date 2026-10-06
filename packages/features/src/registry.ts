@@ -8,16 +8,15 @@ export type BundleDefinition = {
   id: string;
   title: string;
   summary: string;
-  mark: string;
   accent: string;
   avatar?: ComponentType<AppAvatarProps>;
   /** Install/load an independent application; never import its business source. */
   load: () => unknown;
 };
 
-const index = require("../../../apps/mobile/src/runtime/application-index.json") as Array<{ appId: string; title: string; summary: string; mark: string; accent: string }>;
+const index = require("../../../apps/mobile/src/runtime/application-index.json") as Array<{ appId: string; appName: string; description: string; accent: string }>;
 function definition(item: (typeof index)[number]): BundleDefinition {
-  return { id: item.appId, title: item.title, summary: item.summary, mark: item.mark, accent: item.accent,
+  return { id: item.appId, title: item.appName, summary: item.description, accent: item.accent,
     get avatar() { return peekApplication(item.appId)?.avatar; },
     load: () => loadApplication(item.appId),
   };
@@ -36,7 +35,7 @@ export async function restoreApplications() {
     if (!raw) continue;
     try {
       const item = JSON.parse(raw);
-      if (item.appId !== entry.id || typeof item.title !== "string") continue;
+      if (item.appId !== entry.id || typeof item.appName !== "string") continue;
       const prior = bundles.findIndex(bundle => bundle.id === entry.id);
       if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
     } catch { /* Keep other installed applications available. */ }
@@ -51,7 +50,7 @@ export async function refreshApplications() {
     const payload = await response.json() as { applications: typeof index };
     for (const item of payload.applications) {
       if (item.appId === "jolly") continue;
-      if (!/^[a-z][a-z0-9-]{0,63}$/.test(item.appId) || typeof item.title !== "string") continue;
+      if (!/^[a-z][a-z0-9-]{0,63}$/.test(item.appId) || typeof item.appName !== "string") continue;
       const prior = bundles.findIndex(bundle => bundle.id === item.appId);
       if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
     }

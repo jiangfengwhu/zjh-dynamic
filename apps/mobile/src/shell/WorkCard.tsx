@@ -12,7 +12,6 @@ import { useTheme } from "../../../../packages/ui/theme";
 export const WorkCard = memo(function WorkCard({
   title,
   summary,
-  mark,
   visibility,
   status,
   authorName,
@@ -23,7 +22,6 @@ export const WorkCard = memo(function WorkCard({
 }: {
   title: string;
   summary: string;
-  mark?: string;
   visibility: "public" | "private";
   status?: string;
   authorName?: string;
@@ -106,11 +104,7 @@ export const WorkCard = memo(function WorkCard({
               justifyContent: "center",
             }}
           >
-            {mark ? (
-              <Text style={{ color: accent, fontSize: 26 }}>{mark}</Text>
-            ) : (
-              <SymbolIcon name="box" size={26} color={accent} />
-            )}
+            <SymbolIcon name="box" size={26} color={accent} />
             {busy ? (
               <ActivityIndicator
                 color={accent}

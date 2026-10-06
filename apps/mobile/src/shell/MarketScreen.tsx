@@ -611,7 +611,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
   return (
     <Pressy
       accessibilityRole="button"
-      accessibilityLabel={`查看${item.title || app.title}${
+      accessibilityLabel={`查看${item.title || app.appName}${
         installed ? "，已安装" : ""
       }`}
       onPress={() => void onOpen(item)}
@@ -622,20 +622,20 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
         {Avatar ? (
           <Avatar size={44} />
         ) : (
-          <Text style={{ fontSize: 24, color: app.accent }}>{app.mark}</Text>
+          <SymbolIcon name="box" size={24} color={app.accent} />
         )}
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1}>
-            {item.title || app.title}
+            {item.title || app.appName}
           </Text>
           {item.authorOfficial ? (
             <Text style={styles.official}>官方</Text>
           ) : null}
         </View>
         <Text style={styles.summary} numberOfLines={1}>
-          {item.summary || app.summary || "查看应用详情"}
+          {item.summary || app.description || "查看应用详情"}
         </Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Pressy

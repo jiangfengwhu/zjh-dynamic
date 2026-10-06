@@ -58,10 +58,10 @@ export type ApplicationManifest = {
   appId: string;
   releaseId: string;
   version: string;
-  title: string;
-  summary: string;
-  releaseNotes?: string;
-  mark: string;
+  appName: string;
+  description: string;
+  /** Changes in this version, shown in work details. */
+  releaseNotes: string;
   accent: string;
   dataSchemaVersion: number;
   requires: { engineAbi: string; sdk: string; shared: Record<string, string> };

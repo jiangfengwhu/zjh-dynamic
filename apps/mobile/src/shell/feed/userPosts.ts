@@ -16,7 +16,6 @@ export type ApplicationLink = {
   releaseId: string;
   title: string;
   summary: string;
-  mark: string;
   accent: string;
 };
 export type PostContent = { format: "html"; version: 1; html: string };

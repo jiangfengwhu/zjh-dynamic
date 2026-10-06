@@ -19,12 +19,12 @@ export async function readMyWorks(): Promise<MyWork[]> {
   let workspaces = parsed<Array<{ appId: string; title: string }>>(context.storage.get("workspaces")) ?? [];
   workspaces = (await Promise.all(workspaces.map(async workspace => { const owner = await readShellValue(`shell.jules.apps.${workspace.appId}.owner`); return owner && owner !== accountId ? undefined : workspace; }))).filter((workspace): workspace is { appId: string; title: string } => Boolean(workspace));
   const installed = await installedMarket();
-  for (const item of installed.filter(item => item.owned)) if (!workspaces.some(work => work.appId === item.manifest.appId)) workspaces.push({ appId: item.manifest.appId, title: item.manifest.title });
+  for (const item of installed.filter(item => item.owned)) if (!workspaces.some(work => work.appId === item.manifest.appId)) workspaces.push({ appId: item.manifest.appId, title: item.manifest.appName });
   const result = await Promise.all(workspaces.map(async workspace => {
     const run = parsed<{ wish?: string; status?: string; stage?: WorkStage; at?: number }>(context.storage.get(`run:${workspace.appId}`));
     const sharing = await cachedSharing(workspace.appId);
     const manifest = parsed<MarketApplication["manifest"]>(await readShellValue(`shell.workshop.application.${workspace.appId}`)) ?? installed.find(item => item.manifest.appId === workspace.appId)?.manifest ?? sharing?.application ?? undefined;
-    const title = manifest?.title || workspace.title;
+    const title = manifest?.appName || workspace.title;
     const summary = parsed<{ stale: boolean }>(await readShellValue(`shell.work.summary.${accountId}.${workspace.appId}`));
     let stage: WorkStage = run?.stage && Object.hasOwn(workLabels, run.stage) ? run.stage : manifest ? "ready" : "draft";
     if (stage === "load" && manifest && runningApplicationReleases()[workspace.appId] === manifest.releaseId) stage = "ready";

@@ -69,7 +69,7 @@ export function installApplicationPlatform() {
       openCreationComposer(target && workspace ? { appId: target, title: workspace.title, originalAppId: workspace.originalAppId, fork: false, prompt } : undefined);
     } else {
       const manifest = runningApplication(appId);
-      if (manifest) openCreationComposer({ appId, title: manifest.title, releaseId: manifest.releaseId, prompt });
+      if (manifest) openCreationComposer({ appId, title: manifest.appName, releaseId: manifest.releaseId, prompt });
     }
   });
   target.__zijinhuaApplications = Object.freeze({
@@ -83,7 +83,7 @@ export function installApplicationPlatform() {
           // Old companion versions also enter the canonical composer rather than submit.
           runCloudEvolve: async (options: { requirement: string }) => {
             const manifest = runningApplication(targetAppId);
-            openCreationComposer({ appId: targetAppId, title: manifest?.title || targetAppId, originalAppId, fork: false, prompt: options.requirement });
+            openCreationComposer({ appId: targetAppId, title: manifest?.appName || targetAppId, originalAppId, fork: false, prompt: options.requirement });
             return "waiting" as const;
           },
           checkPackageUpdates: async () => (await checkApplicationUpdates(targetAppId)).filter(item => item.id === targetAppId),

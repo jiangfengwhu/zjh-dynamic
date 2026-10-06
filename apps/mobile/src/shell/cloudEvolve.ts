@@ -445,8 +445,8 @@ function createService(appId: string, originalAppId?: string) {
         context.storage.get("workspaces") || "[]"
       ) as Array<{ appId: string; title: string }>;
       const workspace = workspaces.find((item) => item.appId === appId);
-      if (workspace && manifest.title && workspace.title !== manifest.title) {
-        workspace.title = manifest.title;
+      if (workspace && manifest.appName && workspace.title !== manifest.appName) {
+        workspace.title = manifest.appName;
         context.storage.set("workspaces", JSON.stringify(workspaces));
       }
     }

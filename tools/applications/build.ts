@@ -84,8 +84,11 @@ export async function buildApplication(repo: string, appId: string) {
   const used = JSON.parse(await readFile(path.join(output, "used-modules.json"), "utf8")) as string[];
   const dependencies = Object.fromEntries(used.filter(name => !name.startsWith("@zijinhua/")).map(name => [name, shared[name]]));
   if ((await applicationSource(repo)).tree !== source.tree) throw new Error("构建期间源码发生变化，请重新发布");
+  const { appName, description, version, releaseNotes, accent, originalAppId, originalReleaseId, originalCommit } = config;
   const body = {
-    ...config, format: 1, requires: { engineAbi: platform.engineAbi, sdk: publicModules.sdk, shared: dependencies },
+    appId, appName, description, version, releaseNotes, accent,
+    ...(originalAppId ? { originalAppId, originalReleaseId, originalCommit } : {}),
+    dataSchemaVersion: 1, format: 1, requires: { engineAbi: platform.engineAbi, sdk: publicModules.sdk, shared: dependencies },
     modules: { base, size: platform.moduleRangeSize },
     bundle: { sha256: sha256Hex(bytes), bytes: bytes.length }, assets: assets.sort((a, b) => a.name.localeCompare(b.name)), source,
   };

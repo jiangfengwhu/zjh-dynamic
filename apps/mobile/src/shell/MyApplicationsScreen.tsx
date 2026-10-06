@@ -249,7 +249,7 @@ export function MyApplicationsScreen({
       (publication && onManagePublication ? onManagePublication : onDetail)({
         manifest: work.manifest,
         title: work.title,
-        summary: work.sharing?.shared?.summary ?? work.manifest.summary,
+        summary: work.sharing?.shared?.summary ?? work.manifest.description,
         screenshots: work.sharing?.shared?.screenshots,
         authorId: user?.id ?? null,
         authorName: user?.name ?? "创作者",
@@ -364,7 +364,7 @@ export function MyApplicationsScreen({
   const visibleApps =
     owner === user?.id
       ? installed.filter((item) =>
-          `${item.manifest.title} ${item.manifest.summary}`
+          `${item.manifest.appName} ${item.manifest.description}`
             .toLowerCase()
             .includes(term)
         )
@@ -479,9 +479,8 @@ export function MyApplicationsScreen({
               const visual = published?.manifest ?? work.manifest;
               return (
                 <WorkCard
-                  title={published?.title || visual?.title || work.title}
-                  summary={published?.summary || visual?.summary || work.wish}
-                  mark={visual?.mark}
+                  title={published?.title || visual?.appName || work.title}
+                  summary={published?.summary || visual?.description || work.wish}
                   visibility={published ? "public" : "private"}
                   status={
                     workLabels[work.stage] + (work.stale ? " · 待同步" : "")
@@ -596,7 +595,7 @@ export function MyApplicationsScreen({
                   }}
                 >
                   <Pressy
-                    accessibilityLabel={`打开${app.manifest.title}`}
+                    accessibilityLabel={`打开${app.manifest.appName}`}
                     onPress={() => onOpen(app.manifest.appId)}
                     scale={1}
                     style={{
@@ -622,11 +621,7 @@ export function MyApplicationsScreen({
                       {Avatar ? (
                         <Avatar size={44} />
                       ) : (
-                        <Text
-                          style={{ fontSize: 24, color: app.manifest.accent }}
-                        >
-                          {app.manifest.mark}
-                        </Text>
+                        <SymbolIcon name="box" size={24} color={app.manifest.accent} />
                       )}
                     </View>
                     <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
@@ -638,7 +633,7 @@ export function MyApplicationsScreen({
                           lineHeight: 21,
                         }}
                       >
-                        {app.manifest.title}
+                        {app.manifest.appName}
                       </Text>
                       <Text
                         numberOfLines={1}
@@ -648,7 +643,7 @@ export function MyApplicationsScreen({
                           lineHeight: 17,
                         }}
                       >
-                        {app.manifest.summary || "点击打开应用"}
+                        {app.manifest.description || "点击打开应用"}
                       </Text>
                       <Text
                         numberOfLines={1}
@@ -679,7 +674,7 @@ export function MyApplicationsScreen({
                         applicationNeedsReload(app.manifest)
                           ? "重新加载"
                           : "更新"
-                      }${app.manifest.title}`}
+                      }${app.manifest.appName}`}
                       accessibilityState={{
                         busy: updating === app.manifest.appId,
                       }}
@@ -721,7 +716,7 @@ export function MyApplicationsScreen({
                     </Pressy>
                   ) : null}
                   <Pressy
-                    accessibilityLabel={`${app.manifest.title}详情与卸载`}
+                    accessibilityLabel={`${app.manifest.appName}详情与卸载`}
                     onPress={() => void installedDetail(app)}
                     style={{ width: 44, height: 44, alignItems: "center" }}
                   >

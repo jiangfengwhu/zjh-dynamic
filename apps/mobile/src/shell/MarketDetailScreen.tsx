@@ -165,8 +165,8 @@ function MarketDetailContent({
   const initializedOwner = useRef<string | undefined>(undefined);
   const pendingDraft = useRef<{ key: string; value: string } | undefined>(undefined);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [shareTitle, setShareTitle] = useState(item.title || app.title);
-  const [shareSummary, setShareSummary] = useState(item.summary || app.summary);
+  const [shareTitle, setShareTitle] = useState(item.title || app.appName);
+  const [shareSummary, setShareSummary] = useState(item.summary || app.description);
   const [shareCategory, setShareCategory] = useState(item.category || "other");
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [uploadStatus, setUploadStatus] = useState("");
@@ -276,14 +276,14 @@ function MarketDetailContent({
             const fields = {
               title:
                 state.shared?.title ||
-                state.application?.title ||
+                state.application?.appName ||
                 item.title ||
-                app.title,
+                app.appName,
               summary:
                 state.shared?.summary ??
-                state.application?.summary ??
+                state.application?.description ??
                 item.summary ??
-                app.summary,
+                app.description,
               category: state.shared?.category || item.category || "other",
               screenshots: state.shared?.screenshots || item.screenshots || [],
             };
@@ -621,12 +621,12 @@ function MarketDetailContent({
   function continueCreation() {
     openCreationComposer({
       appId: app.appId,
-      title: app.title,
+      title: app.appName,
       releaseId: app.releaseId,
       fork: !owner,
     });
   }
-  const summary = (shared?.summary ?? item.summary ?? app.summary ?? "").trim();
+  const summary = (shared?.summary ?? item.summary ?? app.description ?? "").trim();
   const publicationStatus = (
     <View
       style={[
@@ -645,11 +645,11 @@ function MarketDetailContent({
             justifyContent: "center",
           }}
         >
-          <Text style={{ fontSize: 24, color: app.accent }}>{app.mark}</Text>
+          <SymbolIcon name="box" size={24} color={app.accent} />
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
           <Text numberOfLines={1} style={styles.subtitle}>
-            {app.title}
+            {app.appName}
           </Text>
           <Text
             style={[
@@ -999,9 +999,7 @@ function MarketDetailContent({
                     {Avatar ? (
                       <Avatar size={56} animated />
                     ) : (
-                      <Text style={{ fontSize: 30, color: app.accent }}>
-                        {app.mark}
-                      </Text>
+                      <SymbolIcon name="box" size={24} color={app.accent} />
                     )}
                   </View>
                   <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
@@ -1010,7 +1008,7 @@ function MarketDetailContent({
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
-                      {shared?.title || item.title || app.title}
+                      {shared?.title || item.title || app.appName}
                     </Text>
                     <View style={styles.tags}>
                       <Text style={styles.tag}>
@@ -1114,7 +1112,7 @@ function MarketDetailContent({
                   "string" &&
                 (ownsSurface ? latest : app).releaseNotes?.trim() ? (
                   <View style={styles.description}>
-                    <Text style={styles.subtitle}>本次更新</Text>
+                    <Text style={styles.subtitle}>更新日志 · {versionName(ownsSurface ? latest : app)}</Text>
                     <Text style={styles.copy}>
                       {(ownsSurface ? latest : app).releaseNotes}
                     </Text>

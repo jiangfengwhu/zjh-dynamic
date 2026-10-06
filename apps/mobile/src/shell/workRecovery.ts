@@ -216,7 +216,7 @@ async function applyWorks(owner: string, works: Work[], fromCache = false) {
     }
     const item = {
       appId: work.appId,
-      title: work.status?.application?.title || work.title,
+      title: work.status?.application?.appName || work.title,
       originalAppId: work.originalAppId,
       originalReleaseId: work.originalReleaseId,
     };

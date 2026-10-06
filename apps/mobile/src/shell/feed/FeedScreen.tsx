@@ -629,7 +629,7 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
   return (
     <Pressy
       scale={1}
-      accessibilityLabel={`打开${app.manifest.title}`}
+      accessibilityLabel={`打开${app.manifest.appName}`}
       onPress={open}
       style={{
         flex: 1,
@@ -659,9 +659,7 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
         {Avatar ? (
           <Avatar size={48} />
         ) : (
-          <Text style={{ fontSize: 28, color: app.manifest.accent }}>
-            {app.manifest.mark}
-          </Text>
+          <SymbolIcon name="box" size={24} color={app.manifest.accent} />
         )}
       </View>
       <Text
@@ -674,7 +672,7 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
           minHeight: 36,
         }}
       >
-        {app.manifest.title}
+        {app.manifest.appName}
       </Text>
     </Pressy>
   );

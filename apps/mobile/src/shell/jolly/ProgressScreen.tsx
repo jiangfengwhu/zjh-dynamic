@@ -117,7 +117,7 @@ function ProgressContent({
     .slice(0, 1600);
   const step = ready ? 2 : state === "packing" || state === "blocked" ? 1 : 0;
   const workTitle =
-    query.snapshot?.detail.status.application?.title || title || "这次制作";
+    query.snapshot?.detail.status.application?.appName || title || "这次制作";
   const empty = !appId || (query.loaded && !query.snapshot && !query.error);
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>

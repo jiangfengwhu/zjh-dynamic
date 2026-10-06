@@ -96,9 +96,7 @@ export function ApplicationPostCard({
           justifyContent: "center",
         }}
       >
-        <Text style={{ fontSize: 23, color: application.accent }}>
-          {application.mark}
-        </Text>
+        <SymbolIcon name="box" size={24} color={application.accent} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 1.5 }}>
         <Text
