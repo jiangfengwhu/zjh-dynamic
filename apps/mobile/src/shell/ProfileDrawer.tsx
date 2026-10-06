@@ -328,7 +328,7 @@ export function ProfileDrawer({
   const panel = useAnimatedStyle(() => ({
     transform: [{ translateX: -width * (1 - progress.value) }],
   }));
-  const shade = useAnimatedStyle(() => ({ opacity: progress.value * 0.28 }));
+  const shade = useAnimatedStyle(() => ({ opacity: progress.value * 0.5 }));
   return (
     <Context.Provider value={value}>
       <GestureDetector gesture={drawerGestures}>
@@ -354,15 +354,21 @@ export function ProfileDrawer({
                 zIndex: 200,
                 borderTopRightRadius: 24,
                 borderBottomRightRadius: 24,
-                overflow: "hidden",
+                shadowColor: "#000000",
+                shadowOffset: { width: 6, height: 0 },
+                shadowOpacity: 0.3,
+                shadowRadius: 16,
+                elevation: 16,
                 backgroundColor: colors.canvas,
               },
               panel,
             ]}
           >
-            <ThemeContext.Provider value={drawerTheme}>
-              {drawerContent}
-            </ThemeContext.Provider>
+            <View style={{ flex: 1, borderTopRightRadius: 24, borderBottomRightRadius: 24, overflow: "hidden" }}>
+              <ThemeContext.Provider value={drawerTheme}>
+                {drawerContent}
+              </ThemeContext.Provider>
+            </View>
           </Animated.View>
           <Animated.View
             style={[
@@ -397,7 +403,7 @@ export function ProfileDrawer({
             >
               <Animated.View
                 pointerEvents="none"
-                style={[{ flex: 1, backgroundColor: "#19152C" }, shade]}
+                style={[{ flex: 1, backgroundColor: "#000000" }, shade]}
               />
             </Pressable>
           </Animated.View>
