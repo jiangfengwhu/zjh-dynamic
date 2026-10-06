@@ -1,13 +1,10 @@
 const bootstrap = require("../../../tools/applications/bootstrap.json");
-import type { AppContext, AppDefinition } from "./index";
+import type { AppContext, AppDefinition, AppData, DataScope } from "./index";
 import { createElement, useEffect } from "react";
-import {
-  readPackageValue,
-  subscribePackageValue,
-  writePackageValue,
-  removePackageValue,
-} from "../../ui/packageLink";
+import { writePackageValue } from "../../ui/packageLink";
 import { applicationCapabilities } from "./capabilities";
+import { applicationData, fileAction } from "./data";
+import { shell } from "../../platform/src/phone";
 import { registerFeature } from "../../features/src/featureHost";
 import { phone } from "../../platform/src/phone";
 import { applicationAi } from "./ai";
@@ -48,6 +45,7 @@ export function setApplicationCreationNavigation(
 }
 export function setApplicationAccountScope(id: string | null) {
   const next = id ?? "guest";
+  if (!/^[a-zA-Z0-9-]{1,100}$/.test(next)) throw new Error("账号作用域无效");
   if (next !== accountScope) {
     accountScope = next;
     scopeListeners.forEach((listener) => listener());
@@ -69,11 +67,23 @@ export function applicationContext(appId: string): AppContext {
   const existing = contexts.get(appId);
   if (existing) return existing;
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("应用身份无效");
-  const keyFor = (key: string) => {
-    if (!key || key.length > 200) throw new Error("应用存储键无效");
-    return appId === bootstrap.defaultApplication
-      ? `application.${appId}.accounts.${accountScope}.${key}`
-      : `application.${appId}.${key}`;
+  const data = new Map<DataScope, AppData>();
+  const scope = (value: DataScope) => {
+    if (value !== "device" && value !== "account") throw new Error("数据作用域无效");
+    let bound = data.get(value);
+    if (!bound) {
+      bound = applicationData(appId, value, () => accountScope, listener => { scopeListeners.add(listener); return () => { scopeListeners.delete(listener); }; });
+      if (appId === bootstrap.defaultApplication && value === "account") {
+        const get = bound.storage.get;
+        bound.storage.get = key => key === "__accountScope" ? accountScope : get(key);
+      }
+      data.set(value, bound);
+    }
+    return bound;
+  };
+  const reminderId = (id: string) => {
+    if (!/^[A-Za-z0-9._-]+$/.test(id) || `${appId}:${id}`.length > 80) throw new Error("提醒 ID 无效或过长");
+    return `${appId}:${id}`;
   };
   const navigate = (request: object) =>
     writePackageValue(
@@ -84,35 +94,15 @@ export function applicationContext(appId: string): AppContext {
     appId,
     instanceId: appId,
     ai: applicationAi(() => navigate({ action: "providers" })),
-    ...applicationCapabilities(appId),
+    ...applicationCapabilities(),
+    ...scope(appId === bootstrap.defaultApplication ? "account" : "device"),
+    scope,
+    share: input => fileAction("share", { text: input.text, title: input.title }),
     assets: {
       uri: (name) => {
         const uri = assets.get(appId)?.[name];
         if (!uri) throw new Error(`应用资源未安装：${appId}/${name}`);
         return uri;
-      },
-    },
-    storage: {
-      get: (key) => {
-        if (appId === bootstrap.defaultApplication && key === "__accountScope")
-          return accountScope;
-        const target = keyFor(key);
-        return readPackageValue(target);
-      },
-      set: (key, value) => writePackageValue(keyFor(key), value),
-      remove: (key) => removePackageValue(keyFor(key)),
-      subscribe: (key, listener) => {
-        let unsubscribe = subscribePackageValue(keyFor(key), listener);
-        const changed = () => {
-          unsubscribe();
-          unsubscribe = subscribePackageValue(keyFor(key), listener);
-          listener(readPackageValue(keyFor(key)));
-        };
-        if (appId === bootstrap.defaultApplication) scopeListeners.add(changed);
-        return () => {
-          unsubscribe();
-          scopeListeners.delete(changed);
-        };
       },
     },
     feed: {
@@ -127,9 +117,19 @@ export function applicationContext(appId: string): AppContext {
     phone: {
       vibrate: phone.vibrate,
       speak: phone.speak,
-      notify: (id, title, body) => phone.notify(`${appId}:${id}`, title, body),
+      requestNotifications: () => shell("requestPermission", { name: "notifications" }),
+      notify: (id, title, body) => phone.notify(reminderId(id), title, body),
       schedule: (id, title, body, atMs) =>
-        phone.schedule(`${appId}:${id}`, title, body, atMs),
+        phone.schedule(reminderId(id), title, body, atMs),
+      cancelSchedule: id => shell("cancelSchedule", { id: reminderId(id) }),
+      schedules: async () => {
+        try {
+          const result = await shell<{ ok: boolean; items?: { id: string; title: string; body: string; atMs: number }[] }>("schedules", {});
+          if (!result.ok || !Array.isArray(result.items)) return { ok: false, error: "无法查询提醒" };
+          const prefix = `${appId}:`;
+          return { ok: true, items: result.items.filter(item => item.id.startsWith(prefix)).map(item => ({ ...item, id: item.id.slice(prefix.length) })) };
+        } catch { return { ok: false, error: "无法查询提醒" }; }
+      },
       keepAwake: phone.keepAwake,
     },
   };
