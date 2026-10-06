@@ -5,11 +5,13 @@ import { promisify } from "node:util";
 import { mkdir, readFile, writeFile, realpath, readdir, stat, copyFile } from "node:fs/promises";
 import path from "node:path";
 import { sha256Hex } from "../release/release-set.js";
+import { applicationSource } from "./source.js";
 
 const run = promisify(execFile);
 
 export async function buildApplication(repo: string, appId: string) {
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("应用 ID 无效");
+  const source = await applicationSource(repo);
   const root = path.join(repo, "apps", appId);
   const mobile = repo;
   const output = path.join(repo, "dist/applications", appId);
@@ -81,22 +83,14 @@ export async function buildApplication(repo: string, appId: string) {
   await collectAssets(path.join(root, "assets"));
   const used = JSON.parse(await readFile(path.join(output, "used-modules.json"), "utf8")) as string[];
   const dependencies = Object.fromEntries(used.filter(name => !name.startsWith("@zijinhua/")).map(name => [name, shared[name]]));
-  const source = (await run("git", ["rev-parse", "HEAD"], { cwd: repo, windowsHide: true })).stdout.trim();
-  const sourceTree = (await run("git", ["rev-parse", `${source}^{tree}`], { cwd: repo, windowsHide: true })).stdout.trim();
-  const dirty = Boolean((await run("git", ["status", "--porcelain", "--untracked-files=normal"], { cwd: repo, windowsHide: true })).stdout.trim());
+  if ((await applicationSource(repo)).tree !== source.tree) throw new Error("构建期间源码发生变化，请重新发布");
   const body = {
     ...config, format: 1, requires: { engineAbi: platform.engineAbi, sdk: publicModules.sdk, shared: dependencies },
     modules: { base, size: platform.moduleRangeSize },
-    bundle: { sha256: sha256Hex(bytes), bytes: bytes.length }, assets: assets.sort((a, b) => a.name.localeCompare(b.name)), source: { repository: repositoryFromRemote((await run("git", ["remote", "get-url", "origin"], { cwd: repo, windowsHide: true })).stdout.trim()), commit: source, tree: sourceTree, dirty },
+    bundle: { sha256: sha256Hex(bytes), bytes: bytes.length }, assets: assets.sort((a, b) => a.name.localeCompare(b.name)), source,
   };
   const manifest = { ...body, releaseId: sha256Hex(JSON.stringify(body)) };
   await writeFile(path.join(output, "manifest.json"), JSON.stringify(manifest, null, 2));
   console.log(JSON.stringify({ appId, releaseId: manifest.releaseId, bytes: bytes.length, output }));
   return { manifest, bundleFile, output };
-}
-
-function repositoryFromRemote(remote: string) {
-  const match = remote.match(/^(?:git@github\.com:|https:\/\/github\.com\/)([^/]+\/[^/]+?)(?:\.git)?$/);
-  if (!match) throw new Error("仅支持明确的 GitHub origin 仓库");
-  return match[1];
 }

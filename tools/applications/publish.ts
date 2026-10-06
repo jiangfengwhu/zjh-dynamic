@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { buildApplication } from "./build.js";
@@ -8,7 +7,6 @@ import { applicationPublisher } from "./authorization.js";
 export async function publishApplication(root: string, appId: string) {
 const { manifest, bundleFile, output } = await buildApplication(root, appId);
 if (manifest.source.repository !== "jiangfengwhu/zjh-plugin") throw new Error("应用只能从 zjh-plugin 仓库发布");
-if (manifest.source.dirty) throw new Error("先提交所有源码改动，再发布应用");
 const platformResponse = await fetch(`${bundleEdgeBase()}/v1/runtime`);
 if (!platformResponse.ok) throw new Error("无法读取应用平台契约");
 const platform = (await platformResponse.json()).applications;
