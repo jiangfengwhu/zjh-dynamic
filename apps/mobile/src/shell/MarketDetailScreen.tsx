@@ -656,6 +656,14 @@ function MarketDetailContent({
     });
   }
   const summary = (shared?.summary ?? item.summary ?? app.description ?? "").trim();
+  function renderIcon(size = 56) {
+    const style = [styles.mark, size === 44 && { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surface }];
+    const content = <>
+      <ApplicationIcon application={{ ...item, manifest: displayed, iconUrl: manualIcon || sharing?.iconUrl || shared?.iconUrl || item.iconUrl }} size={size} />
+      {uploadStatus === "正在上传图标…" ? <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.surface, opacity: 0.85, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={colors.accentText} /></View> : null}
+    </>;
+    return owner ? <Pressy accessibilityRole="button" accessibilityLabel="更换应用图标" accessibilityHint="选择图片并裁剪" disabled={busy} onPress={() => void uploadIcon()} style={style}>{content}</Pressy> : <View style={style}>{content}</View>;
+  }
   const publicationStatus = (
     <View
       style={[
@@ -664,18 +672,7 @@ function MarketDetailContent({
       ]}
     >
       <View style={styles.line}>
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-            backgroundColor: colors.surface,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <SymbolIcon name="box" size={24} color={app.accent} />
-        </View>
+        {renderIcon(44)}
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
           <Text numberOfLines={1} style={styles.subtitle}>
             {app.appName}
@@ -850,16 +847,6 @@ function MarketDetailContent({
             bottomOffset={24}
             contentContainerStyle={styles.content}
           >
-            {owner ? <View style={[styles.fieldGroup, { flexDirection: "row", alignItems: "center", gap: 12 }]}>
-              <ApplicationIcon application={{ ...item, manifest: displayed, iconUrl: manualIcon || sharing?.iconUrl || item.iconUrl }} size={56} />
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={styles.subtitle}>应用图标</Text>
-                <Text style={styles.caption}>选择图片后裁剪，自动缩放并压缩</Text>
-                <Pressy accessibilityRole="button" accessibilityLabel="更换应用图标" disabled={busy} onPress={() => void uploadIcon()} style={{ alignSelf: "flex-start", paddingVertical: 8 }}>
-                  <Text style={{ color: colors.accentText, fontWeight: "700" }}>{uploadStatus || "更换图标"}</Text>
-                </Pressy>
-              </View>
-            </View> : null}
             {publication ? (
               formReady ? (
                 <>
@@ -1034,9 +1021,7 @@ function MarketDetailContent({
             ) : (
               <>
                 <View style={styles.hero}>
-                  <View style={styles.mark}>
-                    <ApplicationIcon application={{ ...item, manifest: displayed, iconUrl: manualIcon || sharing?.iconUrl || shared?.iconUrl }} size={56} />
-                  </View>
+                  {renderIcon()}
                   <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
                     <Text
                       style={styles.title}
