@@ -1,3 +1,4 @@
+import { assertSdkCompatible } from "../../../../packages/app-sdk/src/compatibility";
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
@@ -209,7 +210,7 @@ async function load(appId: string) {
   if (!staged && appId === bootstrap.defaultApplication && manifest.requires.sdk !== contract.sdk) manifest = await firstManifest(appId);
   try { assertCompatible(manifest, appId); } catch (error) {
     if (!saved || staged) throw error;
-    // An APK upgrade can change the ABI; retain data and pick a compatible seed/release.
+    // A platform major upgrade can require an application update; retain data and pick a compatible seed/release.
     manifest = await firstManifest(appId);
   }
   let access: Access | undefined;
@@ -271,21 +272,12 @@ function assertCompatible(manifest: ApplicationManifest, appId: string) {
   if (manifest.format !== 1 || manifest.appId !== appId || !/^[a-f0-9]{64}$/.test(manifest.releaseId) || !/^[a-f0-9]{64}$/.test(manifest.bundle?.sha256)) throw new Error("应用清单无效");
   const source = manifest.source;
   if (!source || typeof source.dirty !== "boolean" || !/^[a-f0-9]{40}$/.test(source.commit) || ((source.dirty || source.tree !== undefined) && !/^[a-f0-9]{40}$/.test(source.tree ?? ""))) throw new Error("应用源码快照无效，请重新发布");
-  if (manifest.requires.engineAbi !== contract.engineAbi || !sdkCompatible(manifest.requires.sdk, contract.sdk)) throw new Error(`应用需要不同的平台版本：${appId}`);
-  for (const [name, version] of Object.entries(manifest.requires.shared)) {
-    if (contract.shared[name] !== version) throw new Error(`应用依赖不兼容：${name} 需要 ${version}，当前为 ${contract.shared[name] ?? "未提供"}`);
-  }
+  assertSdkCompatible(manifest.requires.sdk, contract.sdk);
   if (allocations.applications[appId] !== undefined && allocations.applications[appId] !== manifest.modules.base) throw new Error("已分配应用的模块范围不可变更");
   if (!Number.isSafeInteger(manifest.modules.base) || manifest.modules.base < 2000000 || manifest.modules.base % allocations.moduleRangeSize || manifest.modules.size !== allocations.moduleRangeSize) throw new Error("应用模块范围不匹配");
   for (const other of active.values()) {
     if (other.appId !== appId && other.modules.base === manifest.modules.base) throw new Error(`应用模块范围冲突：${appId} 与 ${other.appId}`);
   }
-}
-
-function sdkCompatible(required: string, available: string) {
-  const parse = (value: string) => /^\d+\.\d+\.\d+$/.test(value) ? value.split(".").map(Number) : undefined;
-  const a = parse(required), b = parse(available);
-  return !!a && !!b && a[0] === b[0] && (b[1] > a[1] || (b[1] === a[1] && b[2] >= a[2]));
 }
 
 export async function reportApplicationFailure(appId: string) {

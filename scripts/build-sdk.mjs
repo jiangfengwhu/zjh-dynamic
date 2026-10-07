@@ -8,6 +8,7 @@ const sdk=path.join(root,'packages/app-sdk');
 const out=path.join(sdk,'dist');
 const manifest=JSON.parse(await fs.readFile(path.join(sdk,'package.json'),'utf8'));
 const platform=JSON.parse(await fs.readFile(path.join(sdk,'platform.json'),'utf8'));
+if(manifest.version.split('.')[0]!==platform.sdk.split('.')[0])throw new Error('SDK 包与平台契约的大版本必须一致');
 for (const [entry,version] of Object.entries(platform.shared)) {
  const name=entry.startsWith('@')?entry.split('/').slice(0,2).join('/'):entry.split('/')[0];
  if(manifest.dependencies[name]!==version && !(platform.dependencyArtifacts?.[name]?.version===version && manifest.dependencies[name]===platform.dependencyArtifacts[name].url))throw new Error(`SDK 共享依赖与运行时契约不一致：${name}`);

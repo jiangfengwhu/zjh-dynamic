@@ -28,3 +28,5 @@ SDK 通过 npm 公共包 `@zijinhua/app-sdk` 分发。代码、公共类型或�
 云端应用 Agent 的操作流程只维护在 plugin AGENTS，开发规则只维护在 [SDK 指引](packages/app-sdk/README.md)。指引、公共类型与[共享库清单](packages/app-sdk/libraries.md)随锁定的 SDK 分发，Agent 直接读取 node_modules 中的文件，无需访问 dynamic 仓库。
 
 维护规则见 [AGENTS.md](AGENTS.md)，宿主视觉与交互约定见 [DESIGN.md](DESIGN.md) 和 [UX-CONTRACT.md](UX-CONTRACT.md)。纯文档修改不发布宿主动态包。
+
+平台兼容以 SDK 大版本为边界：同大版本的新版宿主必须保留旧应用接口、行为和共享依赖入口；应用最低 API 版本不得高于实际加载的宿主版本。SDK、vendor 或原生变更使旧包无法正常运行时必须升 SDK 大版本，并配套 APK；应用清单不再按 ABI 或第三方库精确版本拒绝旧包。APK/宿主底层运行时、包哈希与 vendor 配对检查继续保留。宿主与作品发布器复用 `packages/app-sdk/src/compatibility.ts` 的判断。

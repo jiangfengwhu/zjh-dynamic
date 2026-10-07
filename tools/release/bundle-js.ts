@@ -1,3 +1,4 @@
+import { sdkVersion } from "../../packages/app-sdk/src/compatibility";
 import { execFile } from "node:child_process";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -67,7 +68,7 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   const publicNames: string[] = publicModules.shared;
   const shared = Object.fromEntries(publicNames.map(name => [name, dependencyLock.packages[`node_modules/${(name.startsWith("@") ? name.split("/").slice(0, 2).join("/") : name.split("/")[0])}`].version]));
   const applicationContract = { engineAbi: `rn-${shared["react-native"]}-hermes-${dependencyLock.packages["node_modules/hermes-compiler"].version}`, sdk: publicModules.sdk, shared };
-  if (!contract.applications || contract.applications.engineAbi !== applicationContract.engineAbi || contract.applications.sdk !== applicationContract.sdk || Object.entries(shared).some(([name, version]) => contract.applications?.shared[name] !== version)) throw new Error("宿主公共依赖与目标 APK 契约不匹配，需要维护者协调发布");
+  if (!contract.applications || contract.applications.engineAbi !== applicationContract.engineAbi || sdkVersion(contract.applications.sdk)?.[0] !== sdkVersion(applicationContract.sdk)?.[0] || Object.entries(shared).some(([name, version]) => contract.applications?.shared[name] !== version)) throw new Error("宿主公共依赖与目标 APK 契约不匹配，需要维护者协调发布");
   await writeFile(path.join(mobileDir, "src/runtime/application-contract.json"), JSON.stringify(applicationContract));
   const applicationIndex = JSON.parse(await readFile(path.join(repoRoot, "tools/applications/default-applications.json"), "utf8"));
   await writeFile(path.join(mobileDir, "src/runtime/application-index.json"), JSON.stringify(applicationIndex));

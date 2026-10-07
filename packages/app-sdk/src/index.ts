@@ -64,7 +64,7 @@ export type ApplicationManifest = {
   releaseNotes: string;
   accent: string;
   dataSchemaVersion: number;
-  requires: { engineAbi: string; sdk: string; shared: Record<string, string> };
+  requires: { sdk: string };
   modules: { base: number; size: number };
   bundle: { sha256: string; bytes: number };
   assets: Array<{ name: string; sha256: string; bytes: number }>;

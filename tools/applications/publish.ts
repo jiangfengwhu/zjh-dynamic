@@ -1,4 +1,5 @@
 import path from "node:path";
+import { assertSdkCompatible } from "../../packages/app-sdk/src/compatibility";
 import { readFile, writeFile } from "node:fs/promises";
 import { buildApplication } from "./build.js";
 import { publishCatalog, bundleEdgeBase } from "../release/publish-bundle.js";
@@ -7,11 +8,11 @@ import { applicationPublisher } from "./authorization.js";
 export async function publishApplication(root: string, appId: string) {
 const { manifest, bundleFile, output } = await buildApplication(root, appId);
 if (manifest.source.repository !== "jiangfengwhu/zjh-plugin") throw new Error("应用只能从 zjh-plugin 仓库发布");
-const platformResponse = await fetch(`${bundleEdgeBase()}/v1/runtime`);
+const platformResponse = await fetch(`${bundleEdgeBase()}/v1/release`);
 if (!platformResponse.ok) throw new Error("无法读取应用平台契约");
 const platform = (await platformResponse.json()).applications;
-if (!platform || platform.engineAbi !== manifest.requires.engineAbi || !sdkCompatible(manifest.requires.sdk, platform.sdk)) throw new Error("目标平台尚不支持此应用，需要维护者更新 APK 和宿主");
-for (const [name, version] of Object.entries(manifest.requires.shared)) if (platform.shared[name] !== version) throw new Error(`平台依赖不匹配：${name}`);
+if (!platform) throw new Error("无法读取当前宿主 SDK 契约");
+assertSdkCompatible(manifest.requires.sdk, platform.sdk);
 const publishToken = await applicationPublisher(root, appId);
 const previous = await fetch(`${bundleEdgeBase()}/v1/applications/${appId}/candidate`, { headers: { Authorization: `Bearer ${publishToken}` } });
 let expectedRelease: string | null = null;
@@ -36,10 +37,4 @@ await publishCatalog([
 ], { [appId]: expectedRelease }, publishToken);
 console.log(JSON.stringify({ published: true, stage: "candidate", appId, releaseId: manifest.releaseId, commit: manifest.source.commit }));
 
-}
-
-function sdkCompatible(required: string, available: string) {
-  if (!/^\d+\.\d+\.\d+$/.test(required) || !/^\d+\.\d+\.\d+$/.test(available)) return false;
-  const a = required.split(".").map(Number), b = available.split(".").map(Number);
-  return a[0] === b[0] && (b[1] > a[1] || (b[1] === a[1] && b[2] >= a[2]));
 }

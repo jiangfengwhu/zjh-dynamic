@@ -1,6 +1,6 @@
 # 云端应用 Agent SDK 指引
 
-本文供云端应用 Agent 开发应用使用；参数以已安装 SDK 的公共类型为准，下表按功能查阅。
+本文供云端应用 Agent 开发应用使用；参数以已安装 SDK 的公共类型为准，下表按功能查阅。平台按 SDK 大版本判断兼容，构建工具自动记录最低 API 要求；按任务准备命令安装 SDK，不手动修改平台版本。
 
 入口 `src/index.ts` 默认导出 `defineApp({ main: () => require("./app").default })`。API 从 `@zijinhua/app-sdk` 导入，UI 从其 `/ui` 导入；宿主能力通过 `const app = getAppContext()` 使用。
 
