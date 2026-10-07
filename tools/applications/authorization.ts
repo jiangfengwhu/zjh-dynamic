@@ -16,6 +16,21 @@ export async function authorizeApplication(root: string, appId: string, token: s
 export async function applicationPublisher(root: string, appId: string): Promise<string> {
   try { return (await readFile(path.join(directory(root), appId), "utf8")).trim(); } catch {}
   const token = process.env.OFFICIAL_PUBLISH_TOKEN?.trim();
-  if (!token) throw new Error("请执行任务提供的初始化或发布命令，附带本轮授权；维护者可配置 OFFICIAL_PUBLISH_TOKEN");
+  if (!token) throw new Error("未找到本轮发布身份，请使用任务提供的初始化或发布命令");
   return token;
+}
+
+/** Keep the task credential local; exchange a fresh short-lived token at publication. */
+export async function publicationToken(root: string, appId: string, edge: string): Promise<string> {
+  const credential = await applicationPublisher(root, appId);
+  if (!credential.startsWith("zjh1.")) return credential; // Explicit maintainer credentials.
+  let response: Response;
+  try {
+    response = await fetch(`${edge}/v1/application-publisher/${appId}`, { method: "POST", headers: { Authorization: `Bearer ${credential}` }, signal: AbortSignal.timeout(15000) });
+  } catch { throw new Error("发布授权获取失败：网络暂时不可用，请重新运行发布命令"); }
+  if (response.status === 401 || response.status === 403) throw new Error("本轮发布授权已失效，请在紫金花继续制作后使用新任务提供的发布命令");
+  if (!response.ok) throw new Error(`发布授权获取失败 status=${response.status}，请重新运行发布命令`);
+  const body = await response.json() as { token?: string };
+  if (typeof body.token !== "string" || !/^zjh1\.[A-Za-z0-9+/=]+\.[a-f0-9]{64}$/.test(body.token)) throw new Error("发布授权响应无效，请稍后重试");
+  return body.token;
 }

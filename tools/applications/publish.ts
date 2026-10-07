@@ -3,7 +3,7 @@ import { assertSdkCompatible } from "../../packages/app-sdk/src/compatibility";
 import { readFile, writeFile } from "node:fs/promises";
 import { buildApplication } from "./build.js";
 import { publishCatalog, bundleEdgeBase } from "../release/publish-bundle.js";
-import { applicationPublisher } from "./authorization.js";
+import { publicationToken } from "./authorization.js";
 
 export async function publishApplication(root: string, appId: string) {
 const { manifest, bundleFile, output } = await buildApplication(root, appId);
@@ -13,8 +13,10 @@ if (!platformResponse.ok) throw new Error("无法读取应用平台契约");
 const platform = (await platformResponse.json()).applications;
 if (!platform) throw new Error("无法读取当前宿主 SDK 契约");
 assertSdkCompatible(manifest.requires.sdk, platform.sdk);
-const publishToken = await applicationPublisher(root, appId);
-const previous = await fetch(`${bundleEdgeBase()}/v1/applications/${appId}/candidate`, { headers: { Authorization: `Bearer ${publishToken}` } });
+const publishToken = await publicationToken(root, appId, bundleEdgeBase());
+let previous: Response;
+try { previous = await fetch(`${bundleEdgeBase()}/v1/applications/${appId}/candidate`, { headers: { Authorization: `Bearer ${publishToken}` }, signal: AbortSignal.timeout(15000) }); }
+catch { throw new Error("读取应用发布基线失败：网络暂时不可用，请重新运行发布命令"); }
 let expectedRelease: string | null = null;
 if (previous.ok) {
   const prior = await previous.json();
@@ -23,7 +25,8 @@ if (previous.ok) {
   if (!/^[a-f0-9]{40}$/.test(prior.source?.commit)) throw new Error("线上应用提交无效");
   if (prior.source.repository !== manifest.source.repository) throw new Error("线上应用仓库与当前源码不一致");
 
-} else if (previous.status !== 404) throw new Error("无法读取应用发布基线");
+} else if (previous.status === 401 || previous.status === 403) throw new Error("本轮发布授权已失效，请使用新任务提供的发布命令");
+else if (previous.status !== 404) throw new Error(`读取应用发布基线失败 status=${previous.status}，请稍后重试`);
 const file = path.join(output, "manifest.json");
 await writeFile(file, JSON.stringify(manifest));
 for (const blob of [{ sha256: manifest.bundle.sha256, file: bundleFile }, ...manifest.assets.map(asset => ({ sha256: asset.sha256, file: path.join(output, "assets", asset.sha256) }))]) {
