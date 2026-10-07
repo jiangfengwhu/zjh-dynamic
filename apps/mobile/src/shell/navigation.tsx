@@ -1,6 +1,8 @@
 import { isApplicationInstalledSync } from "./market";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Button } from "../../../../packages/ui/primitives/Button";
+import { ApplicationSdkError } from "../runtime/applicationCompatibility";
 import { StyleSheet, View } from "react-native";
 import type { ApplicationManifest } from "../runtime/applications";
 import { openCreationComposer, type CreationIntent } from "./creationComposer";
@@ -271,8 +273,20 @@ function handleShellRequest(raw: string | undefined) {
   }
 }
 
-function BundlePage({ id, render }: {
+function ApplicationRecovery({ error, onCheckUpdates }: { error: Error; onCheckUpdates: () => Promise<boolean> }) {
+  const [busy, setBusy] = useState(false);
+  if (!(error instanceof ApplicationSdkError)) return null;
+  if (error.action === "update-application") return <Button label="前往应用市场" onPress={() => openShellTab("market")} />;
+  return <Button label="检查紫金花更新" busy={busy} onPress={() => {
+    if (busy) return;
+    setBusy(true);
+    void onCheckUpdates().catch(cause => Toast.show({ type: "error", text1: "检查更新失败", text2: cause instanceof Error ? cause.message : "请稍后重试" })).finally(() => setBusy(false));
+  }} />;
+}
+
+function BundlePage({ id, render, onCheckUpdates }: {
   id: string;
+  onCheckUpdates: () => Promise<boolean>;
   render: (id: string, onBack: () => void) => ReactNode;
 }) {
 
@@ -281,7 +295,7 @@ function BundlePage({ id, render }: {
   const cachedOnEntry = useRef(Boolean(cachedFeature(id))).current;
   if (cachedOnEntry && cachedFeature(id))
     return <View style={styles.feature}>{render(id, goBack)}</View>;
-  return <AsyncRouteScreen title="打开应用" onBack={goBack} load={() => openFeature(id)}>
+  return <AsyncRouteScreen title="打开应用" onBack={goBack} load={() => openFeature(id)} renderErrorAction={error => <ApplicationRecovery error={error} onCheckUpdates={onCheckUpdates} />}>
     {() => <View style={styles.feature}>{render(id, goBack)}</View>}
   </AsyncRouteScreen>;
 }
@@ -612,7 +626,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             )}
           </Stack.Screen>
           <Stack.Screen name="applicationLink">
-            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack} cacheKey={`link:${route.params.appId}:${isApplicationInstalledSync(route.params.appId) ? "installed" : "public"}`}
+            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack} renderErrorAction={error => <ApplicationRecovery error={error} onCheckUpdates={props.onCheckUpdates} />} cacheKey={`link:${route.params.appId}:${isApplicationInstalledSync(route.params.appId) ? "installed" : "public"}`}
               load={async () => {
                 if (await isApplicationInstalled(route.params.appId)) {
                   await openFeature(route.params.appId);
@@ -622,7 +636,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               }}>
               {item => item
                 ? <MarketDetailPage item={item} onOpen={props.onOpenBundle} />
-                : <BundlePage id={route.params.appId} render={props.renderBundle} />}
+                : <BundlePage id={route.params.appId} render={props.renderBundle} onCheckUpdates={props.onCheckUpdates} />}
             </AsyncRouteScreen>}
           </Stack.Screen>
           <Stack.Screen name="noticePost">
@@ -769,7 +783,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           </Stack.Screen>
           <Stack.Screen name="bundle" getId={({ params }) => params.id}>
             {({ route }) => (
-              <BundlePage id={route.params.id} render={props.renderBundle} />
+              <BundlePage id={route.params.id} render={props.renderBundle} onCheckUpdates={props.onCheckUpdates} />
             )}
           </Stack.Screen>
         </Stack.Navigator>

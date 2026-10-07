@@ -1,4 +1,4 @@
-import { assertSdkCompatible } from "../../../../packages/app-sdk/src/compatibility";
+import { assertApplicationSdkCompatible, ApplicationSdkError } from "./applicationCompatibility";
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
@@ -211,7 +211,10 @@ async function load(appId: string) {
   try { assertCompatible(manifest, appId); } catch (error) {
     if (!saved || staged) throw error;
     // A platform major upgrade can require an application update; retain data and pick a compatible seed/release.
-    manifest = await firstManifest(appId);
+    try { manifest = await firstManifest(appId); } catch (lookupError) {
+      if (error instanceof ApplicationSdkError) throw error;
+      throw lookupError;
+    }
   }
   let access: Access | undefined;
   const accessRaw = await readShellValue(staged ? `application.pending.access.${appId}` : `application.access.${appId}`);
@@ -272,7 +275,7 @@ function assertCompatible(manifest: ApplicationManifest, appId: string) {
   if (manifest.format !== 1 || manifest.appId !== appId || !/^[a-f0-9]{64}$/.test(manifest.releaseId) || !/^[a-f0-9]{64}$/.test(manifest.bundle?.sha256)) throw new Error("应用清单无效");
   const source = manifest.source;
   if (!source || typeof source.dirty !== "boolean" || !/^[a-f0-9]{40}$/.test(source.commit) || ((source.dirty || source.tree !== undefined) && !/^[a-f0-9]{40}$/.test(source.tree ?? ""))) throw new Error("应用源码快照无效，请重新发布");
-  assertSdkCompatible(manifest.requires.sdk, contract.sdk);
+  assertApplicationSdkCompatible(manifest.requires.sdk, contract.sdk);
   if (allocations.applications[appId] !== undefined && allocations.applications[appId] !== manifest.modules.base) throw new Error("已分配应用的模块范围不可变更");
   if (!Number.isSafeInteger(manifest.modules.base) || manifest.modules.base < 2000000 || manifest.modules.base % allocations.moduleRangeSize || manifest.modules.size !== allocations.moduleRangeSize) throw new Error("应用模块范围不匹配");
   for (const other of active.values()) {
