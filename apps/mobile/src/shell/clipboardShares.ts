@@ -1,41 +1,31 @@
 import Clipboard from "@react-native-clipboard/clipboard";
 import { AppState } from "react-native";
 import { parseSharedLink, type SharedLink } from "./deepLinks";
-import { readShellValueSync, writeShellValue } from "./shellStorage";
+import { readShellValueSync, writeShellValue, removeShellValue } from "./shellStorage";
 
-// Previous records included outgoing shares that were never opened. Do not reuse them.
-const historyKey = "share.clipboard.opened.v2";
+const lastOpenedKey = "share.clipboard.lastOpened";
 
 export function createShareText(target: SharedLink, description: string): string {
   const path = target.kind === "post" ? "posts" : "applications";
-  const nonce = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-  return `${description.slice(0, 1000)}\nhttps://zijinhua.297782.xyz/${path}/${target.id}\n【紫金花口令:zijinhua://${path}/${target.id}#${nonce}】\n复制这段内容，打开紫金花即可查看`;
+  return `${description.slice(0, 1000)}\nhttps://zijinhua.297782.xyz/${path}/${target.id}\n复制这段内容，打开紫金花即可查看`;
 }
 
-export function parseClipboardShare(text: string): { token: string; target: SharedLink } | undefined {
+export function parseClipboardShare(text: string): SharedLink | undefined {
   if (text.length > 16384) return;
-  const matches = [...text.matchAll(/【紫金花口令:(zijinhua:\/\/(?:posts|applications)\/[^\s【】]+)】/g)];
-  if (matches.length !== 1) return;
-  const token = matches[0][1];
-  if (!/#[a-z0-9]{8,40}$/.test(token)) return;
-  const target = parseSharedLink(token);
-  if (target) return { token, target };
+  const targets = new Map<string, SharedLink>();
+  for (const match of text.matchAll(/https:\/\/[^\s<>"'()[\]{}【】]+/gi)) {
+    const url = match[0].replace(/[.,!?;:，。！？；：、）]+$/, "");
+    const target = parseSharedLink(url);
+    if (target) targets.set(`${target.kind}:${target.id}`, target);
+  }
+  if (targets.size === 1) return targets.values().next().value;
 }
 
-function consumedTokens(): string[] {
-  try {
-    const value: unknown = JSON.parse(readShellValueSync(historyKey) || "[]");
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(-32) : [];
-  } catch { return []; }
-}
-
-function consumeShareText(text: string) {
-  const share = parseClipboardShare(text);
-  if (share) writeShellValue(historyKey, JSON.stringify([...consumedTokens().filter(token => token !== share.token), share.token].slice(-32)));
-}
-
-export function copyShareText(text: string) {
-  Clipboard.setString(text);
+/** Deduplicate only the current clipboard; do not persist clipboard prose or block old links forever. */
+function fingerprint(text: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
+  return `${text.length}:${hash >>> 0}`;
 }
 
 /** One read per foreground entry; never polls, clears the clipboard or makes network requests. */
@@ -54,9 +44,11 @@ export function watchClipboardShares(onLink: (target: SharedLink) => void) {
       void Clipboard.getString().then(text => {
         if (!live || generation !== revision || AppState.currentState !== "active") return;
         const share = parseClipboardShare(text);
-        if (!share || directIntent || consumedTokens().includes(share.token)) return;
-        onLink(share.target);
-        consumeShareText(text);
+        if (!share) { removeShellValue(lastOpenedKey); return; }
+        const key = fingerprint(text.trim());
+        if (directIntent || readShellValueSync(lastOpenedKey) === key) return;
+        onLink(share);
+        writeShellValue(lastOpenedKey, key);
       }).catch(() => {});
     }, 400);
   }

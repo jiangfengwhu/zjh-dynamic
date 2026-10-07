@@ -18,7 +18,7 @@ import { PostMenu } from "./PostMenu";
 import { edgeUrl } from "../evolveHost";
 import { HtmlPostContent } from "./HtmlPostContent";
 import { ApplicationPostCard } from "./ApplicationPostCard";
-import { createShareText, copyShareText } from "../clipboardShares";
+import { createShareText } from "../clipboardShares";
 
 export function UserPostCard({
   post,
@@ -112,10 +112,6 @@ export function UserPostCard({
           : "分享了图片")
       }`);
   }
-  function copyShare() {
-    copyShareText(shareText());
-    Toast.show({ type: "success", text1: "分享内容已复制", text2: "发给朋友，复制后打开紫金花即可查看" });
-  }
   function copy() {
     Clipboard.setString(post.body || url);
     Toast.show({ type: "success", text1: "已复制" });
@@ -140,7 +136,6 @@ export function UserPostCard({
               busy={busy}
               onDelete={own ? remove : undefined}
               onCopy={copy}
-              onCopyShare={copyShare}
               onShare={share}
             />
           }
