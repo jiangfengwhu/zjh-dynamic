@@ -27,6 +27,7 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { confirmCreation } from "./creationConsent";
 export type MarketApplication = {
+  iconUrl?: string;
   manifest: ApplicationManifest & { version?: string };
   authorId: string | null;
   authorName: string;
@@ -350,6 +351,7 @@ export function marketDefinition(item: MarketApplication) {
 }
 
 export type SharingState = {
+  iconUrl?: string;
   shared: MarketApplication | null;
   application: MarketApplication["manifest"] | null;
 };

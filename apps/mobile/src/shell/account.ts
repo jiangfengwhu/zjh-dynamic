@@ -137,16 +137,16 @@ export async function uploadPostImage(path: string): Promise<{ id: string; url: 
   if (status < 200 || status >= 300 || !result.image) throw new Error(result.message || "图片上传失败，请重试");
   return result.image;
 }
-export async function uploadMarketScreenshot(appId: string, path: string): Promise<string> {
+export async function uploadMarketScreenshot(appId: string, path: string, icon = false): Promise<string> {
   if (!await requireAccount(false) || !credential) throw new Error("请先登录");
   const token = credential.token;
   const workshopToken = await readShellValue(`shell.jules.apps.${appId}.token`);
-  const response = await BlobUtil.config({ timeout: 60000 }).fetch("PUT", `${edgeUrl}/v1/market-media/${appId}`, { Authorization: `Bearer ${token}`, "X-Workshop-Token": workshopToken || "", "Content-Type": "image/jpeg" }, BlobUtil.wrap(path.replace(/^file:\/\//, "")));
+  const response = await BlobUtil.config({ timeout: 60000 }).fetch("PUT", `${edgeUrl}/v1/${icon ? "market-icon" : "market-media"}/${appId}`, { Authorization: `Bearer ${token}`, "X-Workshop-Token": workshopToken || "", "Content-Type": "image/jpeg" }, BlobUtil.wrap(path.replace(/^file:\/\//, "")));
   if (credential?.token !== token) throw new Error("账号已改变，请重试");
   const status = response.info().status;
   if (status === 401) { await clearAccount(); throw new Error("登录已失效，请重新登录"); }
-  let result: { url?: string; message?: string }; try { result = response.json(); } catch { throw new Error("截图上传失败，请重试"); }
-  if (status < 200 || status >= 300 || !result.url) throw new Error(result.message || "截图上传失败，请重试");
+  let result: { url?: string; message?: string }; try { result = response.json(); } catch { throw new Error(icon ? "图标上传失败，请重试" : "截图上传失败，请重试"); }
+  if (status < 200 || status >= 300 || !result.url) throw new Error(result.message || (icon ? "图标上传失败，请重试" : "截图上传失败，请重试"));
   return result.url;
 }
 export async function uploadFeedbackScreenshot(appId: string, releaseId: string, path: string): Promise<string> {

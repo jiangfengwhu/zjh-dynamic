@@ -1,3 +1,4 @@
+import { ApplicationIcon } from "../ApplicationIcon";
 import { ActivityIndicator } from "react-native";
 import { PixelText as Text } from "./PixelText";
 import { useEffect, useRef, useState } from "react";
@@ -96,7 +97,7 @@ export function ApplicationPostCard({
           justifyContent: "center",
         }}
       >
-        <SymbolIcon name="box" size={24} color={application.accent} />
+        <ApplicationIcon application={{ manifest: application, iconUrl: application.iconUrl }} size={44} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 1.5 }}>
         <Text

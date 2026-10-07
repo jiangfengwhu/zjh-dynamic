@@ -1,3 +1,4 @@
+import { ApplicationIcon } from "./ApplicationIcon";
 import { TextInput } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
@@ -33,7 +34,6 @@ import {
   marketViewKey,
   marketCategories,
   marketDiscoveryCategories,
-  marketDefinition,
   type MarketView,
   type MarketApplication,
 } from "./market";
@@ -597,7 +597,6 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
 
   const { colors } = useTheme();
   const app = item.manifest;
-  const Avatar = marketDefinition(item)?.avatar;
   const category = marketCategories.find(
     (category) => category.id === (item.category || "other")
   )?.label;
@@ -619,11 +618,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
       style={styles.row}
     >
       <View style={[styles.mark, { backgroundColor: tint }]}>
-        {Avatar ? (
-          <Avatar size={44} />
-        ) : (
-          <SymbolIcon name="box" size={24} color={app.accent} />
-        )}
+        <ApplicationIcon application={item} size={44} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>

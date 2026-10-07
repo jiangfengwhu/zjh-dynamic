@@ -383,6 +383,7 @@ function AuthorProfileContent({
                         style={{ paddingHorizontal: 16, paddingVertical: 0 }}
                       >
                         <WorkCard
+                          application={item}
                           title={item.title || item.manifest.appName}
                           summary={item.summary ?? item.manifest.description}
 

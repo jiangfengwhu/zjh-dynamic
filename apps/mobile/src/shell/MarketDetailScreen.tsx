@@ -1,3 +1,4 @@
+import { ApplicationIcon, rememberApplicationIcon } from "./ApplicationIcon";
 import { useLiveVersion } from "./liveEvents";
 import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
@@ -52,7 +53,6 @@ import {
   installMarketApplication,
   uninstallMarketApplication,
   marketCategories,
-  marketDefinition,
   type MarketApplication,
   type SharingState,
 } from "./market";
@@ -170,6 +170,7 @@ function MarketDetailContent({
   const [shareCategory, setShareCategory] = useState(item.category || "other");
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [uploadStatus, setUploadStatus] = useState("");
+  const [manualIcon, setManualIcon] = useState<string>();
   const [preview, setPreview] = useState<string>();
   const alive = useRef(true);
   useEffect(
@@ -459,6 +460,35 @@ function MarketDetailContent({
       }
     }
   }
+  async function uploadIcon() {
+    if (!owner || mutation.current) return;
+    mutation.current = true; setBusy(true); setError("");
+    let path: string | undefined;
+    try {
+      const accountId = await currentAccountId();
+      const image = await ImagePicker.openPicker({
+        mediaType: "photo", cropping: true, width: 512, height: 512, forceJpg: true,
+        compressImageMaxWidth: 512, compressImageMaxHeight: 512, compressImageQuality: 0.8,
+        cropperToolbarTitle: "裁剪应用图标", cropperChooseText: "使用", cropperCancelText: "取消",
+      });
+      path = image.path;
+      if (image.size > 256 * 1024) throw new Error("图标压缩后仍超过 256 KB，请选择较简单的图片");
+      if (!alive.current || (await currentAccountId()) !== accountId) return;
+      setUploadStatus("正在上传图标…");
+      const url = await uploadMarketScreenshot(app.appId, image.path, true);
+      if (!alive.current || (await currentAccountId()) !== accountId) return;
+      rememberApplicationIcon(app.appId, url);
+      setManualIcon(url);
+      setSharing(previous => previous ? { ...previous, iconUrl: url, shared: previous.shared ? { ...previous.shared, iconUrl: url } : null } : previous);
+      Toast.show({ type: "success", text1: "图标已更新" });
+    } catch (cause) {
+      if ((cause as { code?: string }).code !== "E_PICKER_CANCELLED" && alive.current) Toast.show({ type: "error", text1: cause instanceof Error ? cause.message : "图标上传失败，请重试" });
+    } finally {
+      if (path) void ImagePicker.cleanSingle(path).catch(() => {});
+      mutation.current = false;
+      if (alive.current) { setBusy(false); setUploadStatus(""); }
+    }
+  }
   async function save() {
     if (mutation.current || !sharingReady || !formReady || !shareTitle.trim())
       return;
@@ -589,7 +619,6 @@ function MarketDetailContent({
       ]
     );
   }
-  const Avatar = marketDefinition(item)?.avatar;
   const shared = sharing?.shared;
   const hasNewVersion = Boolean(
     shared &&
@@ -821,6 +850,16 @@ function MarketDetailContent({
             bottomOffset={24}
             contentContainerStyle={styles.content}
           >
+            {owner ? <View style={[styles.fieldGroup, { flexDirection: "row", alignItems: "center", gap: 12 }]}>
+              <ApplicationIcon application={{ ...item, manifest: displayed, iconUrl: manualIcon || sharing?.iconUrl || item.iconUrl }} size={56} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={styles.subtitle}>应用图标</Text>
+                <Text style={styles.caption}>选择图片后裁剪，自动缩放并压缩</Text>
+                <Pressy accessibilityRole="button" accessibilityLabel="更换应用图标" disabled={busy} onPress={() => void uploadIcon()} style={{ alignSelf: "flex-start", paddingVertical: 8 }}>
+                  <Text style={{ color: colors.accentText, fontWeight: "700" }}>{uploadStatus || "更换图标"}</Text>
+                </Pressy>
+              </View>
+            </View> : null}
             {publication ? (
               formReady ? (
                 <>
@@ -996,11 +1035,7 @@ function MarketDetailContent({
               <>
                 <View style={styles.hero}>
                   <View style={styles.mark}>
-                    {Avatar ? (
-                      <Avatar size={56} animated />
-                    ) : (
-                      <SymbolIcon name="box" size={24} color={app.accent} />
-                    )}
+                    <ApplicationIcon application={{ ...item, manifest: displayed, iconUrl: manualIcon || sharing?.iconUrl || shared?.iconUrl }} size={56} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
                     <Text

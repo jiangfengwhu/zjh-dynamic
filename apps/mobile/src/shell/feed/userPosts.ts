@@ -12,6 +12,8 @@ import type { MarketApplication } from "../market";
 import { updateNotificationCount, notificationRevision } from "./notifications";
 
 export type ApplicationLink = {
+  iconUrl?: string;
+  icon?: import("../../../../../packages/app-sdk/src").ApplicationManifest["icon"];
   appId: string;
   releaseId: string;
   title: string;

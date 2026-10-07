@@ -1,3 +1,4 @@
+import { ApplicationIcon } from "./ApplicationIcon";
 import { UserAvatar } from "./UserAvatar";
 import { ActivityIndicator } from "react-native";
 import { memo, useRef, useState } from "react";
@@ -10,6 +11,7 @@ import { useTheme } from "../../../../packages/ui/theme";
 
 /** Public profiles and the owner's gallery share one honest presentation. */
 export const WorkCard = memo(function WorkCard({
+  application,
   title,
   summary,
   visibility,
@@ -20,6 +22,7 @@ export const WorkCard = memo(function WorkCard({
   onOpen,
   actions,
 }: {
+  application?: Parameters<typeof ApplicationIcon>[0]["application"];
   title: string;
   summary: string;
   visibility: "public" | "private";
@@ -104,7 +107,7 @@ export const WorkCard = memo(function WorkCard({
               justifyContent: "center",
             }}
           >
-            <SymbolIcon name="box" size={26} color={accent} />
+            {application ? <ApplicationIcon application={application} size={48} /> : <SymbolIcon name="box" size={26} color={accent} />}
             {busy ? (
               <ActivityIndicator
                 color={accent}

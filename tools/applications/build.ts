@@ -6,6 +6,7 @@ import { mkdir, readFile, writeFile, realpath, readdir, stat, copyFile } from "n
 import path from "node:path";
 import { sha256Hex } from "../release/release-set.js";
 import { applicationSource } from "./source.js";
+import { validateApplicationIcon } from "./icon.js";
 
 const run = promisify(execFile);
 
@@ -74,6 +75,7 @@ export async function buildApplication(repo: string, appId: string) {
       const logical = prefix ? `${prefix}/${name}` : name;
       if ((await stat(full)).isDirectory()) { await collectAssets(full, logical); continue; }
       const content = await readFile(full);
+      if (logical === "icon.svg") validateApplicationIcon(content.toString("utf8"));
       const hash = sha256Hex(content);
       await mkdir(path.join(output, "assets"), { recursive: true });
       await copyFile(full, path.join(output, "assets", hash));
@@ -85,6 +87,7 @@ export async function buildApplication(repo: string, appId: string) {
   const { appName, description, version, releaseNotes, accent, originalAppId, originalReleaseId, originalCommit } = config;
   const body = {
     appId, appName, description, version, releaseNotes, accent,
+    ...(assets.find(asset => asset.name === "icon.svg") ? { icon: { ...assets.find(asset => asset.name === "icon.svg")!, format: "svg" as const } } : {}),
     ...(originalAppId ? { originalAppId, originalReleaseId, originalCommit } : {}),
     dataSchemaVersion: 1, format: 1, requires: { sdk: publicModules.sdk },
     modules: { base, size: platform.moduleRangeSize },

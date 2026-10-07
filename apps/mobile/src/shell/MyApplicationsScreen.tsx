@@ -1,3 +1,4 @@
+import { ApplicationIcon } from "./ApplicationIcon";
 import { EmptyState } from "./EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
 import { ActivityIndicator } from "react-native";
@@ -479,6 +480,7 @@ export function MyApplicationsScreen({
               const visual = published?.manifest ?? work.manifest;
               return (
                 <WorkCard
+                  application={visual ? { manifest: visual, iconUrl: work.sharing?.iconUrl || published?.iconUrl } : undefined}
                   title={published?.title || visual?.appName || work.title}
                   summary={published?.summary || visual?.description || work.wish}
                   visibility={published ? "public" : "private"}
@@ -577,8 +579,7 @@ export function MyApplicationsScreen({
             }
             const app = item.app;
             const updateState = updates[app.manifest.appId];
-            const Avatar = marketDefinition(app)?.avatar;
-            return (
+                      return (
               <View
                 style={{
                   paddingVertical: 10,
@@ -618,11 +619,7 @@ export function MyApplicationsScreen({
                         overflow: "hidden",
                       }}
                     >
-                      {Avatar ? (
-                        <Avatar size={44} />
-                      ) : (
-                        <SymbolIcon name="box" size={24} color={app.manifest.accent} />
-                      )}
+                      <ApplicationIcon application={app} size={44} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                       <Text

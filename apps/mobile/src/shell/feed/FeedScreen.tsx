@@ -1,3 +1,4 @@
+import { ApplicationIcon } from "../ApplicationIcon";
 import { reconnectMessages } from "../social/api";
 import { useLiveVersion } from "../liveEvents";
 import { UserAvatar } from "../UserAvatar";
@@ -52,7 +53,7 @@ import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import { requireAccount } from "../account";
 import { useInstalledShortcuts } from "./useInstalledShortcuts";
-import { marketDefinition, type MarketApplication } from "../market";
+import { type MarketApplication } from "../market";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const FEED_PAGE_INSET = 16;
@@ -616,7 +617,6 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
   onOpen: FeedProps["onApplication"];
 }) {
   const { colors } = useTheme();
-  const Avatar = marketDefinition(app)?.avatar;
   const open = () => {
     void onOpen(app.manifest.appId).catch((cause) =>
       Toast.show({
@@ -656,11 +656,7 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
           overflow: "hidden",
         }}
       >
-        {Avatar ? (
-          <Avatar size={48} />
-        ) : (
-          <SymbolIcon name="box" size={24} color={app.manifest.accent} />
-        )}
+        <ApplicationIcon application={app} size={48} />
       </View>
       <Text
         numberOfLines={2}
