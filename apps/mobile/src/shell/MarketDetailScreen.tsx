@@ -15,7 +15,7 @@ import { openCreationComposer } from "./creationComposer";
 import { useEffect, useRef, useState } from "react";
 import { Share, View } from "react-native";
 import { edgeUrl } from "./evolveHost";
-import { createShareText, copyShareText, consumeShareText } from "./clipboardShares";
+import { createShareText, copyShareText } from "./clipboardShares";
 import {
   KeyboardAwareScrollView as ScrollView,
   type KeyboardAwareScrollViewRef,
@@ -1174,7 +1174,6 @@ function MarketDetailContent({
                       { text: "分享链接", onPress: () => {
                         const url = `${edgeUrl}/applications/${app.appId}`;
                         const message = createShareText({ kind: "application", id: app.appId }, shared?.title || item.title || app.appName);
-                        consumeShareText(message);
                         void Share.share({ title: shared?.title || item.title || app.appName, message, url }).catch(() => Toast.show({ type: "error", text1: "分享未完成，请重试" }));
                       } },
                       { text: "复制分享内容", onPress: () => {

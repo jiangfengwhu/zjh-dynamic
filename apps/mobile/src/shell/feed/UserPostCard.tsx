@@ -18,7 +18,7 @@ import { PostMenu } from "./PostMenu";
 import { edgeUrl } from "../evolveHost";
 import { HtmlPostContent } from "./HtmlPostContent";
 import { ApplicationPostCard } from "./ApplicationPostCard";
-import { createShareText, copyShareText, consumeShareText } from "../clipboardShares";
+import { createShareText, copyShareText } from "../clipboardShares";
 
 export function UserPostCard({
   post,
@@ -97,7 +97,6 @@ export function UserPostCard({
   }
   function share() {
     const message = shareText();
-    consumeShareText(message);
     void Share.share({
       message,
       title: "分享动态",

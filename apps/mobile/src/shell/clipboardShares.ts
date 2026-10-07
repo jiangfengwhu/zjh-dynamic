@@ -3,7 +3,8 @@ import { AppState } from "react-native";
 import { parseSharedLink, type SharedLink } from "./deepLinks";
 import { readShellValueSync, writeShellValue } from "./shellStorage";
 
-const historyKey = "share.clipboard.consumed";
+// Previous records included outgoing shares that were never opened. Do not reuse them.
+const historyKey = "share.clipboard.opened.v2";
 
 export function createShareText(target: SharedLink, description: string): string {
   const path = target.kind === "post" ? "posts" : "applications";
@@ -28,14 +29,12 @@ function consumedTokens(): string[] {
   } catch { return []; }
 }
 
-/** Mark our outgoing share so returning from the share sheet cannot open it. */
-export function consumeShareText(text: string) {
+function consumeShareText(text: string) {
   const share = parseClipboardShare(text);
   if (share) writeShellValue(historyKey, JSON.stringify([...consumedTokens().filter(token => token !== share.token), share.token].slice(-32)));
 }
 
 export function copyShareText(text: string) {
-  consumeShareText(text);
   Clipboard.setString(text);
 }
 
@@ -55,9 +54,9 @@ export function watchClipboardShares(onLink: (target: SharedLink) => void) {
       void Clipboard.getString().then(text => {
         if (!live || generation !== revision || AppState.currentState !== "active") return;
         const share = parseClipboardShare(text);
-        if (!share || consumedTokens().includes(share.token)) return;
+        if (!share || directIntent || consumedTokens().includes(share.token)) return;
+        onLink(share.target);
         consumeShareText(text);
-        if (!directIntent) onLink(share.target);
       }).catch(() => {});
     }, 400);
   }
