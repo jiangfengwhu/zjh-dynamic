@@ -1,6 +1,6 @@
-import { Text } from "../../../../packages/ui/primitives/Typography";
 import { useSyncExternalStore, type ComponentType } from "react";
-import { View } from "react-native";
+// Stable bootstrap bridge: never import host UI, themes or SDK adapters here.
+import { Text, View } from "react-native";
 
 type ShellComponent = ComponentType<Record<string, never>>;
 

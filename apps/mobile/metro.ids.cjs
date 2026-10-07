@@ -7,6 +7,9 @@ const outDir = path.resolve(__dirname, "../../dist/bundles");
 /** vendor 的编号在 [1, VENDOR_MAX)，app 从 APP_BASE 起，两段不重叠。 */
 const VENDOR_MAX = 1000000;
 const APP_BASE = 1000000;
+// These files only start the VM and hand rendering over to the main/app bundle.
+const bootstrapKeys = new Set(["mobile/vendor-entry.js", "mobile/vendor-libs.js", "mobile/app.json", "mobile/src/runtime/shellSlot.tsx"]);
+function isVendorKey(key) { return key.startsWith("node_modules/") || bootstrapKeys.has(key); }
 
 function mapFile(name) {
   return path.join(outDir, `module-ids-${name}.json`);
@@ -19,7 +22,12 @@ function loadMap(name) {
   } catch {
     return {};
   }
-  return normalizeMap(name, raw);
+  const normalized = normalizeMap(name, raw);
+  if (name !== "vendor") return normalized;
+  // Preserve every third-party ID while retiring accidentally bundled host UI.
+  const stable = Object.fromEntries(Object.entries(normalized).filter(([key]) => isVendorKey(key)));
+  if (Object.keys(stable).length !== Object.keys(normalized).length) saveMap(name, stable);
+  return stable;
 }
 
 function saveMap(name, map) {
@@ -89,6 +97,7 @@ function createVendorIdFactory() {
   globalThis.__zijinhuaFlushModuleMaps = save;
   return (filePath) => {
     const key = moduleKey(filePath);
+    if (!isVendorKey(key)) throw new Error(`宿主源码不能进入 vendor：${key}。请放入 main/app 包`);
     if (map[key] == null) {
       if (next >= VENDOR_MAX) throw new Error("vendor module id space exhausted");
       map[key] = next++;
@@ -165,4 +174,4 @@ function processModuleFilter(module) {
   return !ownedPaths().has(moduleKey(target));
 }
 
-module.exports = { createModuleIdFactory, processModuleFilter, flushModuleMaps };
+module.exports = { createModuleIdFactory, processModuleFilter, flushModuleMaps, isVendorKey };

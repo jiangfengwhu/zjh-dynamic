@@ -22,6 +22,9 @@ export type UserPostDraft = {
   requestId?: string;
 };
 export type ShellResult = { ok: boolean; error?: string };
+export type LocationResult =
+  | { ok: true; latitude: number; longitude: number; accuracy: number }
+  | { ok: false; code: "PERMISSION" | "TIMEOUT" | "UNAVAILABLE"; error: string };
 export type DataScope = "device" | "account";
 export type FileActionResult = { ok: true } | { ok: false; code: "CANCELLED" | "ERROR"; error: string };
 export type FileImportResult = { ok: true; path: string; name: string } | Extract<FileActionResult, { ok: false }>;
@@ -111,6 +114,8 @@ export type AppContext = AppData & {
     create: (prompt?: string) => void;
   };
   phone: {
+    /** One foreground fix; request location permission first. Accuracy is in metres. */
+    location: (options?: { accuracy?: "fine" | "coarse" }) => Promise<LocationResult>;
     speak: (text: string) => Promise<ShellResult>;
     /** Request notification permission only from a user action. */
     requestNotifications: () => Promise<{ ok: boolean; granted?: boolean; status?: "unavailable" | "denied" | "blocked" | "granted" | "limited"; error?: string }>;

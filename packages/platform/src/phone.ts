@@ -1,4 +1,5 @@
 import { pluginCall } from "./pluginHost";
+import type { LocationResult } from "../../app-sdk/src/index";
 
 export type ShellResult = { ok: boolean; error?: string };
 
@@ -7,6 +8,17 @@ export function shell<T extends ShellResult>(method: string, payload: Record<str
 }
 
 export const phone = {
+  location: async (options?: { accuracy?: "fine" | "coarse" }): Promise<LocationResult> => {
+    try {
+      const result = await shell<{ ok: boolean; lat?: number; lng?: number; accuracy?: number; error?: string }>("location", { accuracy: options?.accuracy ?? "coarse" });
+      if (result.ok && Number.isFinite(result.lat) && Number.isFinite(result.lng) && Number.isFinite(result.accuracy) && result.accuracy! >= 0) {
+        return { ok: true, latitude: result.lat!, longitude: result.lng!, accuracy: result.accuracy! };
+      }
+      if (result.error === "permission") return { ok: false, code: "PERMISSION", error: "请先授予定位权限" };
+      if (result.error === "timeout") return { ok: false, code: "TIMEOUT", error: "定位超时，请稍后重试" };
+      return { ok: false, code: "UNAVAILABLE", error: "暂时无法定位，请检查系统定位开关" };
+    } catch { return { ok: false, code: "UNAVAILABLE", error: "暂时无法定位，请检查系统定位开关" }; }
+  },
   device: () => shell<{ ok: boolean; brand: string; model: string; sdk: number; battery: number; charging: boolean }>("device"),
   contacts: (query = "", limit = 40) =>
     shell<{ ok: boolean; items: { name: string; number: string }[] }>("contacts", { query, limit }),

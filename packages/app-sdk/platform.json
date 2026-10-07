@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "sdk": "1.0.0",
+  "sdk": "1.1.0",
   "engineAbi": "rn-0.87.1-hermes-250829098.0.17",
   "shared": {
     "@react-native-community/blur": "4.4.1",

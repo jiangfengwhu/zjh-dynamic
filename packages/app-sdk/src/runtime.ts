@@ -118,6 +118,7 @@ export function applicationContext(appId: string): AppContext {
       create: (prompt) => creationNavigation(appId, prompt),
     },
     phone: {
+      location: phone.location,
       speak: phone.speak,
       requestNotifications: async () => { const { status } = await requestNotifications(["alert", "sound", "badge"]); return { ok: true, granted: status === RESULTS.GRANTED, status }; },
       notify: (id, title, body) => phone.notify(reminderId(id), title, body),

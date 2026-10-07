@@ -290,19 +290,10 @@ async function vendorInputs(mobileDir: string): Promise<string> {
   for (const file of files) {
     parts.push(`${file.replaceAll("\\", "/")}:${sha256Hex(await readIfExists(path.join(mobileDir, file)))}`);
   }
-  // First-party dependencies reachable from vendor (e.g. shared typography/theme)
-  // must invalidate the cache too. Recompute after building to include new modules.
-  const repoRoot = path.resolve(mobileDir, "../..");
-  const map = JSON.parse((await readIfExists(path.join(repoRoot, "dist/bundles/module-ids-vendor.json"))).toString("utf8") || "{}") as Record<string, number>;
-  for (const key of Object.keys(map).filter(key => !key.startsWith("node_modules/")).sort()) {
-    const relative = key.startsWith("mobile/") ? `apps/${key}`
-      : key.startsWith("components/") ? `packages/ui/${key.slice(11)}`
-      : key.startsWith("features/src/lib/") ? `packages/platform/src/${key.slice(17)}`
-      : key.startsWith("features/") ? `packages/${key}` : key;
-    const file = path.resolve(repoRoot, relative);
-    if (!file.startsWith(`${repoRoot}${path.sep}`)) throw new Error(`vendor 模块路径无效：${key}`);
-    parts.push(`${key}:${sha256Hex(await readIfExists(file))}`);
+  for (const file of (await readdir(path.join(mobileDir, "patches"))).filter(file => file.endsWith(".patch")).sort()) {
+    parts.push(`patches/${file}:${sha256Hex(await readFile(path.join(mobileDir, "patches", file)))}`);
   }
+  // UI and SDK implementations belong to main/app and never invalidate vendor.
   return sha256Hex(parts.join("\n"));
 }
 
