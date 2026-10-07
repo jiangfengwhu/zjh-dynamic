@@ -27,6 +27,7 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { confirmCreation } from "./creationConsent";
 export type MarketApplication = {
+  downloadCount?: number;
   iconUrl?: string;
   manifest: ApplicationManifest & { version?: string };
   authorId: string | null;
@@ -267,9 +268,13 @@ export async function installedMarket(): Promise<MarketApplication[]> {
         Boolean(accountId) &&
         (await readShellValue(`shell.jules.apps.${entry.id}.owner`)) ===
           accountId;
+      const manifest = JSON.parse(raw) as ApplicationManifest;
+      const sharing = owned ? cachedSharingSync(entry.id) : undefined;
+      const iconManifest = [sharing?.application, sharing?.shared?.manifest, author?.manifest].find(item => item?.releaseId === manifest.releaseId && item.icon);
       items.push({
         ...author,
-        manifest: JSON.parse(raw),
+        manifest: { ...manifest, icon: manifest.icon ?? iconManifest?.icon },
+        iconUrl: sharing?.iconUrl || sharing?.shared?.iconUrl || author?.iconUrl,
         authorId: owned ? accountId! : author?.authorId ?? null,
         authorName: author?.authorName ?? "社区创作者",
         originalAppId: author?.originalAppId ?? null,
@@ -287,6 +292,7 @@ export async function installMarketApplication(
   options?: { reloadLoaded?: boolean }
 ) {
   const manifest = item.manifest;
+  const installerId = cachedAccountId();
   // Compatibility is checked before downloading or changing the installed catalog.
   validateApplication(manifest);
   await preparePublicApplication(manifest);
@@ -307,6 +313,11 @@ export async function installMarketApplication(
     existing.pinned = true;
   } else catalog.push({ id: manifest.appId, hidden: false, pinned: true });
   await saveCatalog(catalog);
+  if (installerId && installerId === cachedAccountId()) {
+    void accountFetch(`/v1/application-download/${manifest.appId}`, {
+      method: "POST", body: JSON.stringify({ releaseId: manifest.releaseId }),
+    }).catch(() => {});
+  }
   const current = runningApplication(manifest.appId);
   if (applicationNeedsReload(manifest)) {
     if (options?.reloadLoaded === false) return "pending" as const;

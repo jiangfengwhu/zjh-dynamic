@@ -485,7 +485,7 @@ export function MyApplicationsScreen({
                   summary={published?.summary || visual?.description || work.wish}
                   visibility={published ? "public" : "private"}
                   status={
-                    workLabels[work.stage] + (work.stale ? " · 待同步" : "")
+                    (published && ["ready", "load"].includes(work.stage) ? "已上架" : workLabels[work.stage] + (published ? " · 已上架" : "")) + (work.stale ? " · 待同步" : "")
                   }
                   authorName={user?.name}
                   authorAvatarUrl={user?.avatarUrl}
@@ -613,13 +613,12 @@ export function MyApplicationsScreen({
                         width: 48,
                         height: 48,
                         borderRadius: 12,
-                        backgroundColor: colors.orchidTint,
                         alignItems: "center",
                         justifyContent: "center",
                         overflow: "hidden",
                       }}
                     >
-                      <ApplicationIcon application={app} size={44} />
+                      <ApplicationIcon application={app} size={48} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                       <Text

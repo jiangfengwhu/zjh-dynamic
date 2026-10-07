@@ -597,6 +597,10 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
 
   const { colors } = useTheme();
   const app = item.manifest;
+  const bytes = app.bundle.bytes + app.assets.reduce((total, asset) => total + asset.bytes, 0);
+  const downloads = item.downloadCount ?? 0;
+  const downloadLabel = downloads >= 10000 ? `${(downloads / 10000).toFixed(1)}万` : downloads >= 1000 ? `${(downloads / 1000).toFixed(1)}k` : String(downloads);
+  const sizeLabel = bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
   const category = marketCategories.find(
     (category) => category.id === (item.category || "other")
   )?.label;
@@ -611,7 +615,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
       style={styles.row}
     >
       <View style={styles.mark}>
-        <ApplicationIcon application={item} size={44} />
+        <ApplicationIcon application={item} size={72} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -625,7 +629,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
         <Text style={styles.summary} numberOfLines={1}>
           {item.summary || app.description || "查看应用详情"}
         </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
           <Pressy
             disabled={!item.authorId}
             hitSlop={{ top: 8, bottom: 8 }}
@@ -647,6 +651,8 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
               gap: 4,
               flexShrink: 1,
               minHeight: 28,
+              flex: 1,
+              minWidth: 0,
             }}
           >
             <UserAvatar uri={item.authorAvatarUrl} authorId={item.authorId} size={16} />
@@ -655,6 +661,8 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
             </Text>
           </Pressy>
           <Text style={styles.category}>{category}</Text>
+          <Text style={styles.category} accessibilityLabel={`${downloads} 次下载`}>{downloadLabel} 下载</Text>
+          <Text style={styles.category} accessibilityLabel={`应用大小 ${sizeLabel}`}>{sizeLabel}</Text>
         </View>
       </View>
       <View
@@ -736,8 +744,8 @@ const useStyles = createThemedStyles((base) => {
       borderBottomColor: t.line,
     },
     mark: {
-      width: 48,
-      height: 48,
+      width: 72,
+      height: 72,
       borderRadius: t.radius.md,
       alignItems: "center",
       justifyContent: "center",

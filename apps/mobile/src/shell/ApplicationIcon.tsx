@@ -3,7 +3,6 @@ import { SvgXml } from "react-native-svg";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
 import type { ApplicationManifest } from "../../../../packages/app-sdk/src";
 import { SymbolIcon } from "./feed/PixelKit";
-import { marketDefinition } from "./market";
 import { edgeUrl } from "./evolveHost";
 import { readShellValue, readShellValueSync, writeShellValue, removeShellValue } from "./shellStorage";
 
@@ -45,7 +44,7 @@ function loadSvg(hash: string) {
 }
 
 /** The same independently cached icon everywhere, without loading an application bundle. */
-export function ApplicationIcon({ application, size, animated = false }: {
+export function ApplicationIcon({ application, size }: {
   application: { manifest: Pick<ApplicationManifest, "appId" | "accent" | "icon">; iconUrl?: string };
   size: number;
   animated?: boolean;
@@ -65,6 +64,5 @@ export function ApplicationIcon({ application, size, animated = false }: {
   if (url && failed !== url) return <AppImage source={{ uri: url }} resizeMode="cover" style={{ width: size, height: size, borderRadius: size / 5 }} onError={() => setFailed(url)} />;
   const xml = hash ? xmlCache.get(hash) ?? (svg?.hash === hash ? svg.xml : undefined) : undefined;
   if (xml && failed !== hash) return <SvgXml xml={xml} width={size} height={size} onError={() => setFailed(hash!)} />;
-  const Avatar = marketDefinition(application as Parameters<typeof marketDefinition>[0])?.avatar;
-  return Avatar ? <Avatar size={size} animated={animated} /> : <SymbolIcon name="box" size={Math.min(size, 26)} color={app.accent} />;
+  return <SymbolIcon name="box" size={Math.min(size * 0.7, 40)} color={app.accent} />;
 }

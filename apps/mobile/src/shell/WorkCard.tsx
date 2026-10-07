@@ -36,19 +36,12 @@ export const WorkCard = memo(function WorkCard({
   const { colors } = useTheme();
   const [busy, setBusy] = useState(false);
   const acting = useRef(false);
-  const tints = [
-    colors.orchidTint,
-    colors.greenTint,
-    colors.redTint,
-    colors.cyanTint,
-  ];
   const accents = [
     colors.orchidText,
     colors.greenText,
     colors.redText,
     colors.cyanText,
   ];
-  const tint = tints[tone % 4];
   const accent = accents[tone % 4];
   async function open() {
     if (acting.current) return;
@@ -102,7 +95,6 @@ export const WorkCard = memo(function WorkCard({
               width: 48,
               height: 48,
               borderRadius: 12,
-              backgroundColor: tint,
               alignItems: "center",
               justifyContent: "center",
             }}
