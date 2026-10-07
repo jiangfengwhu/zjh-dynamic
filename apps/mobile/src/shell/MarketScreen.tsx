@@ -629,7 +629,8 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
         <Text style={styles.summary} numberOfLines={1}>
           {item.summary || app.description || "查看应用详情"}
         </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 28, gap: 8 }}>
+          <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5 }}>
           <Pressy
             disabled={!item.authorId}
             hitSlop={{ top: 8, bottom: 8 }}
@@ -651,7 +652,6 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
               gap: 4,
               flexShrink: 1,
               minHeight: 28,
-              flex: 1,
               minWidth: 0,
             }}
           >
@@ -661,8 +661,11 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
             </Text>
           </Pressy>
           <Text style={styles.category}>{category}</Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 0, gap: 5 }}>
           <Text style={styles.category} accessibilityLabel={`${downloads} 次下载`}>{downloadLabel} 下载</Text>
           <Text style={styles.category} accessibilityLabel={`应用大小 ${sizeLabel}`}>{sizeLabel}</Text>
+          </View>
         </View>
       </View>
       <View

@@ -578,6 +578,7 @@ export function MyApplicationsScreen({
               );
             }
             const app = item.app;
+            const authorName = user && (app.owned || app.authorId === user.id) ? user.name || "我" : app.authorName;
             const updateState = updates[app.manifest.appId];
                       return (
               <View
@@ -610,17 +611,17 @@ export function MyApplicationsScreen({
                   >
                     <View
                       style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 12,
+                        width: 64,
+                        height: 64,
+                        borderRadius: 13,
                         alignItems: "center",
                         justifyContent: "center",
                         overflow: "hidden",
                       }}
                     >
-                      <ApplicationIcon application={app} size={48} />
+                      <ApplicationIcon application={app} size={64} />
                     </View>
-                    <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                    <View style={{ flex: 1, minWidth: 0, minHeight: 64, justifyContent: "space-between", gap: 3 }}>
                       <Text
                         numberOfLines={1}
                         style={{
@@ -649,6 +650,7 @@ export function MyApplicationsScreen({
                               ? colors.greenText
                               : colors.ink3,
                           fontSize: 10,
+                          lineHeight: 14,
                         }}
                       >
                         {applicationNeedsReload(app.manifest)
@@ -658,7 +660,7 @@ export function MyApplicationsScreen({
                           : updateState?.status === "blocked"
                           ? updateState.message || "新版暂时无法使用"
                           : "已安装"}
-                        {app.authorName ? ` · ${app.authorName}` : ""}
+                        {authorName ? ` · ${authorName}` : ""}
                       </Text>
                     </View>
                   </Pressy>
