@@ -600,13 +600,6 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
   const category = marketCategories.find(
     (category) => category.id === (item.category || "other")
   )?.label;
-  const tint = item.authorOfficial
-    ? colors.orchidTint
-    : item.category === "creative"
-    ? colors.redTint
-    : item.category === "productivity"
-    ? colors.cyanTint
-    : colors.greenTint;
   return (
     <Pressy
       accessibilityRole="button"
@@ -617,7 +610,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
       scale={1}
       style={styles.row}
     >
-      <View style={[styles.mark, { backgroundColor: tint }]}>
+      <View style={styles.mark}>
         <ApplicationIcon application={item} size={44} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>

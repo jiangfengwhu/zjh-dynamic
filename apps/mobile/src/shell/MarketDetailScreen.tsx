@@ -657,7 +657,7 @@ function MarketDetailContent({
   }
   const summary = (shared?.summary ?? item.summary ?? app.description ?? "").trim();
   function renderIcon(size = 56) {
-    const style = [styles.mark, size === 44 && { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surface }];
+    const style = [styles.mark, size === 44 && { width: 44, height: 44, borderRadius: 12 }];
     const content = <>
       <ApplicationIcon application={{ ...item, manifest: displayed, iconUrl: manualIcon || sharing?.iconUrl || shared?.iconUrl || item.iconUrl }} size={size} />
       {uploadStatus === "正在上传图标…" ? <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.surface, opacity: 0.85, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={colors.accentText} /></View> : null}
@@ -1347,7 +1347,6 @@ const useStyles = createThemedStyles((base) => {
       width: 72,
       height: 72,
       borderRadius: t.radius.lg,
-      backgroundColor: t.orchidTint,
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
