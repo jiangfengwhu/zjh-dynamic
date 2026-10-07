@@ -3,7 +3,8 @@ const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "../../../../packages/ui/primitives/Button";
 import { ApplicationSdkError } from "../runtime/applicationCompatibility";
-import { StyleSheet, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
+import { parseSharedLink, type SharedLink } from "./deepLinks";
 import type { ApplicationManifest } from "../runtime/applications";
 import { openCreationComposer, type CreationIntent } from "./creationComposer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -95,6 +96,7 @@ import JollyProgressScreen from "./jolly/ProgressScreen";
 import { ShellTabScene, prioritizeShellTab, setShellTabWarmupActive } from "./ShellTabScene";
 
 export type RootParamList = {
+  sharedApplication: { appId: string };
   applicationLink: { appId: string };
   noticePost: { postId: string; commentId?: string };
   workshopProgress: { appId?: string; title?: string; ownerId: string };
@@ -380,6 +382,29 @@ export type ShellNavigatorProps = {
 };
 
 export function ShellNavigator(props: ShellNavigatorProps) {
+  const pendingLink = useRef<SharedLink>();
+  const linkOpened = useRef(false);
+  function flushSharedLink() {
+    const link = pendingLink.current;
+    if (!link || !shellNavigationRef.isReady()) return;
+    pendingLink.current = undefined;
+    linkOpened.current = true;
+    if (link.kind === "post") shellNavigationRef.navigate("noticePost", { postId: link.id });
+    else shellNavigationRef.navigate("sharedApplication", { appId: link.id });
+  }
+  useEffect(() => {
+    let live = true;
+    let receivedEvent = false;
+    const receive = (url: string) => {
+      const link = parseSharedLink(url);
+      if (!live || !link) return;
+      pendingLink.current = link;
+      flushSharedLink();
+    };
+    const subscription = Linking.addEventListener("url", event => { receivedEvent = true; receive(event.url); });
+    void Linking.getInitialURL().then(url => { if (url && !receivedEvent) receive(url); }).catch(() => {});
+    return () => { live = false; subscription.remove(); };
+  }, []);
   const reduceMotion = useReducedMotion();
   const installedIds = useMemo(
     () => props.listed.map((item) => item.id),
@@ -445,6 +470,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         theme={theme}
         onStateChange={onStateChange}
         onReady={() => {
+          flushSharedLink();
           void (async () => {
             const rollback = await readShellValue(
               "application.rollback.notice"
@@ -460,11 +486,11 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               "application.workshopAfterReload"
             );
             removeShellValue("application.workshopAfterReload");
-            if (workshop) {
+            if (workshop && !linkOpened.current) {
               try {
                 const request = JSON.parse(workshop);
                 if (
-                  request.ownerId === (await currentAccountId()) &&
+                  request.ownerId === (await currentAccountId()) && !linkOpened.current &&
                   /^[a-z][a-z0-9-]{0,63}$/.test(request.target)
                 ) {
                   const context = applicationContext(
@@ -479,11 +505,11 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             }
             const raw = await readShellValue("application.openAfterReload");
             removeShellValue("application.openAfterReload");
-            if (!raw) return;
+            if (!raw || linkOpened.current) return;
             try {
               const request = JSON.parse(raw);
               if (
-                request.ownerId === (await currentAccountId()) &&
+                request.ownerId === (await currentAccountId()) && !linkOpened.current &&
                 /^[a-z][a-z0-9-]{0,63}$/.test(request.appId)
               )
                 openShellBundle(request.appId);
@@ -648,6 +674,12 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           </Stack.Screen>
           <Stack.Screen name="marketDetail">
             {({ route }) => <MarketDetailPage item={route.params.item} onOpen={props.onOpenBundle} />}
+          </Stack.Screen>
+          <Stack.Screen name="sharedApplication">
+            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="作品详情" onBack={goBack} cacheKey={`shared-application:${route.params.appId}`}
+              load={() => fetchPublicMarketApplication(route.params.appId)}>
+              {item => <MarketDetailPage item={item} onOpen={props.onOpenBundle} />}
+            </AsyncRouteScreen>}
           </Stack.Screen>
           <Stack.Screen name="marketPublication">
             {({ route }) => (

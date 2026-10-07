@@ -13,7 +13,8 @@ import {
 } from "./account";
 import { openCreationComposer } from "./creationComposer";
 import { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { Share, View } from "react-native";
+import { edgeUrl } from "./evolveHost";
 import {
   KeyboardAwareScrollView as ScrollView,
   type KeyboardAwareScrollViewRef,
@@ -1165,9 +1166,16 @@ function MarketDetailContent({
                     accessibilityLabel={
                       ownsSurface && !shared
                         ? "分享，公开作品后可用"
-                        : "分享作品到动态"
+                        : "分享作品"
                     }
-                    onPress={() => onSharePost(shared ?? item)}
+                    onPress={() => Alert.alert("分享作品", "选择分享方式", [
+                      { text: "分享到动态", onPress: () => onSharePost(shared ?? item) },
+                      { text: "分享链接", onPress: () => {
+                        const url = `${edgeUrl}/applications/${app.appId}`;
+                        void Share.share({ title: shared?.title || item.title || app.appName, message: `${shared?.title || item.title || app.appName}\n${url}`, url }).catch(() => Toast.show({ type: "error", text1: "分享未完成，请重试" }));
+                      } },
+                      { text: "取消", style: "cancel" },
+                    ])}
                     style={[
                       styles.tool,
                       { backgroundColor: colors.orchidTint },
