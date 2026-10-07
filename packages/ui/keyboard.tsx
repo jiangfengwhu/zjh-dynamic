@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { Dimensions, Platform, useWindowDimensions } from "react-native";
-import Animated, { measure, runOnUI, useAnimatedRef, useAnimatedReaction, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import Animated, { measure, useAnimatedRef, useAnimatedReaction, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 const KeyboardViewportContext = createContext(false);
@@ -27,17 +27,13 @@ export function KeyboardViewport({ children, backgroundColor, reserveBottom = tr
   const inset = useAnimatedStyle(() => {
     // Read the actual native frame during the IME animation too: Android may
     // resize the window before JS receives the corresponding layout event.
-    const layout = _WORKLET ? measure(ref) : null;
+    const needsOverlap = !parentAvoidsKeyboard && Math.abs(height.value) > 0;
+    const layout = _WORKLET && needsOverlap && edge.value > 0 ? measure(ref) : null;
     const lowerEdge = layout ? layout.pageY + layout.height : edge.value;
-    const overlap = !parentAvoidsKeyboard && lowerEdge > 0 ? Math.max(0, lowerEdge - (screenHeight - Math.abs(height.value))) : 0;
+    const overlap = needsOverlap && lowerEdge > 0 ? Math.max(0, lowerEdge - (screenHeight - Math.abs(height.value))) : 0;
     return { paddingBottom: Math.max(reserveBottom ? stableBottom.value * (1 - Math.max(0, Math.min(1, progress.value))) : 0, overlap) };
   });
   return <Animated.View ref={ref} collapsable={false} onLayout={event => {
     edge.value = event.nativeEvent.layout.y + event.nativeEvent.layout.height;
-    runOnUI(() => {
-      "worklet";
-      const layout = measure(ref);
-      if (layout) edge.value = layout.pageY + layout.height;
-    })();
   }} style={[{ flex: 1, backgroundColor }, inset]}><KeyboardViewportContext.Provider value={true}>{children}</KeyboardViewportContext.Provider></Animated.View>;
 }
