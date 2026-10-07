@@ -21,6 +21,7 @@ import { useTheme } from "../../../../../packages/ui/theme";
 import { PixelText } from "./PixelText";
 import { htmlByteLength } from "./postDraft";
 import { htmlNativeStyles, htmlTextLayout, prepareHtmlElement } from "./htmlStyles";
+import { useFeedContentWidth } from "../../../../../packages/ui/feed/kit/FeedPresentation";
 
 const font = "Fusion Pixel 12px Proportional SC";
 const fonts = [...defaultSystemFonts, font, "sans-serif", "serif", "monospace"];
@@ -109,7 +110,8 @@ export const HtmlPostContent = memo(function HtmlPostContent({
   const { colors } = useTheme();
   const window = useWindowDimensions();
   const [measuredWidth, setWidth] = useState(0);
-  const width = measuredWidth || Math.max(1, window.width - 104);
+  const rowContentWidth = useFeedContentWidth();
+  const width = rowContentWidth ?? measuredWidth;
   const domVisitors = useMemo(() => ({
     onElement: (element: Parameters<typeof prepareHtmlElement>[0]) => prepareHtmlElement(element, { width, height: window.height }),
   }), [width, window.height]);
@@ -192,6 +194,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
     <View
       style={{ width: "100%", minWidth: 0, overflow: "visible" }}
       onLayout={(event) => {
+        if (rowContentWidth !== undefined) return;
         const nextWidth = event.nativeEvent.layout.width;
         setWidth((previous) =>
           Math.abs(previous - nextWidth) > 0.5 ? nextWidth : previous
@@ -204,7 +207,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
           <PixelText>{fallback || "这条动态的内容暂时无法展示"}</PixelText>
         }
       >
-        <RenderHtml
+        {width > 0 ? <RenderHtml
           contentWidth={width}
           source={source}
           baseStyle={baseStyle}
@@ -216,7 +219,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
           defaultTextProps={defaultTextProps}
           renderersProps={renderersProps}
           renderers={renderers}
-        />
+        /> : null}
       </ErrorBoundary>
     </View>
   );

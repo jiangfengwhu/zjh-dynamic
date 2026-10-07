@@ -81,23 +81,23 @@ import { ShellTabScene } from "./ShellTabScene";
 import { shellNavigationRef } from "./navigationRef";
 import { lazyScreen } from "./lazyScreen";
 
-const MyApplicationsScreen = lazyScreen(() => (require("./MyApplicationsScreen") as typeof import("./MyApplicationsScreen")).MyApplicationsScreen);
-const MarketScreen = lazyScreen(() => (require("./MarketScreen") as typeof import("./MarketScreen")).MarketScreen);
-const MarketDetailScreen = lazyScreen(() => (require("./MarketDetailScreen") as typeof import("./MarketDetailScreen")).MarketDetailScreen);
-const MarketPublicationScreen = lazyScreen(() => (require("./MarketDetailScreen") as typeof import("./MarketDetailScreen")).MarketPublicationScreen);
-const MineScreen = lazyScreen(() => (require("./MineScreen") as typeof import("./MineScreen")).MineScreen);
-const AccountScreen = lazyScreen(() => (require("./AccountScreen") as typeof import("./AccountScreen")).AccountScreen);
-const ProvidersScreen = lazyScreen(() => (require("./ProvidersScreen") as typeof import("./ProvidersScreen")).ProvidersScreen);
-const AppInfoScreen = lazyScreen(() => (require("./AppInfoScreen") as typeof import("./AppInfoScreen")).AppInfoScreen);
-const AppearanceScreen = lazyScreen(() => (require("./AppearanceScreen") as typeof import("./AppearanceScreen")).AppearanceScreen);
-const PublicationScreen = lazyScreen(() => (require("./PublicationScreen") as typeof import("./PublicationScreen")).PublicationScreen);
-const MyProfileScreen = lazyScreen(() => (require("./MyProfileScreen") as typeof import("./MyProfileScreen")).MyProfileScreen);
-const PostDetailScreen = lazyScreen(() => (require("./feed/PostDetailScreen") as typeof import("./feed/PostDetailScreen")).PostDetailScreen);
-const AuthorProfileScreen = lazyScreen(() => (require("./feed/AuthorProfileScreen") as typeof import("./feed/AuthorProfileScreen")).AuthorProfileScreen);
-const NotificationsScreen = lazyScreen(() => (require("./feed/NotificationsScreen") as typeof import("./feed/NotificationsScreen")).NotificationsScreen);
-const ConnectionsScreen = lazyScreen(() => (require("./social/ConnectionsScreen") as typeof import("./social/ConnectionsScreen")).ConnectionsScreen);
-const ChatScreen = lazyScreen(() => (require("./social/ChatScreen") as typeof import("./social/ChatScreen")).ChatScreen);
-const JollyProgressScreen = lazyScreen(() => (require("./jolly/ProgressScreen") as typeof import("./jolly/ProgressScreen")).default);
+const MyApplicationsScreen = lazyScreen(() => (require("./MyApplicationsScreen") as typeof import("./MyApplicationsScreen")).MyApplicationsScreen, true);
+const MarketScreen = lazyScreen(() => (require("./MarketScreen") as typeof import("./MarketScreen")).MarketScreen, true);
+const MarketDetailScreen = lazyScreen(() => (require("./MarketDetailScreen") as typeof import("./MarketDetailScreen")).MarketDetailScreen, true);
+const MarketPublicationScreen = lazyScreen(() => (require("./MarketDetailScreen") as typeof import("./MarketDetailScreen")).MarketPublicationScreen, true);
+const MineScreen = lazyScreen(() => (require("./MineScreen") as typeof import("./MineScreen")).MineScreen, true);
+const AccountScreen = lazyScreen(() => (require("./AccountScreen") as typeof import("./AccountScreen")).AccountScreen, true);
+const ProvidersScreen = lazyScreen(() => (require("./ProvidersScreen") as typeof import("./ProvidersScreen")).ProvidersScreen, true);
+const AppInfoScreen = lazyScreen(() => (require("./AppInfoScreen") as typeof import("./AppInfoScreen")).AppInfoScreen, true);
+const AppearanceScreen = lazyScreen(() => (require("./AppearanceScreen") as typeof import("./AppearanceScreen")).AppearanceScreen, true);
+const PublicationScreen = lazyScreen(() => (require("./PublicationScreen") as typeof import("./PublicationScreen")).PublicationScreen, true);
+const MyProfileScreen = lazyScreen(() => (require("./MyProfileScreen") as typeof import("./MyProfileScreen")).MyProfileScreen, true);
+const PostDetailScreen = lazyScreen(() => (require("./feed/PostDetailScreen") as typeof import("./feed/PostDetailScreen")).PostDetailScreen, true);
+const AuthorProfileScreen = lazyScreen(() => (require("./feed/AuthorProfileScreen") as typeof import("./feed/AuthorProfileScreen")).AuthorProfileScreen, true);
+const NotificationsScreen = lazyScreen(() => (require("./feed/NotificationsScreen") as typeof import("./feed/NotificationsScreen")).NotificationsScreen, true);
+const ConnectionsScreen = lazyScreen(() => (require("./social/ConnectionsScreen") as typeof import("./social/ConnectionsScreen")).ConnectionsScreen, true);
+const ChatScreen = lazyScreen(() => (require("./social/ChatScreen") as typeof import("./social/ChatScreen")).ChatScreen, true);
+const JollyProgressScreen = lazyScreen(() => (require("./jolly/ProgressScreen") as typeof import("./jolly/ProgressScreen")).default, true);
 
 
 export type RootParamList = {

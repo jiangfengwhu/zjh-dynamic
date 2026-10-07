@@ -9,11 +9,12 @@ export function useRouteContentReady(embedded = false) {
   const [ready, setReady] = useState(embedded);
   useEffect(() => {
     if (embedded || ready || !focused) return;
-    let pending: ReturnType<typeof requestIdleCallback> | undefined;
+    let finished = false;
     const finish = () => {
       clearTimeout(fallback);
-      if (pending !== undefined) return;
-      pending = requestIdleCallback(() => setReady(true));
+      if (finished) return;
+      finished = true;
+      setReady(true);
     };
     const off = navigation.addListener("transitionEnd", (event) => {
       if (!event.data.closing) finish();
@@ -23,7 +24,6 @@ export function useRouteContentReady(embedded = false) {
     return () => {
       off();
       clearTimeout(fallback);
-      if (pending !== undefined) cancelIdleCallback(pending);
     };
   }, [embedded, navigation, focused, ready]);
   return ready;

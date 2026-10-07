@@ -11,7 +11,12 @@ export const FeedPresentationContext = createContext<{
   compact: boolean;
   /** Outer list can own horizontal spacing without changing other consumers. */
   frameInset?: number;
+  /** Measured list-row width; avoids rendering HTML at a guessed width. */
+  rowWidth?: number;
 }>({ Text, compact: false });
+export const FeedContentWidthContext = createContext<number | undefined>(undefined);
+export function useFeedContentWidth() { return useContext(FeedContentWidthContext); }
+export function useFeedRowWidth() { return useContext(FeedPresentationContext).rowWidth; }
 export function FeedText(props: TextProps) {
   const { Text: Renderer } = useContext(FeedPresentationContext);
   return <Renderer {...props} />;

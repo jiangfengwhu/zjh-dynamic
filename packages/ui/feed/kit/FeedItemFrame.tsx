@@ -6,6 +6,8 @@ import {
   FeedText,
   useCompactFeed,
   useFeedFrameInset,
+  useFeedRowWidth,
+  FeedContentWidthContext,
 } from "./FeedPresentation";
 
 /** Shared identity row; the menu never changes the content's vertical origin. */
@@ -119,13 +121,15 @@ export function FeedItemFrame({
 }) {
   const compact = useCompactFeed();
   const frameInset = useFeedFrameInset();
+  const rowWidth = useFeedRowWidth();
+  const contentWidth = rowWidth === undefined ? undefined : Math.max(1, rowWidth - frameInset * 2 - (detail ? 0 : 44 + (compact ? 5 : 10)));
   const avatarSlot = (
     <View style={{ width: detail ? 36 : 44, height: 44, alignItems: "center" }}>
       {avatar}
     </View>
   );
   return (
-    <View
+    <FeedContentWidthContext.Provider value={contentWidth}><View
       style={[
         {
           paddingHorizontal: frameInset,
@@ -167,6 +171,6 @@ export function FeedItemFrame({
         </View>
       </View>
       {detail ? <View style={{ gap: 6, paddingTop: 6 }}><View style={{ gap: 3 }}>{content}</View>{actions}</View> : null}
-    </View>
+    </View></FeedContentWidthContext.Provider>
   );
 }

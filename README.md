@@ -27,7 +27,7 @@ SDK 通过 npm 公共包 `@zijinhua/app-sdk` 分发。代码、公共类型或�
 
 云端应用 Agent 的操作流程只维护在 plugin AGENTS，开发规则只维护在 [SDK 指引](packages/app-sdk/README.md)。指引、公共类型与[共享库清单](packages/app-sdk/libraries.md)随锁定的 SDK 分发，Agent 直接读取 node_modules 中的文件，无需访问 dynamic 仓库。
 
-维护规则见 [AGENTS.md](AGENTS.md)，宿主视觉与交互约定见 [DESIGN.md](DESIGN.md) 和 [UX-CONTRACT.md](UX-CONTRACT.md)。纯文档修改不发布宿主动态包。
+维护规则见 [AGENTS.md](AGENTS.md)，宿主视觉与交互原则见 [DESIGN.md](DESIGN.md)。纯文档修改不发布宿主动态包。
 
 宿主仍使用 vendor 与 app 两层，app 就是经常更新的 main 界面包：宿主页面、主题、基础控件及 SDK 实现都属于 app。vendor 只包含第三方模块和最小启动桥接，不引用宿主 UI；打包器检查边界，旧 vendor 中误收的宿主模块迁回 app，第三方模块编号保持稳定。页面与皮肤修改不触发 vendor 重建；第三方依赖、补丁或启动桥接变化才重建 vendor。
 

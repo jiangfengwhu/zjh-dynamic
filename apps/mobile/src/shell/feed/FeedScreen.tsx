@@ -140,6 +140,8 @@ export const FeedScreen = memo(function FeedScreen({
   const hiddenHeader = useSharedValue(0);
   const [headerSize, setHeaderSize] = useState(insets.top + 52);
   const [viewportSize, setViewportSize] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const presentation = useMemo(() => ({ ...feedPresentation, rowWidth: viewportWidth > 0 ? viewportWidth - FEED_PAGE_INSET * 2 : undefined }), [viewportWidth]);
   const headerMotion = useAnimatedStyle(() => ({
     transform: [{ translateY: -hiddenHeader.value }],
   }));
@@ -245,14 +247,15 @@ export const FeedScreen = memo(function FeedScreen({
 
   return (
     <ThemeContext.Provider value={themeContext}>
-      <FeedPresentationContext.Provider value={feedPresentation}>
+      <FeedPresentationContext.Provider value={presentation}>
         <GestureHandlerRootView style={styles.container}>
           <View style={styles.container} onLayout={() => markStartup("feed-layout")}>
             <View
               style={styles.viewport}
-              onLayout={(event) =>
-                setViewportSize(event.nativeEvent.layout.height)
-              }
+              onLayout={(event) => {
+                setViewportSize(event.nativeEvent.layout.height);
+                setViewportWidth(event.nativeEvent.layout.width);
+              }}
             >
               <Animated.View
                 onLayout={(event) => {
@@ -417,8 +420,8 @@ export const FeedScreen = memo(function FeedScreen({
                                   keyExtractor={(item) =>
                                     `${item.type}-${item.post.id}`
                                   }
-                                  initialNumToRender={8}
-                                  maxToRenderPerBatch={6}
+                                  initialNumToRender={4}
+                                  maxToRenderPerBatch={3}
                                   windowSize={7}
                                   removeClippedSubviews={false}
                                   style={styles.scroll}
