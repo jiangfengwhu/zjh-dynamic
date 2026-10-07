@@ -8,7 +8,7 @@
     "publish": "tsx scripts/cloud-publish.ts",
     "build:sdk": "node scripts/build-sdk.mjs",
     "pack:sdk": "npm run build:sdk && npm pack ./packages/app-sdk --pack-destination dist",
-    "publish:sdk": "npm run build:sdk && npm publish ./packages/app-sdk --access public",
+    "publish:sdk": "npm run build:sdk && npm publish ./packages/app-sdk --access public --tag latest",
     "release:official": "tsx scripts/release-official.ts"
   },
   "dependencies": {
