@@ -75,6 +75,8 @@ export type ApplicationManifest = {
 };
 
 export type AppDefinition = {
+  /** Opaque system navigation area by default; opt into edge-to-edge content. */
+  navigationBar?: { transparent?: boolean; backgroundColor?: string };
   main: () => ComponentType<Record<string, never>>;
   avatar?: ComponentType<AppAvatarProps>;
   onInstall?: (context: AppContext) => void | Promise<void>;
