@@ -605,7 +605,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     <Tabs.Screen name="market">
                       {() => (
                         <ShellTabScene>
-                          <MarketScreen
+                          {() => <MarketScreen
                             onOpen={props.onOpenBundle}
                             onAuthor={openAuthor}
                             onDetail={(item) =>
@@ -614,21 +614,21 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                               })
                             }
                             onCreate={() => openCreationComposer()}
-                          />
+                          />}
                         </ShellTabScene>
                       )}
                     </Tabs.Screen>
                     <Tabs.Screen name="notifications">
                       {() => (
                         <ShellTabScene>
-                          <NotificationsTab onOpen={openNotice} />
+                          {() => <NotificationsTab onOpen={openNotice} />}
                         </ShellTabScene>
                       )}
                     </Tabs.Screen>
                     <Tabs.Screen name="mine">
                       {() => (
                         <ShellTabScene>
-                          <MyProfileScreen
+                          {() => <MyProfileScreen
                             onConnections={openConnections}
                             onAccount={() =>
                               shellNavigationRef.navigate("account")
@@ -656,7 +656,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                                 application,
                               })
                             }
-                          />
+                          />}
                         </ShellTabScene>
                       )}
                     </Tabs.Screen>

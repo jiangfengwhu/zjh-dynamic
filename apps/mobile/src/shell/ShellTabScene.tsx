@@ -80,7 +80,7 @@ function registerWarmup(key: symbol, prepare: () => void) {
 }
 
 /** Retain each scene after its first foreground or idle preparation. */
-export function ShellTabScene({ children, immediate = false }: { children: ReactNode; immediate?: boolean }) {
+export function ShellTabScene({ children, immediate = false }: { children: ReactNode | (() => ReactNode); immediate?: boolean }) {
   const focused = useIsFocused();
   const route = useRoute();
   const cacheKey = pageCacheKey(`scene:${route.name}`);
@@ -108,7 +108,7 @@ export function ShellTabScene({ children, immediate = false }: { children: React
       if (idle !== undefined) cancelIdleCallback(idle);
     };
   }, [focused, ready, key, immediate]);
-  return ready || (immediate && focused) ? children : (
+  return ready || (immediate && focused) ? (typeof children === "function" ? children() : children) : (
     <View style={{ flex: 1, padding: 16, backgroundColor: colors.canvas }}>
       {focused && !previouslyPrepared ? <PageSkeleton rows={4} /> : null}
     </View>
