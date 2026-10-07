@@ -2,7 +2,7 @@ export type SharedLink = { kind: "post" | "application"; id: string };
 
 /** Only public content links are accepted; links never execute or install an application. */
 export function parseSharedLink(value: string): SharedLink | undefined {
-  // RN's built-in URL has unimplemented hostname/pathname getters. Match the
+  // RN's built-in URL hostname/pathname getters only recognize HTTP URLs. Match the
   // small public-link grammar directly, without broad URL normalization.
   const match = value.match(/^(?:https:\/\/zijinhua\.297782\.xyz\/|zijinhua:\/\/)(posts|applications)\/([^/?#]+)\/?(?:[?#].*)?$/i);
   if (!match) return;
