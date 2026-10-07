@@ -5,6 +5,7 @@ import { Button } from "../../../../packages/ui/primitives/Button";
 import { ApplicationSdkError } from "../runtime/applicationCompatibility";
 import { Linking, StyleSheet, View } from "react-native";
 import { parseSharedLink, type SharedLink } from "./deepLinks";
+import NativePluginHost from "../NativePluginHost";
 import type { ApplicationManifest } from "../runtime/applications";
 import { openCreationComposer, type CreationIntent } from "./creationComposer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -382,15 +383,17 @@ export type ShellNavigatorProps = {
 };
 
 export function ShellNavigator(props: ShellNavigatorProps) {
-  const pendingLink = useRef<SharedLink>();
+  const pendingLink = useRef<{ target: SharedLink; url: string }>();
   const linkOpened = useRef(false);
   function flushSharedLink() {
-    const link = pendingLink.current;
-    if (!link || !shellNavigationRef.isReady()) return;
+    const pending = pendingLink.current;
+    if (!pending || !shellNavigationRef.isReady()) return;
+    const link = pending.target;
     pendingLink.current = undefined;
     linkOpened.current = true;
     if (link.kind === "post") shellNavigationRef.navigate("noticePost", { postId: link.id });
     else shellNavigationRef.navigate("sharedApplication", { appId: link.id });
+    void NativePluginHost.call("shell", "consumeLaunchLink", JSON.stringify({ url: pending.url })).catch(() => {});
   }
   useEffect(() => {
     let live = true;
@@ -398,7 +401,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
     const receive = (url: string) => {
       const link = parseSharedLink(url);
       if (!live || !link) return;
-      pendingLink.current = link;
+      pendingLink.current = { target: link, url };
       flushSharedLink();
     };
     const subscription = Linking.addEventListener("url", event => { receivedEvent = true; receive(event.url); });
