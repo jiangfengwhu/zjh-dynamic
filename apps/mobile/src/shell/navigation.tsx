@@ -373,6 +373,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
 }
 
 export type ShellNavigatorProps = {
+  onReady: () => void;
   mode: ThemeMode;
   listed: AppEntry[];
   onOpenBundle: (id: string) => Promise<boolean>;
@@ -480,6 +481,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         theme={theme}
         onStateChange={onStateChange}
         onReady={() => {
+          props.onReady();
           flushSharedLink();
           void (async () => {
             const rollback = await readShellValue(
@@ -583,7 +585,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   >
                     <Tabs.Screen name="feed">
                       {() => (
-                        <ShellTabScene>
+                        <ShellTabScene immediate>
                           <FeedScreen
                             onAuthor={openAuthor}
                             onApplication={openPublicMarketApplication}

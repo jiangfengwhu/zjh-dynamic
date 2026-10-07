@@ -79,12 +79,12 @@ function registerWarmup(key: symbol, prepare: () => void) {
 }
 
 /** Retain each scene after its first foreground or idle preparation. */
-export function ShellTabScene({ children }: { children: ReactNode }) {
+export function ShellTabScene({ children, immediate = false }: { children: ReactNode; immediate?: boolean }) {
   const focused = useIsFocused();
   const route = useRoute();
   const cacheKey = pageCacheKey(`scene:${route.name}`);
   const previouslyPrepared = !!cachedPage(cacheKey);
-  const [ready, setReady] = useState(focused && previouslyPrepared);
+  const [ready, setReady] = useState(focused && (immediate || previouslyPrepared));
   useEffect(() => { if (ready) rememberPage(cacheKey, true); }, [ready, cacheKey]);
   const key = useRef(Symbol("shell-tab")).current;
   const { colors } = useTheme();
@@ -92,6 +92,7 @@ export function ShellTabScene({ children }: { children: ReactNode }) {
     if (ready) return;
     if (!focused) return registerWarmup(key, () => startTransition(() => setReady(true)));
     prioritizeShellTab();
+    if (immediate) { setReady(true); return; }
     let idle: ReturnType<typeof requestIdleCallback> | undefined;
     const frame = requestAnimationFrame(() => {
       idle = requestIdleCallback(() => startTransition(() => setReady(true)));
@@ -100,8 +101,8 @@ export function ShellTabScene({ children }: { children: ReactNode }) {
       cancelAnimationFrame(frame);
       if (idle !== undefined) cancelIdleCallback(idle);
     };
-  }, [focused, ready, key]);
-  return ready ? children : (
+  }, [focused, ready, key, immediate]);
+  return ready || (immediate && focused) ? children : (
     <View style={{ flex: 1, padding: 16, backgroundColor: colors.canvas }}>
       {focused && !previouslyPrepared ? <PageSkeleton rows={4} /> : null}
     </View>

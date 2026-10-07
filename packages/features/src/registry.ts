@@ -27,7 +27,15 @@ export function registerApplicationMetadata(item: ApplicationMetadata) {
   const prior = bundles.findIndex(bundle => bundle.id === item.appId);
   if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
 }
-export async function restoreApplications() {
+let restoration: Promise<void> | undefined;
+export function restoreApplications(): Promise<void> {
+  if (!restoration) restoration = restoreInstalledApplications().catch(error => {
+    restoration = undefined;
+    throw error;
+  });
+  return restoration;
+}
+async function restoreInstalledApplications() {
   const { loadCatalog } = require("../../../apps/mobile/src/shell/catalog");
   const { readShellValue } = require("../../../apps/mobile/src/shell/shellStorage");
   for (const entry of await loadCatalog()) {
@@ -51,6 +59,7 @@ export async function openFeature(id: string): Promise<FeatureComponent> {
   const cached = cachedFeature(id);
   if (cached) return cached;
 
+  if (!bundles.some(item => item.id === id)) await restoreApplications();
   const definition = bundles.find((item) => item.id === id);
   if (!definition) throw new Error(`这个应用还没登记：${id}`);
   console.log("feature load", id);

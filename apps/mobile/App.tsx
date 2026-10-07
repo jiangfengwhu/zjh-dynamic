@@ -5,6 +5,7 @@ import { Text } from "../../packages/ui/primitives/Typography";
 import { useTheme } from "../../packages/ui/theme";
 import type { ApkProgress } from "./src/shell/apkUpdates";
 import { ActivityIndicator } from "react-native";
+import { markStartup } from "./src/runtime/startupTiming";
 import { openCreationComposer } from "./src/shell/creationComposer";
 import { reportApplicationFailure } from "./src/runtime/applications";
 import {
@@ -171,7 +172,9 @@ function ShellApp() {
   const { colors: theme } = useTheme();
 
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
-  const [pluginsReady, setPluginsReady] = useState(false);
+  const [shellLaidOut, setShellLaidOut] = useState(false);
+  const [navigationReady, setNavigationReady] = useState(false);
+  const catalogRevision = useRef(0);
   const [featureKey, setFeatureKey] = useState(0);
   const { mode, setMode } = useTheme();
   const [updates, setUpdates] = useState<PendingPackage[]>([]);
@@ -179,6 +182,8 @@ function ShellApp() {
   const updateWorking = useRef(false);
   const [updateError, setUpdateError] = useState("");
   const [apkProgress, setApkProgress] = useState<ApkProgress>();
+  const shellReady = shellLaidOut && navigationReady;
+  useEffect(() => { markStartup("shell-mounted"); }, []);
 
   useEffect(() => {
     const utils = (
@@ -208,7 +213,8 @@ function ShellApp() {
   }, []);
 
   useEffect(() => {
-    if (!pluginsReady) return;
+    if (!shellReady) return;
+    markStartup("shell-ready");
     // Acknowledge the healthy shell immediately; all maintenance follows the first interaction window.
     void NativePluginHost.call("shell", "bundleReady", "{}").catch(() => {});
     let disposed = false;
@@ -233,32 +239,39 @@ function ShellApp() {
       clearTimeout(timer);
       if (idle !== undefined) cancelIdleCallback(idle);
     };
-  }, [pluginsReady]);
+  }, [shellReady]);
 
 
   useEffect(() => {
-    void (async () => {
-      const started = Date.now();
-      try {
-        const stored = await loadCatalog();
-        await restoreApplications();
-        console.log("catalog loaded", stored.length);
-        setCatalog(stored);
-        removeShellValue("shell.bundleSource.v1");
-        console.log("bundle source online");
-      } catch (error) {
-        console.log(
-          "shell boot failed",
-          error instanceof Error ? error.message : error
-        );
-      } finally {
-        console.log("shell local ready ms", Date.now() - started);
-        setPluginsReady(true);
-      }
-    })();
-  }, []);
+    if (!shellReady) return;
+    let disposed = false;
+    const idle = requestIdleCallback(() => {
+      markStartup("installed-restore-start");
+      void (async () => {
+        try {
+          await restoreApplications();
+          const before = catalogRevision.current;
+          const stored = await loadCatalog();
+          if (disposed) return;
+          // A concurrent install/uninstall wins over this older snapshot. Refresh
+          // the current array so restored metadata also becomes visible.
+          if (before === catalogRevision.current) setCatalog(stored);
+          else setCatalog(current => [...current]);
+          console.log("catalog loaded", stored.length);
+          removeShellValue("shell.bundleSource.v1");
+          markStartup("installed-restored");
+        } catch (error) {
+          if (!disposed) console.log("catalog restore failed", error instanceof Error ? error.message : error);
+        }
+      })();
+    });
+    return () => { disposed = true; cancelIdleCallback(idle); };
+  }, [shellReady]);
 
-  useEffect(() => subscribeCatalog(setCatalog), []);
+  useEffect(() => subscribeCatalog(entries => {
+    catalogRevision.current++;
+    setCatalog(entries);
+  }), []);
 
   const items = useMemo<ShellItem[]>(() => {
     return bundles
@@ -370,53 +383,40 @@ function ShellApp() {
     <>
       <View
         style={[styles.container, { backgroundColor: theme.canvas }]}
+        onLayout={() => { markStartup("shell-layout"); setShellLaidOut(true); }}
       >
         <StatusBar
           barStyle={mode === "light" ? "dark-content" : "light-content"}
         />
-        {!pluginsReady ? (
-          <View style={styles.boot}>
-            <Text
-              accessibilityRole="header"
-              style={[styles.stateTitle, { color: theme.ink1 }]}
+        <ShellNavigator
+          onReady={() => { markStartup("navigator-ready"); setNavigationReady(true); }}
+          mode={mode}
+          listed={listed}
+          onOpenBundle={openBundle}
+          onReplyToFriend={replyToFriend}
+          onCheckUpdates={async () => {
+            const ready = await refreshUpdates(true, true);
+            return ready.length > 0;
+          }}
+          onMode={setMode}
+          renderBundle={(id, onBack) => (
+            <FeatureBoundary
+              resetKey={featureKey}
+              onRetry={() => setFeatureKey((value) => value + 1)}
+              onBack={onBack}
+              onError={(message) => {
+                noteError(`feature:${id}`, message);
+                void reportApplicationFailure(id);
+              }}
             >
-              紫金花
-            </Text>
-            <ActivityIndicator color={theme.accentText} />
-            <Text style={{ color: theme.ink3, fontSize: 12 }}>
-              正在打开应用空间…
-            </Text>
-          </View>
-        ) : (
-          <ShellNavigator
-            mode={mode}
-            listed={listed}
-            onOpenBundle={openBundle}
-            onReplyToFriend={replyToFriend}
-            onCheckUpdates={async () => {
-              const ready = await refreshUpdates(true, true);
-              return ready.length > 0;
-            }}
-            onMode={setMode}
-            renderBundle={(id, onBack) => (
-              <FeatureBoundary
-                resetKey={featureKey}
-                onRetry={() => setFeatureKey((value) => value + 1)}
+              <FeatureHost
+                id={id}
                 onBack={onBack}
-                onError={(message) => {
-                  noteError(`feature:${id}`, message);
-                  void reportApplicationFailure(id);
-                }}
-              >
-                <FeatureHost
-                  id={id}
-                  onBack={onBack}
-                  onError={(message) => noteError(`feature:${id}`, message)}
-                />
-              </FeatureBoundary>
-            )}
-          />
-        )}
+                onError={(message) => noteError(`feature:${id}`, message)}
+              />
+            </FeatureBoundary>
+          )}
+        />
         {updates.length > 0 ? (
           <UpdateBanner
             items={updates}

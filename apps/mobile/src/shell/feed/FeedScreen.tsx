@@ -1,4 +1,5 @@
 import { ApplicationIcon } from "../ApplicationIcon";
+import { markStartup } from "../../runtime/startupTiming";
 import { reconnectMessages } from "../social/api";
 import { useLiveVersion } from "../liveEvents";
 import { UserAvatar } from "../UserAvatar";
@@ -101,6 +102,9 @@ export const FeedScreen = memo(function FeedScreen({
   const feedVersion = useLiveVersion("feed");
   const seenFeedVersion = useRef<Record<string, number>>({});
   const userTimeline = useUserPosts();
+  useEffect(() => {
+    if (userTimeline.loaded) markStartup("feed-data-ready");
+  }, [userTimeline.loaded]);
   const followingTimeline = useUserPosts("following");
   const shortcuts = useInstalledShortcuts();
   const lists = useRef<Partial<Record<FeedCategory, FlatList>> >({});
@@ -233,7 +237,7 @@ export const FeedScreen = memo(function FeedScreen({
     <ThemeContext.Provider value={themeContext}>
       <FeedPresentationContext.Provider value={feedPresentation}>
         <GestureHandlerRootView style={styles.container}>
-          <View style={styles.container}>
+          <View style={styles.container} onLayout={() => markStartup("feed-layout")}>
             <View
               style={styles.viewport}
               onLayout={(event) =>
