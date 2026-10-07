@@ -2,7 +2,7 @@ import { Text } from "../../../../packages/ui/primitives/Typography";
 import { pixelAssets } from "./feed/pixelAssets";
 import { Image } from "react-native";
 import { EmptyState } from "./EmptyState";
-import { useRouteContentReady } from "./useRouteContentReady";
+import { useRouteRequestReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -35,7 +35,7 @@ export function AppInfoScreen({ onBack }: Props) {
   const styles = useStyles();
 
   const { colors } = useTheme();
-  const contentReady = useRouteContentReady();
+  const contentReady = useRouteRequestReady();
   const focused = useIsFocused() && contentReady;
   const [items, setItems] = useState<InstalledPackage[]>(() => cachedPackages ?? []);
   const [error, setError] = useState("");

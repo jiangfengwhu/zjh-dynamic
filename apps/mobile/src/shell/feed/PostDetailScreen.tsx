@@ -23,7 +23,7 @@ import { UserPostCard } from "./UserPostCard";
 import { PullRefreshSurface } from "./PullRefreshSurface";
 import { usePullToRefresh } from "./pullToRefresh";
 
-import { useRouteContentReady } from "../useRouteContentReady";
+import { useRouteRequestReady } from "../useRouteContentReady";
 import { PostMenu } from "./PostMenu";
 
 const when = (at: number) => new Date(at).toLocaleString();
@@ -38,7 +38,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   const trackScroll = useAnimatedScrollHandler(event => { scrollY.value = Math.max(0, event.contentOffset.y); });
   const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => load(false, true) });
   const { colors } = useTheme(); const { user } = useAccount(); const timeline = useUserPosts();
-  const entered = useRouteContentReady();
+  const entered = useRouteRequestReady();
   const [fallback, setFallback] = useState(initialPost); const post = timeline.posts.find(item => item.id === initialPost.id) ?? fallback;
   const [comments, setComments] = useState<UserComment[]>(initialDetail?.comments ?? []); const [cursor, setCursor] = useState<string | null>(initialDetail?.nextCursor ?? null);
   const [loading, setLoading] = useState(!initialDetail); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState(""); const [text, setText] = useState("");
@@ -81,7 +81,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
     finally { reading.current = false; if (alive.current) { setLoading(false); setRefreshing(false); if (before !== version.current && !writing.current) void load(); } }
   }
   useEffect(() => () => { alive.current = false; }, []);
-  // Comment mounts and timeline broadcasts must not compete with the entrance animation.
+  // Start the comments request after route commit, while its entrance runs.
   useEffect(() => { if (!entered || !focused) return; version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } void load(); }, [entered, focused, user?.id]);
   function updated(post: UserPost) { version.current++; setFallback(post); }
   async function send() {

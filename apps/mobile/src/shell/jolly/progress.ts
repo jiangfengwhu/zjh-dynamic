@@ -3,7 +3,7 @@ import { readShellValueSync } from "../shellStorage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
-import { useRouteContentReady } from "../useRouteContentReady";
+import { useRouteRequestReady } from "../useRouteContentReady";
 import { applicationContext } from "../../../../../packages/app-sdk/src/runtime";
 const getAppContext = () => applicationContext("jolly");
 import { type WorkshopDetail } from "../../../../../packages/app-sdk/src/creation";
@@ -62,7 +62,7 @@ export function useProgress(
 ) {
   const context = getAppContext();
   const focused = useIsFocused();
-  const routeReady = useRouteContentReady();
+  const routeReady = useRouteRequestReady();
   const [foreground, setForeground] = useState(
     AppState.currentState !== "background" &&
       AppState.currentState !== "inactive"
@@ -166,12 +166,9 @@ export function useProgress(
 
   useEffect(() => {
     if (!active || !service || initialRead.current) return;
-    const task = requestIdleCallback(() => {
-      initialRead.current = true;
-      if (appId && valid()) context.storage.set("workshopTarget", appId);
-      void refresh();
-    });
-    return () => cancelIdleCallback(task);
+    initialRead.current = true;
+    if (appId && valid()) context.storage.set("workshopTarget", appId);
+    void refresh();
   }, [active, service, refresh, loaded]);
   useEffect(() => {
     if (!active || !appId || !snapshot) return;

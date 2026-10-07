@@ -4,7 +4,7 @@ import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { ActivityIndicator } from "react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouteContentReady } from "../useRouteContentReady";
+import { useRouteContentReady, useRouteRequestReady } from "../useRouteContentReady";
 import { useIsFocused } from "@react-navigation/native";
 import { Pressable, View } from "react-native";
 import Animated, {
@@ -82,7 +82,8 @@ function AuthorProfileContent({
   const { user } = useAccount();
   const timeline = useUserPosts();
   const contentReady = useRouteContentReady(embedded);
-  const focused = useIsFocused() && active && contentReady;
+  const requestReady = useRouteRequestReady(embedded);
+  const focused = useIsFocused() && active && requestReady;
   const [profile, setProfile] = useState<AuthorProfile>(() => cachedAuthorProfile(initialAuthor.id) ?? ({
     author: initialAuthor,
     posts: timeline.posts.filter((post) => post.author.id === initialAuthor.id),

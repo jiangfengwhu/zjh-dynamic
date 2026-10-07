@@ -3,7 +3,7 @@ import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { cachedPage, pageCacheKey, rememberPage } from "../pageCache";
 import { useAccount } from "../account";
-import { useRouteContentReady } from "../useRouteContentReady";
+import { useRouteRequestReady } from "../useRouteContentReady";
 
 /** Account-scoped cached pages; one flight and a queued event-driven refresh. */
 export function useSocialPage<T extends { nextCursor: string | null }>({ name, empty, read, merge, active = true, version = 0, authenticated = false, backgroundRefresh = false }: {
@@ -11,7 +11,7 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
   active?: boolean; version?: number; authenticated?: boolean; backgroundRefresh?: boolean;
 }) {
   const { user } = useAccount();
-  const isFocused = useIsFocused(), routeReady = useRouteContentReady();
+  const isFocused = useIsFocused(), routeReady = useRouteRequestReady();
   const focused = isFocused && routeReady && active && (!authenticated || !!user);
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const canRead = focused || backgroundRefresh && foreground && (!authenticated || !!user);
@@ -58,8 +58,10 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
   useEffect(() => { setError(""); again.current = false; }, [key]);
   useEffect(() => {
     if (!canRead) return;
-    const idle = requestIdleCallback(() => { void reload.current(); });
-    return () => cancelIdleCallback(idle);
+    const cached = cachedPage(key) !== undefined;
+    const run = () => { void reload.current(); };
+    const task = cached ? requestIdleCallback(run, { timeout: 1000 }) : requestAnimationFrame(run);
+    return () => { if (cached) cancelIdleCallback(task); else cancelAnimationFrame(task); };
   }, [canRead, focused, key, version]);
   const update = (change: (previous: T) => T) => commit(change(dataRef.current));
   return { data, load, commit, update, loading, error, loaded: !!cachedPage(key), focused, user };

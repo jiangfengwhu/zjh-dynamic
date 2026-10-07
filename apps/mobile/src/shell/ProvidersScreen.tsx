@@ -1,5 +1,5 @@
 import { Text } from "../../../../packages/ui/primitives/Typography";
-import { useRouteContentReady } from "./useRouteContentReady";
+import { useRouteRequestReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
 import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
@@ -51,7 +51,7 @@ export function ProvidersScreen({ onBack }: Props) {
   const [busy, setBusy] = useState(true);
   const [loaded, setLoaded] = useState(cachedProviders !== undefined);
   const [attempt, setAttempt] = useState(0);
-  const contentReady = useRouteContentReady();
+  const contentReady = useRouteRequestReady();
   const working = useRef(false); const alive = useRef(true);
   function fail(reason: unknown) {
     if (!alive.current) return;

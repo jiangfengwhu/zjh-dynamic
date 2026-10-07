@@ -4,7 +4,6 @@ import { ActivityIndicator } from "react-native";
 import { PixelAlert as Alert } from "./PixelAlert";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useRouteContentReady } from "./useRouteContentReady";
 import { View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { FormField as TextInput } from "./FormField";
@@ -20,7 +19,6 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
 
   const { colors } = useTheme();
   const { user, ready, storageError } = useAccount();
-  const contentReady = useRouteContentReady();
   const { watch, setValue } = useForm({ defaultValues: { email: "", code: "", name: user?.name || "" } });
   const [email, code, name] = watch(["email", "code", "name"]);
   const setEmail = (value: string) => setValue("email", value);
@@ -49,7 +47,7 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
   return <Screen style={styles.screen}>
     <PageHeader title={user ? "个人资料" : "邮箱登录"} caption={user ? "让大家认识你" : "一封邮件，就能回来"} onBack={onBack} />
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {!ready || !contentReady ? <View accessibilityLabel="正在准备个人资料" style={styles.panel}>
+      {!ready ? <View accessibilityLabel="正在准备个人资料" style={styles.panel}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.inset }} />
         <View style={{ width: "50%", height: 18, borderRadius: 4, backgroundColor: colors.inset }} />
         <View style={{ height: 48, borderRadius: 12, backgroundColor: colors.inset }} />

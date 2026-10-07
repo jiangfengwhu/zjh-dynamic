@@ -61,7 +61,7 @@ import { PixelText as Text } from "./feed/PixelText";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 import { KeyboardViewport } from "./KeyboardViewport";
-import { useRouteContentReady } from "./useRouteContentReady";
+import { useRouteRequestReady } from "./useRouteContentReady";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export function MarketPublicationScreen(
   props: Parameters<typeof MarketDetailContent>[0]
@@ -81,7 +81,7 @@ export function MarketDetailScreen(
   props: Parameters<typeof MarketDetailContent>[0]
 ) {
   useAccount();
-  const ready = useRouteContentReady();
+  const ready = useRouteRequestReady();
   const focused = useIsFocused();
   const [item, setItem] = useState(props.item);
   const [error, setError] = useState(false);
@@ -142,7 +142,7 @@ function MarketDetailContent({
   const { colors } = useTheme();
   const app = item.manifest;
   const workVersion = useLiveVersion("work", app.appId);
-  const contentReady = useRouteContentReady();
+  const contentReady = useRouteRequestReady();
   const focused = useIsFocused() && contentReady;
   const [installed, setInstalled] = useState(false);
   const [release, setRelease] = useState("");
