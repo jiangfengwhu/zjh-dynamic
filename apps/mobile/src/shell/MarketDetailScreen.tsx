@@ -15,6 +15,7 @@ import { openCreationComposer } from "./creationComposer";
 import { useEffect, useRef, useState } from "react";
 import { Share, View } from "react-native";
 import { edgeUrl } from "./evolveHost";
+import { createShareText, copyShareText, consumeShareText } from "./clipboardShares";
 import {
   KeyboardAwareScrollView as ScrollView,
   type KeyboardAwareScrollViewRef,
@@ -1172,7 +1173,13 @@ function MarketDetailContent({
                       { text: "分享到动态", onPress: () => onSharePost(shared ?? item) },
                       { text: "分享链接", onPress: () => {
                         const url = `${edgeUrl}/applications/${app.appId}`;
-                        void Share.share({ title: shared?.title || item.title || app.appName, message: `${shared?.title || item.title || app.appName}\n${url}`, url }).catch(() => Toast.show({ type: "error", text1: "分享未完成，请重试" }));
+                        const message = createShareText({ kind: "application", id: app.appId }, shared?.title || item.title || app.appName);
+                        consumeShareText(message);
+                        void Share.share({ title: shared?.title || item.title || app.appName, message, url }).catch(() => Toast.show({ type: "error", text1: "分享未完成，请重试" }));
+                      } },
+                      { text: "复制分享内容", onPress: () => {
+                        copyShareText(createShareText({ kind: "application", id: app.appId }, shared?.title || item.title || app.appName));
+                        Toast.show({ type: "success", text1: "分享内容已复制", text2: "发给朋友，复制后打开紫金花即可查看" });
                       } },
                       { text: "取消", style: "cancel" },
                     ])}

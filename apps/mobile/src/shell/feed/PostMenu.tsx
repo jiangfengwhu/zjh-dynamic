@@ -16,11 +16,13 @@ import { useTheme } from "../../../../../packages/ui/theme";
 export function PostMenu({
   onDelete,
   onCopy,
+  onCopyShare,
   onShare,
   busy = false,
 }: {
   onDelete?: () => void;
   onCopy: () => void;
+  onCopyShare?: () => void;
   onShare?: () => void;
   busy?: boolean;
 }) {
@@ -142,6 +144,7 @@ export function PostMenu({
             <Text style={{ color: colors.ink1, fontSize: 16 }}>动态操作</Text>
           </View>
           {row("复制文字", "layers", colors.cyanText, colors.cyanTint, onCopy)}
+          {onCopyShare ? row("复制分享内容", "share", colors.orchidText, colors.orchidTint, onCopyShare) : null}
           {onShare
             ? row(
                 "分享动态",

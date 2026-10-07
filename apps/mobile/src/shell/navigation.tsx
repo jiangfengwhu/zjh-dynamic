@@ -5,6 +5,7 @@ import { Button } from "../../../../packages/ui/primitives/Button";
 import { ApplicationSdkError } from "../runtime/applicationCompatibility";
 import { Linking, StyleSheet, View } from "react-native";
 import { parseSharedLink, type SharedLink } from "./deepLinks";
+import { watchClipboardShares } from "./clipboardShares";
 import NativePluginHost from "../NativePluginHost";
 import type { ApplicationManifest } from "../runtime/applications";
 import { openCreationComposer, type CreationIntent } from "./creationComposer";
@@ -383,7 +384,7 @@ export type ShellNavigatorProps = {
 };
 
 export function ShellNavigator(props: ShellNavigatorProps) {
-  const pendingLink = useRef<{ target: SharedLink; url: string }>();
+  const pendingLink = useRef<{ target: SharedLink; url?: string }>();
   const linkOpened = useRef(false);
   function flushSharedLink() {
     const pending = pendingLink.current;
@@ -393,20 +394,26 @@ export function ShellNavigator(props: ShellNavigatorProps) {
     linkOpened.current = true;
     if (link.kind === "post") shellNavigationRef.navigate("noticePost", { postId: link.id });
     else shellNavigationRef.navigate("sharedApplication", { appId: link.id });
-    void NativePluginHost.call("shell", "consumeLaunchLink", JSON.stringify({ url: pending.url })).catch(() => {});
+    if (pending.url) void NativePluginHost.call("shell", "consumeLaunchLink", JSON.stringify({ url: pending.url })).catch(() => {});
   }
   useEffect(() => {
     let live = true;
     let receivedEvent = false;
+    const clipboard = watchClipboardShares(target => {
+      if (!live) return;
+      pendingLink.current = { target };
+      flushSharedLink();
+    });
     const receive = (url: string) => {
       const link = parseSharedLink(url);
       if (!live || !link) return;
+      clipboard.directLinkReceived();
       pendingLink.current = { target: link, url };
       flushSharedLink();
     };
     const subscription = Linking.addEventListener("url", event => { receivedEvent = true; receive(event.url); });
-    void Linking.getInitialURL().then(url => { if (url && !receivedEvent) receive(url); }).catch(() => {});
-    return () => { live = false; subscription.remove(); };
+    void Linking.getInitialURL().then(url => { if (url && !receivedEvent) receive(url); }).catch(() => {}).finally(() => { if (live) clipboard.start(); });
+    return () => { live = false; subscription.remove(); clipboard.stop(); };
   }, []);
   const reduceMotion = useReducedMotion();
   const installedIds = useMemo(

@@ -18,6 +18,7 @@ import { PostMenu } from "./PostMenu";
 import { edgeUrl } from "../evolveHost";
 import { HtmlPostContent } from "./HtmlPostContent";
 import { ApplicationPostCard } from "./ApplicationPostCard";
+import { createShareText, copyShareText, consumeShareText } from "../clipboardShares";
 
 export function UserPostCard({
   post,
@@ -95,17 +96,26 @@ export function UserPostCard({
     });
   }
   function share() {
+    const message = shareText();
+    consumeShareText(message);
     void Share.share({
-      message: `${post.author.name}：${
+      message,
+      title: "分享动态",
+    }).catch(() => Toast.show({ type: "error", text1: "分享未完成，请重试" }));
+  }
+  function shareText() {
+    return createShareText({ kind: "post", id: post.id }, `${post.author.name}：${
         post.body ||
         (post.application
           ? `分享了应用《${post.application.title}》`
           : post.content
           ? "分享了动态"
           : "分享了图片")
-      }\n${url}`,
-      title: "分享动态",
-    }).catch(() => Toast.show({ type: "error", text1: "分享未完成，请重试" }));
+      }`);
+  }
+  function copyShare() {
+    copyShareText(shareText());
+    Toast.show({ type: "success", text1: "分享内容已复制", text2: "发给朋友，复制后打开紫金花即可查看" });
   }
   function copy() {
     Clipboard.setString(post.body || url);
@@ -131,6 +141,7 @@ export function UserPostCard({
               busy={busy}
               onDelete={own ? remove : undefined}
               onCopy={copy}
+              onCopyShare={copyShare}
               onShare={share}
             />
           }
