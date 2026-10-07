@@ -11,7 +11,7 @@ import {
 } from "react";
 import { Keyboard, Pressable, ScrollView, Switch, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
-import { SymbolIcon } from "./PixelKit";
+import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppImage } from "../../../../../packages/ui/media/AppImage";
 import { MediaPicker as ImagePicker } from "../../../../../packages/ui/media/MediaPicker";

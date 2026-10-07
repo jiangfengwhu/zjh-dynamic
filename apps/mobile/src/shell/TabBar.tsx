@@ -13,7 +13,7 @@ import {
   useNotificationCount,
 } from "./feed/notifications";
 import { useMessageCount, useMessagesSync } from "./social/api";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 
 export const SHELL_TABS = [

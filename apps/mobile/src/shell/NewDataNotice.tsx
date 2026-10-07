@@ -2,7 +2,7 @@ import { UserAvatar } from "./UserAvatar";
 import { View } from "react-native";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { PixelText as Text } from "./feed/PixelText";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useTheme } from "../../../../packages/ui/theme";
 /** An overlay never shifts the list or replaces data under the reader. */
 export function NewDataNotice({ onPress, label = "查看新内容", avatars = [], top = 8 }: { onPress: () => void; label?: string; avatars?: string[]; top?: number }) {

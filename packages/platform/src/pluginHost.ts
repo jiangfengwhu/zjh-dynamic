@@ -40,7 +40,3 @@ export async function pluginCall<T = unknown>(
     return raw as T;
   }
 }
-
-export function isPluginHostAvailable(): boolean {
-  return getNativePluginHost() != null;
-}

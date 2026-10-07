@@ -28,7 +28,7 @@ import {
 } from "../../../../packages/ui/edge";
 import { ThemeContext } from "../../../../packages/ui/theme";
 import { PixelText as Text } from "./feed/PixelText";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useTheme } from "../../../../packages/ui/theme";
 import {
   currentPixelAlert,

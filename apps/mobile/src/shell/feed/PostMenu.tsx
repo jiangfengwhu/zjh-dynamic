@@ -8,7 +8,7 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { ReduceMotion } from "react-native-reanimated";
-import { SymbolIcon, type IconSymbol } from "./PixelKit";
+import { SymbolIcon, type IconSymbol } from "../../../../../packages/ui/chrome/SymbolIcon";
 import { PixelText as Text } from "./PixelText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../../../../packages/ui/theme";

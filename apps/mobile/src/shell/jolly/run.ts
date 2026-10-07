@@ -3,7 +3,6 @@ const getAppContext = () => applicationContext("jolly");
 const {
   get: readPackageValue,
   set: writePackageValue,
-  subscribe: subscribePackageValue,
 } = getAppContext().storage;
 
 export type JollyPhase = "idle" | "making" | "ready" | "stopped" | "failed";
@@ -84,51 +83,6 @@ export function readJollyRun(appId?: string): JollyRun {
   }
 }
 
-export function subscribeJollyRun(
-  listener: (run: JollyRun) => void,
-  appId?: string
-): () => void {
-  listener(readJollyRun(appId));
-  return subscribePackageValue(appId ? `run:${appId}` : KEY, () =>
-    listener(readJollyRun(appId))
-  );
-}
-
-export function jollyPhaseFromStatus(
-  busy: boolean,
-  status: string
-): JollyPhase {
-  if (
-    busy ||
-    status.includes("等待你的回复") ||
-    status.includes("正在检查新包")
-  )
-    return "making";
-  if (
-    status.includes("失败") ||
-    status.toLowerCase().includes("error") ||
-    status.includes("报错") ||
-    status.includes("无效") ||
-    status.includes("密钥")
-  )
-    return "failed";
-  if (
-    status.includes("停止") ||
-    status.includes("暂停") ||
-    status.includes("中断")
-  )
-    return "stopped";
-  if (
-    status.includes("最新") ||
-    status.includes("可以加载") ||
-    status.includes("已完成") ||
-    status.includes("已收好")
-  )
-    return "ready";
-  if (!status) return "idle";
-  return "failed";
-}
-
 export function noteJollyRun(input: {
   appId?: string;
   phase: JollyPhase;
@@ -162,23 +116,4 @@ export function noteJollyRun(input: {
   writePackageValue(KEY, JSON.stringify(next));
   console.log("jolly run", next.phase, next.status);
   return { prev, next };
-}
-
-export function describeJollyRun(
-  run: Pick<JollyRun, "phase" | "wish" | "status">
-): string {
-  const wish = clip(run.wish) || "一个心愿";
-  if (run.phase === "making")
-    return `正在做「${wish}」：${run.status || "开工"}`;
-  if (run.phase === "ready") return `做好了「${wish}」`;
-  if (run.phase === "stopped") return `停下了「${wish}」`;
-  if (run.phase === "failed")
-    return `没做成「${wish}」：${clip(run.status, 36) || "出错"}`;
-  return "";
-}
-
-function clip(text: string, max = 42): string {
-  const flat = text.replace(/\s+/g, " ").trim();
-  if (flat.length <= max) return flat;
-  return `${flat.slice(0, max)}…`;
 }

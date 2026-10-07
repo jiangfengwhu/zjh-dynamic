@@ -3,7 +3,7 @@ import { Text } from "../../../../packages/ui/primitives/Typography";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { getTheme, skins, useTheme } from "../../../../packages/ui/theme";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { CompactTabs } from "./CompactTabs";
 const modes = [{ id: "system", label: "跟随系统" }, { id: "light", label: "浅色" }, { id: "dark", label: "深色" }] as const;
 export function AppearanceScreen({ onBack }: { onBack: () => void }) {

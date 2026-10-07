@@ -4,7 +4,7 @@ import Animated, {
   useAnimatedStyle,
   type SharedValue,
 } from "react-native-reanimated";
-import { SymbolIcon, type IconSymbol } from "./feed/PixelKit";
+import { SymbolIcon, type IconSymbol } from "../../../../packages/ui/chrome/SymbolIcon";
 import { PixelText } from "./feed/PixelText";
 
 const AnimatedPixelText = Animated.createAnimatedComponent(PixelText);

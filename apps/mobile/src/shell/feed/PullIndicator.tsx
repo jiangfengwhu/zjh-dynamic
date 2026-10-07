@@ -1,7 +1,7 @@
 import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { useEffect } from "react";
 
-import { SymbolIcon } from "./PixelKit";
+import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
 import Animated, {
   Easing,
   Extrapolation,

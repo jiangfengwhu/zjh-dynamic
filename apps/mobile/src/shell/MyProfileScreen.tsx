@@ -25,7 +25,7 @@ import { useAccount, requireAccount } from "./account";
 import { CompactTabs } from "./CompactTabs";
 import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
 import { fetchAuthorProfile } from "./feed/userPosts";
 import type { UserPost, PublicAuthor } from "./feed/userPosts";

@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
-import type { AppAvatarProps } from "../avatars/types";
+import type { AppAvatarProps } from "../../app-sdk/src/index";
 import { peekApplication } from "../../app-sdk/src/runtime";
-import { loadApplication, fetchApplicationCatalog, applicationLoaded } from "../../../apps/mobile/src/runtime/applications";
+import { loadApplication, applicationLoaded } from "../../../apps/mobile/src/runtime/applications";
 import { peekFeature, type FeatureComponent } from "./featureHost";
 // Metadata only. Application pages, avatars and cards arrive in independent bundles.
 export type BundleDefinition = {
@@ -14,15 +14,15 @@ export type BundleDefinition = {
   load: () => unknown;
 };
 
-const index = require("../../../apps/mobile/src/runtime/application-index.json") as Array<{ appId: string; appName: string; description: string; accent: string }>;
-function definition(item: (typeof index)[number]): BundleDefinition {
+type ApplicationMetadata = { appId: string; appName: string; description: string; accent: string };
+function definition(item: ApplicationMetadata): BundleDefinition {
   return { id: item.appId, title: item.appName, summary: item.description, accent: item.accent,
     get avatar() { return peekApplication(item.appId)?.avatar; },
     load: () => loadApplication(item.appId),
   };
 }
-export const bundles: BundleDefinition[] = index.filter(item => item.appId !== "jolly").map(definition);
-export function registerApplicationMetadata(item: (typeof index)[number]) {
+export const bundles: BundleDefinition[] = [];
+export function registerApplicationMetadata(item: ApplicationMetadata) {
   if (item.appId === "jolly") return;
   const prior = bundles.findIndex(bundle => bundle.id === item.appId);
   if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
@@ -40,21 +40,6 @@ export async function restoreApplications() {
       if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
     } catch { /* Keep other installed applications available. */ }
   }
-}
-
-export async function refreshApplications() {
-  const { edgeUrl } = require("../../../apps/mobile/src/shell/evolveHost");
-  try {
-    const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications`);
-    if (!response.ok) throw new Error("无法读取应用目录");
-    const payload = await response.json() as { applications: typeof index };
-    for (const item of payload.applications) {
-      if (item.appId === "jolly") continue;
-      if (!/^[a-z][a-z0-9-]{0,63}$/.test(item.appId) || typeof item.appName !== "string") continue;
-      const prior = bundles.findIndex(bundle => bundle.id === item.appId);
-      if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
-    }
-  } catch (error) { console.log("application catalog offline", String(error)); }
 }
 
 /** 取一位朋友的页面组件。第一次打开时执行 load；页面模块出错会抛出，由调用方显示。 */

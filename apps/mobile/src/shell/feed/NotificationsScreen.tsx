@@ -48,7 +48,7 @@ import PagerView, {
   type PagerViewOnPageSelectedEvent,
 } from "react-native-pager-view";
 import { CompactTabs } from "../CompactTabs";
-import { SymbolIcon } from "./PixelKit";
+import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
 const AnimatedPager = Animated.createAnimatedComponent(PagerView);
 type Props = {
   drawerGesture?: ReturnType<typeof Gesture.Pan>;

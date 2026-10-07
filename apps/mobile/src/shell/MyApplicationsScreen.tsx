@@ -43,7 +43,7 @@ import { restoreWorks } from "./workRecovery";
 import { readMyWorks, workLabels, type MyWork } from "./works";
 import { WorkCard } from "./WorkCard";
 import { marketDefinition } from "./market";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { PixelText as Text } from "./feed/PixelText";
 import { useTheme } from "../../../../packages/ui/theme";
 

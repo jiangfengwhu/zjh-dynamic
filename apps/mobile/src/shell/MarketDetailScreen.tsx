@@ -58,7 +58,7 @@ import {
   type SharingState,
 } from "./market";
 import { PixelText as Text } from "./feed/PixelText";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 import { KeyboardViewport } from "./KeyboardViewport";
 import { useRouteContentReady } from "./useRouteContentReady";

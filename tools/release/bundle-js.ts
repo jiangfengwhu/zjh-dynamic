@@ -70,8 +70,6 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   const applicationContract = { engineAbi: `rn-${shared["react-native"]}-hermes-${dependencyLock.packages["node_modules/hermes-compiler"].version}`, sdk: publicModules.sdk, shared };
   if (!contract.applications || contract.applications.engineAbi !== applicationContract.engineAbi || sdkVersion(contract.applications.sdk)?.[0] !== sdkVersion(applicationContract.sdk)?.[0] || Object.entries(shared).some(([name, version]) => contract.applications?.shared[name] !== version)) throw new Error("宿主公共依赖与目标 APK 契约不匹配，需要维护者协调发布");
   await writeFile(path.join(mobileDir, "src/runtime/application-contract.json"), JSON.stringify(applicationContract));
-  const applicationIndex = JSON.parse(await readFile(path.join(repoRoot, "tools/applications/default-applications.json"), "utf8"));
-  await writeFile(path.join(mobileDir, "src/runtime/application-index.json"), JSON.stringify(applicationIndex));
 
   await writeFile(
     path.join(mobileDir, "src", "shell", "evolveHost.ts"),

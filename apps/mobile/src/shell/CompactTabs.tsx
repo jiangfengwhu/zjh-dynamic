@@ -9,7 +9,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
-import type { IconSymbol } from "./feed/PixelKit";
+import type { IconSymbol } from "../../../../packages/ui/chrome/SymbolIcon";
 import { TabLabel } from "./TabAppearance";
 import { useTheme } from "../../../../packages/ui/theme";
 

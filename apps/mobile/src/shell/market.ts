@@ -68,7 +68,6 @@ export function cachedMarketView(key: string): MarketView | undefined {
   try { const value = JSON.parse(readShellValueSync(`market.view.${encodeURIComponent(key)}`) || "null"); if (Array.isArray(value?.applications)) { const view = { ...value, at: value.at || 1 }; views.set(key, view); return view; } } catch {}
   return undefined;
 }
-let marketRevision = 0;
 export const marketViewKey = (category: string, query: string) =>
   `${category}:${query.trim().toLowerCase()}`;
 export function rememberMarketView(
@@ -122,11 +121,7 @@ export async function readMarketView(
   return undefined;
 }
 export function invalidateMarketViews() {
-  marketRevision++;
   views.clear();
-}
-export function marketViewRevision() {
-  return marketRevision;
 }
 export async function fetchMarketPage(
   category = "",

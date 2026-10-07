@@ -6,7 +6,7 @@ import { View } from "react-native";
 import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { PixelText as Text } from "./feed/PixelText";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useTheme } from "../../../../packages/ui/theme";
 
 /** Public profiles and the owner's gallery share one honest presentation. */

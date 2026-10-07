@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { SvgXml } from "react-native-svg";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
 import type { ApplicationManifest } from "../../../../packages/app-sdk/src";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { edgeUrl } from "./evolveHost";
 import { readShellValue, readShellValueSync, writeShellValue, removeShellValue } from "./shellStorage";
 

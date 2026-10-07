@@ -28,7 +28,6 @@ export function rememberPage<T>(key: string, value: T) {
     while (keys.length >= 32) removeShellValue(keys.shift()!);
   });
 }
-export function forgetPage(key: string) { applicationQueryClient("__host").removeQueries({ queryKey: ["page", key], exact: true }); removeShellValue(prefix + key); }
 export function dataChanged(a: unknown, b: unknown, metadataKeys: string[] = []) {
   const serialize = (value: unknown) => JSON.stringify(value, (key, item) => {
     if (metadataKeys.includes(key)) return undefined;

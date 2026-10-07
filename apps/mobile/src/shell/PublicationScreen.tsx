@@ -23,7 +23,7 @@ import {
   type ComposePostControls,
   ComposePostScreen,
 } from "./feed/ComposePostScreen";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { CompactTabs } from "./CompactTabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FormField } from "./FormField";

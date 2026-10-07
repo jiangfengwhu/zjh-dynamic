@@ -240,17 +240,8 @@ function ShellApp() {
     void (async () => {
       const started = Date.now();
       try {
-        let stored = await loadCatalog();
+        const stored = await loadCatalog();
         await restoreApplications();
-        if (!(await readShellValue("application.bootstrap.v1"))) {
-          const bootstrap = require("../../tools/applications/bootstrap.json");
-          const ids: string[] = bootstrap.defaultInstalled;
-          for (const id of ids)
-            if (!stored.some((entry) => entry.id === id))
-              stored.push({ id, hidden: false, pinned: true });
-          await saveCatalog(stored);
-          writeShellValue("application.bootstrap.v1", "done");
-        }
         console.log("catalog loaded", stored.length);
         setCatalog(stored);
         removeShellValue("shell.bundleSource.v1");

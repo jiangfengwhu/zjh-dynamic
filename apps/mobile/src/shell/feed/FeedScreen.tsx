@@ -33,7 +33,7 @@ import Animated, {
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { ThemeContext, createThemedStyles } from "../../../../../packages/ui/theme";
 import { useTheme } from "../../../../../packages/ui/theme";
-import { SymbolIcon } from "./PixelKit";
+import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
 import NativePluginHost from "../../NativePluginHost";
 import { useFeedChrome, SHELL_CHROME_THRESHOLD } from "./FeedChrome";
 import { useAccount } from "../account";

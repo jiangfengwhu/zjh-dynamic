@@ -39,7 +39,7 @@ import {
 } from "./market";
 import { CompactTabs } from "./CompactTabs";
 import { MyApplicationsScreen } from "./MyApplicationsScreen";
-import { SymbolIcon } from "./feed/PixelKit";
+import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 import { usePullToRefresh } from "./feed/pullToRefresh";
 import { PullRefreshSurface } from "./feed/PullRefreshSurface";

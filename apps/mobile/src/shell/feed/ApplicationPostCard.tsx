@@ -3,7 +3,7 @@ import { ActivityIndicator } from "react-native";
 import { PixelText as Text } from "./PixelText";
 import { useRef, useState } from "react";
 import { View } from "react-native";
-import { SymbolIcon } from "./PixelKit";
+import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { useTheme } from "../../../../../packages/ui/theme";
