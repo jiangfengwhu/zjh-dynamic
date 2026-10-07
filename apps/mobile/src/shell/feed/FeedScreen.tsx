@@ -399,8 +399,8 @@ export const FeedScreen = memo(function FeedScreen({
                             collapsable={false}
                             style={{ width: "100%", height: "100%" }}
                           >
-                            {pager.mounted.has(pageKind) ||
-                            pageKind === kind ? (
+                            {viewportWidth > 0 && (pager.mounted.has(pageKind) ||
+                            pageKind === kind) ? (
                               <FeedListGesture
                                 pull={gesture}
                                 drawer={pager.gesture}
