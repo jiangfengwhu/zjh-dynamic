@@ -141,12 +141,6 @@ export const FeedScreen = memo(function FeedScreen({
   const [headerSize, setHeaderSize] = useState(insets.top + 52);
   const [viewportSize, setViewportSize] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(0);
-  const [prefetchReady, setPrefetchReady] = useState(false);
-  useEffect(() => {
-    // Keep offscreen Fabric mounts out of the first native drawing window.
-    const timer = setTimeout(() => setPrefetchReady(true), 1200);
-    return () => clearTimeout(timer);
-  }, []);
   const presentation = useMemo(() => ({ ...feedPresentation, rowWidth: viewportWidth > 0 ? viewportWidth - FEED_PAGE_INSET * 2 : undefined }), [viewportWidth]);
   const headerMotion = useAnimatedStyle(() => ({
     transform: [{ translateY: -hiddenHeader.value }],
@@ -427,9 +421,12 @@ export const FeedScreen = memo(function FeedScreen({
                                     `${item.type}-${item.post.id}`
                                   }
                                   initialNumToRender={4}
-                                  maxToRenderPerBatch={3}
-                                  windowSize={prefetchReady ? 7 : 1}
-                                  onTouchStart={() => { if (!prefetchReady) setPrefetchReady(true); }}
+                                  // One HTML card can contain hundreds of native views.
+                                  // Keep a stable nearby window; touching/scrolling must
+                                  // not trigger a separate seven-screen mount burst.
+                                  maxToRenderPerBatch={1}
+                                  updateCellsBatchingPeriod={80}
+                                  windowSize={3}
                                   removeClippedSubviews={false}
                                   style={styles.scroll}
                                   contentContainerStyle={[

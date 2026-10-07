@@ -1,5 +1,6 @@
 import type { HTMLSourceDom, TRenderEngine, Node } from "@native-html/render";
 import { copyPreparedHtmlStyles } from "./htmlStyles";
+import { measureStartupWork } from "../../runtime/startupTiming";
 
 type Entry = { dom: HTMLSourceDom["dom"]; nodes: number; bytes: number };
 const documents = new Map<string, Entry>();
@@ -26,7 +27,7 @@ export function cachedHtmlDocument(engine: TRenderEngine, html: string, configur
     documents.delete(key);
     documents.set(key, entry);
   } else {
-    const dom = engine.parseDocument(html);
+    const dom = measureStartupWork("html-parse-css", () => engine.parseDocument(html));
     entry = { dom, nodes: nodeCount(dom), bytes: sourceBytes };
     if (entry.nodes <= MAX_NODES && entry.bytes <= MAX_BYTES) {
       documents.set(key, entry); nodes += entry.nodes; bytes += entry.bytes;
@@ -37,7 +38,10 @@ export function cachedHtmlDocument(engine: TRenderEngine, html: string, configur
       }
     }
   }
-  const dom = entry.dom.cloneNode(true);
-  copyStyles(entry.dom, dom);
+  const dom = measureStartupWork("html-clone", () => {
+    const clone = entry.dom.cloneNode(true);
+    copyStyles(entry.dom, clone);
+    return clone;
+  });
   return { dom };
 }

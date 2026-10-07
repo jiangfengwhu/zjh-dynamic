@@ -9,6 +9,7 @@ const rootFontSize = 15;
 type Viewport = { width: number; height: number };
 const originals = new WeakMap<HtmlElement, Record<string, string>>();
 const prepared = new WeakMap<Record<string, string>, Record<string, string>>();
+const nativeStyles = new WeakMap<Record<string, string>, ViewStyle & TextStyle>();
 
 /** A renderer's DOM clone can reuse immutable CSS preprocessing results. */
 export function copyPreparedHtmlStyles(from: HtmlElement, to: HtmlElement) {
@@ -142,7 +143,10 @@ export function prepareHtmlElement(element: HtmlElement, viewport?: Viewport) {
 
 /** These properties are missing from the HTML engine's inline CSS registry. */
 export function htmlNativeStyles(style: string, attributes?: Record<string, string>): ViewStyle & TextStyle {
-  const css = (attributes ? prepared.get(attributes) : undefined) ?? declarations(style), native: ViewStyle & TextStyle = {};
+  const css = (attributes ? prepared.get(attributes) : undefined) ?? declarations(style);
+  const cached = nativeStyles.get(css);
+  if (cached) return cached;
+  const native: ViewStyle & TextStyle = {};
   if (css.display === "flex") {
     const [row, column = row] = splitCss(css.gap ?? "", " ");
     for (const [property, value] of [["rowGap", css["row-gap"] ?? row], ["columnGap", css["column-gap"] ?? column]]) {
@@ -169,6 +173,9 @@ export function htmlNativeStyles(style: string, attributes?: Record<string, stri
     }
     native.boxShadow = shadows;
   }
+  // DOM clones share the immutable prepared CSS record. Reuse conversion of
+  // shadows/gaps/margins without caching view instances or theme-derived styles.
+  nativeStyles.set(css, native);
   return native;
 }
 
