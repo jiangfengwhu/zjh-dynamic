@@ -25,6 +25,7 @@ export type UserPost = {
   body: string;
   images: Array<{ id: string; url: string }>;
   createdAt: number;
+  viewCount?: number;
   likeCount?: number;
   commentCount?: number;
   liked?: boolean;

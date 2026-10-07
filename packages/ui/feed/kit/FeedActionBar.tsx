@@ -20,6 +20,7 @@ export function FeedActionBar({
   busy,
   comments,
   likes,
+  views,
   onComment,
   onLike,
   onShare,
@@ -28,6 +29,7 @@ export function FeedActionBar({
   busy?: boolean;
   comments?: number;
   likes?: number;
+  views?: number;
   onComment?: () => void;
   onLike: () => void;
   onShare: () => void;
@@ -84,6 +86,14 @@ export function FeedActionBar({
           </FeedText>
         ) : null}
       </Pressy>
+      {views !== undefined ? <View accessible accessibilityLabel={`曝光 ${views} 人`} style={action}>
+        <View accessible={false} style={{ width: 18, height: 16, flexDirection: "row", alignItems: "flex-end", gap: 2 }}>
+          {[6, 14, 10].map((height, index) => <View key={index} style={{ width: 3, height, borderRadius: colors.skin === "pixel-street" ? 0 : 1, backgroundColor: colors.ink3 }} />)}
+        </View>
+        <FeedText numberOfLines={1} style={{ fontSize: 12, color: colors.ink3 }}>
+          {views >= 10000 ? `${Math.floor(views / 1000) / 10}万` : views >= 1000 ? `${Math.floor(views / 100) / 10}k` : views}
+        </FeedText>
+      </View> : null}
       <Pressy
         accessibilityRole="button"
         accessibilityLabel="分享动态"

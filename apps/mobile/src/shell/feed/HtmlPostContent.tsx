@@ -190,7 +190,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
   );
   return (
     <View
-      style={{ width: "100%", minWidth: 0, overflow: "hidden" }}
+      style={{ width: "100%", minWidth: 0, overflow: "visible" }}
       onLayout={(event) => {
         const nextWidth = event.nativeEvent.layout.width;
         setWidth((previous) =>

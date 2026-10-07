@@ -898,7 +898,7 @@ const useStyles = createThemedStyles((base) => {
       paddingVertical: 3,
       width: "100%",
       minWidth: 0,
-      overflow: "hidden",
+      overflow: "visible",
     },
     separator: {
       height: 0.5,

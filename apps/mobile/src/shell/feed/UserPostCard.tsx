@@ -191,6 +191,7 @@ export function UserPostCard({
               liked={!!post.liked}
               comments={post.commentCount}
               likes={post.likeCount}
+              views={post.viewCount ?? 0}
               onComment={onOpen}
               onLike={() => void like()}
               onShare={share}
