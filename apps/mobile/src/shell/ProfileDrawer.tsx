@@ -96,16 +96,7 @@ export function ProfileDrawer({
   const [opened, setOpened] = useState(false);
   const [contentReady, setContentReady] = useState(false);
   useEffect(() => {
-    if (contentReady) return;
-    if (opened) { setContentReady(true); return; }
-    let idle: ReturnType<typeof requestIdleCallback> | undefined;
-    const timer = setTimeout(() => {
-      idle = requestIdleCallback(() => setContentReady(true));
-    }, 1000);
-    return () => {
-      clearTimeout(timer);
-      if (idle !== undefined) cancelIdleCallback(idle);
-    };
+    if (opened && !contentReady) setContentReady(true);
   }, [opened, contentReady]);
   useEffect(() => {
     if (contentReady) markStartup("drawer-content-ready");

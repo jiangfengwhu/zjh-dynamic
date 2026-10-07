@@ -227,12 +227,7 @@ function ShellApp() {
       });
     };
     const timer = setTimeout(() => {
-      idle = requestIdleCallback(() => {
-        idle = undefined;
-        void syncPlugins().finally(() => {
-          if (!disposed) deferUpdates();
-        });
-      });
+      if (!disposed) deferUpdates();
     }, 1500);
     return () => {
       disposed = true;
@@ -548,17 +543,6 @@ function upsert(
 }
 
 
-async function syncPlugins() {
-  try {
-    const raw = await NativePluginHost.call("shell", "syncPlugins", "{}");
-    console.log("plugins synced", raw);
-  } catch (error) {
-    console.log(
-      "plugin sync failed",
-      error instanceof Error ? error.message : error
-    );
-  }
-}
 
 const useStyles = createThemedStyles((theme) => ({
   container: {

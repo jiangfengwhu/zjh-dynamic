@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import * as Keychain from "react-native-keychain";
-import { MediaPicker as ImagePicker } from "../../../../packages/ui/media/MediaPicker";
-import BlobUtil from "react-native-blob-util";
 
 import { edgeUrl } from "./evolveHost";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
@@ -95,6 +93,8 @@ export async function loginWithCode(email: string, code: string) {
 export async function saveAccountName(name: string) { const result = await call<{ user: Account }>("/v1/account", "PATCH", { name }); remember(result.user); }
 export async function removeAccountAvatar() { const result = await call<{ user: Account }>("/v1/account/avatar", "DELETE"); remember(result.user); }
 export async function chooseAccountAvatar(onStatus: (message: string) => void): Promise<boolean> {
+  const { MediaPicker: ImagePicker } = require("../../../../packages/ui/media/MediaPicker") as typeof import("../../../../packages/ui/media/MediaPicker");
+  const BlobUtil = (require("react-native-blob-util") as typeof import("react-native-blob-util")).default;
   const ownerId = await currentAccountId(); if (!ownerId || !credential) throw new Error("请先登录");
   const token = credential.token; let path: string | undefined;
   try {
@@ -126,6 +126,7 @@ export async function logoutAccount() {
 }
 /** Native file transport stays in the host; plugin contexts never receive tokens. */
 export async function uploadPostImage(path: string): Promise<{ id: string; url: string }> {
+  const BlobUtil = (require("react-native-blob-util") as typeof import("react-native-blob-util")).default;
   if (!await requireAccount(false) || !credential) throw new Error("请先登录");
   const token = credential.token;
   const response = await BlobUtil.config({ timeout: 60000 }).fetch("PUT", `${edgeUrl}/v1/post-media`, { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" }, BlobUtil.wrap(path.replace(/^file:\/\//, "")));

@@ -19,7 +19,6 @@ import {
 import {
   NavigationContainer,
   DefaultTheme,
-  createNavigationContainerRef,
   type NavigationState,
   type NavigatorScreenParams,
 } from "@react-navigation/native";
@@ -39,12 +38,6 @@ import Animated, {
   useReducedMotion,
 } from "react-native-reanimated";
 import { type AppEntry } from "./catalog";
-import { MyApplicationsScreen } from "./MyApplicationsScreen";
-import { MarketScreen } from "./MarketScreen";
-import {
-  MarketDetailScreen,
-  MarketPublicationScreen,
-} from "./MarketDetailScreen";
 import type { MarketApplication } from "./market";
 import { fetchPublicMarketApplication, isApplicationInstalled } from "./market";
 import {
@@ -56,36 +49,24 @@ import {
   showProfileDrawer,
   useProfileDrawer,
 } from "./ProfileDrawer";
-import { MineScreen } from "./MineScreen";
 import { requireAccount, currentAccountId, cachedAccountId } from "./account";
 import { readShellValue, removeShellValue } from "./shellStorage";
-import { AccountScreen } from "./AccountScreen";
-import { ProvidersScreen } from "./ProvidersScreen";
-import { AppInfoScreen } from "./AppInfoScreen";
-import { AppearanceScreen } from "./AppearanceScreen";
 import { useTheme, type ThemeMode, type ThemePreference } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { AsyncRouteScreen } from "./AsyncRouteScreen";
 import { cachedFeature, openFeature } from "../../../../packages/features/src/registry";
 import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
-import { PublicationScreen } from "./PublicationScreen";
-import { MyProfileScreen } from "./MyProfileScreen";
-import { submitCreationPrompt } from "./creationDraft";
+
 import { openApplicationWorkshop } from "./workshopNavigation";
-import { PostDetailScreen } from "./feed/PostDetailScreen";
 import type { UserPost } from "./feed/userPosts";
 import type { UserPostDraft } from "../../../../packages/app-sdk/src/index";
 import {
   shareApplicationPost,
   validatePostDraft,
 } from "./feed/applicationSharing";
-import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
 import type { PublicAuthor } from "./feed/userPosts";
 import { fetchPostDetail, type PostDetail } from "./feed/userPosts";
 import type { Notice } from "./feed/notifications";
-import { NotificationsScreen } from "./feed/NotificationsScreen";
-import { ConnectionsScreen } from "./social/ConnectionsScreen";
-import { ChatScreen } from "./social/ChatScreen";
 import type { RelationKind } from "./social/api";
 
 export type TabParamList = {
@@ -95,8 +76,29 @@ export type TabParamList = {
   mine: undefined;
 };
 
-import JollyProgressScreen from "./jolly/ProgressScreen";
-import { ShellTabScene, prioritizeShellTab, setShellTabWarmupActive } from "./ShellTabScene";
+
+import { ShellTabScene } from "./ShellTabScene";
+import { shellNavigationRef } from "./navigationRef";
+import { lazyScreen } from "./lazyScreen";
+
+const MyApplicationsScreen = lazyScreen(() => (require("./MyApplicationsScreen") as typeof import("./MyApplicationsScreen")).MyApplicationsScreen);
+const MarketScreen = lazyScreen(() => (require("./MarketScreen") as typeof import("./MarketScreen")).MarketScreen);
+const MarketDetailScreen = lazyScreen(() => (require("./MarketDetailScreen") as typeof import("./MarketDetailScreen")).MarketDetailScreen);
+const MarketPublicationScreen = lazyScreen(() => (require("./MarketDetailScreen") as typeof import("./MarketDetailScreen")).MarketPublicationScreen);
+const MineScreen = lazyScreen(() => (require("./MineScreen") as typeof import("./MineScreen")).MineScreen);
+const AccountScreen = lazyScreen(() => (require("./AccountScreen") as typeof import("./AccountScreen")).AccountScreen);
+const ProvidersScreen = lazyScreen(() => (require("./ProvidersScreen") as typeof import("./ProvidersScreen")).ProvidersScreen);
+const AppInfoScreen = lazyScreen(() => (require("./AppInfoScreen") as typeof import("./AppInfoScreen")).AppInfoScreen);
+const AppearanceScreen = lazyScreen(() => (require("./AppearanceScreen") as typeof import("./AppearanceScreen")).AppearanceScreen);
+const PublicationScreen = lazyScreen(() => (require("./PublicationScreen") as typeof import("./PublicationScreen")).PublicationScreen);
+const MyProfileScreen = lazyScreen(() => (require("./MyProfileScreen") as typeof import("./MyProfileScreen")).MyProfileScreen);
+const PostDetailScreen = lazyScreen(() => (require("./feed/PostDetailScreen") as typeof import("./feed/PostDetailScreen")).PostDetailScreen);
+const AuthorProfileScreen = lazyScreen(() => (require("./feed/AuthorProfileScreen") as typeof import("./feed/AuthorProfileScreen")).AuthorProfileScreen);
+const NotificationsScreen = lazyScreen(() => (require("./feed/NotificationsScreen") as typeof import("./feed/NotificationsScreen")).NotificationsScreen);
+const ConnectionsScreen = lazyScreen(() => (require("./social/ConnectionsScreen") as typeof import("./social/ConnectionsScreen")).ConnectionsScreen);
+const ChatScreen = lazyScreen(() => (require("./social/ChatScreen") as typeof import("./social/ChatScreen")).ChatScreen);
+const JollyProgressScreen = lazyScreen(() => (require("./jolly/ProgressScreen") as typeof import("./jolly/ProgressScreen")).default);
+
 
 export type RootParamList = {
   sharedApplication: { appId: string };
@@ -131,7 +133,7 @@ export type RootParamList = {
   chat: { peer: PublicAuthor };
 };
 
-export const shellNavigationRef = createNavigationContainerRef<RootParamList>();
+export { shellNavigationRef } from "./navigationRef";
 function openAuthor(author: PublicAuthor) {
   if (shellNavigationRef.isReady())
     shellNavigationRef.navigate("authorProfile", { author });
@@ -364,7 +366,6 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
         onChange={(id) => {
           const route = state.routes.find((item) => item.name === id);
           if (route) {
-            prioritizeShellTab();
             jumpTo(route.key);
           }
         }}
@@ -454,7 +455,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
   function onStateChange(state: NavigationState | undefined) {
     if (!state) return;
     const top = state.routes[state.index];
-    setShellTabWarmupActive(top?.name === "tabs");
     let label = top?.name ?? "";
     let detail = "";
     if (top?.name === "tabs" && top.state) {
@@ -580,7 +580,8 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     tabBar={(tabProps) => <ShellTabBar {...tabProps} />}
                     screenOptions={{
                       swipeEnabled: false,
-                      lazy: false,
+                      lazy: true,
+                      lazyPreloadDistance: 0,
                       animationEnabled: false,
                       sceneStyle: { backgroundColor: colors.canvas },
                     }}
@@ -761,6 +762,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               <PublicationScreen
                 onBack={goBack}
                 onCreate={async (input) => {
+                  const { submitCreationPrompt } = require("./creationDraft") as typeof import("./creationDraft");
                   return await submitCreationPrompt(
                     input,
                     route.params?.creation

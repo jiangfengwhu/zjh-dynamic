@@ -1,5 +1,5 @@
 import { requireAccount, currentAccountId, cachedAccountId } from "./account";
-import { shellNavigationRef } from "./navigation";
+import { shellNavigationRef } from "./navigationRef";
 
 /** Progress belongs to the host. Preserve old callers while retiring plugin loading. */
 export async function openApplicationWorkshop(

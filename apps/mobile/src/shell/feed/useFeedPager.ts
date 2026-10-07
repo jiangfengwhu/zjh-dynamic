@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
@@ -7,6 +7,7 @@ import PagerView, {
 import { useFocusEffect } from "@react-navigation/native";
 import { Gesture } from "react-native-gesture-handler";
 import { runOnJS, runOnUI, useEvent } from "react-native-reanimated";
+import { useVisitedPager } from "../useVisitedPager";
 import { useProfileDrawer } from "../ProfileDrawer";
 export type FeedCategory = "installed" | "recommended" | "following";
 
@@ -43,22 +44,10 @@ export function useFeedPager({
     }, [feedActive, feedPage, feedPosition, feedIdle])
   );
   const pagePosition = feedPosition;
-  const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
-    (event) => {
-      "worklet";
-      pagePosition.value = event.position + event.offset;
-      if (Math.abs(event.offset) > 0.001) feedIdle.value = false;
-      else {
-        feedPage.value = event.position;
-        feedIdle.value = true;
-      }
-    },
-    ["onPageScroll"]
-  );
-  const [mounted, setMounted] = useState(
-    () => new Set(categories.slice(Math.max(0, index - 1), index + 2))
-  );
+  const { visited, visit: visitPage, reveal } = useVisitedPager(index);
+  const mounted = useMemo(() => new Set(categories.filter((_, page) => visited.has(page))), [categories, visited]);
   useEffect(() => {
+    visitPage(index);
     if (current.current === index) return;
     const distance = Math.abs(current.current - index);
     current.current = index;
@@ -70,59 +59,37 @@ export function useFeedPager({
         pagePosition.value = next;
       }
     })(index, distance <= 1);
-    if (distance > 1) {
-      ref.current?.setPageWithoutAnimation(index);
-    } else ref.current?.setPage(index);
-  }, [index, pagePosition, feedPage, feedIdle]);
-  const idleTask = useRef<ReturnType<typeof requestIdleCallback> | null>(null);
-  const moving = useRef(false);
-  const warm = useCallback(() => {
-    if (idleTask.current !== null) cancelIdleCallback(idleTask.current);
-    idleTask.current = null;
-    if (moving.current) return;
-    idleTask.current = requestIdleCallback(() => {
-      idleTask.current = null;
-      if (moving.current) return;
-      setMounted((previous) => {
-        const next = new Set(previous);
-        for (const category of categories.slice(
-          Math.max(0, current.current - 1),
-          current.current + 2
-        ))
-          next.add(category);
-        return next.size === previous.size ? previous : next;
-      });
-    });
-  }, [categories]);
-  useEffect(() => {
-    warm();
-    return () => {
-      if (idleTask.current !== null) cancelIdleCallback(idleTask.current);
-    };
-  }, [warm, index]);
-  const updateWarmState = useCallback(
-    (idle: boolean) => {
-      moving.current = !idle;
-      warm();
+    if (distance > 1) ref.current?.setPageWithoutAnimation(index);
+    else ref.current?.setPage(index);
+  }, [index, visitPage, pagePosition, feedPage, feedIdle]);
+  const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
+    (event) => {
+      "worklet";
+      reveal(event.position, event.offset);
+      pagePosition.value = event.position + event.offset;
+      if (Math.abs(event.offset) > 0.001) feedIdle.value = false;
+      else {
+        feedPage.value = event.position;
+        feedIdle.value = true;
+      }
     },
-    [warm]
+    ["onPageScroll"]
   );
   const onPageScrollStateChanged = useEvent<PageScrollStateChangedNativeEvent>(
-    (event) => {
+    event => {
       "worklet";
       const idle = event.pageScrollState === "idle";
       if (idle) feedPage.value = Math.round(pagePosition.value);
       feedIdle.value = idle;
-      runOnJS(updateWarmState)(idle);
-    },
-    ["onPageScrollStateChanged"]
+    }, ["onPageScrollStateChanged"]
   );
   const selectPage = useCallback(
     (next: number) => {
+      visitPage(next);
       current.current = next;
       if (categories[next] !== undefined) onSelect(categories[next]);
     },
-    [categories, onSelect]
+    [categories, onSelect, visitPage]
   );
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
     (event) => {

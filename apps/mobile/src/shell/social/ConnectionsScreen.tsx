@@ -1,3 +1,4 @@
+import { useVisitedPager } from "../useVisitedPager";
 import { useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelectedEvent } from "react-native-pager-view";
@@ -22,16 +23,17 @@ export function ConnectionsScreen({ author, initialKind, onBack, onAuthor }: {
   const [kind, setKind] = useState(initialKind);
   const { user } = useAccount();
   const pager = useRef<PagerView>(null), initialIndex = useRef(initialKind === "following" ? 0 : 1);
+  const { visited, visit, reveal } = useVisitedPager(initialIndex.current);
   const position = useSharedValue(initialIndex.current);
-  const scroll = useEvent<PagerViewOnPageScrollEvent>(e => { "worklet"; position.value = e.position + e.offset; }, ["onPageScroll"]);
-  const selected = useEvent<PagerViewOnPageSelectedEvent>(e => { "worklet"; runOnJS(setKind)(e.position === 0 ? "following" : "followers"); }, ["onPageSelected"]);
+  const scroll = useEvent<PagerViewOnPageScrollEvent>(e => { "worklet"; reveal(e.position, e.offset); position.value = e.position + e.offset; }, ["onPageScroll"]);
+  const selected = useEvent<PagerViewOnPageSelectedEvent>(e => { "worklet"; runOnJS(visit)(e.position); runOnJS(setKind)(e.position === 0 ? "following" : "followers"); }, ["onPageSelected"]);
   return <SocialFrame title={author.id === user?.id ? kind === "following" ? "我的关注" : "我的粉丝" : `${author.name}的${kind === "following" ? "关注" : "粉丝"}`} onBack={onBack}>
     <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}><CompactTabs value={kind} position={position}
       options={[{ id: "following", label: "关注" }, { id: "followers", label: "粉丝" }]}
       onChange={next => pager.current?.setPage(next === "following" ? 0 : 1)} /></View>
     <AnimatedPager ref={pager} initialPage={initialIndex.current} style={{ flex: 1 }} offscreenPageLimit={1} onPageScroll={scroll} onPageSelected={selected}>
       {(["following", "followers"] as const).map(page => <View key={page} collapsable={false} style={{ flex: 1 }}>
-        <ConnectionsList author={author} kind={page} active={kind === page} onAuthor={onAuthor} />
+        {visited.has(page === "following" ? 0 : 1) ? <ConnectionsList author={author} kind={page} active={kind === page} onAuthor={onAuthor} /> : null}
       </View>)}
     </AnimatedPager>
   </SocialFrame>;

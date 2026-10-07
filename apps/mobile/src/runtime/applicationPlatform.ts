@@ -1,10 +1,8 @@
 import { bindApplicationSdk, registerApplication, setApplicationCreationNavigation } from "../../../../packages/app-sdk/src/runtime";
-import * as ui from "../../../../packages/app-sdk/src/host-ui";
-import { creationService } from "../shell/cloudEvolve";
 import { checkApplicationUpdates, applyApplicationUpdate } from "./applications";
 import { loadSharing } from "../shell/market";
 import { currentAccountId } from "../shell/account";
-import { shellNavigationRef } from "../shell/navigation";
+import { shellNavigationRef } from "../shell/navigationRef";
 import { readShellValue, writeShellValue } from "../shell/shellStorage";
 import { openCreationComposer } from "../shell/creationComposer";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
@@ -54,7 +52,7 @@ const modules: Record<string, () => unknown> = {
   "zod": () => require("zod"),
   "react/jsx-runtime": () => require("react/jsx-runtime"),
   "react/jsx-dev-runtime": () => require("react/jsx-dev-runtime"),
-  "@zijinhua/app-sdk/ui": () => ui,
+  "@zijinhua/app-sdk/ui": () => require("../../../../packages/app-sdk/src/host-ui"),
 };
 
 export function installApplicationPlatform() {
@@ -79,6 +77,7 @@ export function installApplicationPlatform() {
         // Engineering API selection only: shared JS has no trustworthy caller appId.
         // Server ownership and per-round authorization protect creation operations.
         if (appId !== "jolly") throw new Error("当前应用未获得制作能力");
+        const { creationService } = require("../shell/cloudEvolve") as typeof import("../shell/cloudEvolve");
         return { getCreationService: (targetAppId: string, originalAppId?: string) => ({ ...creationService(targetAppId, originalAppId),
           // Old companion versions also enter the canonical composer rather than submit.
           runCloudEvolve: async (options: { requirement: string }) => {

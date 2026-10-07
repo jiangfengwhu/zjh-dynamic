@@ -1,4 +1,4 @@
-import { shellNavigationRef } from "./navigation";
+import { shellNavigationRef } from "./navigationRef";
 import { cachedAccountId, requireAccount } from "./account";
 
 export type CreationIntent = {

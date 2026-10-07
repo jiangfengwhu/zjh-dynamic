@@ -4,7 +4,7 @@ import { subscribeCatalog } from "../catalog";
 import { useAccount, currentAccountId } from "../account";
 
 /** Local launch targets; opening this page never downloads public app metadata. */
-export function useInstalledShortcuts() {
+export function useInstalledShortcuts(active: boolean) {
   const { user } = useAccount();
   const [state, setState] = useState<{
     owner: string | undefined;
@@ -34,6 +34,7 @@ export function useInstalledShortcuts() {
     }
   }, []);
   useEffect(() => {
+    if (!active) return;
     let pending: ReturnType<typeof requestIdleCallback> | undefined;
     const schedule = () => {
       if (pending !== undefined) cancelIdleCallback(pending);
@@ -49,7 +50,7 @@ export function useInstalledShortcuts() {
       revision.current++;
       if (pending !== undefined) cancelIdleCallback(pending);
     };
-  }, [refresh, user?.id]);
+  }, [active, refresh, user?.id]);
   return {
     items: state.owner === user?.id ? state.items : [],
     loaded: state.loaded && state.owner === user?.id,

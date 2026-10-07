@@ -1,3 +1,4 @@
+import { useVisitedPager } from "../useVisitedPager";
 import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
@@ -88,6 +89,7 @@ function AuthorProfileContent({
     applications: [],
     nextCursor: null,
   }));
+  const { visited, visit, reveal } = useVisitedPager();
   const [tab, setTab] = useState<"posts" | "apps">("posts");
   const pager = useRef<PagerView>(null);
   const position = useSharedValue(0);
@@ -95,10 +97,10 @@ function AuthorProfileContent({
   const appList = useAnimatedRef<import("react-native").FlatList<ProfileRow>>();
   const appScroll = useAnimatedScrollHandler(event => { appY.value = Math.max(0, event.contentOffset.y); });
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(event => {
-    "worklet"; position.value = event.position + event.offset;
+    "worklet"; reveal(event.position, event.offset); position.value = event.position + event.offset;
   }, ["onPageScroll"]);
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(event => {
-    "worklet"; runOnJS(setTab)(event.position === 0 ? "posts" : "apps");
+    "worklet"; runOnJS(visit)(event.position); runOnJS(setTab)(event.position === 0 ? "posts" : "apps");
   }, ["onPageSelected"]);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(() => !!cachedAuthorProfile(initialAuthor.id));
@@ -474,8 +476,8 @@ function AuthorProfileContent({
       {header}
       {embedded ? renderPage("posts") : (
         <AnimatedPagerView ref={pager} style={{ flex: 1 }} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected}>
-          <View key="posts" collapsable={false} style={{ flex: 1 }}>{renderPage("posts")}</View>
-          <View key="apps" collapsable={false} style={{ flex: 1 }}>{renderPage("apps")}</View>
+          <View key="posts" collapsable={false} style={{ flex: 1 }}>{visited.has(0) ? renderPage("posts") : null}</View>
+          <View key="apps" collapsable={false} style={{ flex: 1 }}>{visited.has(1) ? renderPage("apps") : null}</View>
         </AnimatedPagerView>
       )}
     </Root>

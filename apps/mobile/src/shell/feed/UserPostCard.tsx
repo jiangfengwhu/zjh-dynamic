@@ -1,3 +1,4 @@
+import { lazyScreen } from "../lazyScreen";
 import { UserAvatar } from "../UserAvatar";
 import { PixelAlert as Alert } from "../PixelAlert";
 import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
@@ -16,7 +17,7 @@ import { cachedAccountId, requireAccount } from "../account";
 import { deleteUserPost, togglePostLike, type UserPost } from "./userPosts";
 import { PostMenu } from "./PostMenu";
 import { edgeUrl } from "../evolveHost";
-import { HtmlPostContent } from "./HtmlPostContent";
+const HtmlPostContent = lazyScreen(() => (require("./HtmlPostContent") as typeof import("./HtmlPostContent")).HtmlPostContent);
 import { ApplicationPostCard } from "./ApplicationPostCard";
 import { createShareText } from "../clipboardShares";
 

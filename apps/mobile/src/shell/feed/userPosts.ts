@@ -117,8 +117,11 @@ const listeners = new Set<(page: Page) => void>();
 function save(next: Page) {
   value = { ...next, posts: next.posts.map(withPendingLike), reactionOwnerId: cachedAccountId() };
   rememberPage(pageCacheKey("feed:recommended"), value);
-  writeShellValue("social.timeline.v1", JSON.stringify(value));
   listeners.forEach((listener) => listener(value));
+  const snapshot = value;
+  requestIdleCallback(() => {
+    if (value === snapshot) writeShellValue("social.timeline.v1", JSON.stringify(snapshot));
+  });
 }
 async function initialize() {
   if (!initialization)
@@ -146,7 +149,15 @@ async function initialize() {
   await initialization;
 }
 export type FeedScope = "recommended" | "following";
-let followingPage: Page = cachedPage<Page>(pageCacheKey("feed:following")) ?? { posts: [], nextCursor: null };
+let followingPage: Page = { posts: [], nextCursor: null };
+let followingCacheInitialized = false;
+function restoreFollowingPage() {
+  if (!followingCacheInitialized) {
+    followingCacheInitialized = true;
+    followingPage = cachedPage<Page>(pageCacheKey("feed:following")) ?? followingPage;
+  }
+  return followingPage;
+}
 let followingRevision = 0;
 let followingRefresh: Promise<void> | undefined;
 let followingManualRefreshRequested = false;
@@ -160,6 +171,7 @@ export function shouldRefreshUserPosts(scope: FeedScope) {
 }
 const followingListeners = new Set<(page: Page) => void>();
 function saveFollowing(page: Page) {
+  followingCacheInitialized = true;
   followingPage = { ...page, posts: page.posts.map(withPendingLike) };
   rememberPage(pageCacheKey("feed:following"), followingPage);
   followingListeners.forEach((listener) => listener(followingPage));
@@ -178,14 +190,16 @@ export async function setAuthorFollow(id: string, following: boolean) {
     });
   // Let the button response render before fetching the updated timeline.
   requestIdleCallback(() => {
+    if (!followingListeners.size) return;
     void Promise.resolve(followingRefresh)
       .catch(() => {})
-      .then(() => refreshFollowing())
+      .then(() => followingListeners.size ? refreshFollowing() : undefined)
       .catch(() => {});
   });
   return result;
 }
 async function refreshFollowing(silent = false) {
+  restoreFollowingPage();
   if (!silent) {
     followingManualRefreshRequested = true;
     if (followingPage.pending) saveFollowing({ ...followingPage, pending: undefined });
@@ -234,16 +248,20 @@ async function loadMoreFollowing() {
   });
   return followingPaging;
 }
-export function useUserPosts(scope: FeedScope = "recommended") {
-  const [following, setFollowing] = useState(followingPage);
+export function useUserPosts(scope: FeedScope = "recommended", active = true) {
+  const [following, setFollowing] = useState(() => ({
+    owner: cachedAccountId(),
+    page: scope === "following" && active ? restoreFollowingPage() : followingPage,
+  }));
   useEffect(() => {
-    if (scope !== "following") return;
-    followingListeners.add(setFollowing);
-    setFollowing(followingPage);
+    if (scope !== "following" || !active) return;
+    const update = (page: Page) => setFollowing({ owner: cachedAccountId(), page });
+    followingListeners.add(update);
+    update(restoreFollowingPage());
     return () => {
-      followingListeners.delete(setFollowing);
+      followingListeners.delete(update);
     };
-  }, [scope]);
+  }, [scope, active]);
   const [page, setPage] = useState(value);
   useEffect(() => {
     if (scope === "following") return;
@@ -254,7 +272,9 @@ export function useUserPosts(scope: FeedScope = "recommended") {
       listeners.delete(setPage);
     };
   }, [scope]);
-  return scope === "following" ? following : page;
+  return scope === "following"
+    ? following.owner === cachedAccountId() ? following.page : { posts: [], nextCursor: null } as Page
+    : page;
 }
 async function requestPage(cursor?: string) {
   const before = notificationRevision();
@@ -515,11 +535,15 @@ subscribeAccountIdentity(() => {
   authorFlights.clear();
   pendingLikes.clear();
   followingRevision++;
-  saveFollowing(cachedPage<Page>(pageCacheKey("feed:following")) ?? { posts: [], nextCursor: null });
-  void Promise.resolve(followingRefresh)
-    .catch(() => {})
-    .then(() => refreshFollowing())
-    .catch(() => {});
+  followingCacheInitialized = false;
+  followingPage = { posts: [], nextCursor: null };
+  followingListeners.forEach(listener => listener(followingPage));
+  if (followingListeners.size) {
+    void Promise.resolve(followingRefresh)
+      .catch(() => {})
+      .then(() => followingListeners.size ? refreshFollowing() : undefined)
+      .catch(() => {});
+  }
   revision++;
   const next = {
     ...value,

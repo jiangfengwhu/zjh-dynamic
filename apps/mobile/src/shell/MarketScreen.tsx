@@ -1,3 +1,5 @@
+import { lazyScreen } from "./lazyScreen";
+import { useVisitedPager } from "./useVisitedPager";
 import { ApplicationIcon } from "./ApplicationIcon";
 import { TextInput } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
@@ -38,7 +40,7 @@ import {
   type MarketApplication,
 } from "./market";
 import { CompactTabs } from "./CompactTabs";
-import { MyApplicationsScreen } from "./MyApplicationsScreen";
+const MyApplicationsScreen = lazyScreen(() => (require("./MyApplicationsScreen") as typeof import("./MyApplicationsScreen")).MyApplicationsScreen);
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 import { usePullToRefresh } from "./feed/pullToRefresh";
@@ -73,6 +75,7 @@ function MarketContent(props: MarketProps) {
   const [discoveryQuery, setDiscoveryQuery] = useState("");
   const [installedQuery, setInstalledQuery] = useState("");
   const queryEdited = useRef(false);
+  const { visited, visit, reveal } = useVisitedPager();
   const [section, setSection] = useState<"discover" | "installed">("discover");
   const { gesture, marketActive, marketPosition } = useProfileDrawer();
   const pager = useRef<PagerView>(null);
@@ -97,6 +100,7 @@ function MarketContent(props: MarketProps) {
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
     (event) => {
       "worklet";
+      reveal(event.position, event.offset);
       marketPosition.value = event.position + event.offset;
     },
     ["onPageScroll"]
@@ -104,6 +108,7 @@ function MarketContent(props: MarketProps) {
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
     (event) => {
       "worklet";
+      runOnJS(visit)(event.position);
       runOnJS(setSection)(event.position === 0 ? "discover" : "installed");
     },
     ["onPageSelected"]
@@ -194,16 +199,16 @@ function MarketContent(props: MarketProps) {
           onPageSelected={onPageSelected}
         >
           <View key="discover" collapsable={false} style={{ flex: 1 }}>
-            <MarketDiscovery
+            {visited.has(0) ? (<MarketDiscovery
               {...props}
               active={section === "discover"}
               query={discoveryQuery}
               onQueryChange={setDiscoveryQuery}
               queryEdited={queryEdited}
-            />
+            />) : null}
           </View>
           <View key="installed" collapsable={false} style={{ flex: 1 }}>
-            <MyApplicationsScreen
+            {visited.has(1) ? (<MyApplicationsScreen
               scope="installed"
               searchQuery={installedQuery}
               embedded
@@ -212,7 +217,7 @@ function MarketContent(props: MarketProps) {
               onCreate={props.onCreate}
               onOpen={props.onOpen}
               onDetail={props.onDetail}
-            />
+            />) : null}
           </View>
         </AnimatedPagerView>
       </GestureDetector>

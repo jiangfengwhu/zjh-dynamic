@@ -1,8 +1,10 @@
+import { lazyScreen } from "../lazyScreen";
+import { useVisitedPager } from "../useVisitedPager";
 import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { reconnectMessages } from "../social/api";
 import { dispatchLiveEvent, useLiveVersion } from "../liveEvents";
 import { UserAvatar } from "../UserAvatar";
-import { InboxContent } from "../social/InboxContent";
+const InboxContent = lazyScreen(() => (require("../social/InboxContent") as typeof import("../social/InboxContent")).InboxContent);
 import { useMessageCount } from "../social/api";
 import type { PublicAuthor } from "./userPosts";
 import { JollyPortrait } from "../jolly/ui/portrait";
@@ -70,6 +72,7 @@ export function NotificationsScreen(props: Props) {
 }
 function NotificationsPage(props: Props) {
   const { colors } = useTheme();
+  const { visited, visit, reveal } = useVisitedPager();
   const [category, setCategory] = useState<NoticeCategory | "messages">("creation");
   const [marking, setMarking] = useState(false);
   const count = useNotificationCount();
@@ -105,6 +108,7 @@ function NotificationsPage(props: Props) {
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
     (event) => {
       "worklet";
+      reveal(event.position, event.offset);
       position.value = event.position + event.offset;
     },
     ["onPageScroll"]
@@ -112,6 +116,7 @@ function NotificationsPage(props: Props) {
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
     (event) => {
       "worklet";
+      runOnJS(visit)(event.position);
       runOnJS(setCategory)(event.position === 0 ? "creation" : event.position === 1 ? "interaction" : "messages");
     },
     ["onPageSelected"]
@@ -212,21 +217,21 @@ function NotificationsPage(props: Props) {
           onPageSelected={onPageSelected}
         >
           <View key="creation" collapsable={false} style={{ flex: 1 }}>
-            <NotificationsContent
+            {visited.has(0) ? (<NotificationsContent
               {...props}
               category="creation"
               active={category === "creation"}
-            />
+            />) : null}
           </View>
           <View key="interaction" collapsable={false} style={{ flex: 1 }}>
-            <NotificationsContent
+            {visited.has(1) ? (<NotificationsContent
               {...props}
               category="interaction"
               active={category === "interaction"}
-            />
+            />) : null}
           </View>
           <View key="messages" collapsable={false} style={{ flex: 1 }}>
-            <InboxContent active={category === "messages"} onMessage={props.onMessage} drawerGesture={props.drawerGesture} />
+            {visited.has(2) ? (<InboxContent active={category === "messages"} onMessage={props.onMessage} drawerGesture={props.drawerGesture} />) : null}
           </View>
         </AnimatedPager>
       </GestureDetector>

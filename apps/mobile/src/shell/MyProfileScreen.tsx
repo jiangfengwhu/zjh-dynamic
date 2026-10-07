@@ -1,3 +1,4 @@
+import { lazyScreen } from "./lazyScreen";
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +12,7 @@ import Animated, {
   runOnJS,
   runOnUI,
 } from "react-native-reanimated";
+import { useVisitedPager } from "./useVisitedPager";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
@@ -23,8 +25,8 @@ import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 
 import { useAccount, requireAccount } from "./account";
 import { CompactTabs } from "./CompactTabs";
-import { AuthorProfileScreen } from "./feed/AuthorProfileScreen";
-import { MyApplicationsScreen } from "./MyApplicationsScreen";
+const AuthorProfileScreen = lazyScreen(() => (require("./feed/AuthorProfileScreen") as typeof import("./feed/AuthorProfileScreen")).AuthorProfileScreen);
+const MyApplicationsScreen = lazyScreen(() => (require("./MyApplicationsScreen") as typeof import("./MyApplicationsScreen")).MyApplicationsScreen);
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
 import { fetchAuthorProfile } from "./feed/userPosts";
@@ -67,6 +69,7 @@ function MyProfileContent({
   const { colors } = useTheme();
   const { user } = useAccount();
   const [tab, setTab] = useState<"posts" | "works">("posts");
+  const { visited, reveal } = useVisitedPager();
   const [stats, setStats] = useState<{
     id: string;
     publicCount: number;
@@ -155,6 +158,7 @@ function MyProfileContent({
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
     (event) => {
       "worklet";
+      reveal(event.position, event.offset);
       profilePosition.value = event.position + event.offset;
     },
     ["onPageScroll"]
@@ -373,6 +377,7 @@ function MyProfileContent({
                     onPageScrollStateChanged={onPageScrollStateChanged}
                   >
                     <View key="posts" collapsable={false} style={{ flex: 1 }}>
+                      {visited.has(0) || tab === "posts" ? (
                       <AuthorProfileScreen
                         key={author.id}
                         initialAuthor={author}
@@ -383,8 +388,10 @@ function MyProfileContent({
                         onApplication={onApplication}
                         onProfileLoaded={onProfileLoaded}
                       />
+                      ) : null}
                     </View>
                     <View key="works" collapsable={false} style={{ flex: 1 }}>
+                      {visited.has(1) || tab === "works" ? (
                       <MyApplicationsScreen
                         key={author.id}
                         embedded
@@ -396,6 +403,7 @@ function MyProfileContent({
                         onManagePublication={onManagePublication}
                         onSharePost={onSharePost}
                       />
+                      ) : null}
                     </View>
                   </AnimatedPagerView>
                 </GestureDetector>

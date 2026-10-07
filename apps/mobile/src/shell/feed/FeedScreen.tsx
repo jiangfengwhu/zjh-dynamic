@@ -18,7 +18,7 @@ import {
   GestureDetector,
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   useAnimatedScrollHandler,
@@ -106,8 +106,7 @@ export const FeedScreen = memo(function FeedScreen({
   useEffect(() => {
     if (userTimeline.loaded) markStartup("feed-data-ready");
   }, [userTimeline.loaded]);
-  const followingTimeline = useUserPosts("following");
-  const shortcuts = useInstalledShortcuts();
+  const focused = useIsFocused();
   const lists = useRef<Partial<Record<FeedCategory, FlatList>> >({});
   const [loadingMore, setLoadingMore] = useState(false);
   const [timelineLoading, setTimelineLoading] = useState({
@@ -124,6 +123,8 @@ export const FeedScreen = memo(function FeedScreen({
     []
   );
   const [kind, selectCategory] = useState<FeedCategory>("recommended");
+  const followingTimeline = useUserPosts("following", focused && kind === "following");
+  const shortcuts = useInstalledShortcuts(focused && kind === "installed");
   const [timeTick, tickTime] = useState(0);
   useFocusEffect(
     useCallback(() => {
@@ -156,7 +157,9 @@ export const FeedScreen = memo(function FeedScreen({
   useFocusEffect(
     useCallback(() => {
       if (kind === "installed" || (seenFeedVersion.current[kind] ?? 0) === feedVersion && !shouldRefreshUserPosts(kind)) return;
-      const task = requestIdleCallback(() => {
+      let live = true;
+      const refresh = () => {
+        if (!live) return;
         seenFeedVersion.current[kind] = feedVersion;
         setTimelineLoading((previous) => ({ ...previous, [kind]: true }));
         void refreshUserPosts(kind, true)
@@ -167,8 +170,14 @@ export const FeedScreen = memo(function FeedScreen({
           .finally(() =>
             setTimelineLoading((previous) => ({ ...previous, [kind]: false }))
           );
-      });
-      return () => cancelIdleCallback(task);
+      };
+      // Missing content is startup work. Only cached, silent refresh waits idle.
+      if (!userPostsLoaded(kind)) {
+        refresh();
+        return () => { live = false; };
+      }
+      const task = requestIdleCallback(refresh);
+      return () => { live = false; cancelIdleCallback(task); };
     }, [kind, setTimelineError, feedVersion])
   );
 
@@ -297,6 +306,7 @@ export const FeedScreen = memo(function FeedScreen({
                         collapsable={false}
                         style={{ width: "100%", height: "100%" }}
                       >
+                        {pager.mounted.has("installed") || kind === "installed" ? (
                         <FeedListGesture
                           pull={gesture}
                           drawer={pager.gesture}
@@ -377,6 +387,7 @@ export const FeedScreen = memo(function FeedScreen({
                             }
                           />
                         </FeedListGesture>
+                        ) : null}
                       </View>
                       {pageRows.map(
                         ({ category: pageKind, items: visible, page }) => (
