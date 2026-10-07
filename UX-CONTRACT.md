@@ -11,7 +11,7 @@
 | 作品展示与管理 | apps/mobile/src/shell/WorkCard.tsx、MyApplicationsScreen.tsx | 区分公开版本、私有候选与本机安装 |
 | 发布 | apps/mobile/src/shell/PublicationScreen.tsx | 本地表单先展示，两种模式保留草稿 |
 | 键盘 | packages/ui/keyboard.tsx | 应用入口统一避让，只补实际重叠；宿主页面复用同一容器 |
-| 应用底栏与安全区 | packages/app-sdk/src/applicationViewport.tsx 与 SDK README | 容器默认提供独立不透明导航区，应用显式开启透明后自行处理底部背景与安全区，内容只避让一次 |
+| 应用底栏与安全区 | SDK README | 应用自行管理安全区与底栏背景，宿主不消费 inset 或绘制导航区 |
 | 首页新动态 | apps/mobile/src/shell/NewDataNotice.tsx | 静默刷新，用户点击后展示 |
 | APK 更新 | apps/mobile/src/shell/apkUpdates.ts | 应用内下载、校验、系统安装 |
 | 粉丝与关注 | apps/mobile/src/shell/social/ConnectionsScreen.tsx | 主页数量入口、独立列表分页与滚动、点击和原生横划 |
@@ -33,7 +33,7 @@
 
 所有入口立即进入目标路由，网络、缓存持久化和非必要同步延后执行。已安装作品直接打开，不先闪过详情。运行时已确认加载且当前账号有权限的组件复用，不重复加载包；首次加载和失败重试在可返回的目标页处理。
 
-宿主根节点统一套键盘视口，普通页面和云端应用随键盘缩小可用内容区；嵌套视口只处理自身安全区，不重复顶起。EdgeModal 的独立窗口复用相同避让机制，原生 Modal 需处理独立窗口。制作入口的主动作固定在表单滚动区外。普通页面使用 Screen，自定义底栏由应用使用 View 与安全区库管理。云端应用默认位于独立不透明系统导航区上方，容器已消费底部 inset，内部 SafeAreaView 不重复留白；defineApp.navigationBar.transparent 显式开启透明后，应用布局自行连续铺底部背景并避让 inset。导航区随键盘进度收起，切换应用不共享配置。长表单通过 KeyboardAwareScrollView 保证聚焦项可见，不按输入框各写避让逻辑。
+宿主根节点统一套键盘视口，普通页面和云端应用随键盘缩小可用内容区；嵌套视口只处理自身安全区，不重复顶起。EdgeModal 的独立窗口复用相同避让机制，原生 Modal 需处理独立窗口。制作入口的主动作固定在表单滚动区外。普通页面使用 Screen，自定义底栏由应用使用 View 与安全区库管理。云端应用自行处理安全区，宿主不添加布局 padding、不绘制导航区背景、不修改应用 inset。底栏背景覆盖底部安全区，仅交互内容避让 inset。长表单通过 KeyboardAwareScrollView 保证聚焦项可见，不按输入框各写避让逻辑。
 
 ## 数据与反馈
 
@@ -85,7 +85,7 @@ Jolly 是主包内置只读进度页，不安装应用包；保留既有身份�
 
 ## 系统与共享操作
 
-APK 保留边缘绘制能力并保持系统导航栏可见；云端应用容器默认绘制独立不透明底部导航区，显式开启透明才将应用内容延伸至该区域，不改写窗口生命周期。键盘由 KeyboardProvider 与 KeyboardViewport 统一持有，只补容器下边缘和键盘顶边的真实重叠，不重复扣除 Android resize；缓存收起态安全区并随进度连续收缩，避免末帧跳动。表单和评论操作栏覆盖安全区并随键盘抬起。
+APK 保留边缘绘制能力并保持系统导航栏可见；云端应用自行处理系统栏区域的背景和安全区，不改写窗口生命周期。键盘由 KeyboardProvider 与 KeyboardViewport 统一持有，只补容器下边缘和键盘顶边的真实重叠，不重复扣除 Android resize；缓存收起态安全区并随进度连续收缩，避免末帧跳动。表单和评论操作栏覆盖安全区并随键盘抬起。
 
 确认和取消仅执行一次；宿主 Alert 队列先关闭再执行回调，SDK ConfirmDialog 等待异步操作，处理中阻止重复确认与关闭，失败留在弹窗内提示。长正文可滚动，底部动作可点。toast 避让安全区，支持点击关闭与错误朗读，原生弹窗内提示可转交全局层。
 

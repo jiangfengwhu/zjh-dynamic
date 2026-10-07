@@ -11,7 +11,6 @@ import { phone } from "../../platform/src/phone";
 import { applicationAi } from "./ai";
 import { KeyboardViewport } from "../../ui/keyboard";
 import { ApplicationQueries, changeQueryAccount } from "./query-runtime";
-import { ApplicationViewport } from "./applicationViewport";
 
 const definitions = new Map<string, AppDefinition>();
 const activated = new Set<string>();
@@ -164,7 +163,7 @@ export function registerApplication(appId: string, definition: AppDefinition) {
     pageAttempt(appId);
     Page ??= definition.main();
     if (!Page) throw new Error(`应用页面无效：${appId}`);
-    return createElement(ApplicationQueries, { appId, children: createElement(KeyboardViewport, { reserveBottom: false, children: createElement(ApplicationViewport, { navigationBar: definition.navigationBar, children: createElement(Page) }) }) });
+    return createElement(ApplicationQueries, { appId, children: createElement(KeyboardViewport, { reserveBottom: false, children: createElement(Page) }) });
   }
   registerFeature(appId, ApplicationPage);
 }
