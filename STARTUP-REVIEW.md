@@ -27,9 +27,11 @@ Application.onCreate → ShellStartup（prepareBoot、内置桥接和 DEX）→ 
 
 ## 验证与交付边界
 
-已通过 Metro/Hermes 本地打包、APK 资源准备、Codegen、Release APK 构建和两个仓库的 diff --check；未发布、未安装 APK，未单独运行类型检查、测试或预览。UI 技能的静态扫描将 React Native Button.onPress 误识别为两个无操作按钮，已人工核对既有操作均有效；静态扫描不能替代设备验证。
+已通过 Metro/Hermes 本地打包、APK 资源准备、Codegen、Release APK 构建和两个仓库的 diff --check；未安装 APK，未单独运行类型检查、测试或预览。UI 技能的静态扫描将 React Native Button.onPress 误识别为两个无操作按钮，已人工核对既有操作均有效；静态扫描不能替代设备验证。
 
-RN 动态改动可通过宿主包交付；原生后台启动、失败兜底和插件入口优化需要新 APK。当前本地 APK 资源准备读取线上现行 RN 包，因此 APK 构建通过不代表已经把本次 RN 改动内置到 APK；联合验证需要协调宿主包和 APK，不能绕过运行时契约或发布脏源码。
+RN 动态改动通过宿主包交付；原生后台启动、失败兜底和插件入口优化需要新 APK。首次本地构建读取的是改动前的线上 RN 包，之后按运行时契约配套发布了宿主包与 APK。
+
+2026-10-07 发布完成：APK 1.11.4（versionCode=25）内置宿主 release 397a1de97d47b3ac6f74fdef69da34dd426d422bb5719d421a2a80433205a6c9。RN 源码提交为 6569dc005ed1daa3e4afe696e5c3de8be135be37，APK 源码提交为 b86d7c60f78dc22058cdb709248e81505ab16c50，发布时两者 source.dirty=false。已核对线上 runtime、release、apk 的运行时指纹一致，以及 APK 下载地址和文件体积；仍未进行真机联合验证。
 
 ## 仍需测量和后续优化
 
