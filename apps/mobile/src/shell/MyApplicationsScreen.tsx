@@ -103,6 +103,8 @@ export function MyApplicationsScreen({
   const query = searchQuery ?? localQuery;
   const generation = useRef(0);
   const reading = useRef(false);
+  const catalogChangedWhileReading = useRef(false);
+  const [catalogRevision, setCatalogRevision] = useState(0);
   async function refresh(manual = false) {
     if (
       !focusedRef.current ||
@@ -113,6 +115,7 @@ export function MyApplicationsScreen({
     let succeeded = true;
     const before = ++generation.current;
     reading.current = true;
+    catalogChangedWhileReading.current = false;
     setBusy(true);
     setPulling(manual);
     setError("");
@@ -188,6 +191,10 @@ export function MyApplicationsScreen({
         reading.current = false;
         setBusy(false);
         setPulling(false);
+        if (catalogChangedWhileReading.current) {
+          catalogChangedWhileReading.current = false;
+          setCatalogRevision(revision => revision + 1);
+        }
       }
     }
     return succeeded;
@@ -203,7 +210,7 @@ export function MyApplicationsScreen({
         reading.current = false;
       };
     }
-  }, [focused, user?.id, scope]);
+  }, [focused, user?.id, scope, catalogRevision]);
   useEffect(() => {
     if (!focused) return;
     let idle: ReturnType<typeof requestIdleCallback> | undefined;
@@ -217,7 +224,12 @@ export function MyApplicationsScreen({
     const appState = AppState.addEventListener("change", (state) => {
       if (state === "active") reload();
     });
-    const offCatalog = subscribeCatalog(reload);
+    const offCatalog = subscribeCatalog(entries => {
+      const ids = new Set(entries.filter(entry => !entry.trashedAt && !entry.purged).map(entry => entry.id));
+      setInstalled(previous => previous.filter(app => ids.has(app.manifest.appId)));
+      if (reading.current) catalogChangedWhileReading.current = true;
+      else reload();
+    });
     const offSharing = subscribePackageValue("shell.market.changed", reload);
     const offSnapshot = subscribePackageValue("shell.works.changed", reload);
     const offWorks = applicationContext("jolly").storage.subscribe(

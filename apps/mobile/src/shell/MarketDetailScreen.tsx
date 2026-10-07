@@ -198,11 +198,13 @@ function MarketDetailContent({
   useEffect(() => {
     if (!contentReady) return;
     let live = true;
+    let localRevision = 0;
     const update = async (entries: Awaited<ReturnType<typeof loadCatalog>>) => {
+      const revision = ++localRevision;
       const raw =
         (await readShellValue(`application.pending.${app.appId}`)) ||
         (await readShellValue(`application.install.${app.appId}`));
-      if (!live) return;
+      if (!live || revision !== localRevision) return;
       setInstalled(
         entries.some(
           (entry) => entry.id === app.appId && !entry.trashedAt && !entry.purged
@@ -215,8 +217,9 @@ function MarketDetailContent({
       }
       setLocalReady(true);
     };
+    const initialRevision = localRevision;
     void loadCatalog()
-      .then(update)
+      .then(entries => { if (localRevision === initialRevision) return update(entries); })
       .catch(() => {
         if (live) {
           setLocalReady(true);

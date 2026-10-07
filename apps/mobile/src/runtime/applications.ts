@@ -143,22 +143,37 @@ export async function checkApplicationUpdates(targetAppId?: string): Promise<Pen
 }
 
 export async function stageApplicationUpdates(appId?: string): Promise<number> {
-  const pending = [...offered.values()].filter(item => (appId ? item.manifest.appId === appId : !item.ownerId) && active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId);
+  const catalog = await loadCatalog();
+  const installed = new Set(catalog.filter(entry => !entry.trashedAt && !entry.purged).map(entry => entry.id));
+  const pending = [...offered.values()].filter(item =>
+    (appId ? item.manifest.appId === appId : !item.ownerId && installed.has(item.manifest.appId)) &&
+    (active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId || !!appId && !installed.has(item.manifest.appId))
+  );
   for (const { manifest, ownerId } of pending) {
     if (!ownerId) await verifyPublicPointer(manifest);
     await verifyAccess(manifest, ownerId);
     await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
   }
-  const catalog = await loadCatalog();
+  const currentCatalog = await loadCatalog();
+  let stagedCount = 0;
   for (const { manifest, ownerId } of pending) {
+    const entry = currentCatalog.find(entry => entry.id === manifest.appId);
+    if (!appId && (!entry || entry.trashedAt || entry.purged)) continue;
     if (!ownerId) await verifyPublicPointer(manifest);
     await verifyAccess(manifest, ownerId);
     writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId, public: !ownerId }));
     writeShellValue(`application.pending.${manifest.appId}`, JSON.stringify(manifest));
-    if (!catalog.some(entry => entry.id === manifest.appId)) catalog.push({ id: manifest.appId, hidden: false, pinned: true });
+    if (!entry) currentCatalog.push({ id: manifest.appId, hidden: false, pinned: true });
+    else if (appId && (entry.trashedAt || entry.purged)) {
+      entry.trashedAt = undefined;
+      entry.purged = false;
+      entry.hidden = false;
+      entry.pinned = true;
+    }
+    stagedCount++;
   }
-  if (pending.length) await saveCatalog(catalog);
-  return pending.length;
+  if (stagedCount) await saveCatalog(currentCatalog);
+  return stagedCount;
 }
 
 export async function applyApplicationUpdate(appId: string): Promise<number> {
