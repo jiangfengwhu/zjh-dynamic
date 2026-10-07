@@ -42,9 +42,7 @@ export function ApplicationPostCard({
   return (
     <Pressy
       accessibilityRole="button"
-      accessibilityLabel={`${installed ? "打开" : "查看"}应用 ${
-        application.title
-      }`}
+      accessibilityLabel={`查看应用 ${application.title}`}
       disabled={preview || busy}
       onPress={() => void open()}
       style={{
@@ -54,7 +52,7 @@ export function ApplicationPostCard({
         borderRadius: 12,
         borderWidth: 0.5,
         borderColor: colors.line,
-        backgroundColor: inPixelFeed ? colors.inset : undefined,
+        backgroundColor: colors.skin === "pixel-street" ? colors.inset : undefined,
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
