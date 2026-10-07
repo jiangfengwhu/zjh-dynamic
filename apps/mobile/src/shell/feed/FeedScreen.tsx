@@ -74,6 +74,7 @@ export const FeedScreen = memo(function FeedScreen({
   onApplication,
   onAuthor,
 }: FeedProps) {
+  markStartup("feed-render-start");
   const styles = useStyles();
 
   const { user } = useAccount();

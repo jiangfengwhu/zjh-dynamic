@@ -27,6 +27,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { ThemeContext } from "../../../../packages/ui/theme";
 import { useTheme } from "../../../../packages/ui/theme";
+import { markStartup } from "../runtime/startupTiming";
 
 const timing = {
   duration: 220,
@@ -71,6 +72,7 @@ export function ProfileDrawer({
   children: ReactNode;
   render: (close: () => void, dismiss: () => void) => ReactNode;
 }) {
+  markStartup("drawer-render-start");
   const { width: screenWidth } = useWindowDimensions();
   const theme = useTheme();
   const { colors } = theme;
@@ -92,6 +94,22 @@ export function ProfileDrawer({
   const progress = useSharedValue(0);
   const start = useSharedValue(0);
   const [opened, setOpened] = useState(false);
+  const [contentReady, setContentReady] = useState(false);
+  useEffect(() => {
+    if (contentReady) return;
+    if (opened) { setContentReady(true); return; }
+    let idle: ReturnType<typeof requestIdleCallback> | undefined;
+    const timer = setTimeout(() => {
+      idle = requestIdleCallback(() => setContentReady(true));
+    }, 1000);
+    return () => {
+      clearTimeout(timer);
+      if (idle !== undefined) cancelIdleCallback(idle);
+    };
+  }, [opened, contentReady]);
+  useEffect(() => {
+    if (contentReady) markStartup("drawer-content-ready");
+  }, [contentReady]);
   const [opening, setOpening] = useState(false);
   const closingActive = useSharedValue(false);
   const focused = useIsFocused();
@@ -114,8 +132,8 @@ export function ProfileDrawer({
     setOpened(false);
   }, [progress]);
   const drawerContent = useMemo(
-    () => render(close, dismiss),
-    [render, close, dismiss]
+    () => contentReady || opened ? render(close, dismiss) : null,
+    [contentReady, opened, render, close, dismiss]
   );
   const startDrag = useCallback(() => {
     setOpening(true);

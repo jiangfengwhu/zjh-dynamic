@@ -1,4 +1,5 @@
 import { isApplicationInstalledSync } from "./market";
+import { markStartup } from "../runtime/startupTiming";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "../../../../packages/ui/primitives/Button";
@@ -385,6 +386,7 @@ export type ShellNavigatorProps = {
 };
 
 export function ShellNavigator(props: ShellNavigatorProps) {
+  markStartup("navigator-render-start");
   const pendingLink = useRef<{ target: SharedLink; url?: string }>();
   const linkOpened = useRef(false);
   function flushSharedLink() {

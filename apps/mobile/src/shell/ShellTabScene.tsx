@@ -5,6 +5,7 @@ import { startTransition, useEffect, useRef, useState, type ReactNode } from "re
 import { AppState, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useTheme } from "../../../../packages/ui/theme";
+import { markStartup } from "../runtime/startupTiming";
 
 // Prepare one hidden scene at a time, waiting for its React commit before
 // advancing. Clicking a tab always gets priority over this optional work.
@@ -12,7 +13,7 @@ const warmups = new Map<symbol, () => void>();
 let preparing: symbol | undefined;
 let pendingIdle: ReturnType<typeof requestIdleCallback> | undefined;
 let cooldown: ReturnType<typeof setTimeout> | undefined;
-let resumeAt = 0;
+let resumeAt = Date.now() + 1000;
 let tabsActive = true;
 let foregroundSubscription: ReturnType<typeof AppState.addEventListener> | undefined;
 
@@ -50,7 +51,7 @@ function scheduleWarmup() {
 export function prioritizeShellTab() {
   cancelPendingWarmup();
   // Let the selected tab and its short indicator feedback paint first.
-  resumeAt = Date.now() + 200;
+  resumeAt = Math.max(resumeAt, Date.now() + 200);
   scheduleWarmup();
 }
 
@@ -85,7 +86,12 @@ export function ShellTabScene({ children, immediate = false }: { children: React
   const cacheKey = pageCacheKey(`scene:${route.name}`);
   const previouslyPrepared = !!cachedPage(cacheKey);
   const [ready, setReady] = useState(focused && (immediate || previouslyPrepared));
-  useEffect(() => { if (ready) rememberPage(cacheKey, true); }, [ready, cacheKey]);
+  useEffect(() => {
+    if (ready) {
+      rememberPage(cacheKey, true);
+      markStartup(`tab-${route.name}-ready`);
+    }
+  }, [ready, cacheKey, route.name]);
   const key = useRef(Symbol("shell-tab")).current;
   const { colors } = useTheme();
   useEffect(() => {
