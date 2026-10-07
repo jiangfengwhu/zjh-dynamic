@@ -10,6 +10,12 @@ type Viewport = { width: number; height: number };
 const originals = new WeakMap<HtmlElement, Record<string, string>>();
 const prepared = new WeakMap<Record<string, string>, Record<string, string>>();
 
+/** A renderer's DOM clone can reuse immutable CSS preprocessing results. */
+export function copyPreparedHtmlStyles(from: HtmlElement, to: HtmlElement) {
+  const css = prepared.get(from.attribs);
+  if (css) prepared.set(to.attribs, css);
+}
+
 // Reuse the parser already shipped with SVG; do not parse CSS with string splitting.
 function splitCss(value: string, separator: string) {
   const parts: string[] = [];

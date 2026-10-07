@@ -7,7 +7,11 @@ import {
   type ComponentProps,
 } from "react";
 import { Linking, StyleSheet, View, useWindowDimensions } from "react-native";
-import RenderHtml, {
+import {
+  TRenderEngineProvider,
+  RenderHTMLConfigProvider,
+  RenderHTMLSource,
+  useAmbientTRenderEngine,
   IMGElement,
   defaultSystemFonts,
   useIMGElementProps,
@@ -22,6 +26,7 @@ import { PixelText } from "./PixelText";
 import { htmlByteLength } from "./postDraft";
 import { htmlNativeStyles, htmlTextLayout, prepareHtmlElement } from "./htmlStyles";
 import { useFeedContentWidth } from "../../../../../packages/ui/feed/kit/FeedPresentation";
+import { cachedHtmlDocument } from "./htmlDocumentCache";
 
 const font = "Fusion Pixel 12px Proportional SC";
 const fonts = [...defaultSystemFonts, font, "sans-serif", "serif", "monospace"];
@@ -75,6 +80,11 @@ const ignoreNode: NonNullable<RenderHTMLProps["ignoreDomNode"]> = (
 const defaultTextProps = { selectable: false };
 const ignoredFontStyles: NonNullable<RenderHTMLProps["ignoredStyles"]> = ["fontFamily"];
 const ignoredPixelFontStyles: NonNullable<RenderHTMLProps["ignoredStyles"]> = ["fontFamily", "fontWeight", "fontStyle"];
+function CachedHtmlSource({ html, configuration, width }: { html: string; configuration: string; width: number }) {
+  const engine = useAmbientTRenderEngine();
+  const source = useMemo(() => cachedHtmlDocument(engine, html, configuration, htmlByteLength(html)), [engine, html, configuration]);
+  return <RenderHTMLSource source={source} contentWidth={width} />;
+}
 function PostHtmlElement(props: ComponentProps<CustomMixedRenderer>) {
   const { InternalRenderer, TDefaultRenderer, TNodeChildrenRenderer, tnode } = props;
   const css = tnode.attributes.style ?? "";
@@ -190,6 +200,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
     }),
     [openLink]
   );
+  const configuration = JSON.stringify([width, window.height, colors.skin, colors.ink1, colors.accentText, colors.typography.body, colors.typography.mono]);
   return (
     <View
       style={{ width: "100%", minWidth: 0, overflow: "visible" }}
@@ -202,24 +213,23 @@ export const HtmlPostContent = memo(function HtmlPostContent({
       }}
     >
       <ErrorBoundary
-        resetKeys={[html]}
+        resetKeys={[html, configuration]}
         fallback={
           <PixelText>{fallback || "这条动态的内容暂时无法展示"}</PixelText>
         }
       >
-        {width > 0 ? <RenderHtml
-          contentWidth={width}
-          source={source}
+        {width > 0 ? <TRenderEngineProvider
           baseStyle={baseStyle}
           tagsStyles={tagsStyles}
           ignoredStyles={colors.skin === "pixel-street" ? ignoredPixelFontStyles : ignoredFontStyles}
           systemFonts={fonts}
           ignoreDomNode={ignoreNode}
           domVisitors={domVisitors}
-          defaultTextProps={defaultTextProps}
-          renderersProps={renderersProps}
-          renderers={renderers}
-        /> : null}
+        >
+          <RenderHTMLConfigProvider defaultTextProps={defaultTextProps} renderersProps={renderersProps} renderers={renderers}>
+            <CachedHtmlSource html={source.html} configuration={configuration} width={width} />
+          </RenderHTMLConfigProvider>
+        </TRenderEngineProvider> : null}
       </ErrorBoundary>
     </View>
   );

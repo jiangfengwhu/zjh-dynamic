@@ -17,7 +17,7 @@ export const UserAvatar = memo(function UserAvatar({ uri, authorId, size = 36, s
   const currentUri = authorId && user && authorId === user.id ? user.avatarUrl : uri;
   const [failedUri, setFailedUri] = useState<string | null>();
   return <View accessible={false} style={[style, { width: size, height: size, borderRadius: size / 2, overflow: "hidden" }]}>
-    <Image accessible={false} source={defaultAvatarSource} resizeMode="cover" fadeDuration={0} style={StyleSheet.absoluteFill} />
-    {currentUri && failedUri !== currentUri ? <Image key={currentUri} accessible={false} source={{ uri: currentUri }} resizeMode="cover" fadeDuration={0} style={StyleSheet.absoluteFill} onError={event => { setFailedUri(currentUri); onError?.(event); }} /> : null}
+    <Image accessible={false} source={defaultAvatarSource} resizeMode="cover" resizeMethod="resize" resizeMultiplier={1.5} fadeDuration={0} style={StyleSheet.absoluteFill} />
+    {currentUri && failedUri !== currentUri ? <Image key={currentUri} accessible={false} source={{ uri: currentUri }} resizeMode="cover" resizeMethod="resize" resizeMultiplier={1.5} fadeDuration={0} style={StyleSheet.absoluteFill} onError={event => { setFailedUri(currentUri); onError?.(event); }} /> : null}
   </View>;
 });
