@@ -44,7 +44,7 @@ export function PageSkeleton({ rows = 3 }: { rows?: number }) {
       style={{ alignSelf: "stretch", gap: 12, paddingVertical: 8 }}
     >
       {Array.from({ length: rows }, (_, index) => (
-        <View key={index} style={{ flexDirection: "row", gap: 14, padding: 18, borderRadius: colors.radius.xl, backgroundColor: colors.surface, boxShadow: colors.shadow.card, borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line }}>
+        <View key={index} style={{ flexDirection: "row", gap: 10, padding: 12, borderRadius: colors.radius.xl, backgroundColor: colors.surface, boxShadow: colors.shadow.card, borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line }}>
           <Skeleton
             animated={focused}
             width={44}

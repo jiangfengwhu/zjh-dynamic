@@ -72,7 +72,7 @@ export function AppInfoScreen({ onBack }: Props) {
     <Screen style={styles.screen}>
       <PageHeader title="应用信息" caption="本机正在使用的包" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Surface style={styles.version}><View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}><Image accessible={false} fadeDuration={0} source={{ uri: `data:image/webp;base64,${brandAssets.logo.base64}` }} style={{ width: 60, height: 60, borderRadius: 18 }} /><Text accessibilityRole="header" style={styles.brand}>紫金花</Text></View><View style={styles.metrics}><View style={styles.metric}><Text style={styles.empty}>APK 版本</Text><Text style={styles.metricValue}>{apk?.versionName ?? sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>SDK 版本</Text><Text selectable style={styles.metricValue}>{sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>界面版本</Text><Text selectable style={styles.metricValue}>{buildId.slice(0, 8)}</Text></View></View><View style={styles.storage}><Text style={styles.empty}>本机安装文件</Text><View style={styles.storageValue}><View style={styles.loadingSlot}>{loading ? <ActivityIndicator size="small" color={colors.ink2} /> : null}</View><Text style={styles.metricValue}>{cachedPackages !== undefined ? formatBytes(total) : error ? "未读取" : "读取中"}</Text></View></View></Surface>
+        <Surface style={styles.version}><View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}><Image accessible={false} fadeDuration={0} source={{ uri: `data:image/webp;base64,${brandAssets.logo.base64}` }} style={{ width: 48, height: 48, borderRadius: 14 }} /><Text accessibilityRole="header" style={styles.brand}>紫金花</Text></View><View style={styles.metrics}><View style={styles.metric}><Text style={styles.empty}>APK 版本</Text><Text style={styles.metricValue}>{apk?.versionName ?? sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>SDK 版本</Text><Text selectable style={styles.metricValue}>{sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>界面版本</Text><Text selectable style={styles.metricValue}>{buildId.slice(0, 8)}</Text></View></View><View style={styles.storage}><Text style={styles.empty}>本机安装文件</Text><View style={styles.storageValue}><View style={styles.loadingSlot}>{loading ? <ActivityIndicator size="small" color={colors.ink2} /> : null}</View><Text style={styles.metricValue}>{cachedPackages !== undefined ? formatBytes(total) : error ? "未读取" : "读取中"}</Text></View></View></Surface>
         {error ? <Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)}><Text style={styles.error}>{error} · 重试</Text></Pressy> : null}
         <Text style={styles.empty}>页面运行包负责界面，原生扩展提供手机能力。下方体积为本机安装文件大小。</Text>
         <Pressy accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(value => !value)}><Text style={styles.total}>{details ? "收起技术详情" : "查看技术详情"}</Text></Pressy>
@@ -135,17 +135,17 @@ const useStyles = createThemedStyles((t) => ({
     backgroundColor: t.canvas,
   },
   content: {
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    paddingBottom: 24,
-    gap: 14,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 20,
+    gap: 10,
   },
-  version: { padding: 22, gap: 20, borderRadius: t.radius.xl },
-  brand: { color: t.ink1, ...t.type.title1 },
+  version: { padding: 16, gap: 14, borderRadius: t.radius.xl },
+  brand: { color: t.ink1, ...t.type.title2 },
   metrics: { flexDirection: "row", gap: 12 },
   metric: { flex: 1, gap: 4 },
   metricValue: { fontFamily: t.mono, fontSize: 14, lineHeight: 20, fontWeight: "700", color: t.ink1 },
-  storage: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line },
+  storage: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line },
   storageValue: { flexDirection: "row", alignItems: "center", gap: 6 },
   loadingSlot: { width: 20, height: 20, alignItems: "center", justifyContent: "center" },
   group: {
@@ -154,9 +154,9 @@ const useStyles = createThemedStyles((t) => ({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

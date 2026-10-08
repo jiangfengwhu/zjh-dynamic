@@ -5,8 +5,8 @@ import Animated, {
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
+  Easing,
   withSequence,
-  withSpring,
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
@@ -38,20 +38,20 @@ export function FeedActionBar({
 }) {
   const { colors } = useTheme();
   const action = {
-    minHeight: 40,
-    minWidth: 44,
-    paddingHorizontal: 10,
+    minHeight: 34,
+    minWidth: 40,
+    paddingHorizontal: 8,
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    gap: 6,
+    gap: 5,
   };
-  const count = { fontSize: 13, lineHeight: 18, fontWeight: "600" as const, color: colors.ink2 };
+  const count = { fontSize: 12, lineHeight: 16, fontWeight: "600" as const, color: colors.ink3 };
   return (
     <View
       style={{
         flexDirection: "row",
         alignItems: "center",
-        marginHorizontal: -10,
+        marginHorizontal: -8,
       }}
     >
       <Pressy
@@ -66,7 +66,7 @@ export function FeedActionBar({
       >
         <LikeGlyph identity={identity} liked={liked} busy={!!busy} />
         {likes ? (
-          <FeedText style={[count, liked && { color: colors.redText }]}>
+          <FeedText style={[count, liked && { color: colors.orchidText }]}>
             {likes}
           </FeedText>
         ) : null}
@@ -79,7 +79,7 @@ export function FeedActionBar({
         hitSlop={{ top: 4, bottom: 4 }}
         style={action}
       >
-        <SymbolIcon name="chat" size={19} color={colors.ink2} />
+        <SymbolIcon name="chat" size={17} color={colors.ink3} />
         {comments ? <FeedText style={count}>{comments}</FeedText> : null}
       </Pressy>
       <Pressy
@@ -90,7 +90,7 @@ export function FeedActionBar({
         hitSlop={{ top: 4, bottom: 4 }}
         style={action}
       >
-        <SymbolIcon name="share" size={19} color={colors.ink2} />
+        <SymbolIcon name="share" size={17} color={colors.ink3} />
       </Pressy>
       <View style={{ flex: 1 }} />
       {views !== undefined ? <View accessible accessibilityLabel={`曝光 ${views} 人`} style={action}>
@@ -120,15 +120,10 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
     if (liked && !previous.current) {
       scale.value = withSequence(
         ReduceMotion.Never,
-        withTiming(0.65, { duration: 70, reduceMotion: ReduceMotion.Never }),
-        withSpring(1.25, {
-          damping: 12,
-          stiffness: 360,
-          reduceMotion: ReduceMotion.Never,
-        }),
-        withSpring(1, {
-          damping: 15,
-          stiffness: 300,
+        withTiming(0.8, { duration: 70, reduceMotion: ReduceMotion.Never }),
+        withTiming(1, {
+          duration: 160,
+          easing: Easing.out(Easing.cubic),
           reduceMotion: ReduceMotion.Never,
         })
       );
@@ -177,7 +172,7 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
                 height: 22,
                 borderRadius: 11,
                 borderWidth: 1.5,
-                borderColor: colors.red,
+                borderColor: colors.orchid,
               },
               ring,
             ]}
@@ -187,7 +182,7 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
               key={index}
               index={index}
               progress={burst}
-              color={[colors.red, colors.orchid, colors.orange][index % 3]}
+              color={[colors.orchid, colors.amber, colors.accent, colors.cyan][index % 4]}
             />
           ))}
         </>
@@ -195,8 +190,8 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
       <Animated.View style={[heart, busy && { opacity: 0.35 }]}>
         <SymbolIcon
           name={liked ? "heart" : "heartOutline"}
-          size={19}
-          color={liked ? colors.red : colors.ink2}
+          size={17}
+          color={liked ? colors.orchid : colors.ink3}
         />
       </Animated.View>
       {busy ? (

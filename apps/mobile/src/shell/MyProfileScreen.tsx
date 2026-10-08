@@ -198,8 +198,8 @@ function MyProfileContent({
         <View
           style={{
             height: 52,
-            paddingLeft: 20,
-            paddingRight: 16,
+            paddingLeft: 16,
+            paddingRight: 12,
             flexDirection: "row",
             alignItems: "center",
             zIndex: 10,
@@ -209,7 +209,7 @@ function MyProfileContent({
           <AnimatedThemeText
             accessibilityRole="header"
             style={[
-              { color: colors.ink1, fontSize: 30, lineHeight: 38, fontWeight: "800", letterSpacing: -0.6 },
+              { color: colors.ink1, ...colors.type.display },
               expandedTitle,
             ]}
           >
@@ -242,8 +242,8 @@ function MyProfileContent({
                 style={{
                   maxWidth: Math.max(0, windowWidth - 164),
                   color: colors.ink1,
-                  fontSize: 18,
-                  lineHeight: 24,
+                  fontSize: 16,
+                  lineHeight: 21,
                   fontWeight: "700",
                 }}
               >
@@ -255,20 +255,20 @@ function MyProfileContent({
             accessibilityRole="button"
             accessibilityLabel="打开设置抽屉"
             onPress={showProfileDrawer}
+            hitSlop={6}
             style={{
-              width: 44,
-              height: 44,
+              width: 36,
+              height: 36,
+              minWidth: 36,
+              minHeight: 36,
               marginLeft: "auto",
-              borderRadius: 22,
+              borderRadius: 18,
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: colors.surface,
-              borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
-              borderColor: colors.line,
-              boxShadow: colors.shadow.card,
+              backgroundColor: colors.surfaceRaised,
             }}
           >
-            <SymbolIcon name="more" size={20} strokeWidth={2} color={colors.ink1} />
+            <SymbolIcon name="more" size={18} strokeWidth={2.1} color={colors.ink1} />
           </Pressy>
         </View>
         <View
@@ -323,6 +323,8 @@ function MyProfileContent({
                       color: colors.ink1,
                       ...colors.type.title2,
                       fontWeight: "800",
+                      fontSize: 17,
+                      lineHeight: 22,
                     }}
                   >
                     {user?.name ?? "登录账号"}
@@ -419,7 +421,7 @@ function MyProfileContent({
                   gap: 12,
                 }}
               >
-                <Text style={{ color: colors.ink3, fontSize: 15, lineHeight: 22 }}>
+                <Text style={{ color: colors.ink3, fontSize: 14, lineHeight: 20 }}>
                   登录后查看你的动态和作品
                 </Text>
                 <Pressy
@@ -427,9 +429,9 @@ function MyProfileContent({
                     void requireAccount();
                   }}
                   style={{
-                    minHeight: 48,
-                    paddingHorizontal: 28,
-                    borderRadius: 24,
+                    minHeight: 40,
+                    paddingHorizontal: 22,
+                    borderRadius: 20,
                     backgroundColor: colors.accent,
                     justifyContent: "center",
                   }}

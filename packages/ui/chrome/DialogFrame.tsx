@@ -108,7 +108,7 @@ export function DialogFrame({
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               style={{ flexShrink: 1 }}
-              contentContainerStyle={[{ paddingHorizontal: 24, paddingTop: 28, paddingBottom: 24, gap: 14 }, spacing]}
+              contentContainerStyle={[{ paddingHorizontal: 18, paddingTop: 20, paddingBottom: 18, gap: 10 }, spacing]}
             >
               {children}
             </ScrollView>

@@ -74,18 +74,18 @@ function FeedbackToast({
         borderColor: colors.dockLine,
         flexDirection: "row",
         alignItems: "center",
-        paddingLeft: 10,
-        paddingRight: 4,
-        paddingVertical: 8,
-        gap: 12,
+        paddingLeft: 8,
+        paddingRight: 2,
+        paddingVertical: 6,
+        gap: 10,
         boxShadow: colors.shadow.float,
       }}
     >
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
+          width: 30,
+          height: 30,
+          borderRadius: 15,
           backgroundColor: tint,
           alignItems: "center",
           justifyContent: "center",
@@ -93,7 +93,7 @@ function FeedbackToast({
       >
         <SymbolIcon
           name={success ? "check" : error || warning ? "alert" : "info"}
-          size={18}
+          size={15}
           strokeWidth={2.4}
           color={success || error ? "#FFFFFF" : tone}
         />
@@ -108,15 +108,15 @@ function FeedbackToast({
         style={{
           flex: 1,
           minWidth: 0,
-          minHeight: 44,
+          minHeight: 38,
           justifyContent: "center",
-          gap: 2,
+          gap: 1,
         }}
       >
         {text1 ? (
           <Text
             numberOfLines={2}
-            style={{ color: colors.onDock, fontSize: 15, lineHeight: 21, fontWeight: "700", letterSpacing: -0.2 }}
+            style={{ color: colors.onDock, fontSize: 14, lineHeight: 19, fontWeight: "700", letterSpacing: -0.2 }}
           >
             {text1}
           </Text>
@@ -124,7 +124,7 @@ function FeedbackToast({
         {text2 ? (
           <Text
             numberOfLines={4}
-            style={{ color: colors.onDockMuted, fontSize: 13, lineHeight: 19 }}
+            style={{ color: colors.onDockMuted, fontSize: 12, lineHeight: 17 }}
           >
             {text2}
           </Text>
@@ -135,13 +135,13 @@ function FeedbackToast({
         accessibilityRole="button"
         accessibilityLabel="关闭提示"
         style={{
-          width: 44,
-          minHeight: 44,
+          width: 38,
+          minHeight: 38,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <SymbolIcon name="close" size={15} color={colors.onDockMuted} />
+        <SymbolIcon name="close" size={14} color={colors.onDockMuted} />
       </Pressable>
     </View>
   );
@@ -301,7 +301,7 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
             style={[
               {
                 width: "100%",
-                maxWidth: 380,
+                maxWidth: 340,
                 maxHeight: Math.max(
                   180,
                   height - insets.top - insets.bottom - 48
@@ -319,17 +319,17 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
             <View
               style={{
                 alignItems: "center",
-                gap: 14,
-                paddingHorizontal: 24,
-                paddingTop: 28,
-                paddingBottom: 10,
+                gap: 10,
+                paddingHorizontal: 20,
+                paddingTop: 22,
+                paddingBottom: 8,
               }}
             >
               <View
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 26,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
                   backgroundColor: tint,
                   alignItems: "center",
                   justifyContent: "center",
@@ -337,7 +337,7 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
               >
                 <SymbolIcon
                   name={danger ? "alert" : "info"}
-                  size={24}
+                  size={20}
                   strokeWidth={2}
                   color={tone}
                 />
@@ -347,8 +347,6 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
                 style={{
                   color: colors.ink1,
                   ...colors.type.title2,
-                  fontSize: 20,
-                  lineHeight: 26,
                   textAlign: "center",
                 }}
               >
@@ -359,13 +357,13 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
               <ScrollView
                 style={{ flexShrink: 1 }}
                 contentContainerStyle={{
-                  paddingHorizontal: 26,
-                  paddingBottom: 18,
+                  paddingHorizontal: 20,
+                  paddingBottom: 12,
                 }}
                 showsVerticalScrollIndicator={false}
               >
                 <Text
-                  style={{ color: colors.ink2, fontSize: 15, lineHeight: 23, textAlign: "center" }}
+                  style={{ color: colors.ink2, fontSize: 14, lineHeight: 21, textAlign: "center" }}
                 >
                   {request.message}
                 </Text>
@@ -373,11 +371,11 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
             ) : null}
             <View
               style={{
-                paddingHorizontal: 20,
-                paddingBottom: 20,
-                paddingTop: 8,
+                paddingHorizontal: 16,
+                paddingBottom: 16,
+                paddingTop: 6,
                 flexDirection: buttons.length > 2 ? "column" : "row",
-                gap: 10,
+                gap: 8,
               }}
             >
               {buttons.map((button, index) => (
@@ -388,9 +386,9 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
                   onPress={() => close(button)}
                   style={({ pressed }) => ({
                     flex: buttons.length <= 2 ? 1 : undefined,
-                    minHeight: 52,
-                    paddingHorizontal: 18,
-                    paddingVertical: 10,
+                    minHeight: 44,
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
                     borderRadius: colors.radius.pill,
                     alignItems: "center",
                     justifyContent: "center",

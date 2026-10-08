@@ -120,14 +120,14 @@ function MarketContent(props: MarketProps) {
         style={{
           flexDirection: "column",
           alignItems: "stretch",
-          gap: 14,
+          gap: 10,
           paddingHorizontal: 16,
-          paddingTop: 10,
-          paddingBottom: 10,
+          paddingTop: 6,
+          paddingBottom: 8,
           backgroundColor: colors.canvas,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: props.onBack ? 0 : 4 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         {props.onBack ? (
           <RoundButton icon="back" label="返回" onPress={props.onBack} />
         ) : null}
@@ -139,7 +139,7 @@ function MarketContent(props: MarketProps) {
         </Text>
         </View>
         <View style={[styles.searchBox, { minWidth: 0 }]}>
-          <SymbolIcon name="search" size={18} strokeWidth={2} color={colors.ink3} />
+          <SymbolIcon name="search" size={16} strokeWidth={2.1} color={colors.ink3} />
           <TextInput
             accessibilityLabel={
               section === "discover" ? "搜索应用或用途" : "搜索已安装应用"
@@ -435,8 +435,8 @@ function MarketDiscovery({
             >
               <Text
                 style={{
-                  fontSize: 14,
-                  lineHeight: 20,
+                  fontSize: 13,
+                  lineHeight: 18,
                   fontWeight: category === item.id ? "700" : "600",
                   color: category === item.id ? colors.onAccent : colors.ink2,
                 }}
@@ -617,9 +617,9 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
       style={styles.row}
     >
       <View style={styles.mark}>
-        <ApplicationIcon application={item} size={66} />
+        <ApplicationIcon application={item} size={52} />
       </View>
-      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1}>
             {item.title || app.appName}
@@ -631,7 +631,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
         <Text style={styles.summary} numberOfLines={1}>
           {item.summary || app.description || "查看应用详情"}
         </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 28, gap: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 22, gap: 8 }}>
           <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5 }}>
           <Pressy
             disabled={!item.authorId}
@@ -653,7 +653,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
               alignItems: "center",
               gap: 4,
               flexShrink: 1,
-              minHeight: 28,
+              minHeight: 22,
               minWidth: 0,
             }}
           >
@@ -673,16 +673,16 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
       <View
         style={[
           styles.openMark,
-          { backgroundColor: installed ? "transparent" : colors.surfaceRaised },
+          { backgroundColor: installed ? "transparent" : colors.accentTint },
         ]}
       >
         <Text
           style={{
-            fontSize: 13,
-            lineHeight: 18,
+            fontSize: 12,
+            lineHeight: 16,
             fontWeight: "800",
             letterSpacing: 0.2,
-            color: installed ? colors.ink3 : colors.ink1,
+            color: installed ? colors.ink3 : colors.accentText,
           }}
         >
           {installed ? "已安装" : "查看"}
@@ -705,34 +705,34 @@ const useStyles = createThemedStyles((base) => {
     searchBox: {
       flexDirection: "row",
       alignItems: "center",
-      paddingLeft: 18,
+      paddingLeft: 14,
       borderRadius: t.radius.pill,
       backgroundColor: t.surfaceRaised,
-      gap: 10,
+      gap: 8,
     },
     search: {
       flex: 1,
       minWidth: 0,
-      minHeight: 48,
+      minHeight: 38,
       color: t.ink1,
-      paddingVertical: 8,
-      fontSize: 15,
+      paddingVertical: 6,
+      fontSize: 14,
     },
-    clear: { width: 44, alignItems: "center" },
+    clear: { width: 40, minHeight: 38, alignItems: "center" },
     sectionHead: {
       flexDirection: "row",
       alignItems: "baseline",
       justifyContent: "space-between",
-      paddingTop: 14,
-      paddingBottom: 4,
+      paddingTop: 10,
+      paddingBottom: 2,
     },
     sectionTitle: { color: t.ink1, ...t.type.title2 },
     chip: {
-      minHeight: 38,
-      height: 38,
+      minHeight: 30,
+      height: 30,
       justifyContent: "center",
-      borderRadius: 19,
-      paddingHorizontal: 18,
+      borderRadius: 15,
+      paddingHorizontal: 14,
       paddingVertical: 0,
       backgroundColor: t.surfaceRaised,
       borderWidth: 0,
@@ -741,26 +741,26 @@ const useStyles = createThemedStyles((base) => {
       backgroundColor: t.accent,
     },
     row: {
-      minHeight: 96,
+      minHeight: 76,
       flexDirection: "row",
       alignItems: "center",
-      gap: 16,
-      paddingVertical: 16,
+      gap: 12,
+      paddingVertical: 12,
       borderBottomWidth: t.components.surfaceBorder,
       borderBottomColor: t.line,
     },
     mark: {
-      width: 66,
-      height: 66,
-      borderRadius: 20,
+      width: 52,
+      height: 52,
+      borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
       borderWidth: t.components.surfaceBorder,
       borderColor: t.line,
     },
-    name: { color: t.ink1, fontSize: 16, lineHeight: 22, fontWeight: "700", letterSpacing: -0.3 },
-    summary: { color: t.ink2, fontSize: 13, lineHeight: 19 },
+    name: { color: t.ink1, fontSize: 15, lineHeight: 20, fontWeight: "700", letterSpacing: -0.3 },
+    summary: { color: t.ink2, fontSize: 12, lineHeight: 17 },
     official: {
       color: t.orchidText,
       backgroundColor: t.orchidTint,
@@ -774,10 +774,10 @@ const useStyles = createThemedStyles((base) => {
     },
     category: { color: t.ink3, fontSize: 11, lineHeight: 17 },
     openMark: {
-      minWidth: 64,
-      height: 32,
-      paddingHorizontal: 16,
-      borderRadius: 16,
+      minWidth: 52,
+      height: 28,
+      paddingHorizontal: 12,
+      borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
     },

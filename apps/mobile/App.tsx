@@ -110,7 +110,7 @@ function FeatureFailure(props: BoundaryProps) {
 
   return (
         <View style={styles.boot}>
-          <View style={styles.stateMark}><Icon name="alert" size={26} color={theme.ink1} /></View>
+          <View style={styles.stateMark}><Icon name="alert" size={22} color={theme.orange} /></View>
           <Text accessibilityRole="header" style={styles.stateTitle}>
             应用暂时无法显示
           </Text>
@@ -500,7 +500,7 @@ function FeatureHost({
       ) : null}
       {failed ? (
         <>
-          <View style={styles.stateMark}><Icon name="alert" size={26} color={theme.ink1} /></View>
+          <View style={styles.stateMark}><Icon name="alert" size={22} color={theme.orange} /></View>
           <Text accessibilityRole="header" style={styles.stateTitle}>
             应用未能打开
           </Text>
@@ -553,20 +553,17 @@ const useStyles = createThemedStyles((theme) => ({
     backgroundColor: theme.canvas,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 32,
+    gap: 10,
+    paddingHorizontal: 28,
   },
   stateMark: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    marginBottom: 6,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    marginBottom: 4,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.surface,
-    boxShadow: theme.shadow.card,
-    borderWidth: theme.mode === "dark" ? theme.components.surfaceBorder : 0,
-    borderColor: theme.line,
+    backgroundColor: theme.orangeTint,
   },
   stateTitle: {
     color: theme.ink1,
@@ -575,8 +572,8 @@ const useStyles = createThemedStyles((theme) => ({
   },
   stateHint: {
     color: theme.ink3,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
     textAlign: "center",
   },
   recoveryActions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
@@ -584,21 +581,21 @@ const useStyles = createThemedStyles((theme) => ({
     backgroundColor: theme.accent,
     borderRadius: theme.radius.pill,
     minHeight: theme.components.controlHeight,
-    paddingHorizontal: 28,
+    paddingHorizontal: 22,
     alignItems: "center",
   },
-  retryText: { color: theme.onAccent, fontSize: 16, fontWeight: "700" },
+  retryText: { color: theme.onAccent, fontSize: 15, fontWeight: "700" },
   backAction: {
     backgroundColor: theme.surfaceRaised,
     borderRadius: theme.radius.pill,
     minHeight: theme.components.controlHeight,
-    paddingHorizontal: 28,
+    paddingHorizontal: 22,
     alignItems: "center",
   },
   error: {
     color: theme.danger,
-    fontSize: 16,
-    padding: 24,
+    fontSize: 15,
+    padding: 20,
   },
   featureBackBtn: {
     position: "absolute",

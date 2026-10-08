@@ -48,15 +48,15 @@ export function CompactTabs<T extends string>({
   }));
   return (
     <View
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width - 8)}
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width - 6)}
       style={{
         flexDirection: "row",
         alignSelf: "stretch",
         maxWidth: 480,
-        height: 44,
-        padding: 4,
+        height: 36,
+        padding: 3,
         backgroundColor: colors.surfaceRaised,
-        borderRadius: 22,
+        borderRadius: 18,
       }}
     >
       {slot > 0 ? (
@@ -65,15 +65,15 @@ export function CompactTabs<T extends string>({
           style={[
             {
               position: "absolute",
-              left: 4,
-              top: 4,
-              bottom: 4,
+              left: 3,
+              top: 3,
+              bottom: 3,
               width: slot,
             },
             motion,
           ]}
         >
-          <View style={{ flex: 1, borderRadius: 18, backgroundColor: colors.mode === "dark" ? colors.hover2 : colors.surface, boxShadow: "0 1px 2px rgba(24,20,14,0.06), 0 4px 12px rgba(24,20,14,0.08)" }} />
+          <View style={{ flex: 1, borderRadius: 15, backgroundColor: colors.mode === "dark" ? colors.hover2 : colors.surface, boxShadow: "0 1px 2px rgba(40,20,90,0.08), 0 2px 8px rgba(40,20,90,0.08)" }} />
         </Animated.View>
       ) : null}
       {options.map((item, itemIndex) => (
@@ -87,12 +87,12 @@ export function CompactTabs<T extends string>({
           style={{
             flex: 1,
             minWidth: 0,
-            minHeight: 36,
-            paddingHorizontal: 8,
+            minHeight: 30,
+            paddingHorizontal: 6,
             alignItems: "center",
             justifyContent: "center",
             flexDirection: "row",
-            gap: 6,
+            gap: 5,
           }}
         >
           <TabLabel
@@ -100,9 +100,9 @@ export function CompactTabs<T extends string>({
             icon={item.icon}
             index={itemIndex}
             position={progress}
-            activeColor={colors.ink1}
+            activeColor={colors.accentText}
             inactiveColor={colors.ink3}
-            labelStyle={{ fontSize: 14, lineHeight: 20, fontWeight: "700", letterSpacing: -0.1 }}
+            labelStyle={{ fontSize: 13, lineHeight: 18, fontWeight: "700", letterSpacing: -0.1 }}
           />
         </Pressy>
       ))}

@@ -63,14 +63,19 @@ export const MineScreen = memo(function MineScreen({
                 accessibilityRole="button"
                 accessibilityLabel="关闭我的抽屉"
                 onPress={onClose}
+                hitSlop={6}
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: 36,
+                  height: 36,
+                  minWidth: 36,
+                  minHeight: 36,
+                  borderRadius: 18,
+                  backgroundColor: colors.surfaceRaised,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <Icon name="close" size={20} color={colors.ink1} />
+                <Icon name="close" size={18} color={colors.ink1} />
               </Pressy>
             ) : undefined
           }
@@ -89,7 +94,7 @@ export const MineScreen = memo(function MineScreen({
             style={styles.profile}
           >
             <View pointerEvents="none" style={styles.profileGlow} />
-            <UserAvatar uri={user?.avatarUrl} size={56} style={styles.portrait} />
+            <UserAvatar uri={user?.avatarUrl} size={48} style={styles.portrait} />
             <View style={styles.profileCopy}>
               <Text numberOfLines={2} style={styles.profileName}>
                 {user?.name ?? "登录账号"}
@@ -97,7 +102,7 @@ export const MineScreen = memo(function MineScreen({
               <Text style={styles.profileHint}>{user ? "查看我的主页" : "邮箱验证码登录，开始创作"}</Text>
             </View>
             <View style={styles.profileArrow}>
-              <Icon name="chevron" size={16} color={colors.onDock} />
+              <Icon name="chevron" size={14} color="#FFFFFF" />
             </View>
           </Pressy>
         </Animated.View>
@@ -116,6 +121,8 @@ export const MineScreen = memo(function MineScreen({
             title="外观"
             hint="浅色、深色与跟随系统"
             value={mode === "dark" ? "深色" : "浅色"}
+            tile={mode === "dark" ? colors.accentTint : colors.amberTint}
+            tint={mode === "dark" ? colors.accent : colors.amber}
             onPress={onAppearance}
           />
           <Row
@@ -124,6 +131,8 @@ export const MineScreen = memo(function MineScreen({
             hint={check === "busy" ? "正在核对线上版本" : "每 30 分钟自动检查"}
             value={checkLabel(check)}
             warn={check === "failed"}
+            tile={colors.greenTint}
+            tint={colors.green}
             disabled={check === "busy"}
             onPress={() => void checkUpdates()}
           />
@@ -131,6 +140,8 @@ export const MineScreen = memo(function MineScreen({
             icon="info"
             title="应用信息"
             hint="版本与本机安装信息"
+            tile={colors.cyanTint}
+            tint={colors.cyan}
             onPress={onInfo}
             last
           />
@@ -186,7 +197,8 @@ function Shortcut({
         <View style={[styles.shortcutTile, primary && { backgroundColor: colors.accent }]}>
           <Icon
             name={icon}
-            size={20}
+            size={18}
+            strokeWidth={2.1}
             color="#FFFFFF"
           />
         </View>
@@ -230,7 +242,7 @@ function Row({
       style={[styles.row, !last && styles.divider]}
     >
       <View style={[styles.rowTile, { backgroundColor: tile ?? colors.surfaceRaised }]}>
-        <Icon name={icon} size={18} color={tint ?? colors.ink1} />
+        <Icon name={icon} size={16} strokeWidth={2.1} color={tint ?? colors.ink1} />
       </View>
       <View style={styles.rowCopy}>
         <Text style={styles.rowTitle}>{title}</Text>
@@ -262,44 +274,42 @@ function checkLabel(state: CheckState): string | undefined {
 }
 const useStyles = createThemedStyles((t) => ({
   screen: { backgroundColor: t.canvas },
-  content: { padding: 16, paddingTop: 16, gap: 16, paddingBottom: 28 },
+  content: { padding: 16, paddingTop: 8, gap: 12, paddingBottom: 24 },
   profile: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    paddingVertical: 22,
-    paddingHorizontal: 18,
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
     borderRadius: t.radius.xl,
-    backgroundColor: t.mode === "dark" ? t.surfaceRaised : "#0C0C0D",
-    borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
-    borderColor: t.dockLine,
-    boxShadow: t.shadow.float,
+    experimental_backgroundImage: t.aurora,
+    boxShadow: t.mode === "dark" ? t.shadow.float : "0 8px 22px rgba(255,61,139,0.28)",
     overflow: "hidden",
   },
   profileGlow: {
     position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    right: -90,
-    top: -120,
-    opacity: 0.55,
-    experimental_backgroundImage: t.aurora,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    right: -40,
+    top: -70,
+    backgroundColor: "rgba(255,255,255,0.16)",
   },
-  portrait: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: "rgba(255,255,255,0.18)" },
-  profileCopy: { flex: 1, minWidth: 0, gap: 4 },
+  portrait: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: "rgba(255,255,255,0.7)" },
+  profileCopy: { flex: 1, minWidth: 0, gap: 2 },
   profileName: {
-    ...t.type.title2,
-    color: t.onDock,
+    ...t.type.headline,
+    fontSize: 17,
+    color: "#FFFFFF",
   },
-  profileHint: { fontSize: 13, lineHeight: 18, color: t.onDockMuted },
-  profileArrow: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)" },
+  profileHint: { fontSize: 12, lineHeight: 17, color: "rgba(255,255,255,0.82)" },
+  profileArrow: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.22)" },
   shortcuts: { flexDirection: "row", gap: 10 },
   shortcut: {
     flex: 1,
     minWidth: 0,
-    padding: 18,
-    gap: 2,
+    padding: 14,
+    gap: 1,
     borderRadius: t.radius.xl,
     borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
     borderColor: t.line,
@@ -310,15 +320,15 @@ const useStyles = createThemedStyles((t) => ({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   shortcutTile: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
-    experimental_backgroundImage: t.aurora,
+    backgroundColor: t.orchid,
   },
   shortcutTitle: {
     ...t.type.headline,
@@ -330,30 +340,30 @@ const useStyles = createThemedStyles((t) => ({
     borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
     borderColor: t.line,
     boxShadow: t.shadow.card,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    minHeight: 66,
-    paddingVertical: 10,
+    gap: 12,
+    minHeight: 54,
+    paddingVertical: 8,
   },
   rowTile: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
   divider: { borderBottomWidth: t.components.surfaceBorder, borderBottomColor: t.line },
   rowCopy: { flex: 1, minWidth: 0, gap: 1 },
-  rowTitle: { fontSize: 16, lineHeight: 22, fontWeight: "600", letterSpacing: -0.2, color: t.ink1 },
-  rowHint: { fontSize: 12, lineHeight: 17, color: t.ink3 },
+  rowTitle: { fontSize: 15, lineHeight: 20, fontWeight: "600", letterSpacing: -0.2, color: t.ink1 },
+  rowHint: { fontSize: 11, lineHeight: 15, color: t.ink3 },
   rowValue: {
     maxWidth: "30%",
     flexShrink: 1,
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 18,
     fontWeight: "600",
     color: t.ink3,

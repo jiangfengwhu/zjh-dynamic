@@ -73,20 +73,20 @@ export function PostMenu({
         disabled={busy}
         onPress={() => action(callback)}
         style={({ pressed }) => ({
-          minHeight: 60,
+          minHeight: 50,
           flexDirection: "row",
           alignItems: "center",
-          gap: 14,
-          paddingHorizontal: 14,
+          gap: 12,
+          paddingHorizontal: 12,
           borderRadius: colors.radius.lg,
           backgroundColor: pressed ? colors.hover : colors.surface,
           opacity: busy ? 0.6 : 1,
         })}
       >
-        <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: tint }}>
-          <SymbolIcon name={icon} size={18} strokeWidth={2} color={tone} />
+        <View style={{ width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: tint }}>
+          <SymbolIcon name={icon} size={16} strokeWidth={2.1} color={tone} />
         </View>
-        <Text style={{ color: tone === colors.redText ? colors.redText : colors.ink1, fontSize: 16, fontWeight: "600", letterSpacing: -0.2 }}>{label}</Text>
+        <Text style={{ color: tone === colors.redText ? colors.redText : colors.ink1, fontSize: 15, fontWeight: "600", letterSpacing: -0.2 }}>{label}</Text>
       </Pressable>
     );
   }
@@ -97,14 +97,15 @@ export function PostMenu({
         accessibilityLabel="更多操作"
         disabled={busy}
         onPress={() => modal.current?.present()}
+        hitSlop={6}
         style={{
-          width: 44,
-          height: 44,
+          width: 32,
+          height: 32,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <SymbolIcon name="more" size={20} color={colors.ink3} />
+        <SymbolIcon name="more" size={18} color={colors.ink3} />
       </Pressable>
       <BottomSheetModal
         ref={modal}
@@ -132,17 +133,17 @@ export function PostMenu({
             paddingHorizontal: 16,
             paddingTop: 4,
             paddingBottom: 12 + insets.bottom,
-            gap: 8,
+            gap: 4,
           }}
         >
-          <Text style={{ color: colors.ink3, ...colors.type.overline, textAlign: "center", paddingBottom: 6 }}>动态操作</Text>
-          {row("复制文字", "layers", colors.ink1, colors.surfaceRaised, onCopy)}
+          <Text style={{ color: colors.ink3, ...colors.type.overline, textAlign: "center", paddingBottom: 4 }}>动态操作</Text>
+          {row("复制文字", "layers", colors.accent, colors.accentTint, onCopy)}
           {onShare
             ? row(
                 "分享动态",
                 "share",
-                colors.ink1,
-                colors.surfaceRaised,
+                colors.cyan,
+                colors.cyanTint,
                 onShare
               )
             : null}
@@ -153,9 +154,9 @@ export function PostMenu({
             accessibilityRole="button"
             onPress={() => modal.current?.dismiss()}
             style={({ pressed }) => ({
-              minHeight: 54,
+              minHeight: 44,
               marginTop: 6,
-              borderRadius: 27,
+              borderRadius: 22,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: pressed ? colors.hover2 : colors.surfaceRaised,

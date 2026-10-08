@@ -1,11 +1,6 @@
 import { HostText as Text } from "./feed/HostText";
-import { View } from "react-native";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-  ReduceMotion,
-} from "react-native-reanimated";
+import { StyleSheet, View } from "react-native";
+import Animated, { FadeIn, ReduceMotion } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import {
@@ -23,9 +18,17 @@ export const SHELL_TABS = [
 ] as const;
 export type ShellTabId = (typeof SHELL_TABS)[number]["id"];
 
-const springLayout = LinearTransition.springify().damping(22).stiffness(260).reduceMotion(ReduceMotion.System);
+/** 每个 tab 的糖果色：选中时图标染色，背后浮出同色浅底。 */
+function tabTone(id: ShellTabId, t: ReturnType<typeof useTheme>["colors"]) {
+  switch (id) {
+    case "feed": return { color: t.accent, tint: t.accentTint };
+    case "market": return { color: t.orange, tint: t.orangeTint };
+    case "notifications": return { color: t.orchid, tint: t.orchidTint };
+    case "mine": return { color: t.cyan, tint: t.cyanTint };
+  }
+}
 
-/** 悬浮导航坞：两种模式下都是深色玻璃；当前页展开为白色胶囊，其余只留图标。 */
+/** 悬浮导航条：五个等宽槽位，发布键恒定居中；切换只改变颜色，不改变任何尺寸与位置。 */
 export function TabBar({
   activeId,
   onChange,
@@ -51,17 +54,18 @@ export function TabBar({
           onPress={() => onChange(item.id)}
         />
       ))}
-      <Animated.View layout={springLayout} style={styles.composeSlot}>
+      <View style={styles.slot}>
         <Pressy
           accessibilityRole="button"
           accessibilityLabel="发布动态或制作应用"
           onPress={onCompose}
-          scale={0.88}
+          scale={0.92}
+          hitSlop={4}
           style={styles.compose}
         >
-          <SymbolIcon name="plus" size={22} strokeWidth={2.6} color="#FFFFFF" />
+          <SymbolIcon name="plus" size={20} strokeWidth={2.6} color="#FFFFFF" />
         </Pressy>
-      </Animated.View>
+      </View>
       {SHELL_TABS.slice(2).map((item) => (
         <Tab
           key={item.id}
@@ -88,34 +92,35 @@ function Tab({
   const styles = useStyles();
 
   const colors = useTheme().colors;
+  const tone = tabTone(item.id, colors);
   return (
-    <Animated.View layout={springLayout} style={[styles.slot, active && styles.slotActive]}>
+    <View style={styles.slot}>
       <Pressy
         onPress={onPress}
-        scale={0.9}
+        scale={0.92}
         accessibilityRole="tab"
         accessibilityState={{ selected: active }}
         accessibilityLabel={item.title + (unread ? `，${unread}条未读通知` : "")}
         style={styles.tab}
       >
-        <Animated.View layout={springLayout} style={[styles.pill, active && styles.pillActive]}>
-          <View>
-            <SymbolIcon
-              name={item.icon}
-              size={21}
-              strokeWidth={active ? 2.2 : 1.8}
-              color={active ? colors.onDockActive : colors.onDockMuted}
-            />
-            {unread > 0 ? <View style={[styles.unread, active && { borderColor: colors.dockActive }]} /> : null}
-          </View>
+        <View style={styles.pill}>
           {active ? (
-            <Animated.View entering={FadeIn.duration(160).delay(60).reduceMotion(ReduceMotion.System)} exiting={FadeOut.duration(80)}>
-              <Text numberOfLines={1} style={styles.label}>{item.short}</Text>
-            </Animated.View>
+            <Animated.View
+              entering={FadeIn.duration(140).reduceMotion(ReduceMotion.System)}
+              style={[StyleSheet.absoluteFill, styles.pillFill, { backgroundColor: tone.tint }]}
+            />
           ) : null}
-        </Animated.View>
+          <SymbolIcon
+            name={item.icon}
+            size={21}
+            strokeWidth={active ? 2.3 : 1.8}
+            color={active ? tone.color : colors.ink3}
+          />
+          {unread > 0 ? <View style={styles.unread} /> : null}
+        </View>
+        <Text numberOfLines={1} style={[styles.label, { color: active ? tone.color : colors.ink3 }]}>{item.short}</Text>
       </Pressy>
-    </Animated.View>
+    </View>
   );
 }
 const useStyles = createThemedStyles((base) => {
@@ -124,62 +129,57 @@ const useStyles = createThemedStyles((base) => {
     bar: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: t.dock,
-      marginHorizontal: 20,
-      height: 64,
-      borderRadius: 32,
-      paddingHorizontal: 8,
-      gap: 2,
-      borderWidth: t.components.surfaceBorder,
-      borderColor: t.dockLine,
+      backgroundColor: t.surface,
+      marginHorizontal: 16,
+      height: 58,
+      borderRadius: 22,
+      paddingHorizontal: 4,
+      borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
+      borderColor: t.line,
       boxShadow: t.shadow.float,
     },
-    slot: { flexGrow: 1, flexBasis: 0, minWidth: 0 },
-    slotActive: { flexGrow: 1.9 },
+    slot: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center" },
     tab: {
-      minHeight: 48,
+      alignSelf: "stretch",
+      minHeight: 52,
       paddingHorizontal: 0,
       paddingVertical: 0,
       alignItems: "center",
       justifyContent: "center",
+      gap: 1,
     },
     pill: {
-      height: 44,
-      minWidth: 44,
-      paddingHorizontal: 12,
-      borderRadius: 22,
-      flexDirection: "row",
+      width: 44,
+      height: 28,
       alignItems: "center",
       justifyContent: "center",
-      gap: 7,
     },
-    pillActive: { backgroundColor: t.dockActive, paddingHorizontal: 16 },
+    pillFill: { borderRadius: 14 },
     unread: {
       position: "absolute",
-      right: -3,
-      top: -2,
-      width: 9,
-      height: 9,
-      borderRadius: 5,
+      right: 8,
+      top: 1,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
       borderWidth: 1.5,
-      borderColor: t.dock,
+      borderColor: t.surface,
       backgroundColor: t.orchid,
     },
-    label: { fontSize: 13, lineHeight: 17, fontWeight: "700", letterSpacing: -0.1, color: t.onDockActive },
-    composeSlot: { paddingHorizontal: 6, alignItems: "center", justifyContent: "center" },
+    label: { fontSize: 10, lineHeight: 13, fontWeight: "700" },
     compose: {
-      width: 48,
-      height: 48,
-      minWidth: 48,
-      minHeight: 48,
+      width: 44,
+      height: 40,
+      minWidth: 44,
+      minHeight: 40,
       padding: 0,
       paddingHorizontal: 0,
       paddingVertical: 0,
-      borderRadius: 24,
+      borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
       experimental_backgroundImage: t.aurora,
-      boxShadow: "0 6px 18px rgba(115,87,255,0.45)",
+      boxShadow: "0 4px 12px rgba(255,61,139,0.35)",
     },
   };
 });

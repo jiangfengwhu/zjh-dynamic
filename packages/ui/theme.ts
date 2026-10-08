@@ -3,7 +3,7 @@ import { StyleSheet, useColorScheme, type TextStyle } from "react-native";
 
 export type ThemeMode = "dark" | "light";
 export type ThemePreference = ThemeMode | "system";
-const radius = { xs: 8, sm: 12, md: 16, lg: 22, xl: 28, xxl: 36, window: 32, pill: 999 } as const;
+const radius = { xs: 6, sm: 10, md: 12, lg: 16, xl: 20, xxl: 26, window: 24, pill: 999 } as const;
 
 type BaseTheme = {
   // Semantic colors shared by the host and application UI.
@@ -40,7 +40,7 @@ type BaseTheme = {
   jollyBlush: string;
   jollyOrb: string;
 
-  // 主强调色：单色墨（浅色为墨黑，深色为瓷白）。按钮使用 onAccent，文字链接使用 accentText。
+  // 主强调色：电光紫，用于主操作与选中态。按钮使用 onAccent，文字链接使用 accentText。
   accent: string;
   accentTint: string;
   accentSoft: string;
@@ -48,7 +48,7 @@ type BaseTheme = {
   /** 铺在 accent 底色上的文字和图标。 */
   onAccent: string;
 
-  // 辅色：紫花（同时是品牌信号色，用于未读、选中、AI 等少量高光）
+  // 辅色：热粉（同时是品牌信号色，用于未读、官方、链接、AI 等高光）
   orchid: string;
   orchidTint: string;
   orchidText: string;
@@ -77,52 +77,52 @@ type BaseTheme = {
   radius: typeof radius;
 };
 
-// One visual language: porcelain and obsidian, monochrome actions, a single aurora highlight.
+// One visual language: dopamine candy. Electric violet actions, hot pink signals, a candy palette for tiles.
 const light = {
-  canvas: "#F4F3F0", surface: "#FFFFFF", surfaceRaised: "#ECEBE7", inset: "#E7E6E1", field: "#FFFFFF",
-  line: "#E5E3DE", lineStrong: "#CBC9C2", sheen: "rgba(255,255,255,0.9)", shade: "rgba(24,20,14,0.07)",
-  ink1: "#0C0C0D", ink2: "#47474D", ink3: "#88878E",
-  accent: "#0C0C0D", accentText: "#0C0C0D", accentTint: "#ECEBE7", accentSoft: "#CBC9C2", onAccent: "#FFFFFF",
-  orchid: "#7357FF", orchidText: "#5B3FF0", orchidTint: "#EFEBFF",
-  cyan: "#3AA9D6", cyanText: "#0A6589", cyanTint: "#E5F3F9",
-  green: "#2DBE74", greenText: "#117A45", greenTint: "#E4F5EB",
-  red: "#EF4238", redText: "#CC2A21", redTint: "#FDEBE9",
-  orange: "#FF8A3D", orangeText: "#B0500E", orangeTint: "#FFF0E3",
-  amber: "#F2B533", amberText: "#875800", amberTint: "#FBF2DC",
-  hover: "#EFEEEA", hover2: "#E6E5E0",
+  canvas: "#FAF9FE", surface: "#FFFFFF", surfaceRaised: "#F2F0FA", inset: "#ECE9F6", field: "#FFFFFF",
+  line: "#ECE9F4", lineStrong: "#D9D4EA", sheen: "rgba(255,255,255,0.9)", shade: "rgba(40,20,90,0.06)",
+  ink1: "#1A1530", ink2: "#4E4868", ink3: "#8E89A6",
+  accent: "#7B4DFF", accentText: "#6A3BF5", accentTint: "#F0EAFF", accentSoft: "#D6C8FF", onAccent: "#FFFFFF",
+  orchid: "#FF3D8B", orchidText: "#E21F72", orchidTint: "#FFE8F1",
+  cyan: "#1FB8FF", cyanText: "#0079B8", cyanTint: "#E3F6FF",
+  green: "#1FCF6E", greenText: "#0B8A45", greenTint: "#E2FAEC",
+  red: "#FF4757", redText: "#D91F33", redTint: "#FFE9EB",
+  orange: "#FF8A1F", orangeText: "#C25A00", orangeTint: "#FFF0E0",
+  amber: "#FFC21A", amberText: "#946B00", amberTint: "#FFF6D9",
+  hover: "#F4F2FB", hover2: "#ECE9F6",
   jollyFur: "#EFDDB0", jollyFace: "#FFF3CF", jollyBlush: "#EEA18F", jollyOrb: "#F5CC55",
 };
 const dark = {
-  canvas: "#08080A", surface: "#131316", surfaceRaised: "#1D1D21", inset: "#040405", field: "#131316",
-  line: "#232328", lineStrong: "#3B3B42", sheen: "rgba(255,255,255,0.06)", shade: "rgba(0,0,0,0.55)",
-  ink1: "#F4F4F6", ink2: "#B6B6BE", ink3: "#7C7C85",
-  accent: "#F4F4F6", accentText: "#F4F4F6", accentTint: "#1D1D21", accentSoft: "#3B3B42", onAccent: "#0C0C0D",
-  orchid: "#9783FF", orchidText: "#B7A8FF", orchidTint: "#1E1936",
-  cyan: "#56C1E8", cyanText: "#8AD5F1", cyanTint: "#0D242E",
-  green: "#3BD787", greenText: "#7DE6AF", greenTint: "#0E271A",
-  red: "#FF5A51", redText: "#FF8A83", redTint: "#321313",
-  orange: "#FF9B56", orangeText: "#FFBA8B", orangeTint: "#321E0E",
-  amber: "#FFC84C", amberText: "#FFD985", amberTint: "#2F250B",
-  hover: "#1D1D21", hover2: "#26262B",
+  canvas: "#0E0C16", surface: "#181524", surfaceRaised: "#221E33", inset: "#0A0910", field: "#181524",
+  line: "#272339", lineStrong: "#3A3552", sheen: "rgba(255,255,255,0.06)", shade: "rgba(0,0,0,0.5)",
+  ink1: "#F6F4FF", ink2: "#C4BFDA", ink3: "#8C86A6",
+  accent: "#8B63FF", accentText: "#B49BFF", accentTint: "#2A2148", accentSoft: "#4A3A8A", onAccent: "#FFFFFF",
+  orchid: "#FF5C9F", orchidText: "#FF94C0", orchidTint: "#3A1528",
+  cyan: "#3DC6FF", cyanText: "#8ADCFF", cyanTint: "#0C2633",
+  green: "#35DD80", greenText: "#86EDB3", greenTint: "#0D2A1B",
+  red: "#FF5E6C", redText: "#FF959E", redTint: "#341219",
+  orange: "#FF9A3D", orangeText: "#FFBF85", orangeTint: "#34200C",
+  amber: "#FFCC3D", amberText: "#FFDE85", amberTint: "#33290A",
+  hover: "#221E33", hover2: "#2B2640",
   jollyFur: "#E8DECE", jollyFace: "#FEECE0", jollyBlush: "#FDA4AF", jollyOrb: "#F5D473",
 };
 type TypeRole = "display" | "title1" | "title2" | "headline" | "body" | "callout" | "footnote" | "caption" | "overline";
 const type: Record<TypeRole, TextStyle> = {
-  display: { fontSize: 34, lineHeight: 41, fontWeight: "800", letterSpacing: -0.9 },
-  title1: { fontSize: 28, lineHeight: 34, fontWeight: "800", letterSpacing: -0.6 },
-  title2: { fontSize: 22, lineHeight: 28, fontWeight: "700", letterSpacing: -0.4 },
-  headline: { fontSize: 17, lineHeight: 23, fontWeight: "700", letterSpacing: -0.2 },
-  body: { fontSize: 16, lineHeight: 25, fontWeight: "400", letterSpacing: 0 },
-  callout: { fontSize: 15, lineHeight: 21, fontWeight: "500", letterSpacing: -0.1 },
-  footnote: { fontSize: 13, lineHeight: 18, fontWeight: "500", letterSpacing: 0 },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: "500", letterSpacing: 0.1 },
-  overline: { fontSize: 12, lineHeight: 16, fontWeight: "700", letterSpacing: 1.2 },
+  display: { fontSize: 26, lineHeight: 32, fontWeight: "800", letterSpacing: -0.6 },
+  title1: { fontSize: 22, lineHeight: 28, fontWeight: "800", letterSpacing: -0.4 },
+  title2: { fontSize: 18, lineHeight: 24, fontWeight: "700", letterSpacing: -0.3 },
+  headline: { fontSize: 16, lineHeight: 21, fontWeight: "700", letterSpacing: -0.2 },
+  body: { fontSize: 15, lineHeight: 22, fontWeight: "400", letterSpacing: 0 },
+  callout: { fontSize: 14, lineHeight: 20, fontWeight: "500", letterSpacing: -0.1 },
+  footnote: { fontSize: 12, lineHeight: 17, fontWeight: "500", letterSpacing: 0 },
+  caption: { fontSize: 11, lineHeight: 15, fontWeight: "500", letterSpacing: 0.1 },
+  overline: { fontSize: 11, lineHeight: 14, fontWeight: "700", letterSpacing: 1 },
 };
 export type Theme = BaseTheme & {
   mode: ThemeMode; sans: string; onDanger: string; onOrchid: string;
-  /** 品牌极光渐变，只用于发布、AI 与少量品牌时刻。 */
+  /** 糖果渐变（紫→粉→黄），只用于发布、AI 与少量品牌时刻。 */
   aurora: string;
-  /** 悬浮导航坞与浮层工具条：两种模式下都是深色玻璃。 */
+  /** 深色浮层（Toast、新内容提示）：两种模式下都是深紫玻璃。 */
   dock: string; dockLine: string; onDock: string; onDockMuted: string; dockActive: string; onDockActive: string;
   /** 投影层级：card 用于内容卡片，float 用于悬浮控件，modal 用于弹层。 */
   shadow: { card: string; float: string; modal: string };
@@ -146,18 +146,18 @@ export function getTheme(mode: ThemeMode): Theme {
     ink: palette.canvas, inkRaised: palette.surfaceRaised, text: palette.ink1, muted: palette.ink3,
     gold: palette.amber, goldDim: palette.amberText, danger: palette.red,
     onDanger: "#FFFFFF", onOrchid: "#FFFFFF",
-    aurora: "linear-gradient(135deg, #7357FF 0%, #E15BFF 52%, #FF9F5A 100%)",
-    dock: isDark ? "rgba(28,28,32,0.94)" : "rgba(12,12,13,0.94)",
+    aurora: "linear-gradient(135deg, #7B4DFF 0%, #FF3D8B 55%, #FFB21A 100%)",
+    dock: isDark ? "rgba(40,35,60,0.96)" : "rgba(26,21,48,0.94)",
     dockLine: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.06)",
-    onDock: "#FFFFFF", onDockMuted: "rgba(255,255,255,0.52)",
-    dockActive: "#FFFFFF", onDockActive: "#0C0C0D",
+    onDock: "#FFFFFF", onDockMuted: "rgba(255,255,255,0.56)",
+    dockActive: "#FFFFFF", onDockActive: "#1A1530",
     shadow: isDark
-      ? { card: "0 0 0 0 transparent", float: "0 18px 40px rgba(0,0,0,0.6)", modal: "0 30px 80px rgba(0,0,0,0.7)" }
-      : { card: "0 1px 2px rgba(24,20,14,0.04), 0 10px 28px rgba(24,20,14,0.05)", float: "0 16px 36px rgba(12,12,13,0.22)", modal: "0 30px 80px rgba(24,20,14,0.18)" },
+      ? { card: "0 0 0 0 transparent", float: "0 12px 30px rgba(0,0,0,0.55)", modal: "0 24px 60px rgba(0,0,0,0.65)" }
+      : { card: "0 1px 2px rgba(40,20,90,0.04), 0 6px 18px rgba(40,20,90,0.06)", float: "0 10px 28px rgba(40,20,90,0.16)", modal: "0 24px 60px rgba(40,20,90,0.18)" },
     type,
-    typography: { body: "sans-serif", mono: "monospace", size: { body: 16, title: 22, caption: 13 }, lineHeight: { body: 25, title: 28, caption: 18 } },
-    spacing: { page: 20, control: 14, item: 8, section: 28 }, motion: { press: 90, transition: 200 },
-    components: { controlRadius: 16, dialogRadius: 32, surfaceBorder: StyleSheet.hairlineWidth, controlHeight: 52 },
+    typography: { body: "sans-serif", mono: "monospace", size: { body: 15, title: 18, caption: 12 }, lineHeight: { body: 22, title: 24, caption: 17 } },
+    spacing: { page: 16, control: 12, item: 8, section: 20 }, motion: { press: 90, transition: 180 },
+    components: { controlRadius: 12, dialogRadius: 24, surfaceBorder: StyleSheet.hairlineWidth, controlHeight: 44 },
   });
   cache.set(mode, colors);
   return colors;

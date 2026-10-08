@@ -45,39 +45,41 @@ export function ApplicationPostCard({
       disabled={preview || busy}
       onPress={() => void open()}
       style={{
-        paddingLeft: 12,
-        paddingRight: 14,
-        paddingVertical: 12,
-        borderRadius: 22,
-        backgroundColor: colors.mode === "dark" ? colors.surfaceRaised : colors.canvas,
+        paddingLeft: 10,
+        paddingRight: 10,
+        paddingVertical: 10,
+        borderRadius: 16,
+        borderWidth: colors.components.surfaceBorder,
+        borderColor: colors.lineStrong,
+        backgroundColor: colors.surface,
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,
+        gap: 10,
       }}
     >
       <View
         style={{
-          width: 52,
-          height: 52,
-          borderRadius: 16,
+          width: 44,
+          height: 44,
+          borderRadius: 12,
           backgroundColor: colors.surface,
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
         }}
       >
-        <ApplicationIcon application={{ manifest: application, iconUrl: application.iconUrl }} size={52} />
+        <ApplicationIcon application={{ manifest: application, iconUrl: application.iconUrl }} size={44} />
       </View>
-      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
         <Text
           numberOfLines={1}
-          style={{ fontSize: 15, lineHeight: 21, fontWeight: "700", letterSpacing: -0.2, color: colors.ink1 }}
+          style={{ fontSize: 14, lineHeight: 19, fontWeight: "700", letterSpacing: -0.2, color: colors.ink1 }}
         >
           {application.title}
         </Text>
         {application.summary ? <Text
           numberOfLines={1}
-          style={{ fontSize: 13, lineHeight: 18, color: colors.ink3 }}
+          style={{ fontSize: 12, lineHeight: 16, color: colors.ink3 }}
         >
           {application.summary}
         </Text> : null}
@@ -85,10 +87,10 @@ export function ApplicationPostCard({
       {!preview ? (
         <View
           style={{
-            minWidth: 60,
-            height: 34,
-            paddingHorizontal: 16,
-            borderRadius: 17,
+            minWidth: 52,
+            height: 28,
+            paddingHorizontal: 12,
+            borderRadius: 14,
             backgroundColor: colors.accent,
             alignItems: "center",
             justifyContent: "center",
@@ -97,7 +99,7 @@ export function ApplicationPostCard({
           {busy ? (
             <ActivityIndicator size="small" color={colors.onAccent} />
           ) : (
-            <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: "700", color: colors.onAccent }}>打开</Text>
+            <Text style={{ fontSize: 12, lineHeight: 16, fontWeight: "700", color: colors.onAccent }}>打开</Text>
           )}
         </View>
       ) : null}

@@ -125,29 +125,28 @@ function ProgressContent({
         style={{
           flexDirection: "row",
           alignItems: "center",
-          paddingHorizontal: 16,
-          paddingTop: 6,
-          paddingBottom: 10,
-          gap: 12,
+          paddingHorizontal: 12,
+          paddingTop: 2,
+          paddingBottom: 4,
+          minHeight: 48,
+          gap: 10,
         }}
       >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="返回紫金花"
           onPress={onBack}
+          hitSlop={6}
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: colors.surface,
-            boxShadow: colors.shadow.card,
-            borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
-            borderColor: colors.line,
+            backgroundColor: colors.surfaceRaised,
           }}
         >
-          <SymbolIcon name="back" strokeWidth={2} color={colors.ink1} />
+          <SymbolIcon name="back" size={18} strokeWidth={2.1} color={colors.ink1} />
         </Pressable>
         <Text
           accessibilityRole="header"
@@ -169,10 +168,10 @@ function ProgressContent({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           flexGrow: empty ? 1 : 0,
-          paddingHorizontal: 18,
-          paddingTop: 8,
-          paddingBottom: 28,
-          gap: 16,
+          paddingHorizontal: 16,
+          paddingTop: 6,
+          paddingBottom: 24,
+          gap: 12,
         }}
       >
         {empty ? (
@@ -210,12 +209,12 @@ function ProgressContent({
                   boxShadow: colors.shadow.card,
                 }}
               >
-                <View style={{ height: 3, marginHorizontal: 24, marginTop: 0, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: accent }} />
+                <View style={{ height: 3, marginHorizontal: 20, marginTop: 0, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: accent }} />
                 <View
                   style={{
                     flexDirection: "row",
-                    gap: 16,
-                    padding: 20,
+                    gap: 12,
+                    padding: 16,
                     alignItems: "center",
                   }}
                 >
@@ -229,15 +228,15 @@ function ProgressContent({
                         ? "working"
                         : "idle"
                     }
-                    width={80}
-                    height={80}
-                    borderRadius={40}
+                    width={64}
+                    height={64}
+                    borderRadius={32}
                     still={
                       !query.active || waiting || danger || state === "queued"
                     }
                     repeat={!ready}
                   />
-                  <View style={{ flex: 1, gap: 8 }}>
+                  <View style={{ flex: 1, gap: 4 }}>
                     <View
                       style={{
                         flexDirection: "row",
@@ -280,11 +279,11 @@ function ProgressContent({
                 </View>
                 <Text
                   style={{
-                    paddingHorizontal: 20,
-                    paddingBottom: 20,
+                    paddingHorizontal: 16,
+                    paddingBottom: 16,
                     color: colors.ink2,
-                    fontSize: 14,
-                    lineHeight: 22,
+                    fontSize: 13,
+                    lineHeight: 20,
                   }}
                 >
                   {descriptions[state]}
@@ -315,10 +314,10 @@ function ProgressContent({
                       }`}
                       style={{
                         flex: 1,
-                        minHeight: 84,
+                        minHeight: 64,
                         alignItems: "center",
                         justifyContent: "center",
-                        gap: 8,
+                        gap: 5,
                         borderRadius: colors.radius.lg,
                         backgroundColor: done
                           ? colors.greenTint
@@ -354,7 +353,7 @@ function ProgressContent({
               <View
                 style={{
                   gap: 6,
-                  padding: 18,
+                  padding: 14,
                   borderRadius: colors.radius.lg,
                   backgroundColor: colors.cyanTint,
                 }}
@@ -471,16 +470,14 @@ function RefreshButton({
       accessibilityState={{ busy, disabled: disabled || busy }}
       disabled={disabled || busy}
       onPress={onPress}
+      hitSlop={6}
       style={{
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: colors.surface,
-        boxShadow: colors.shadow.card,
-        borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
-        borderColor: colors.line,
+        backgroundColor: colors.surfaceRaised,
         opacity: disabled ? 0.35 : 1,
       }}
     >

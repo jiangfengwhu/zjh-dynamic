@@ -413,7 +413,7 @@ export function ComposePostScreen({
           contentContainerStyle={styles.content}
         >
           <View style={styles.author}>
-            <UserAvatar uri={user?.avatarUrl} size={36} style={styles.avatar} />
+            <UserAvatar uri={user?.avatarUrl} size={32} style={styles.avatar} />
             <Text style={styles.name}>{user?.name || "我"}</Text>
           </View>
           <View style={styles.htmlHeader}>
@@ -424,7 +424,7 @@ export function ComposePostScreen({
             </Pressy>
           </View>
           {previewing ? (
-            <View style={{ gap: 8, minHeight: 176 }}>
+            <View style={{ gap: 8, minHeight: 160 }}>
               {htmlMode && caption ? <Text style={styles.previewText}>{caption}</Text> : null}
               {htmlMode ? <HtmlPostContent html={previewHtml} /> : <Text selectable style={styles.previewText}>{text || "还没有内容，点击编辑开始输入"}</Text>}
             </View>
@@ -433,7 +433,7 @@ export function ComposePostScreen({
               editable={draftReady && !busy} value={text} onChangeText={change}
               maxLength={htmlMode ? 32768 : 4000}
               placeholder={htmlMode ? '<p style="color:#806020">分享你的创造</p>' : "分享此刻的想法…"}
-              placeholderTextColor={colors.ink3} style={[styles.input, { height: 224 }]} textAlignVertical="top"
+              placeholderTextColor={colors.ink3} style={[styles.input, { height: 200 }]} textAlignVertical="top"
               autoCapitalize={htmlMode ? "none" : "sentences"} autoCorrect={!htmlMode} />
           )}
           <View style={styles.photos}>
@@ -478,7 +478,7 @@ export function ComposePostScreen({
                 if (polishing) { polishController.current?.abort(); setPolishing(false); }
                 else void polish();
               }}>
-              {polishing ? <ActivityIndicator color={colors.orchidText} size="small" /> : <SymbolIcon name="spark" size={17} color={colors.orchidText} />}
+              {polishing ? <ActivityIndicator color={colors.orchidText} size="small" /> : <SymbolIcon name="spark" size={15} strokeWidth={2.1} color={colors.orchid} />}
               <Text style={styles.addText}>{polishing ? "取消润色" : "AI 润色"}</Text>
             </Pressy>
             {beforePolish !== undefined ? <Pressy accessibilityLabel="撤销 AI 润色" style={styles.tool} disabled={busy}
@@ -489,7 +489,7 @@ export function ComposePostScreen({
               onPress={() => void choose()}
               style={styles.tool}
             >
-              <SymbolIcon name="photo" size={17} color={colors.ink1} />
+              <SymbolIcon name="photo" size={15} strokeWidth={2.1} color={colors.cyan} />
               <Text style={styles.addText}>
                 {choosing ? "处理图片…" : `图片 ${photos.length}/4`}
               </Text>
@@ -500,7 +500,7 @@ export function ComposePostScreen({
               onPress={() => void pickApplication()}
               style={styles.tool}
             >
-              <SymbolIcon name="box" size={17} color={colors.ink1} />
+              <SymbolIcon name="box" size={15} strokeWidth={2.1} color={colors.orange} />
               <Text style={styles.addText}>
                 {application ? "更换应用" : "附带应用"}
               </Text>
@@ -586,8 +586,8 @@ export function ComposePostScreen({
               borderTopRightRadius: colors.components.dialogRadius,
               borderTopWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
               borderColor: colors.line,
-              paddingHorizontal: 22,
-              paddingTop: 22,
+              paddingHorizontal: 16,
+              paddingTop: 16,
               paddingBottom: 12 + insets.bottom,
               maxHeight: "75%",
               gap: 10,
@@ -595,7 +595,7 @@ export function ComposePostScreen({
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceRaised, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="box" size={18} color={colors.ink1} /></View>
+              <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: colors.orangeTint, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="box" size={16} strokeWidth={2.1} color={colors.orange} /></View>
               <Text style={{ flex: 1, color: colors.ink1, ...colors.type.headline }}>我的已上架应用</Text>
               <Pressy scale={1} accessibilityLabel="关闭应用选择" onPress={() => setPicking(false)} style={{ width: 44, height: 44, alignItems: "center" }}><SymbolIcon name="close" size={16} color={colors.ink3} /></Pressy>
             </View>
@@ -624,7 +624,7 @@ export function ComposePostScreen({
                     }`}
                     onPress={() => selectApplication(item)}
                     style={{
-                      paddingVertical: 14,
+                      paddingVertical: 10,
                       paddingHorizontal: 4,
                       gap: 2,
                       borderBottomWidth: colors.components.surfaceBorder,
@@ -661,27 +661,27 @@ const useStyles = createThemedStyles((base) => {
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     fill: { flex: 1 },
-    content: { paddingHorizontal: 18, paddingTop: 10, gap: 18, paddingBottom: 14 },
-    previewText: { color: t.ink1, fontSize: 16, lineHeight: 25 },
-    htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-    htmlAction: { minHeight: 36, paddingHorizontal: 14, alignItems: "center", justifyContent: "center", borderRadius: 18, backgroundColor: t.surfaceRaised },
-    publishDock: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12, backgroundColor: t.canvas },
-    author: { flexDirection: "row", gap: 12, alignItems: "center", paddingHorizontal: 2 },
-    avatar: { width: 44, height: 44, borderRadius: 22 },
-    name: { color: t.ink1, fontSize: 16, fontWeight: "700", letterSpacing: -0.2 },
+    content: { paddingHorizontal: 16, paddingTop: 6, gap: 12, paddingBottom: 12 },
+    previewText: { color: t.ink1, fontSize: 15, lineHeight: 22 },
+    htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+    htmlAction: { minHeight: 30, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: t.surfaceRaised },
+    publishDock: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, backgroundColor: t.canvas },
+    author: { flexDirection: "row", gap: 10, alignItems: "center" },
+    avatar: { width: 32, height: 32, borderRadius: 16 },
+    name: { color: t.ink1, fontSize: 15, fontWeight: "700", letterSpacing: -0.2 },
     input: {
-      minHeight: 160,
+      minHeight: 140,
       color: t.ink1,
-      fontSize: 17,
-      lineHeight: 27,
-      padding: 20,
+      fontSize: 15,
+      lineHeight: 23,
+      padding: 14,
       borderRadius: t.radius.xl,
       borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
       borderColor: t.line,
       backgroundColor: t.surface,
       boxShadow: t.shadow.card,
     },
-    photos: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
+    photos: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
     photo: {
       width: "48%",
       aspectRatio: 1,
@@ -694,34 +694,34 @@ const useStyles = createThemedStyles((base) => {
       position: "absolute",
       right: 6,
       top: 6,
-      width: 30,
-      height: 30,
-      borderRadius: 15,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
       backgroundColor: "rgba(0,0,0,0.55)",
       borderWidth: 1,
       borderColor: "rgba(255,255,255,0.3)",
       alignItems: "center",
       justifyContent: "center",
     },
-    removeText: { color: "#FFFFFF", fontSize: 22 },
-    tools: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+    removeText: { color: "#FFFFFF", fontSize: 18 },
+    tools: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
     tool: {
       flexDirection: "row",
-      gap: 7,
+      gap: 5,
       alignItems: "center",
-      minHeight: 42,
+      minHeight: 34,
       backgroundColor: t.surfaceRaised,
       borderWidth: 0,
-      borderRadius: 21,
-      paddingHorizontal: 16,
+      borderRadius: 17,
+      paddingHorizontal: 12,
     },
     draftStatus: {
       flexDirection: "row",
       justifyContent: "space-between",
       gap: 8,
     },
-    add: { paddingVertical: 12 },
-    addText: { color: t.ink1, fontSize: 13, fontWeight: "700" },
+    add: { paddingVertical: 10 },
+    addText: { color: t.ink1, fontSize: 12, fontWeight: "700" },
     counter: {
       color: t.ink3,
       fontSize: 12,
@@ -729,15 +729,15 @@ const useStyles = createThemedStyles((base) => {
     },
     publish: {
       backgroundColor: t.accent,
-      paddingHorizontal: 24,
-      paddingVertical: 10,
-      borderRadius: 27,
-      minHeight: 54,
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      borderRadius: 23,
+      minHeight: 46,
       minWidth: 76,
       justifyContent: "center",
       alignItems: "center",
     },
-    publishText: { color: t.onAccent, fontWeight: "700", fontSize: 16, letterSpacing: -0.1 },
+    publishText: { color: t.onAccent, fontWeight: "700", fontSize: 15, letterSpacing: -0.1 },
     disabled: { opacity: 0.3 },
     status: { flexDirection: "row", gap: 10, alignItems: "center" },
   };

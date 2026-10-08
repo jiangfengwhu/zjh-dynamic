@@ -141,11 +141,11 @@ function NotificationsPage(props: Props) {
   }
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <ScreenBar style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12, gap: 14 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingLeft: props.onBack ? 0 : 4 }}>
+      <ScreenBar style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, gap: 10 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 40 }}>
           {props.onBack ? <RoundButton icon="back" label="返回" onPress={props.onBack} /> : null}
           <Text accessibilityRole="header" style={{ flex: 1, ...colors.type.display, color: colors.ink1 }}>通知</Text>
-          {category !== "messages" ? <Pressy accessibilityLabel="将所有通知标记为已读" disabled={marking || !count} onPress={() => void markAll()} scale={0.9} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", backgroundColor: count ? colors.accent : colors.surfaceRaised, borderRadius: 22, paddingHorizontal: 0, paddingVertical: 0 }}>{marking ? <ActivityIndicator color={count ? colors.onAccent : colors.ink3} /> : <SymbolIcon name="check" size={20} strokeWidth={2.4} color={count ? colors.onAccent : colors.ink3} />}</Pressy> : null}
+          {category !== "messages" ? <Pressy accessibilityLabel="将所有通知标记为已读" disabled={marking || !count} onPress={() => void markAll()} scale={0.9} hitSlop={6} style={{ width: 36, height: 36, minWidth: 36, minHeight: 36, alignItems: "center", justifyContent: "center", backgroundColor: count ? colors.accent : colors.surfaceRaised, borderRadius: 18, paddingHorizontal: 0, paddingVertical: 0 }}>{marking ? <ActivityIndicator size="small" color={count ? colors.onAccent : colors.ink3} /> : <SymbolIcon name="check" size={17} strokeWidth={2.4} color={count ? colors.onAccent : colors.ink3} />}</Pressy> : null}
         </View>
         <CompactTabs value={category} position={position} options={[{ id: "creation", label: tabLabel("制作", counts.creation) }, { id: "interaction", label: tabLabel("互动", counts.interaction) }, { id: "messages", label: tabLabel("私信", messageCount) }]} onChange={value => pager.current?.setPage(value === "creation" ? 0 : value === "interaction" ? 1 : 2)} />
       </ScreenBar>
@@ -405,30 +405,30 @@ function NotificationsContent({
                       item.read ? "" : "，未读"
                     }`}
                     onPress={() => void act(item)}
-                    style={[{
-                      marginHorizontal: 12,
-                      marginBottom: 8,
+                    style={{
                       paddingHorizontal: 16,
-                      paddingVertical: 16,
-                      borderRadius: colors.radius.xl,
+                      paddingVertical: 12,
+                      borderRadius: 0,
                       flexDirection: "row",
-                      gap: 14,
+                      gap: 10,
+                      borderBottomWidth: colors.components.surfaceBorder,
+                      borderBottomColor: colors.line,
                       backgroundColor: item.read
                         ? "transparent"
-                        : colors.surface,
-                    }, !item.read && { boxShadow: colors.shadow.card, borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line }]}
+                        : colors.accentTint,
+                    }}
                   >
                     {item.kind.startsWith("work-") ? (
-                      <JollyPortrait size={44} />
+                      <JollyPortrait size={36} />
                     ) : (
-                      <UserAvatar uri={item.actor.avatarUrl} authorId={item.actor.id} size={44} />
+                      <UserAvatar uri={item.actor.avatarUrl} authorId={item.actor.id} size={36} />
                     )}
-                    <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                    <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <Text numberOfLines={2} style={{ flex: 1, color: colors.ink1, fontSize: 15, lineHeight: 21, letterSpacing: -0.1, fontWeight: item.read ? "600" : "700" }}>
+                        <Text numberOfLines={2} style={{ flex: 1, color: colors.ink1, fontSize: 14, lineHeight: 20, letterSpacing: -0.1, fontWeight: item.read ? "600" : "700" }}>
                           {noticeHeading(item)}
                         </Text>
-                        <Text style={{ color: colors.ink3, fontSize: 12 }}>
+                        <Text style={{ color: colors.ink3, fontSize: 11 }}>
                           {formatWhen(item.createdAt)}
                         </Text>
                       </View>
@@ -436,8 +436,8 @@ function NotificationsContent({
                         numberOfLines={2}
                         style={{
                           color: colors.ink2,
-                          fontSize: 14,
-                          lineHeight: 21,
+                          fontSize: 13,
+                          lineHeight: 19,
                         }}
                       >
                         {item.body}
@@ -456,7 +456,7 @@ function NotificationsContent({
                           height: 8,
                           borderRadius: 4,
                           backgroundColor: colors.orchid,
-                          marginTop: 7,
+                          marginTop: 6,
                         }}
                       />
                     ) : null}
@@ -467,7 +467,7 @@ function NotificationsContent({
                     {user && loading && !loaded ? (
                       <PageSkeleton rows={4} />
                     ) : (
-                      <Text style={{ color: colors.ink3, textAlign: "center", fontSize: 15, lineHeight: 22 }}>
+                      <Text style={{ color: colors.ink3, textAlign: "center", fontSize: 14, lineHeight: 20 }}>
                         {user
                           ? category === "creation"
                             ? "制作完成或失败，会在这里通知你"
@@ -482,7 +482,7 @@ function NotificationsContent({
                         onPress={() => {
                           void requireAccount();
                         }}
-                        style={{ minHeight: 48, paddingHorizontal: 24, borderRadius: 24, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}
+                        style={{ minHeight: 40, paddingHorizontal: 20, borderRadius: 20, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}
                       >
                         <Text style={{ color: colors.onAccent, fontWeight: "700" }}>
                           登录查看通知

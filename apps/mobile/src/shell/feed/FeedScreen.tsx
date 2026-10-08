@@ -60,7 +60,7 @@ import { formatWhen } from "../formatTime";
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as typeof FlashList;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
-const FEED_PAGE_INSET = 12;
+const FEED_PAGE_INSET = 0;
 const FEED_HEADER_INSET = 12;
 function timelineItemType({ post }: { post: UserPost }) {
   return post.content?.format === "html" ? "html" : post.images.length ? "images" : post.application ? "application" : "text";
@@ -343,6 +343,7 @@ export const FeedScreen = memo(function FeedScreen({
                             style={styles.scroll}
                             contentContainerStyle={[
                               styles.content,
+                              styles.grid,
                               bottomSpace,
                               { minHeight: shortcuts.items.length ? viewportSize + headerSize : viewportSize, flexGrow: 1 },
                             ]}
@@ -384,15 +385,16 @@ export const FeedScreen = memo(function FeedScreen({
                             )}
                             ListEmptyComponent={
                               <EmptyState>
-                                <View style={{ width: 72, height: 72, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, boxShadow: colors.shadow.card }}>
+                                <View style={{ width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.orangeTint }}>
                                   <SymbolIcon
                                     name="box"
-                                    size={30}
-                                    color={colors.ink1}
+                                    size={24}
+                                    strokeWidth={2}
+                                    color={colors.orange}
                                   />
                                 </View>
                                 <Text
-                                  style={{ color: colors.ink3, fontSize: 14, lineHeight: 21, textAlign: "center" }}
+                                  style={{ color: colors.ink3, fontSize: 13, lineHeight: 19, textAlign: "center" }}
                                 >
                                   {shortcuts.loaded
                                     ? "还没有安装应用，去应用市场发现作品吧"
@@ -663,16 +665,16 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
         maxWidth: "25%",
         minWidth: 0,
         alignItems: "center",
-        paddingTop: 12,
-        paddingBottom: 8,
-        gap: 8,
+        paddingTop: 10,
+        paddingBottom: 6,
+        gap: 6,
       }}
     >
       <View
         style={{
-          width: 62,
-          height: 62,
-          borderRadius: 20,
+          width: 52,
+          height: 52,
+          borderRadius: 16,
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: colors.surface,
@@ -681,17 +683,17 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
           boxShadow: colors.shadow.card,
         }}
       >
-        <View style={{ width: 62, height: 62, borderRadius: 20, overflow: "hidden", alignItems: "center", justifyContent: "center" }}><ApplicationIcon application={app} size={54} /></View>
+        <View style={{ width: 52, height: 52, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}><ApplicationIcon application={app} size={46} /></View>
       </View>
       <Text
         numberOfLines={2}
         style={{
           color: colors.ink2,
-          fontSize: 12,
-          lineHeight: 16,
+          fontSize: 11,
+          lineHeight: 15,
           fontWeight: "600",
           textAlign: "center",
-          minHeight: 32,
+          minHeight: 30,
           paddingHorizontal: 2,
         }}
       >
@@ -897,27 +899,29 @@ const useStyles = createThemedStyles((base) => {
     },
     viewport: { flex: 1, overflow: "hidden" },
     compose: {
-      minHeight: 48,
+      minHeight: 40,
       flexDirection: "row",
-      gap: 8,
-      marginTop: 6,
-      paddingHorizontal: 22,
+      gap: 6,
+      marginTop: 4,
+      paddingHorizontal: 18,
       alignItems: "center",
       backgroundColor: t.accent,
       borderRadius: t.radius.pill,
       borderWidth: 0,
     },
     profileControl: {
-      width: 44,
-      height: 44,
+      width: 40,
+      height: 40,
+      minWidth: 40,
+      minHeight: 40,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 0,
       marginLeft: 0,
-      borderRadius: 22,
+      borderRadius: 20,
       overflow: "hidden",
     },
-    profileAvatar: { width: 34, height: 34, borderRadius: 17 },
+    profileAvatar: { width: 30, height: 30, borderRadius: 15 },
     header: {
       backgroundColor: t.canvas,
       paddingLeft: FEED_HEADER_INSET,
@@ -928,43 +932,39 @@ const useStyles = createThemedStyles((base) => {
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
-      paddingTop: 6,
-      paddingBottom: 8,
+      paddingTop: 2,
+      paddingBottom: 4,
     },
     headerTabs: { flex: 1, minWidth: 0, alignItems: "center" },
-    headerBalance: { width: 44, height: 44 },
+    headerBalance: { width: 40, height: 40 },
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
     content: { paddingBottom: 16, paddingHorizontal: FEED_PAGE_INSET },
+    grid: { paddingHorizontal: 10 },
     post: {
       width: "100%",
       minWidth: 0,
       overflow: "visible",
     },
     separator: {
-      height: 12,
+      height: t.components.surfaceBorder,
+      backgroundColor: t.line,
     },
     empty: {
-      marginHorizontal: 4,
-      marginTop: 8,
-      paddingHorizontal: 28,
-      paddingTop: 40,
-      paddingBottom: 32,
-      borderRadius: t.radius.xl,
-      backgroundColor: t.surface,
-      borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
-      borderColor: t.line,
-      boxShadow: t.shadow.card,
+      marginHorizontal: 16,
+      marginTop: 24,
+      paddingHorizontal: 20,
+      paddingVertical: 24,
       alignItems: "center",
-      gap: 10,
+      gap: 8,
     },
     emptyTitle: {
       ...t.type.title2,
       color: t.ink1,
     },
     emptyBody: {
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 14,
+      lineHeight: 20,
       textAlign: "center",
       color: t.ink3,
       marginBottom: 6,
@@ -974,8 +974,8 @@ const useStyles = createThemedStyles((base) => {
       alignItems: "center",
       justifyContent: "center",
       gap: 10,
-      paddingTop: 28,
-      paddingBottom: 16,
+      paddingTop: 20,
+      paddingBottom: 12,
       paddingHorizontal: 48,
     },
     endText: { ...t.type.overline, fontSize: 11, color: t.ink3 },

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, {
+  interpolateColor,
   useAnimatedStyle,
   type SharedValue,
 } from "react-native-reanimated";
@@ -9,7 +10,7 @@ import { useTheme } from "../../../../../packages/ui/theme";
 import type { FeedCategory } from "./useFeedPager";
 
 const categories = ["installed", "recommended", "following"] as const;
-const labelStyle = { fontSize: 15, lineHeight: 20, fontWeight: "700" as const, letterSpacing: -0.2 };
+const labelStyle = { fontSize: 14, lineHeight: 19, fontWeight: "700" as const, letterSpacing: -0.2 };
 export function FeedCategoryTabs({
   selected,
   position,
@@ -26,19 +27,27 @@ export function FeedCategoryTabs({
       { translateX: (Math.max(0, Math.min(2, position.value)) * width) / 3 },
     ],
   }));
+  // 每个分类一种糖果色，滑块颜色随分页进度连续过渡。
+  const fill = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      Math.max(0, Math.min(2, position.value)),
+      [0, 1, 2],
+      [colors.orange, colors.accent, colors.orchid],
+    ),
+  }));
   return (
     <View
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      style={{ flex: 1, maxWidth: 300, height: 44, flexDirection: "row" }}
+      style={{ flex: 1, maxWidth: 280, height: 36, flexDirection: "row" }}
     >
       <Animated.View
         pointerEvents="none"
         style={[
-          { position: "absolute", top: 3, bottom: 3, left: 0, width: width / 3, paddingHorizontal: 4 },
+          { position: "absolute", top: 2, bottom: 2, left: 0, width: width / 3, paddingHorizontal: 3 },
           indicator,
         ]}
       >
-        <View style={{ flex: 1, borderRadius: 19, backgroundColor: colors.accent }} />
+        <Animated.View style={[{ flex: 1, borderRadius: 16 }, fill]} />
       </Animated.View>
       {categories.map((category, index) => (
         <Pressable
@@ -59,7 +68,7 @@ export function FeedCategoryTabs({
             }
             index={index}
             position={position}
-            activeColor={colors.onAccent}
+            activeColor="#FFFFFF"
             inactiveColor={colors.ink3}
             labelStyle={labelStyle}
           />

@@ -68,7 +68,7 @@ export const WorkCard = memo(function WorkCard({
         borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
         borderColor: colors.line,
         boxShadow: colors.shadow.card,
-        marginBottom: 12,
+        marginBottom: 10,
       }}
     >
       <Pressy
@@ -84,24 +84,24 @@ export const WorkCard = memo(function WorkCard({
           style={{
             flexDirection: "row",
             alignItems: "center",
-            paddingHorizontal: 16,
-            paddingTop: 16,
-            paddingBottom: 8,
-            gap: 14,
+            paddingHorizontal: 12,
+            paddingTop: 12,
+            paddingBottom: 6,
+            gap: 10,
           }}
         >
           <View
             style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
+              width: 46,
+              height: 46,
+              borderRadius: 13,
               alignItems: "center",
               justifyContent: "center",
               overflow: "hidden",
               backgroundColor: colors.surfaceRaised,
             }}
           >
-            {application ? <ApplicationIcon application={application} size={56} /> : <SymbolIcon name="box" size={26} color={accent} />}
+            {application ? <ApplicationIcon application={application} size={46} /> : <SymbolIcon name="box" size={22} color={accent} />}
             {busy ? (
               <ActivityIndicator
                 color={accent}
@@ -109,13 +109,13 @@ export const WorkCard = memo(function WorkCard({
               />
             ) : null}
           </View>
-          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
             <Text
               numberOfLines={1}
               style={{
                 color: colors.ink1,
-                fontSize: 16,
-                lineHeight: 22,
+                fontSize: 15,
+                lineHeight: 20,
                 fontWeight: "700",
                 letterSpacing: -0.3,
               }}
@@ -125,7 +125,7 @@ export const WorkCard = memo(function WorkCard({
             {summary ? (
               <Text
                 numberOfLines={1}
-                style={{ color: colors.ink3, fontSize: 13, lineHeight: 18 }}
+                style={{ color: colors.ink3, fontSize: 12, lineHeight: 17 }}
               >
                 {summary}
               </Text>
@@ -135,9 +135,9 @@ export const WorkCard = memo(function WorkCard({
       </Pressy>
       <View
         style={{
-          paddingLeft: 16,
-          paddingRight: 8,
-          paddingBottom: 6,
+          paddingLeft: 12,
+          paddingRight: 4,
+          paddingBottom: 2,
           flexDirection: "row",
           alignItems: "center",
           gap: 4,
@@ -156,7 +156,7 @@ export const WorkCard = memo(function WorkCard({
             gap: 6,
           }}
         >
-          <UserAvatar uri={authorAvatarUrl} size={22} />
+          <UserAvatar uri={authorAvatarUrl} size={18} />
           <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Text
               numberOfLines={1}

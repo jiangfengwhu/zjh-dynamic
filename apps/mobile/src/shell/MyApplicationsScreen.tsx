@@ -391,9 +391,9 @@ export function MyApplicationsScreen({
   useEffect(() => { const next = cachedPage<Snapshot>(cacheKey); setWorks(next?.works ?? []); setInstalled(next?.installed ?? []); setOwner(next ? user?.id : undefined); setLoaded(!!next); }, [cacheKey]);
   const Root = embedded ? View : Screen;
   const actionStyle = {
-    minHeight: 48,
-    paddingHorizontal: 24,
-    borderRadius: 24,
+    minHeight: 40,
+    paddingHorizontal: 20,
+    borderRadius: 20,
     backgroundColor: colors.accent,
     justifyContent: "center" as const,
     flexDirection: "row" as const,
@@ -435,8 +435,8 @@ export function MyApplicationsScreen({
           contentContainerStyle={[
             {
               paddingHorizontal: 16,
-              paddingTop: 8,
-              paddingBottom: 24,
+              paddingTop: 4,
+              paddingBottom: 20,
             },
             profileScroll.contentStyle,
             !(scope === "works" ? visibleWorks.length : visibleApps.length) && profileScroll.emptyContentStyle,
@@ -467,12 +467,13 @@ export function MyApplicationsScreen({
                   value={query}
                   onChangeText={setQuery}
                   style={{
-                    minHeight: 46,
-                    paddingHorizontal: 18,
+                    minHeight: 38,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
                     backgroundColor: colors.surfaceRaised,
                     color: colors.ink1,
-                    borderRadius: 23,
-                    fontSize: 15,
+                    borderRadius: 19,
+                    fontSize: 14,
                   }}
                 />
               ) : null}
@@ -599,7 +600,7 @@ export function MyApplicationsScreen({
                       return (
               <View
                 style={{
-                  paddingVertical: 14,
+                  paddingVertical: 10,
                   borderBottomWidth: colors.components.surfaceBorder,
                   borderBottomColor: colors.line,
                   gap: 6,
@@ -620,16 +621,16 @@ export function MyApplicationsScreen({
                       flex: 1,
                       minWidth: 0,
                       flexDirection: "row",
-                      gap: 14,
+                      gap: 12,
                       alignItems: "center",
                       justifyContent: "flex-start",
                     }}
                   >
                     <View
                       style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 18,
+                        width: 52,
+                        height: 52,
+                        borderRadius: 14,
                         alignItems: "center",
                         justifyContent: "center",
                         overflow: "hidden",
@@ -637,15 +638,15 @@ export function MyApplicationsScreen({
                         borderColor: colors.line,
                       }}
                     >
-                      <ApplicationIcon application={app} size={64} />
+                      <ApplicationIcon application={app} size={52} />
                     </View>
-                    <View style={{ flex: 1, minWidth: 0, minHeight: 64, justifyContent: "space-between", gap: 3 }}>
+                    <View style={{ flex: 1, minWidth: 0, minHeight: 52, justifyContent: "space-between", gap: 1 }}>
                       <Text
                         numberOfLines={1}
                         style={{
                           color: colors.ink1,
-                          fontSize: 16,
-                          lineHeight: 22,
+                          fontSize: 15,
+                          lineHeight: 20,
                           fontWeight: "700",
                           letterSpacing: -0.3,
                         }}
@@ -699,16 +700,16 @@ export function MyApplicationsScreen({
                       disabled={!!updating}
                       onPress={() => void update(app)}
                       style={{
-                        minWidth: 76,
-                        minHeight: 36,
-                        height: 36,
+                        minWidth: 64,
+                        minHeight: 30,
+                        height: 30,
                         alignItems: "center",
                         justifyContent: "center",
                         flexDirection: "row",
                         gap: 5,
-                        paddingHorizontal: 14,
+                        paddingHorizontal: 12,
                         paddingVertical: 0,
-                        borderRadius: 18,
+                        borderRadius: 15,
                         backgroundColor: colors.accent,
                       }}
                     >
@@ -721,11 +722,11 @@ export function MyApplicationsScreen({
                         <>
                           <SymbolIcon
                             name="refresh"
-                            size={16}
+                            size={14}
                             color={colors.onAccent}
                           />
                           <Text
-                            style={{ color: colors.onAccent, fontSize: 13, fontWeight: "700" }}
+                            style={{ color: colors.onAccent, fontSize: 12, fontWeight: "700" }}
                           >
                             {applicationNeedsReload(app.manifest)
                               ? "重新加载"
@@ -749,10 +750,10 @@ export function MyApplicationsScreen({
           ListEmptyComponent={
             loaded || (!busy && !error) ? (
               <EmptyState>
-                <View style={{ width: 72, height: 72, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, boxShadow: colors.shadow.card }}>
-                  <SymbolIcon name="box" size={30} color={colors.ink1} />
+                <View style={{ width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.accentTint }}>
+                  <SymbolIcon name="box" size={24} strokeWidth={2} color={colors.accent} />
                 </View>
-                <Text style={{ color: colors.ink3, fontSize: 15, lineHeight: 22, textAlign: "center" }}>
+                <Text style={{ color: colors.ink3, fontSize: 14, lineHeight: 20, textAlign: "center" }}>
                   {term
                     ? "没有找到匹配的内容"
                     : scope === "works"

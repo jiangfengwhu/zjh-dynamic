@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
-import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useTheme } from "../theme";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -24,7 +24,7 @@ export function Pressy({ style, scale = 0.97, onPressIn, onPressOut, children, d
       onPressIn?.(event);
     }}
     onPressOut={(event: GestureResponderEvent) => {
-      pressed.value = withSpring(1, { damping: 19, stiffness: 360, reduceMotion: ReduceMotion.System });
+      pressed.value = withTiming(1, { duration: 140, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System });
       onPressOut?.(event);
     }}
     style={[{ minHeight: 44, minWidth: 44, justifyContent: "center" }, primaryDefaults, style, disabled && { opacity: 0.45 }, animated]}>{children}</AnimatedPressable>;

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import HapticFeedback from "react-native-haptic-feedback";
 import { Gesture } from "react-native-gesture-handler";
-import { ReduceMotion, cancelAnimation, runOnJS, withSpring, withTiming, type SharedValue, useSharedValue } from "react-native-reanimated";
+import { Easing, ReduceMotion, cancelAnimation, runOnJS, withTiming, type SharedValue, useSharedValue } from "react-native-reanimated";
+
+/** 松手后的归位：无回弹的减速曲线。 */
+const SETTLE = { duration: 220, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never } as const;
 
 /** 拖到这个位置松手就刷新。紧凑灵敏。 */
 export const PULL_THRESHOLD = 68;
@@ -144,11 +147,11 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
           if (!success || phaseUI.value === "refreshing" || phaseUI.value === "done" || phaseUI.value === "failed") return;
           if (phaseUI.value === "ready") {
             phaseUI.value = "refreshing";
-            pull.value = withSpring(PULL_HOLD, { damping: 22, stiffness: 280, reduceMotion: ReduceMotion.Never });
+            pull.value = withTiming(PULL_HOLD, SETTLE);
             runOnJS(beginRefresh)();
           } else {
             phaseUI.value = "idle";
-            pull.value = withSpring(0, { damping: 22, stiffness: 300, reduceMotion: ReduceMotion.Never });
+            pull.value = withTiming(0, SETTLE);
             runOnJS(notifyPhase)("idle");
           }
         })
@@ -156,7 +159,7 @@ export function usePullToRefresh({ scrollY, onRefresh }: Options) {
           "worklet";
           // 系统取消或切 Tab 时只回弹，不执行刷新。
           if (dragging.value && !success && phaseUI.value !== "refreshing" && phaseUI.value !== "done" && phaseUI.value !== "failed") {
-            pull.value = withSpring(0, { damping: 22, stiffness: 300, reduceMotion: ReduceMotion.Never });
+            pull.value = withTiming(0, SETTLE);
             phaseUI.value = "idle";
             runOnJS(notifyPhase)("idle");
           }

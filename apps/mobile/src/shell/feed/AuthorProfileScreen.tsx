@@ -237,16 +237,18 @@ function AuthorProfileContent({
   const header = (
     <View>
       {!embedded ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 18 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 4 }}>
-            <View style={{ borderRadius: 40, padding: 3, backgroundColor: colors.surface, boxShadow: colors.shadow.card }}>
-              <UserAvatar uri={author.avatarUrl} authorId={author.id} size={72} />
+        <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10, gap: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View style={{ borderRadius: 32, padding: 2, experimental_backgroundImage: colors.aurora }}>
+              <View style={{ borderRadius: 30, padding: 2, backgroundColor: colors.canvas }}>
+                <UserAvatar uri={author.avatarUrl} authorId={author.id} size={56} />
+              </View>
             </View>
-            <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+            <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
               <Text
                 numberOfLines={2}
                 style={{
-                  ...colors.type.title1,
+                  ...colors.type.title2,
                   color: colors.ink1,
                 }}
               >
@@ -285,10 +287,10 @@ function AuthorProfileContent({
                 disabled={followBusy || busy}
                 onPress={() => void toggleFollow()}
                 style={{
-                  minHeight: 42,
-                  minWidth: 80,
-                  paddingHorizontal: 18,
-                  borderRadius: 21,
+                  minHeight: 34,
+                  minWidth: 64,
+                  paddingHorizontal: 14,
+                  borderRadius: 17,
                   justifyContent: "center",
                   alignItems: "center",
                   backgroundColor: profile.following
@@ -299,7 +301,7 @@ function AuthorProfileContent({
               >
                 <Text
                   style={{
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: "700",
                     letterSpacing: -0.1,
                     color: profile.following ? colors.ink2 : colors.onAccent,
@@ -314,14 +316,14 @@ function AuthorProfileContent({
               </Pressable>
             ) : null}
             {onMessage && user?.id !== author.id ? <Pressable accessibilityRole="button" accessibilityLabel={`给${author.name}发私信`} onPress={() => onMessage(author)}
-              style={{ minHeight: 42, minWidth: 62, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised, borderRadius: 21 }}>
-              <Text style={{ color: colors.ink1, fontSize: 14, fontWeight: "700" }}>私信</Text>
+              style={{ minHeight: 34, minWidth: 52, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised, borderRadius: 17 }}>
+              <Text style={{ color: colors.ink1, fontSize: 13, fontWeight: "700" }}>私信</Text>
             </Pressable> : null}
           </View>
-          <View style={{ flexDirection: "row", gap: 28, paddingHorizontal: 6 }}>
+          <View style={{ flexDirection: "row", gap: 20 }}>
             {(["following", "followers"] as const).map(kind => <Pressable key={kind} accessibilityRole="button" accessibilityLabel={kind === "following" ? "查看关注" : "查看粉丝"} disabled={!onConnections}
-              onPress={() => onConnections?.(author, kind)} style={{ minHeight: 36, justifyContent: "center" }}>
-              <Text style={{ fontSize: 13, color: colors.ink3 }}><Text style={{ fontSize: 18, fontWeight: "800", letterSpacing: -0.4, color: colors.ink1 }}>{loaded ? (kind === "following" ? profile.followingCount ?? 0 : profile.followerCount ?? 0) : "—"}</Text> {kind === "following" ? "关注" : "粉丝"}</Text>
+              onPress={() => onConnections?.(author, kind)} style={{ minHeight: 28, justifyContent: "center" }}>
+              <Text style={{ fontSize: 12, color: colors.ink3 }}><Text style={{ fontSize: 15, fontWeight: "800", letterSpacing: -0.3, color: colors.ink1 }}>{loaded ? (kind === "following" ? profile.followingCount ?? 0 : profile.followerCount ?? 0) : "—"}</Text> {kind === "following" ? "关注" : "粉丝"}</Text>
             </Pressable>)}
           </View>
           <CompactTabs
@@ -405,8 +407,8 @@ function AuthorProfileContent({
                   return (
                     <View
                       style={{
-                        paddingHorizontal: 12,
-                        paddingBottom: 12,
+                        borderBottomWidth: colors.components.surfaceBorder,
+                        borderBottomColor: colors.line,
                       }}
                     >
                       <UserPostCard
@@ -433,10 +435,10 @@ function AuthorProfileContent({
                       {tab === "apps" ? "还没有公开作品" : "还没有公开动态"}
                     </Text></EmptyState>
                   ) : !loaded && !error ? (
-                    <View accessibilityLabel="正在加载作者内容" style={{ padding: 16, gap: 16 }}>
+                    <View accessibilityLabel="正在加载作者内容" style={{ padding: 16, gap: 12 }}>
                       {[0, 1, 2].map(key => <View key={key} style={{ gap: 10, paddingVertical: 12 }}>
                         <View style={{ width: "45%", height: 14, borderRadius: 7, backgroundColor: colors.surfaceRaised }} />
-                        <View style={{ height: tab === "apps" ? 96 : 54, borderRadius: 20, backgroundColor: colors.surfaceRaised }} />
+                        <View style={{ height: tab === "apps" ? 76 : 48, borderRadius: 14, backgroundColor: colors.surfaceRaised }} />
                         <View style={{ width: "70%", height: 10, borderRadius: 5, backgroundColor: colors.surfaceRaised }} />
                       </View>)}
                     </View>

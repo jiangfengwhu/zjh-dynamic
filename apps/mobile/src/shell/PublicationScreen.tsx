@@ -384,9 +384,9 @@ function CreateApplicationPage({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        paddingHorizontal: 18,
-        gap: 18,
-        paddingBottom: 16 + insets.bottom,
+        paddingHorizontal: 16,
+        gap: 12,
+        paddingBottom: 12 + insets.bottom,
       }}
     >
       <View
@@ -417,9 +417,9 @@ function CreateApplicationPage({
               } else void polish();
             }}
             style={{
-              minHeight: 36,
-              paddingHorizontal: 14,
-              borderRadius: 18,
+              minHeight: 30,
+              paddingHorizontal: 12,
+              borderRadius: 15,
               backgroundColor: colors.orchidTint,
               flexDirection: "row",
               alignItems: "center",
@@ -429,9 +429,9 @@ function CreateApplicationPage({
             {polishing ? (
               <ActivityIndicator size="small" color={colors.orchidText} />
             ) : (
-              <SymbolIcon name="spark" size={16} color={colors.orchidText} />
+              <SymbolIcon name="spark" size={14} strokeWidth={2.1} color={colors.orchid} />
             )}
-            <Text style={{ color: colors.orchidText, fontSize: 13, fontWeight: "700" }}>
+            <Text style={{ color: colors.orchidText, fontSize: 12, fontWeight: "700" }}>
               {polishing ? "取消润色" : "AI 润色"}
             </Text>
           </Pressy>
@@ -478,15 +478,15 @@ function CreateApplicationPage({
         placeholderTextColor={colors.ink3}
         style={{
           height: CREATION_INPUT_HEIGHT,
-          padding: 20,
+          padding: 14,
           borderRadius: colors.radius.xl,
           borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
           borderColor: colors.line,
           backgroundColor: colors.surface,
           boxShadow: colors.shadow.card,
           color: colors.ink1,
-          fontSize: 16,
-          lineHeight: 25,
+          fontSize: 15,
+          lineHeight: 23,
           textAlignVertical: "top",
         }}
       />
@@ -532,7 +532,7 @@ function CreateApplicationPage({
         点击后需求和参考图会交给制作服务；作品发布成功后会收到站内通知，制作进度可手动刷新。
       </Text>
     </KeyboardAwareScrollView>
-    <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12 + insets.bottom, backgroundColor: colors.canvas }}>
+    <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 + insets.bottom, backgroundColor: colors.canvas }}>
       <Pressy
         accessibilityRole="button"
         accessibilityLabel="提交需求并开始制作"
@@ -546,10 +546,10 @@ function CreateApplicationPage({
         }
         onPress={() => void create()}
         style={{
-          minHeight: 56,
-          borderRadius: 28,
+          minHeight: 46,
+          borderRadius: 23,
           experimental_backgroundImage: colors.aurora,
-          boxShadow: "0 10px 24px rgba(115,87,255,0.32)",
+          boxShadow: "0 6px 18px rgba(255,61,139,0.32)",
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
@@ -568,10 +568,10 @@ function CreateApplicationPage({
         {busy ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <SymbolIcon name="spark" size={20} strokeWidth={2} color="#FFFFFF" />
+          <SymbolIcon name="spark" size={17} strokeWidth={2.2} color="#FFFFFF" />
         )}
         <Text
-          style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "800", letterSpacing: -0.1 }}
+          style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "800", letterSpacing: -0.1 }}
         >
           {busy ? submitStatus : "进入制作"}
         </Text>

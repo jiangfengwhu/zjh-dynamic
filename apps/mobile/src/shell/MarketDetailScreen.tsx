@@ -644,7 +644,7 @@ function MarketDetailContent({
     });
   }
   const summary = (shared?.summary ?? item.summary ?? app.description ?? "").trim();
-  function renderIcon(size = 96) {
+  function renderIcon(size = 76) {
     const style = [styles.mark, { width: size, height: size, borderRadius: size * 0.27 }];
     const content = <>
       <ApplicationIcon application={{ ...item, manifest: displayed, iconUrl: manualIcon || sharing?.iconUrl || shared?.iconUrl || item.iconUrl }} size={size} />
@@ -809,10 +809,13 @@ function MarketDetailContent({
                 onPress={withdraw}
                 accessibilityLabel="撤回上架"
                 scale={1}
+                hitSlop={6}
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
+                  width: 36,
+                  height: 36,
+                  minWidth: 36,
+                  minHeight: 36,
+                  borderRadius: 18,
                   alignItems: "center",
                   backgroundColor: colors.redTint,
                 }}
@@ -824,9 +827,10 @@ function MarketDetailContent({
                 accessibilityLabel="公开到应用市场"
                 onPress={onPublication}
                 scale={1}
-                style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", backgroundColor: colors.accent, paddingHorizontal: 0, paddingVertical: 0 }}
+                hitSlop={6}
+                style={{ width: 36, height: 36, minWidth: 36, minHeight: 36, borderRadius: 18, alignItems: "center", backgroundColor: colors.accent, paddingHorizontal: 0, paddingVertical: 0 }}
               >
-                <SymbolIcon name="send" size={20} strokeWidth={2.2} color={colors.onAccent} />
+                <SymbolIcon name="send" size={17} strokeWidth={2.2} color={colors.onAccent} />
               </Pressy>
             ) : undefined
           }
@@ -878,7 +882,7 @@ function MarketDetailContent({
                       placeholderTextColor={colors.ink3}
                       style={[
                         styles.input,
-                        { height: 104, textAlignVertical: "top" },
+                        { height: 92, textAlignVertical: "top" },
                       ]}
                     />
                   </View>
@@ -1019,7 +1023,7 @@ function MarketDetailContent({
               <>
                 <View style={styles.hero}>
                   {renderIcon()}
-                  <View style={{ flex: 1, minWidth: 0, minHeight: 72, justifyContent: "space-between", gap: 8 }}>
+                  <View style={{ flex: 1, minWidth: 0, minHeight: 64, justifyContent: "space-between", gap: 6 }}>
                     <Text
                       style={styles.title}
                       numberOfLines={1}
@@ -1089,7 +1093,7 @@ function MarketDetailContent({
                   style={styles.author}
                 >
                   <View style={styles.authorIdentity}>
-                    <UserAvatar uri={authorAvatar} authorId={authorId} size={28} />
+                    <UserAvatar uri={authorAvatar} authorId={authorId} size={24} />
                     <Text
                       numberOfLines={1}
                       style={{
@@ -1147,8 +1151,9 @@ function MarketDetailContent({
                   >
                     <SymbolIcon
                       name={owner ? "edit" : "spark"}
-                      size={20}
-                      color={colors.ink1}
+                      size={18}
+                      strokeWidth={2.1}
+                      color={colors.accent}
                     />
                     <Text style={[styles.toolText, { color: colors.ink1 }]}>
                       {owner ? "修改" : "Remix"}
@@ -1173,8 +1178,9 @@ function MarketDetailContent({
                   >
                     <SymbolIcon
                       name="share"
-                      size={20}
-                      color={colors.ink1}
+                      size={18}
+                      strokeWidth={2.1}
+                      color={colors.cyan}
                     />
                     <Text
                       style={[styles.toolText, { color: colors.ink1 }]}
@@ -1191,7 +1197,7 @@ function MarketDetailContent({
                     onPress={uninstall}
                     style={styles.tool}
                   >
-                    <SymbolIcon name="close" size={20} color={colors.redText} />
+                    <SymbolIcon name="close" size={18} strokeWidth={2.1} color={colors.redText} />
                     <Text style={[styles.toolText, { color: colors.redText }]}>
                       卸载
                     </Text>
@@ -1333,21 +1339,21 @@ const useStyles = createThemedStyles((base) => {
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     content: {
-      paddingHorizontal: 18,
-      paddingTop: 8,
-      paddingBottom: 20,
-      gap: 16,
+      paddingHorizontal: 16,
+      paddingTop: 4,
+      paddingBottom: 16,
+      gap: 12,
     },
     hero: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 18,
-      paddingVertical: 8,
+      gap: 14,
+      paddingVertical: 4,
     },
     mark: {
-      width: 96,
-      height: 96,
-      borderRadius: 26,
+      width: 76,
+      height: 76,
+      borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
@@ -1384,11 +1390,10 @@ const useStyles = createThemedStyles((base) => {
       overflow: "hidden",
     },
     caption: { color: t.ink3, fontSize: 12, lineHeight: 17 },
-    copy: { color: t.ink2, fontSize: 15, lineHeight: 24 },
+    copy: { color: t.ink2, fontSize: 14, lineHeight: 21 },
     subtitle: {
       color: t.ink1,
       ...t.type.headline,
-      fontSize: 18,
     },
     author: {
       flexDirection: "row",
@@ -1412,16 +1417,16 @@ const useStyles = createThemedStyles((base) => {
       borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
       borderColor: t.line,
       boxShadow: t.shadow.card,
-      paddingVertical: 18,
-      paddingHorizontal: 20,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
     },
-    fact: { flex: 1, gap: 4 },
-    factValue: { color: t.ink1, fontSize: 17, lineHeight: 22, fontWeight: "800", letterSpacing: -0.3 },
-    tools: { flexDirection: "row", gap: 10 },
+    fact: { flex: 1, gap: 2 },
+    factValue: { color: t.ink1, fontSize: 15, lineHeight: 20, fontWeight: "800", letterSpacing: -0.3 },
+    tools: { flexDirection: "row", gap: 8 },
     tool: {
       flex: 1,
       minWidth: 0,
-      minHeight: 76,
+      minHeight: 60,
       borderRadius: t.radius.xl,
       backgroundColor: t.surface,
       borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
@@ -1429,14 +1434,14 @@ const useStyles = createThemedStyles((base) => {
       boxShadow: t.shadow.card,
       alignItems: "center",
       justifyContent: "center",
-      gap: 6,
-      paddingVertical: 10,
+      gap: 4,
+      paddingVertical: 8,
     },
-    toolText: { fontSize: 13, lineHeight: 18, fontWeight: "700", textAlign: "center" },
-    gallery: { gap: 12 },
+    toolText: { fontSize: 12, lineHeight: 16, fontWeight: "700", textAlign: "center" },
+    gallery: { gap: 8 },
     galleryImage: {
-      width: 144,
-      height: 256,
+      width: 120,
+      height: 213,
       borderRadius: t.radius.xl,
       backgroundColor: t.surfaceRaised,
     },
@@ -1458,9 +1463,9 @@ const useStyles = createThemedStyles((base) => {
     versionChoice: {
       flex: 1,
       minWidth: 0,
-      minHeight: 44,
+      minHeight: 38,
       paddingHorizontal: 12,
-      borderRadius: 22,
+      borderRadius: 19,
       borderWidth: t.components.surfaceBorder,
       flexDirection: "row",
       alignItems: "center",
@@ -1473,19 +1478,19 @@ const useStyles = createThemedStyles((base) => {
       backgroundColor: t.surfaceRaised,
       borderWidth: 0,
       borderColor: t.line,
-      paddingHorizontal: 18,
-      paddingVertical: 13,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
       borderRadius: t.radius.md,
-      minHeight: 52,
-      fontSize: 15,
+      minHeight: 44,
+      fontSize: 14,
     },
-    categories: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    categories: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
     chip: {
-      minHeight: 38,
-      height: 38,
-      borderRadius: 19,
+      minHeight: 30,
+      height: 30,
+      borderRadius: 15,
       borderWidth: t.components.surfaceBorder,
-      paddingHorizontal: 16,
+      paddingHorizontal: 12,
       paddingVertical: 0,
       alignItems: "center",
     },
@@ -1500,10 +1505,12 @@ const useStyles = createThemedStyles((base) => {
       position: "absolute",
       top: 0,
       right: 0,
-      width: 44,
-      height: 44,
+      width: 32,
+      height: 32,
+      minWidth: 32,
+      minHeight: 32,
       alignItems: "center",
-      borderRadius: 22,
+      borderRadius: 16,
       backgroundColor: t.redTint,
     },
     addShot: {
@@ -1533,18 +1540,18 @@ const useStyles = createThemedStyles((base) => {
       justifyContent: "flex-start",
     },
     dock: {
-      paddingHorizontal: 18,
-      paddingTop: 10,
-      paddingBottom: 12,
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 10,
       flexDirection: "row",
       gap: 10,
       backgroundColor: t.canvas,
     },
     primary: {
-      minHeight: 54,
-      borderRadius: 27,
+      minHeight: 46,
+      borderRadius: 23,
       backgroundColor: t.accent,
-      paddingHorizontal: 24,
+      paddingHorizontal: 20,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -1552,21 +1559,21 @@ const useStyles = createThemedStyles((base) => {
     },
     primaryText: {
       color: t.onAccent,
-      fontSize: 16,
-      lineHeight: 22,
+      fontSize: 15,
+      lineHeight: 20,
       fontWeight: "700",
     },
     updateButton: {
-      minWidth: 84,
-      minHeight: 54,
-      paddingHorizontal: 20,
-      borderRadius: 27,
+      minWidth: 76,
+      minHeight: 46,
+      paddingHorizontal: 16,
+      borderRadius: 23,
       backgroundColor: t.surfaceRaised,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       gap: 6,
     },
-    empty: { padding: 24, gap: 16, alignItems: "center" },
+    empty: { padding: 20, gap: 12, alignItems: "center" },
   };
 });

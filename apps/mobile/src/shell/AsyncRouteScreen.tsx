@@ -50,11 +50,11 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
   return <ThemeContext.Provider value={theme}>
     <Screen style={{ flex: 1, backgroundColor: theme.colors.canvas }}>
       <PageHeader title={title} onBack={onBack} />
-      <View style={{ paddingHorizontal: 18, paddingTop: 8, gap: 16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 4, gap: 12 }}>
         {error ? <>
           <Text accessibilityRole="alert" style={{ color: theme.colors.redText, fontSize: 15, lineHeight: 22 }}>{error.message}</Text>
           {renderErrorAction?.(error)}
-          <Pressy accessibilityRole="button" style={{ alignSelf: "flex-start", minHeight: theme.colors.components.controlHeight, paddingHorizontal: 28, borderRadius: theme.colors.radius.pill, backgroundColor: theme.colors.accent, alignItems: "center", justifyContent: "center" }} onPress={() => { setError(null); setAttempt(value => value + 1); }}>
+          <Pressy accessibilityRole="button" style={{ alignSelf: "flex-start", minHeight: theme.colors.components.controlHeight, paddingHorizontal: 22, borderRadius: theme.colors.radius.pill, backgroundColor: theme.colors.accent, alignItems: "center", justifyContent: "center" }} onPress={() => { setError(null); setAttempt(value => value + 1); }}>
             <Text style={{ color: theme.colors.onAccent, fontWeight: "700" }}>重新加载</Text>
           </Pressy>
         </> : <PageSkeleton rows={3} />}

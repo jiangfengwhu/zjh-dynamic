@@ -35,7 +35,7 @@ export function UpdateBanner({ items, busy, completed, error, apkProgress: repor
       <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.card}>
         <View style={styles.row}>
           <View style={styles.avatar}>
-            <Icon name="box" size={22} color="#FFFFFF" />
+            <Icon name="box" size={18} color="#FFFFFF" />
           </View>
           <View style={styles.copy}>
             <Text style={styles.title}>{apk ? `新版本 ${apk.versionName} 可更新` : completed ? "作品已准备好" : "有可用更新"}</Text>
@@ -69,18 +69,18 @@ const useStyles = createThemedStyles((t) => ({
     zIndex: 30,
   },
   card: {
-    padding: 18,
-    gap: 14,
+    padding: 14,
+    gap: 10,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -88,7 +88,7 @@ const useStyles = createThemedStyles((t) => ({
   },
   copy: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   title: {
     fontFamily: t.serif,
@@ -96,8 +96,8 @@ const useStyles = createThemedStyles((t) => ({
     color: t.ink1,
   },
   detail: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
     color: t.ink2,
   },
   actions: {
@@ -106,24 +106,24 @@ const useStyles = createThemedStyles((t) => ({
     gap: 8,
   },
   later: {
-    minHeight: 44,
-    paddingHorizontal: 18,
+    minHeight: 36,
+    paddingHorizontal: 14,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 22,
+    borderRadius: 18,
     backgroundColor: t.surfaceRaised,
   },
   laterText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: t.ink1,
   },
   now: {
-    minHeight: 44,
-    paddingHorizontal: 20,
+    minHeight: 36,
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 22,
+    borderRadius: 18,
     backgroundColor: t.accent,
   },
   nowBusy: {
