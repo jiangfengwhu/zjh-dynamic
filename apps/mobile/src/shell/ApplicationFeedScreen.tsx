@@ -3,7 +3,7 @@ import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "r
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { SafeAreaFrameContext, SafeAreaInsetsContext, SafeAreaProvider } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
@@ -15,11 +15,10 @@ import { HostText as Text } from "./feed/HostText";
 import { useAccount } from "./account";
 import { useProfileDrawer } from "./ProfileDrawer";
 import { bindApplicationExperienceBack, bindNextApplication } from "./applicationExperienceNavigation";
-import { EXPERIENCE_AHEAD, EXPERIENCE_CACHE_SIZE, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
+import { EXPERIENCE_AHEAD, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
 import { ApplicationInteractions } from "./ApplicationInteractions";
 import type { UserPost } from "./feed/userPosts";
 import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
-import { AnimatedFlashList, type FlashListRef } from "./AnimatedFlashList";
 import { fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
 
 type Props = {
@@ -245,59 +244,40 @@ type QueueProps = {
 function ExperienceQueue(props: QueueProps) {
   const { entries, preparations, retry } = useApplicationExperienceQueue(props.items, props.index, props.active, props.active && !props.switching);
   const current = props.items[props.index];
-  const retained = useMemo(() => new Set(entries.map(experienceId)), [entries]);
-  const list = useAnimatedRef<FlashListRef<MarketApplication>>();
-  const ready = useSharedValue(false);
+  const positions = useMemo(() => new Map(props.items.map((item, index) => [experienceId(item), index])), [props.items]);
   const { height, drag } = props;
   const metrics = useMemo(() => ({ frame: { x: 0, y: 0, width: props.width, height }, insets: { top: 0, bottom: 0, left: 0, right: 0 } }), [props.width, height]);
   const origin = useSharedValue(0);
-  const actualOffset = useSharedValue(0);
-  const trackOffset = useAnimatedScrollHandler(event => { actualOffset.value = event.contentOffset.y; });
-  // Preserve the same visual position until the native scroll event confirms
-  // the new offset. Command dispatch and animated props need not land together.
-  const motion = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value + actualOffset.value - origin.value }] }));
+  const motion = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value - origin.value }] }));
   const syncPosition = useCallback(() => {
     runOnUI((offset: number) => {
-      // Scroll once after committing the new identity, then remove the visual
-      // translation in the same UI task. Paging never emits per-frame scrolls.
+      // The completed drag and the new origin represent the same visual offset.
+      // One transform owns the whole motion; no native scroll rebase can race it.
       cancelAnimation(drag);
       origin.value = offset;
       drag.value = 0;
-      if (ready.value) scrollTo(list, 0, offset, false);
     })(Math.max(0, props.index * height));
-  }, [height, props.index, drag, list, ready, origin]);
+  }, [height, props.index, drag, origin]);
   useLayoutEffect(syncPosition, [syncPosition]);
-  // Keep absolute feed positions stable. Sliding a seven-item data window
-  // rebases native layouts separately from the gesture, causing a visible jump.
-  // Only identities in `retained` may own an application instance.
+  // This is a bounded seven-page stage, rather than an independently scrolling
+  // list. Stable absolute positions preserve app instances and native hit testing.
   // Native SafeAreaView descendants need a provider, but it must stay outside
   // the moving list: providers emit frame/inset events on every translated frame.
-  return <SafeAreaProvider style={{ flex: 1 }} initialMetrics={metrics}><Animated.View style={[{ flex: 1 }, motion]}><AnimatedFlashList ref={list} data={props.items} keyExtractor={experienceId} getItemType={experienceId}
-    // The stage clips the moving pages. Both list containers must expose their
-    // already-mounted neighbours while the list's scroll offset stays fixed.
-    style={{ overflow: "visible" }} overrideProps={{ style: { overflow: "visible" } }}
-    initialScrollIndex={Math.max(0, props.index)} scrollEnabled={false} showsVerticalScrollIndicator={false}
-    onScroll={trackOffset} scrollEventThrottle={1}
-    bounces={false} overScrollMode="never" maintainVisibleContentPosition={{ disabled: true }}
-    // Allocate the lookahead cells before the swipe. A one-screen buffer starts
-    // mounting new app trees during forward scrolling; backwards reuses old cells.
-    // Only seven retained identities own app trees, regardless of draw distance.
-    drawDistance={height * EXPERIENCE_AHEAD} maxItemsInRecyclePool={EXPERIENCE_CACHE_SIZE}
-    onLoad={() => { ready.value = true; syncPosition(); }}
-    renderItem={({ item, index, target }) => {
-      if (target === "Measurement" || !retained.has(experienceId(item))) return <View style={{ height, width: props.width }} />;
+  return <SafeAreaProvider style={{ flex: 1 }} initialMetrics={metrics}><Animated.View pointerEvents="box-none" style={[{ position: "absolute", top: 0, left: 0, width: props.width, height: props.items.length * height }, motion]}>
+    {entries.map(item => {
+      const index = positions.get(experienceId(item))!;
       const offset = index - props.index;
       const selected = experienceId(item) === experienceId(current);
       const nearby = Math.abs(offset) <= 1;
-      return <CachedExperience item={item} selected={selected}
+      return <View key={experienceId(item)} pointerEvents="box-none" style={{ position: "absolute", top: index * height, left: 0, width: props.width, height }}><CachedExperience item={item} selected={selected}
         ready={preparations.get(experienceId(item))?.ready ?? false} error={preparations.get(experienceId(item))?.error ?? ""} onRetry={retry}
         interactive={selected && props.active && !props.switching}
         accessible={selected && props.active}
         visible={props.active && !props.paused && nearby}
         paused={selected && props.paused} foreground={props.foreground}
         width={props.width} height={height} render={props.render}
-        onPause={props.onPause} onResume={props.onResume} onDetail={props.onDetail} />;
-    }} /></Animated.View></SafeAreaProvider>;
+        onPause={props.onPause} onResume={props.onResume} onDetail={props.onDetail} /></View>;
+    })}</Animated.View></SafeAreaProvider>;
 }
 type CachedExperienceProps = Omit<QueueProps, "items" | "index" | "active" | "switching" | "drag"> & {
   item: MarketApplication; selected: boolean; ready: boolean; error: string; onRetry: (key: string) => void;
