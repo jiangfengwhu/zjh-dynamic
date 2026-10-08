@@ -140,7 +140,7 @@ export function UserPostCard({
             <PostMenu
               identity={post.id}
               busy={busy}
-              onDelete={own ? remove : undefined}
+              onDelete={own && !post.applicationDiscussion ? remove : undefined}
               onCopy={copy}
               onShare={share}
             />

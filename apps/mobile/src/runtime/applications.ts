@@ -92,22 +92,7 @@ async function prepareExperienceResources(manifest: ApplicationManifest, signal:
   signal.throwIfAborted();
 }
 
-/** Fill the next public work's native cache without executing it or pinning it. */
-export async function prefetchPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal) {
-  assertCompatible(manifest, manifest.appId);
-  signal.throwIfAborted();
-  if (preparedExperiences.has(experiencePreparationKey(manifest))) return;
-  const running = active.get(manifest.appId);
-  if (running) return; // A loaded work needs no prefetch; foreground handles version/access conflicts.
-  const raw = await readShellValue(`application.pending.${manifest.appId}`) || await readShellValue(`application.install.${manifest.appId}`);
-  if (raw && !sameApplicationRelease(JSON.parse(raw), manifest)) return;
-  signal.throwIfAborted();
-  // A started native transfer cannot be cancelled by this APK. The window
-  // scheduler stops subsequent jobs; a foreground opener joins this same task.
-  await prepareExperienceResources(manifest, signal);
-}
-
-/** Run an explicitly revealed public work without pinning it to the user's catalog. */
+/** Load a public work for the current stage or its bounded warm queue. */
 export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal) {
   const appId = manifest.appId;
   assertCompatible(manifest, appId);

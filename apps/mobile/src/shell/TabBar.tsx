@@ -1,3 +1,4 @@
+import { nextApplicationExperience } from "./applicationExperienceNavigation";
 import { HostText as Text } from "./feed/HostText";
 import { StyleSheet, View } from "react-native";
 import Animated, { FadeIn, ReduceMotion } from "react-native-reanimated";
@@ -11,7 +12,7 @@ import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 
 export const SHELL_TABS = [
-  { id: "feed", title: "首页", short: "首页", icon: "feed" },
+  { id: "feed", title: "下一个作品", short: "下一个", icon: "next" },
   { id: "market", title: "社区", short: "社区", icon: "chat" },
   { id: "notifications", title: "通知", short: "通知", icon: "bell" },
   { id: "mine", title: "我的", short: "我的", icon: "mine" },
@@ -53,7 +54,7 @@ export function TabBar({
           item={item}
           active={item.id === activeId}
           unread={item.id === "notifications" ? unread : 0}
-          onPress={() => onChange(item.id)}
+          onPress={() => item.id === "feed" && activeId === "feed" ? nextApplicationExperience() : onChange(item.id)}
         />
       ))}
       <View style={styles.slot}>
@@ -74,7 +75,7 @@ export function TabBar({
           item={item}
           active={item.id === activeId}
           unread={item.id === "notifications" ? unread : 0}
-          onPress={() => onChange(item.id)}
+          onPress={() => item.id === "feed" && activeId === "feed" ? nextApplicationExperience() : onChange(item.id)}
         />
       ))}
     </View>

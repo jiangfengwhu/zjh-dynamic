@@ -23,6 +23,8 @@ export type ApplicationLink = {
 };
 export type PostContent = { format: "html"; version: 1; html: string };
 export type UserPost = {
+  applicationDiscussion?: boolean;
+  saved?: boolean;
   id: string;
   author: { id: string; name: string; avatarUrl: string | null };
   body: string;
@@ -487,6 +489,12 @@ export function togglePostLike(post: UserPost) {
     }
   })();
   return { post: entry.optimistic, settled: entry.settled };
+}
+export async function fetchApplicationDiscussion(appId: string) {
+  return (await readSocial<{ post: UserPost }>(`/v1/application-discussions/${appId}`)).post;
+}
+export function saveApplicationDiscussion(id: string, saved: boolean) {
+  return readSocial<{ saved: boolean }>(`/v1/posts/${id}/bookmark`, { method: saved ? "POST" : "DELETE" });
 }
 export async function publishPostComment(
   id: string,

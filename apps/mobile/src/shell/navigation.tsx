@@ -54,7 +54,7 @@ import {
 } from "./ProfileDrawer";
 import { requireAccount, currentAccountId, cachedAccountId } from "./account";
 import { readShellValue, removeShellValue } from "./shellStorage";
-import { ThemeContext, getTheme, useTheme, type ThemeMode, type ThemePreference } from "../../../../packages/ui/theme";
+import { ThemeContext, useTheme, type ThemeMode, type ThemePreference } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { AsyncRouteScreen } from "./AsyncRouteScreen";
 import { cachedFeature, openFeature } from "../../../../packages/features/src/registry";
@@ -332,8 +332,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
   const active = state.routes[state.index]?.name ?? "feed";
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const homeTheme = useMemo(() => ({ ...theme, mode: "dark" as const, colors: getTheme("dark") }), [theme]);
-  const colors = active === "feed" ? homeTheme.colors : theme.colors;
+  const colors = theme.colors;
   const keyboard = useKeyboardOpen();
   const { hidden, tabHeight } = useFeedChrome();
   const { height: windowHeight } = useWindowDimensions();
@@ -372,7 +371,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
       ]}
     >
       {active !== "market" && active !== "feed" ? <AmbientFill offset={windowHeight - barHeight} /> : null}
-      <ThemeContext.Provider value={active === "feed" ? homeTheme : theme}>
+      <ThemeContext.Provider value={theme}>
       <TabBar
         activeId={active}
         immersive={active === "feed"}
@@ -608,7 +607,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             onSearch={() => shellNavigationRef.navigate("discovery")}
                             onAuthor={openAuthor}
                             onDetail={item => shellNavigationRef.navigate("marketDetail", { item })}
-                            onOpen={id => shellNavigationRef.navigate("bundle", { id })}
+                            onComment={post => shellNavigationRef.navigate("postDetail", { post })}
                             onShare={application => shellNavigationRef.navigate("composePost", { application })}
                             onRemix={item => openCreationComposer({ appId: item.manifest.appId, title: item.manifest.appName, releaseId: item.manifest.releaseId, fork: true })}
                           />

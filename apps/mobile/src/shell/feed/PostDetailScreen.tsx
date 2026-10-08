@@ -116,7 +116,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
     })(); } }]);
   }
   return <ScreenEdge bottom={false}><Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-    <PageHeader title="动态" onBack={onBack} />
+    <PageHeader title={post.applicationDiscussion ? "作品评论" : "动态"} onBack={onBack} />
     <KeyboardViewport>
       <View style={{ flex: 1 }}>
       <PullRefreshSurface refresh={refreshPull}>
