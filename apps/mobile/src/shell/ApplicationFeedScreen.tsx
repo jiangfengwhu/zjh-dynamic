@@ -19,6 +19,7 @@ import { bindApplicationExperienceBack, bindNextApplication } from "./applicatio
 import { EXPERIENCE_AHEAD, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
 import { ApplicationInteractions } from "./ApplicationInteractions";
 import type { UserPost } from "./feed/userPosts";
+import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
 import { fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
 
 type Props = {
@@ -26,7 +27,6 @@ type Props = {
   onProfile: () => void;
   onSearch: () => void;
   onDetail: (item: MarketApplication) => void;
-  onComment: (post: UserPost) => void;
   onShare: (item: MarketApplication) => void;
   onRemix: (item: MarketApplication) => void;
   onAuthor: (author: { id: string; name: string; avatarUrl: string | null; official?: boolean }) => void;
@@ -49,6 +49,7 @@ export function ApplicationFeedScreen(props: Props) {
   const [page, setPage] = useState<MarketPage & { owner: string; loaded: boolean }>({ owner: identity, applications: [], loaded: false });
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [commentPost, setCommentPost] = useState<UserPost | null>(null);
   const [switching, setSwitching] = useState(false);
   const pausedRef = useRef(false);
   const [error, setError] = useState("");
@@ -154,7 +155,7 @@ export function ApplicationFeedScreen(props: Props) {
     });
   }, [next, previous, height, commit, drag, moving]);
   const swipe = useMemo(() => Gesture.Pan()
-    .enabled(active && Boolean(item))
+    .enabled(active && !commentPost && Boolean(item))
     .maxPointers(1)
     .activeOffsetY([-8, 8])
     .failOffsetX([-25, 25])
@@ -172,7 +173,7 @@ export function ApplicationFeedScreen(props: Props) {
       else drag.value = withTiming(0, timing);
     })
     .onFinalize(() => { if (!moving.value) { drag.value = withTiming(0, timing); runOnJS(setSwitching)(false); } }),
-    [active, item, next, previous, height, finish, moving, drag]);
+    [active, commentPost, item, next, previous, height, finish, moving, drag]);
   const advance = useCallback(() => {
     if (next) finish(1);
     else if (!busy && page.nextCursor) {
@@ -198,7 +199,7 @@ export function ApplicationFeedScreen(props: Props) {
       </View>
       <GestureDetector gesture={swipe}>
         <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
-          {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={props.onComment} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
+          {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={setCommentPost} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Pressy accessibilityRole="button" accessibilityLabel={`查看作者${item.authorName}`} disabled={!item.authorId} onPress={() => item.authorId && props.onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial })} style={{ flex: 1, minWidth: 0, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 }}>
               <UserAvatar uri={item.authorAvatarUrl} size={32} />
@@ -212,6 +213,7 @@ export function ApplicationFeedScreen(props: Props) {
 
         </View>
       </GestureDetector>
+      {commentPost ? <ApplicationCommentsSheet key={`${identity}:${commentPost.id}`} post={commentPost} active={active} onDismiss={() => setCommentPost(null)} /> : null}
     </View>
   </ThemeContext.Provider>;
 }

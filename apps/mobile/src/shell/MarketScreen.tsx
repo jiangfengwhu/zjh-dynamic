@@ -15,13 +15,12 @@ import PagerView, {
   type PagerViewOnPageSelectedEvent,
 } from "react-native-pager-view";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { useFocusEffect, useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import { HostText as Text } from "./feed/HostText";
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
   runOnJS,
-  runOnUI,
   useEvent,
 } from "react-native-reanimated";
 import { Pressy, RoundButton } from "../../../../packages/ui/chrome";
@@ -47,7 +46,6 @@ import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 import { usePullToRefresh } from "./feed/pullToRefresh";
 import { PullRefreshSurface } from "./feed/PullRefreshSurface";
-import { useProfileDrawer } from "./ProfileDrawer";
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const empty: MarketView = { applications: [], at: 0, offset: 0 };
 type MarketProps = {
@@ -79,26 +77,9 @@ function MarketContent(props: MarketProps) {
   const queryEdited = useRef(false);
   const { visited, visit, reveal } = useVisitedPager();
   const [section, setSection] = useState<"discover" | "installed">("discover");
-  const { gesture, marketActive, marketPosition } = useProfileDrawer();
+  const marketPosition = useSharedValue(0);
   const pager = useRef<PagerView>(null);
-  useFocusEffect(
-    useCallback(() => {
-      runOnUI(() => {
-        "worklet";
-        marketActive.value = true;
-      })();
-      return () => {
-        runOnUI(() => {
-          "worklet";
-          marketActive.value = false;
-        })();
-      };
-    }, [marketActive])
-  );
-  const native = useMemo(
-    () => Gesture.Native().requireExternalGestureToFail(gesture),
-    [gesture]
-  );
+  const native = useMemo(() => Gesture.Native(), []);
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
     (event) => {
       "worklet";
@@ -209,7 +190,6 @@ function MarketContent(props: MarketProps) {
               searchQuery={installedQuery}
               embedded
               active={section === "installed"}
-              drawerGesture={gesture}
               onCreate={props.onCreate}
               onOpen={props.onOpen}
               onDetail={props.onDetail}
@@ -235,7 +215,6 @@ function MarketDiscovery({
 }) {
   const styles = useStyles();
 
-  const { gesture: drawerGesture } = useProfileDrawer();
   const scrollY = useSharedValue(0);
   const lastSave = useSharedValue(0);
   const refreshPull = usePullToRefresh({
@@ -440,7 +419,7 @@ function MarketDiscovery({
             </Pressy>
         )} />
       </View>
-      <PullRefreshSurface refresh={refreshPull} drawerGesture={drawerGesture}>
+      <PullRefreshSurface refresh={refreshPull}>
         <AnimatedFlashList maintainVisibleContentPosition={{ disabled: true }}
           ref={list}
           data={view.applications}

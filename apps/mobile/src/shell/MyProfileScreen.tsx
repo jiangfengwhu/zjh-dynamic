@@ -79,7 +79,7 @@ function MyProfileContent({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAccount();
-  const [tab, setTab] = useState<"posts" | "works">("posts");
+  const [tab, setTab] = useState<"posts" | "works">("works");
   const { visited, reveal } = useVisitedPager();
   const [stats, setStats] = useState<{
     id: string;
@@ -111,11 +111,8 @@ function MyProfileContent({
   const pager = useRef<PagerView>(null);
   const collapsed = useSharedValue(0);
   const paging = useSharedValue(false);
-  const active = useSharedValue("posts");
+  const active = useSharedValue("works");
   const [viewport, setViewport] = useState(0);
-  useEffect(() => {
-    collapsed.value = 0;
-  }, [user?.id, collapsed]);
   const identityMask = useAnimatedStyle(() => ({
     height: Math.max(0, PROFILE_RANGE - collapsed.value),
   }));
@@ -147,6 +144,14 @@ function MyProfileContent({
     opacity: collapsed.value / PROFILE_RANGE,
   }));
   const { gesture, profileActive, profilePosition } = useProfileDrawer();
+  useEffect(() => {
+    collapsed.value = 0;
+    active.value = "works";
+    profilePosition.value = 0;
+    paging.value = false;
+    setTab("works");
+    pager.current?.setPageWithoutAnimation(0);
+  }, [user?.id, collapsed, active, profilePosition, paging]);
   useFocusEffect(
     useCallback(() => {
       const hasProfile = !!user;
@@ -177,7 +182,7 @@ function MyProfileContent({
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
     (event) => {
       "worklet";
-      const value = event.position === 0 ? "posts" : "works";
+      const value = event.position === 0 ? "works" : "posts";
       active.value = value;
       runOnJS(setTab)(value);
     },
@@ -193,7 +198,7 @@ function MyProfileContent({
   function selectTab(value: "posts" | "works") {
     if (value === tab) return;
     paging.value = true;
-    pager.current?.setPage(value === "posts" ? 0 : 1);
+    pager.current?.setPage(value === "works" ? 0 : 1);
   }
   const author: PublicAuthor | undefined = user
     ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl }
@@ -375,8 +380,8 @@ function MyProfileContent({
                     position={profilePosition}
                     value={tab}
                     options={[
-                      { id: "posts", label: "动态", icon: "feed" },
                       { id: "works", label: "作品", icon: "box" },
+                      { id: "posts", label: "动态", icon: "feed" },
                     ]}
                     onChange={selectTab}
                   />
@@ -386,29 +391,15 @@ function MyProfileContent({
                     key={author.id}
                     ref={pager}
                     style={{ flex: 1 }}
-                    initialPage={tab === "posts" ? 0 : 1}
+                    initialPage={tab === "works" ? 0 : 1}
                     offscreenPageLimit={1}
                     overScrollMode="never"
                     onPageScroll={onPageScroll}
                     onPageSelected={onPageSelected}
                     onPageScrollStateChanged={onPageScrollStateChanged}
                   >
-                    <View key="posts" collapsable={false} style={{ flex: 1 }}>
-                      {visited.has(0) || tab === "posts" ? (
-                      <AuthorProfileScreen
-                        key={author.id}
-                        initialAuthor={author}
-                        embedded
-                        active={tab === "posts"}
-                        drawerGesture={gesture}
-                        onPost={onPost}
-                        onApplication={onApplication}
-                        onProfileLoaded={onProfileLoaded}
-                      />
-                      ) : null}
-                    </View>
                     <View key="works" collapsable={false} style={{ flex: 1 }}>
-                      {visited.has(1) || tab === "works" ? (
+                      {visited.has(0) || tab === "works" ? (
                       <MyApplicationsScreen
                         key={author.id}
                         embedded
@@ -419,6 +410,20 @@ function MyProfileContent({
                         onDetail={onDetail}
                         onManagePublication={onManagePublication}
                         onSharePost={onSharePost}
+                      />
+                      ) : null}
+                    </View>
+                    <View key="posts" collapsable={false} style={{ flex: 1 }}>
+                      {visited.has(1) || tab === "posts" ? (
+                      <AuthorProfileScreen
+                        key={author.id}
+                        initialAuthor={author}
+                        embedded
+                        active={tab === "posts"}
+                        drawerGesture={gesture}
+                        onPost={onPost}
+                        onApplication={onApplication}
+                        onProfileLoaded={onProfileLoaded}
                       />
                       ) : null}
                     </View>

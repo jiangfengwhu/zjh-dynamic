@@ -47,8 +47,6 @@ type Drawer = {
   feedIdle: SharedValue<boolean>;
   profileActive: SharedValue<boolean>;
   profilePosition: SharedValue<number>;
-  marketActive: SharedValue<boolean>;
-  marketPosition: SharedValue<number>;
   notificationActive: SharedValue<boolean>;
   notificationPosition: SharedValue<number>;
   gesture: ReturnType<typeof Gesture.Pan>;
@@ -90,8 +88,6 @@ export function ProfileDrawer({
   const feedIdle = useSharedValue(true);
   const profileActive = useSharedValue(false);
   const profilePosition = useSharedValue(0);
-  const marketActive = useSharedValue(false);
-  const marketPosition = useSharedValue(0);
   const notificationActive = useSharedValue(false);
   const notificationPosition = useSharedValue(0);
   const progress = useSharedValue(0);
@@ -174,7 +170,6 @@ export function ProfileDrawer({
             !applicationActive.value &&
             (!profileActive.value ||
               Math.abs(profilePosition.value) <= 0.001) &&
-            (!marketActive.value || Math.abs(marketPosition.value) <= 0.001) &&
             (!notificationActive.value ||
               Math.abs(notificationPosition.value) <= 0.001) &&
             (!feedActive.value ||
@@ -227,8 +222,6 @@ export function ProfileDrawer({
       feedPosition,
       profileActive,
       profilePosition,
-      marketActive,
-      marketPosition,
       notificationActive,
       notificationPosition,
       eligible,
@@ -249,8 +242,6 @@ export function ProfileDrawer({
       feedIdle,
       profileActive,
       profilePosition,
-      marketActive,
-      marketPosition,
       notificationActive,
       notificationPosition,
       gesture,
@@ -269,8 +260,6 @@ export function ProfileDrawer({
       feedIdle,
       profileActive,
       profilePosition,
-      marketActive,
-      marketPosition,
       notificationActive,
       notificationPosition,
       gesture,

@@ -198,7 +198,7 @@ export function openShellTab(id: ShellTabId) {
   if (!shellNavigationRef.isReady()) return;
   shellNavigationRef.navigate("tabs", { screen: id });
 }
-function openPublication(mode: "post" | "create" = "post") {
+function openPublication(mode: "post" | "create" = "create") {
   const open = () => {
     if (shellNavigationRef.isReady()) shellNavigationRef.navigate("composePost", { mode });
   };
@@ -607,7 +607,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             onSearch={() => shellNavigationRef.navigate("discovery")}
                             onAuthor={openAuthor}
                             onDetail={item => shellNavigationRef.navigate("marketDetail", { item })}
-                            onComment={post => shellNavigationRef.navigate("postDetail", { post })}
                             onShare={application => shellNavigationRef.navigate("composePost", { application })}
                             onRemix={item => openCreationComposer({ appId: item.manifest.appId, title: item.manifest.appName, releaseId: item.manifest.releaseId, fork: true })}
                           />
@@ -621,7 +620,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             onAuthor={openAuthor}
                             onApplication={openPublicMarketApplication}
                             onPost={post => shellNavigationRef.navigate("postDetail", { post })}
-                            onCompose={() => openPublication()}
+                            onCompose={() => openPublication("post")}
                           />}
                         </ShellTabScene>
                       )}

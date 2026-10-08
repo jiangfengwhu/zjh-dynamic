@@ -55,7 +55,7 @@ function PublicationContent({
   onBack,
   initialApplication,
   initialDraft,
-  initialMode = "post",
+  initialMode,
   creation,
   onCreate,
   onSubmitting,
@@ -69,11 +69,12 @@ function PublicationContent({
   onSubmitting?: () => void;
 }) {
   const lockedCreation = Boolean(creation);
-  const [mode, setMode] = useState(lockedCreation ? "create" : initialMode);
+  const startingMode = lockedCreation ? "create" : initialMode ?? (initialApplication || initialDraft ? "post" : "create");
+  const [mode, setMode] = useState(startingMode);
   const { colors } = useTheme();
   const pager = useRef<PagerView>(null);
   const position = useSharedValue(
-    !lockedCreation && initialMode === "post" ? 0 : 1
+    startingMode === "create" ? 0 : 1
   );
   const [postControls, setPostControls] = useState<ComposePostControls>();
   const selectMode = (next: "post" | "create") => {
@@ -90,7 +91,7 @@ function PublicationContent({
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
     (event) => {
       "worklet";
-      runOnJS(selectMode)(event.position === 0 ? "post" : "create");
+      runOnJS(selectMode)(event.position === 0 ? "create" : "post");
     },
     ["onPageSelected"]
   );
@@ -115,13 +116,13 @@ function PublicationContent({
         position={position}
         value={mode}
         options={[
-          { id: "post", label: "发动态", icon: "feed" },
           { id: "create", label: "制作应用", icon: "spark" },
+          { id: "post", label: "发动态", icon: "feed" },
         ]}
         onChange={(value) => {
           if (creating || postControls?.busy) return;
           Keyboard.dismiss();
-          pager.current?.setPage(value === "post" ? 0 : 1);
+          pager.current?.setPage(value === "create" ? 0 : 1);
         }}
       />
     </View>
@@ -143,13 +144,16 @@ function PublicationContent({
           <AnimatedPagerView
             ref={pager}
             style={{ flex: 1 }}
-            initialPage={initialMode === "post" ? 0 : 1}
+            initialPage={startingMode === "create" ? 0 : 1}
             offscreenPageLimit={1}
             overScrollMode="never"
             scrollEnabled={!creating && !postControls?.busy}
             onPageScroll={onPageScroll}
             onPageSelected={onPageSelected}
           >
+            <View key="create" collapsable={false} style={{ flex: 1 }}>
+              {creationPage}
+            </View>
             <View key="post" collapsable={false} style={{ flex: 1 }}>
               <ComposePostScreen
                 embedded
@@ -158,9 +162,6 @@ function PublicationContent({
                 initialApplication={initialApplication}
                 initialDraft={initialDraft}
               />
-            </View>
-            <View key="create" collapsable={false} style={{ flex: 1 }}>
-              {creationPage}
             </View>
           </AnimatedPagerView>
         </>
