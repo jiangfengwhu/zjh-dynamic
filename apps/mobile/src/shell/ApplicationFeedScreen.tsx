@@ -4,7 +4,7 @@ import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { Pressy, RoundButton } from "../../../../packages/ui/chrome";
+import { Ambient, Pressy, RoundButton } from "../../../../packages/ui/chrome";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 import { Skeleton } from "../../../../packages/ui/feedback/Skeleton";
@@ -186,6 +186,7 @@ export function ApplicationFeedScreen(props: Props) {
 
   return <ThemeContext.Provider value={theme}>
     <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: insets.top }}>
+      <Ambient />
       <View style={{ height: 52, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <Pressy accessibilityRole="button" accessibilityLabel="打开我的侧边抽屉" onPress={props.onProfile} style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}><UserAvatar uri={user?.avatarUrl} size={30} /></Pressy>
         <Text accessibilityRole="header" style={{ color: t.ink1, fontSize: 17, fontWeight: "700" }}>发现作品</Text>

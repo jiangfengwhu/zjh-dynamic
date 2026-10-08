@@ -366,15 +366,13 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
           right: 0,
           zIndex: 20,
         },
-        active === "feed" && { backgroundColor: colors.canvas },
         motion,
       ]}
     >
-      {active !== "market" && active !== "feed" ? <AmbientFill offset={windowHeight - barHeight} /> : null}
+      {active !== "market" ? <AmbientFill offset={windowHeight - barHeight} /> : null}
       <ThemeContext.Provider value={theme}>
       <TabBar
         activeId={active}
-        immersive={active === "feed"}
         onCompose={() => openPublication()}
         onChange={(id) => {
           const route = state.routes.find((item) => item.name === id);

@@ -34,20 +34,17 @@ export function TabBar({
   activeId,
   onChange,
   onCompose,
-  immersive = false,
 }: {
   activeId: string;
   onChange: (id: ShellTabId) => void;
   onCompose: () => void;
-  immersive?: boolean;
 }) {
   const styles = useStyles();
 
-  const colors = useTheme().colors;
   const unread = useNotificationCount() + useMessageCount();
   useMessagesSync();
   return (
-    <View style={[styles.bar, immersive && { backgroundColor: colors.canvas, marginHorizontal: 4, borderWidth: 0, borderRadius: 0, boxShadow: "none" }]}>
+    <View style={styles.bar}>
       {SHELL_TABS.slice(0, 2).map((item) => (
         <Tab
           key={item.id}
