@@ -2,11 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "reac
 import { afterInteractions } from "./interactionWork";
 import type { MarketApplication } from "./market";
 
-export const EXPERIENCE_AHEAD = 3;
-const HISTORY_SIZE = 3;
+export const EXPERIENCE_AHEAD = 10;
+const HISTORY_SIZE = 10;
 export const experienceId = (item: MarketApplication) => `${item.manifest.appId}:${item.manifest.releaseId}`;
 
-/** Stable page keys: current, three ahead, and three recently visited pages. */
+/** Stable page keys: current, ten ahead, and ten recently visited pages. */
 export function experienceWindow(items: readonly MarketApplication[], index: number, history: readonly MarketApplication[]) {
   const wanted = items.slice(index, index + EXPERIENCE_AHEAD + 1);
   const keys = new Set(wanted.map(experienceId));

@@ -620,7 +620,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                           {() => <FeedScreen
                             onAuthor={openAuthor}
                             onApplication={openPublicMarketApplication}
-                            onProfile={showProfileDrawer}
                             onPost={post => shellNavigationRef.navigate("postDetail", { post })}
                             onCompose={() => openPublication()}
                           />}

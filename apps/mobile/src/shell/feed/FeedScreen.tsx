@@ -3,7 +3,6 @@ import { ListGesture } from "./ListGesture";
 import { markStartup } from "../../runtime/startupTiming";
 import { reconnectMessages } from "../social/api";
 import { useLiveVersion } from "../liveEvents";
-import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { NewDataNotice } from "../NewDataNotice";
 import { HostText as Text } from "./HostText";
@@ -65,7 +64,6 @@ function timelineItemType({ post }: { post: UserPost }) {
 type FeedProps = {
   onCompose: () => void;
   onPost: (post: UserPost) => void;
-  onProfile: () => void;
   onApplication: (appId: string) => Promise<void>;
   onAuthor: (author: UserPost["author"]) => void;
 };
@@ -73,7 +71,6 @@ type FeedProps = {
 export const FeedScreen = memo(function FeedScreen({
   onCompose,
   onPost,
-  onProfile,
   onApplication,
   onAuthor,
 }: FeedProps) {
@@ -274,15 +271,6 @@ export const FeedScreen = memo(function FeedScreen({
                 <AmbientFill shift={hiddenHeader} />
                 <View style={styles.header}>
                   <View style={styles.headerRow}>
-                    <Pressy
-                      accessibilityRole="button"
-                      accessibilityLabel="打开我的侧边抽屉"
-                      onPress={onProfile}
-                      scale={0.92}
-                      style={styles.profileControl}
-                    >
-                      <UserAvatar uri={user?.avatarUrl} size={34} style={styles.profileAvatar} />
-                    </Pressy>
                     <View style={styles.headerTabs}>
                       <FeedCategoryTabs
                         selected={kind}
@@ -290,7 +278,6 @@ export const FeedScreen = memo(function FeedScreen({
                         onSelect={selectCategory}
                       />
                     </View>
-                    <View style={styles.headerBalance} />
                   </View>
                 </View>
               </Animated.View>
@@ -722,19 +709,6 @@ const useStyles = createThemedStyles((base) => {
       borderRadius: t.radius.pill,
       borderWidth: 0,
     },
-    profileControl: {
-      width: 40,
-      height: 40,
-      minWidth: 40,
-      minHeight: 40,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 0,
-      marginLeft: 0,
-      borderRadius: 20,
-      overflow: "hidden",
-    },
-    profileAvatar: { width: 30, height: 30, borderRadius: 15 },
     header: {
       paddingLeft: FEED_HEADER_INSET,
       paddingRight: FEED_HEADER_INSET,
@@ -744,11 +718,11 @@ const useStyles = createThemedStyles((base) => {
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
+      minHeight: 46,
       paddingTop: 2,
       paddingBottom: 4,
     },
     headerTabs: { flex: 1, minWidth: 0, alignItems: "center" },
-    headerBalance: { width: 40, height: 40 },
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
     content: { paddingBottom: 16, paddingHorizontal: FEED_PAGE_INSET },

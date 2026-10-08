@@ -16,7 +16,7 @@ import { HostText as Text } from "./feed/HostText";
 import { useAccount } from "./account";
 import { useProfileDrawer } from "./ProfileDrawer";
 import { bindApplicationExperienceBack, bindNextApplication } from "./applicationExperienceNavigation";
-import { experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
+import { EXPERIENCE_AHEAD, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
 import { ApplicationInteractions } from "./ApplicationInteractions";
 import type { UserPost } from "./feed/userPosts";
 import { fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
@@ -128,7 +128,7 @@ export function ApplicationFeedScreen(props: Props) {
     if (active && page.owner === identity && !page.loaded && !request.current && !error) void load();
   }, [active, page.owner, page.loaded, identity, error, load]);
   useEffect(() => {
-    if (active && page.loaded && page.nextCursor && items.length - index <= 8 && !busy && !error) void load(true);
+    if (active && page.loaded && page.nextCursor && items.length - index <= EXPERIENCE_AHEAD + 4 && !busy && !error) void load(true);
   }, [active, page.loaded, page.nextCursor, items.length, index, busy, error, load]);
 
   const commit = useCallback((direction: number) => {
@@ -201,9 +201,12 @@ export function ApplicationFeedScreen(props: Props) {
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Pressy accessibilityRole="button" accessibilityLabel={`查看作者${item.authorName}`} disabled={!item.authorId} onPress={() => item.authorId && props.onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial })} style={{ flex: 1, minWidth: 0, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 }}>
               <UserAvatar uri={item.authorAvatarUrl} size={32} />
-              <Text numberOfLines={1} style={{ flex: 1, color: t.ink1, fontSize: 13 }}><Text style={{ fontWeight: "700" }}>{item.authorName || "创作者"}</Text> · {item.title || item.manifest.appName}</Text>
+              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                <Text numberOfLines={1} style={{ color: t.ink1, fontSize: 13, lineHeight: 18 }}><Text style={{ fontWeight: "700" }}>{item.authorName || "创作者"}</Text> · {item.title || item.manifest.appName}</Text>
+                {item.summary || item.manifest.description ? <Text numberOfLines={1} ellipsizeMode="tail" style={{ color: t.ink3, fontSize: 11, lineHeight: 16 }}>{(item.summary || item.manifest.description).replace(/\s+/g, " ").trim()}</Text> : null}
+              </View>
             </Pressy>
-            <Pressy accessibilityRole="button" accessibilityLabel="改编这个作品" onPress={() => props.onRemix(item)} style={{ minHeight: 44, paddingHorizontal: 14, borderRadius: t.radius.pill, backgroundColor: t.surfaceRaised, flexDirection: "row", alignItems: "center", gap: 6 }}><SymbolIcon name="layers" size={17} color={t.ink1} /><Text style={{ color: t.ink1, fontSize: 13, fontWeight: "700" }}>改编</Text></Pressy>
+            <Pressy accessibilityRole="button" accessibilityLabel="改编这个作品" hitSlop={6} onPress={() => props.onRemix(item)} style={{ minHeight: 32, paddingHorizontal: 10, borderRadius: t.radius.pill, backgroundColor: t.surfaceRaised, flexDirection: "row", alignItems: "center", gap: 4 }}><SymbolIcon name="layers" size={14} color={t.ink1} /><Text style={{ color: t.ink1, fontSize: 12, fontWeight: "700" }}>改编</Text></Pressy>
           </View> : null}
 
         </View>

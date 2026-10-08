@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
+import Animated, { cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { SymbolIcon, type IconSymbol } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useTheme } from "../../../../packages/ui/theme";
@@ -7,6 +8,7 @@ import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { cachedAccountId, requireAccount } from "./account";
 import { fetchApplicationDiscussion, saveApplicationDiscussion, togglePostLike, type UserPost } from "./feed/userPosts";
 import type { MarketApplication } from "./market";
+import { LikeGlyph } from "../../../../packages/ui/feed/kit/FeedActionBar";
 
 const cache = new Map<string, UserPost>();
 export function ApplicationInteractions({ item, active, onComment, onShare, onDetail }: {
@@ -79,7 +81,11 @@ export function ApplicationInteractions({ item, active, onComment, onShare, onDe
     } catch (cause) { fail(cause); }
   }
   const action = (icon: IconSymbol, label: string, onPress: () => void, selected = false, disabled = false) =>
-    <Pressy accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress} style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", opacity: disabled ? 0.5 : 1 }}><SymbolIcon name={icon} size={23} color={selected ? t.accent : t.ink1} strokeWidth={selected ? 2.3 : 1.7} /></Pressy>;
+    <Pressy accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress} style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", opacity: disabled ? 0.5 : 1 }}>
+      {icon === "heart" || icon === "heartOutline" ? <LikeGlyph identity={`${key}:${post?.id ?? "pending"}`} liked={selected} size={23} inactiveColor={t.ink1} />
+        : icon === "bookmark" ? <BookmarkGlyph identity={`${key}:${post?.id ?? "pending"}`} selected={selected} />
+        : <SymbolIcon name={icon} size={23} color={t.ink1} />}
+    </Pressy>;
   return <View style={{ flexDirection: "row", alignItems: "center" }}>
     {action(post?.liked ? "heart" : "heartOutline", post?.liked ? "取消点赞" : "点赞", () => void like(), !!post?.liked)}
     {action("chat", "评论", () => void comment())}
@@ -88,4 +94,30 @@ export function ApplicationInteractions({ item, active, onComment, onShare, onDe
     {action("share", "分享", onShare)}
     {action("info", "详情", onDetail)}
   </View>;
+}
+
+/** A short lift and settle on save; restored state and rollback remain still. */
+function BookmarkGlyph({ identity, selected }: { identity: string; selected: boolean }) {
+  const { colors: t } = useTheme();
+  const previous = useRef({ identity, selected });
+  const scale = useSharedValue(1);
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    cancelAnimation(scale); cancelAnimation(lift);
+    scale.value = 1; lift.value = 0;
+    if (previous.current.identity === identity && selected && !previous.current.selected) {
+      const timing = { easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
+      scale.value = withSequence(ReduceMotion.System,
+        withTiming(0.85, { ...timing, duration: 60 }),
+        withTiming(1.18, { ...timing, duration: 130 }),
+        withTiming(1, { ...timing, duration: 150 }));
+      lift.value = withSequence(ReduceMotion.System,
+        withTiming(-3, { ...timing, duration: 150 }),
+        withTiming(0, { ...timing, duration: 190 }));
+    }
+    previous.current = { identity, selected };
+    return () => { cancelAnimation(scale); cancelAnimation(lift); };
+  }, [identity, selected, scale, lift]);
+  const motion = useAnimatedStyle(() => ({ transform: [{ translateY: lift.value }, { scale: scale.value }] }));
+  return <Animated.View style={motion}><SymbolIcon name="bookmark" size={23} color={selected ? t.accent : t.ink1} strokeWidth={selected ? 2.3 : 1.7} /></Animated.View>;
 }

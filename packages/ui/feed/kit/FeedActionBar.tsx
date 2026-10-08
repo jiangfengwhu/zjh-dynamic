@@ -106,7 +106,7 @@ export function FeedActionBar({
 }
 
 /** Animate the immediate like response, never an initial restored state. */
-function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolean; busy: boolean }) {
+export function LikeGlyph({ identity, liked, busy = false, size = 17, inactiveColor }: { identity?: string; liked: boolean; busy?: boolean; size?: number; inactiveColor?: string }) {
   const { colors } = useTheme();
   const previous = useRef(liked);
   const previousIdentity = useRef(identity);
@@ -155,8 +155,8 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
   return (
     <View
       style={{
-        width: 20,
-        height: 20,
+        width: size + 3,
+        height: size + 3,
         alignItems: "center",
         justifyContent: "center",
       }}
@@ -190,8 +190,8 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
       <Animated.View style={[heart, busy && { opacity: 0.35 }]}>
         <SymbolIcon
           name={liked ? "heart" : "heartOutline"}
-          size={17}
-          color={liked ? colors.orchid : colors.ink3}
+          size={size}
+          color={liked ? colors.orchid : inactiveColor ?? colors.ink3}
         />
       </Animated.View>
       {busy ? (
