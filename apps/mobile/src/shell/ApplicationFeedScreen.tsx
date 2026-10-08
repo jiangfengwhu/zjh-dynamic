@@ -190,10 +190,11 @@ export function ApplicationFeedScreen(props: Props) {
         <Text accessibilityRole="header" style={{ color: t.ink1, fontSize: 17, fontWeight: "700" }}>发现作品</Text>
         <RoundButton icon="search" label="搜索作品" onPress={props.onSearch} />
       </View>
-      <View style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
+      <View style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
         {item ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} switching={switching} paused={paused} width={width} height={height} drag={drag} render={props.renderApplication} onPause={() => setPause(true)} onResume={() => setPause(false)} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
+        <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
       </View>
       <GestureDetector gesture={swipe}>
         <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
