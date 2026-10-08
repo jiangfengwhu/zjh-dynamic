@@ -11,6 +11,8 @@ import { phone } from "../../platform/src/phone";
 import { applicationAi } from "./ai";
 import { KeyboardViewport } from "../../ui/keyboard";
 import { ApplicationQueries, changeQueryAccount } from "./query-runtime";
+import { applicationAuth, applicationCloud } from "./cloud";
+import { CloudError } from "./cloud-types";
 
 const definitions = new Map<string, AppDefinition>();
 const activated = new Set<string>();
@@ -96,6 +98,8 @@ export function applicationContext(appId: string): AppContext {
   const context: AppContext = {
     appId,
     instanceId: appId,
+    auth: applicationAuth,
+    cloud: applicationCloud(appId),
     ai: applicationAi(() => navigate({ action: "providers" })),
     ...applicationCapabilities(),
     ...scope(appId === bootstrap.defaultApplication ? "account" : "device"),
@@ -142,6 +146,7 @@ export function applicationContext(appId: string): AppContext {
 
 export function bindApplicationSdk(appId: string) {
   return {
+    CloudError,
     defineApp: (definition: AppDefinition) => definition,
     getAppContext: () => applicationContext(appId),
   };

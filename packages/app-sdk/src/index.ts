@@ -1,5 +1,8 @@
 import type { ComponentType } from "react";
 import type { AiService } from "./ai-types";
+import type { AppAuth, AppCloud } from "./cloud-types";
+export { CloudError } from "./cloud-types";
+export type { AppUser, AppAuth, AppCloud, CloudDatabase, CloudCollection, CloudRecord, CloudPage, CloudQuery, CloudRequestOptions, CloudWriteOptions, CloudErrorCode } from "./cloud-types";
 export type {
   AiProvider,
   AiMessage,
@@ -84,6 +87,8 @@ export type AppDefinition = {
 export type AppContext = AppData & {
   appId: string;
   instanceId: string;
+  auth: AppAuth;
+  cloud: AppCloud;
   /** Device data is shared across host accounts; account data follows the signed-in account (or guest). */
   scope: (scope: DataScope) => AppData;
   /** Opens the system share sheet; never publishes to the community feed. */

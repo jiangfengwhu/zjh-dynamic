@@ -5,6 +5,7 @@ import { edgeUrl } from "./evolveHost";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { readShellValue, removeShellValue, writeShellValue } from "./shellStorage";
 import { setApplicationAccountScope } from "../../../../packages/app-sdk/src/runtime";
+import type { AppUser } from "../../../../packages/app-sdk/src/cloud-types";
 
 export type Account = { id: string; email: string | null; name: string; avatarUrl: string | null; createdAt: number };
 type Credential = { token: string; expiresAt: number };
@@ -163,6 +164,15 @@ export async function uploadCreationImage(path: string): Promise<string> {
 }
 function openLogin() { writePackageValue("shell.nav.request", JSON.stringify({ action: "account", at: Date.now() })); }
 export function cachedAccountId(): string | undefined { return state.ready && credential && credential.expiresAt > Date.now() ? state.user?.id : undefined; }
+export function cachedApplicationUser(): AppUser | null {
+  const user = cachedAccountId() ? state.user : null;
+  return user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : null;
+}
+export function subscribeApplicationUser(listener: (user: AppUser | null) => void) {
+  const changed = () => listener(cachedApplicationUser());
+  listeners.add(changed);
+  return () => { listeners.delete(changed); };
+}
 export async function currentAccountId(): Promise<string | undefined> { await initialize(); return cachedAccountId(); }
 export async function requireAccount(prompt = true): Promise<boolean> {
   await initialize();
