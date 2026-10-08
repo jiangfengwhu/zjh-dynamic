@@ -16,6 +16,7 @@ import { useTheme } from "../../theme";
 import { FeedText } from "./FeedPresentation";
 
 export function FeedActionBar({
+  identity,
   liked,
   busy,
   comments,
@@ -25,6 +26,7 @@ export function FeedActionBar({
   onLike,
   onShare,
 }: {
+  identity?: string;
   liked: boolean;
   busy?: boolean;
   comments?: number;
@@ -74,7 +76,7 @@ export function FeedActionBar({
         hitSlop={{ top: 6, bottom: 6 }}
         style={action}
       >
-        <LikeGlyph liked={liked} busy={!!busy} />
+        <LikeGlyph identity={identity} liked={liked} busy={!!busy} />
         {likes ? (
           <FeedText
             style={{
@@ -108,12 +110,14 @@ export function FeedActionBar({
 }
 
 /** Animate the immediate like response, never an initial restored state. */
-function LikeGlyph({ liked, busy }: { liked: boolean; busy: boolean }) {
+function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolean; busy: boolean }) {
   const { colors } = useTheme();
   const previous = useRef(liked);
+  const previousIdentity = useRef(identity);
   const scale = useSharedValue(1);
   const burst = useSharedValue(1);
   useEffect(() => {
+    if (previousIdentity.current !== identity) { previousIdentity.current = identity; previous.current = liked; cancelAnimation(scale); cancelAnimation(burst); scale.value = 1; burst.value = 1; return; }
     if (busy) return;
     cancelAnimation(scale);
     cancelAnimation(burst);
@@ -142,7 +146,7 @@ function LikeGlyph({ liked, busy }: { liked: boolean; busy: boolean }) {
       burst.value = 1;
     }
     previous.current = liked;
-  }, [liked, busy, scale, burst]);
+  }, [identity, liked, busy, scale, burst]);
   useEffect(
     () => () => {
       cancelAnimation(scale);

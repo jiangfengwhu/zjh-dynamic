@@ -1,3 +1,4 @@
+import { useRecyclingState, useMappingHelper } from "@shopify/flash-list";
 import { lazyScreen } from "../lazyScreen";
 import { UserAvatar } from "../UserAvatar";
 import { PixelAlert as Alert } from "../PixelAlert";
@@ -46,11 +47,13 @@ export function UserPostCard({
   const reduceMotion = useReducedMotion();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useRecyclingState<string | null>(null, [post.id]);
+  const [busy, setBusy] = useRecyclingState(false, [post.id]);
+  const { getMappingKey } = useMappingHelper();
+  const identity = useRef(post.id); identity.current = post.id;
   const likeRevision = useRef(0);
   const alive = useRef(true);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => { alive.current = true; likeRevision.current++; return () => { alive.current = false; }; }, [post.id]);
   const acting = useRef(false);
   const url = `${edgeUrl}/posts/${post.id}`;
   function remove() {
@@ -60,9 +63,10 @@ export function UserPostCard({
         text: "删除",
         style: "destructive",
         onPress: () => {
+          if (identity.current !== post.id) return;
           setBusy(true);
           void deleteUserPost(post.id)
-            .then(() => onDeleted?.())
+            .then(() => { if (identity.current === post.id) onDeleted?.(); })
             .catch((error) =>
               Toast.show({
                 type: "error",
@@ -70,7 +74,7 @@ export function UserPostCard({
                 text2: error.message,
               })
             )
-            .finally(() => setBusy(false));
+            .finally(() => { if (identity.current === post.id) setBusy(false); });
         },
       },
     ]);
@@ -80,7 +84,7 @@ export function UserPostCard({
     if (!cachedAccountId()) {
       if (acting.current) return;
       acting.current = true;
-      try { if (!await requireAccount() || !alive.current) return; }
+      try { if (!await requireAccount() || !alive.current || identity.current !== post.id) return; }
       finally { acting.current = false; }
     }
     const owner = cachedAccountId();
@@ -88,7 +92,7 @@ export function UserPostCard({
     const result = togglePostLike(post);
     onUpdated?.(result.post);
     void result.settled.then(({ post: updated, error }) => {
-      if (!alive.current || revision !== likeRevision.current || owner !== cachedAccountId()) return;
+      if (!alive.current || revision !== likeRevision.current || identity.current !== post.id || owner !== cachedAccountId()) return;
       onUpdated?.(updated);
       if (error) Toast.show({
         type: "error", text1: "点赞未同步，已恢复",
@@ -134,6 +138,7 @@ export function UserPostCard({
           onIdentity={onAuthor ? () => onAuthor(post.author) : undefined}
           menu={
             <PostMenu
+              identity={post.id}
               busy={busy}
               onDelete={own ? remove : undefined}
               onCopy={copy}
@@ -165,9 +170,9 @@ export function UserPostCard({
               ) : null}
               {post.images.length ? (
                 <View style={styles.images}>
-                  {post.images.map((image) => (
+                  {post.images.map((image, index) => (
                     <Pressable
-                      key={image.id}
+                      key={getMappingKey(image.id, index)}
                       accessibilityLabel="查看大图"
                       onPress={() => setPreview(image.url)}
                       style={[
@@ -194,6 +199,7 @@ export function UserPostCard({
           }
           actions={
             <FeedActionBar
+              identity={post.id}
               liked={!!post.liked}
               comments={post.commentCount}
               likes={post.likeCount}

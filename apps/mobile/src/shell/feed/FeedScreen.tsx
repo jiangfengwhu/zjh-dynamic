@@ -1,3 +1,4 @@
+import { FlashList, type FlashListProps, type FlashListRef } from "@shopify/flash-list";
 import { ApplicationIcon } from "../ApplicationIcon";
 import { markStartup } from "../../runtime/startupTiming";
 import { reconnectMessages } from "../social/api";
@@ -56,8 +57,12 @@ import { requireAccount } from "../account";
 import { useInstalledShortcuts } from "./useInstalledShortcuts";
 import { type MarketApplication } from "../market";
 
+const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as typeof FlashList;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const FEED_PAGE_INSET = 16;
+function timelineItemType({ post }: { post: UserPost }) {
+  return post.content?.format === "html" ? "html" : post.images.length ? "images" : post.application ? "application" : "text";
+}
 
 type FeedProps = {
   onCompose: () => void;
@@ -107,7 +112,7 @@ export const FeedScreen = memo(function FeedScreen({
     if (userTimeline.loaded) markStartup("feed-data-ready");
   }, [userTimeline.loaded]);
   const focused = useIsFocused();
-  const lists = useRef<Partial<Record<FeedCategory, FlatList>> >({});
+  const lists = useRef<Partial<Record<FeedCategory, Pick<FlashListRef<unknown>, "scrollToOffset">>> >({});
   const [loadingMore, setLoadingMore] = useState(false);
   const [timelineLoading, setTimelineLoading] = useState({
     recommended: true,
@@ -420,14 +425,8 @@ export const FeedScreen = memo(function FeedScreen({
                                   keyExtractor={(item) =>
                                     `${item.type}-${item.post.id}`
                                   }
-                                  initialNumToRender={4}
-                                  // One HTML card can contain hundreds of native views.
-                                  // Keep a stable nearby window; touching/scrolling must
-                                  // not trigger a separate seven-screen mount burst.
-                                  maxToRenderPerBatch={1}
-                                  updateCellsBatchingPeriod={80}
-                                  windowSize={3}
-                                  removeClippedSubviews={false}
+                                  recycle
+                                  getItemType={timelineItemType}
                                   style={styles.scroll}
                                   contentContainerStyle={[
                                     styles.content,
@@ -702,6 +701,8 @@ const FeedScrollSurface = memo(
 ) as typeof FeedScrollSurfaceImpl;
 function FeedScrollSurfaceImpl<Item>({
   onListReady,
+  recycle = false,
+  getItemType,
   categoryKey,
   activeCategory,
   hiddenHeader,
@@ -711,7 +712,9 @@ function FeedScrollSurfaceImpl<Item>({
   scrollY,
   ...props
 }: Omit<AnimatedProps<FlatListProps<Item>>, "CellRendererComponent"> & {
-  onListReady?: (value: FlatList<Item> | null) => void;
+  onListReady?: (value: FlatList<Item> | FlashListRef<Item> | null) => void;
+  recycle?: boolean;
+  getItemType?: FlashListProps<Item>["getItemType"];
   categoryKey: string;
   activeCategory: SharedValue<"recommended" | "following" | "installed">;
   hiddenHeader: SharedValue<number>;
@@ -720,7 +723,7 @@ function FeedScrollSurfaceImpl<Item>({
   bottomTravel: SharedValue<number>;
   scrollY: SharedValue<number>;
 }) {
-  const ref = useAnimatedRef<FlatList<Item>>();
+  const ref = useAnimatedRef<FlatList<Item> | FlashListRef<Item>>();
   const ready = useSharedValue(false);
   const offset = useSharedValue(0);
   const dragging = useSharedValue(false);
@@ -812,6 +815,14 @@ function FeedScrollSurfaceImpl<Item>({
     },
     [categoryKey]
   );
+  if (recycle) return <AnimatedFlashList
+    {...props as FlashListProps<Item>}
+    ref={value => { ref(value); onListReady?.(value); }}
+    onScroll={onScroll}
+    getItemType={getItemType}
+    drawDistance={250}
+    onContentSizeChange={(_width, height) => { if (height > 0) ready.value = true; }}
+  />;
   return (
     <Animated.FlatList
       {...props}

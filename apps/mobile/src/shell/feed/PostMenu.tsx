@@ -14,11 +14,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../../../../packages/ui/theme";
 
 export function PostMenu({
+  identity,
   onDelete,
   onCopy,
   onShare,
   busy = false,
 }: {
+  identity?: string;
   onDelete?: () => void;
   onCopy: () => void;
   onShare?: () => void;
@@ -46,7 +48,7 @@ export function PostMenu({
       pending.current = undefined;
       modal.current?.dismiss();
     },
-    []
+    [identity]
   );
   function action(callback: () => void) {
     if (pending.current || busy) return;
