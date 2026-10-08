@@ -1,4 +1,5 @@
-import { useIsFocused } from "@react-navigation/native";
+import { NavigationContext } from "@react-navigation/native";
+import { useCallback, useContext, useSyncExternalStore } from "react";
 import { View } from "react-native";
 import { Skeleton } from "../../../../packages/ui/feedback/Skeleton";
 import { useTheme } from "../../../../packages/ui/theme";
@@ -6,10 +7,19 @@ import { useTheme } from "../../../../packages/ui/theme";
 export type ListSkeletonShape = "feed" | "work" | "application" | "installed" | "notification" | "comment" | "person" | "inbox" | "chat" | "grid" | "picker" | "provider";
 
 /** Placeholder geometry follows the destination list, including its gutters. */
-export function PageSkeleton({ rows = 3, shape = "work", inset = 0 }: { rows?: number; shape?: ListSkeletonShape; inset?: number }) {
+export function PageSkeleton({ rows = 3, shape = "work", inset = 0, animated }: { rows?: number; shape?: ListSkeletonShape; inset?: number; animated?: boolean }) {
   const { colors } = useTheme();
-  const focused = useIsFocused();
-  const block = (width: number | `${number}%`, height: number, radius = 6) => <Skeleton animated={focused} width={width} height={height} borderRadius={radius} style={{ backgroundColor: colors.lineStrong }} />;
+  // Portaled modals have no route context. Their owner can supply visibility.
+  const navigation = useContext(NavigationContext);
+  const subscribe = useCallback((listener: () => void) => {
+    if (!navigation) return () => {};
+    const focus = navigation.addListener("focus", listener);
+    const blur = navigation.addListener("blur", listener);
+    return () => { focus(); blur(); };
+  }, [navigation]);
+  const snapshot = useCallback(() => navigation?.isFocused() ?? true, [navigation]);
+  const focused = useSyncExternalStore(subscribe, snapshot, snapshot);
+  const block = (width: number | `${number}%`, height: number, radius = 6) => <Skeleton animated={animated ?? focused} width={width} height={height} borderRadius={radius} style={{ backgroundColor: colors.lineStrong }} />;
   return <View accessibilityLabel="正在加载内容" accessibilityState={{ busy: true }} style={{ alignSelf: "stretch", paddingHorizontal: inset }}>
     {Array.from({ length: rows }, (_, index) => {
       if (shape === "picker") return <View key={index} style={{ gap: 6, paddingVertical: 10, paddingHorizontal: 4, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line }}>

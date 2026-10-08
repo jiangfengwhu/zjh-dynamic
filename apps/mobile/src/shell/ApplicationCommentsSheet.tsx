@@ -127,7 +127,7 @@ export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: Us
       </View>
       <AnimatedFlashList ref={list} renderScrollComponent={Scrollable} data={comments} keyExtractor={item => item.id} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onEndReached={() => { if (cursor && !error) void load(true); }} onEndReachedThreshold={0.2}
         contentContainerStyle={!comments.length ? { flexGrow: 1 } : undefined}
-        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" /></View> : !error ? <View style={{ flex: 1, minHeight: 160, alignItems: "center", justifyContent: "center", padding: 24 }}><Text style={{ color: t.ink3 }}>还没有评论，来说点什么吧</Text></View> : null}
+        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" animated={active} /></View> : !error ? <View style={{ flex: 1, minHeight: 160, alignItems: "center", justifyContent: "center", padding: 24 }}><Text style={{ color: t.ink3 }}>还没有评论，来说点什么吧</Text></View> : null}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
           <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} />
           <View style={{ flex: 1, minWidth: 0 }}>
