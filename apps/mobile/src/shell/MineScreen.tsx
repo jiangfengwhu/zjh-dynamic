@@ -88,14 +88,17 @@ export const MineScreen = memo(function MineScreen({
             onPress={user ? onProfile : onAccount}
             style={styles.profile}
           >
-            <UserAvatar uri={user?.avatarUrl} size={52} style={styles.portrait} />
+            <View pointerEvents="none" style={styles.profileGlow} />
+            <UserAvatar uri={user?.avatarUrl} size={56} style={styles.portrait} />
             <View style={styles.profileCopy}>
               <Text numberOfLines={2} style={styles.profileName}>
                 {user?.name ?? "登录账号"}
               </Text>
-              {!user ? <Text style={styles.profileHint}>邮箱验证码登录，开始创作</Text> : null}
+              <Text style={styles.profileHint}>{user ? "查看我的主页" : "邮箱验证码登录，开始创作"}</Text>
             </View>
-            <Icon name="chevron" size={15} color={colors.ink3} />
+            <View style={styles.profileArrow}>
+              <Icon name="chevron" size={16} color={colors.onDock} />
+            </View>
           </Pressy>
         </Animated.View>
         <View style={styles.shortcuts}>
@@ -110,8 +113,6 @@ export const MineScreen = memo(function MineScreen({
         <View style={styles.group}>
           <Row
             icon={mode === "dark" ? "moon" : "sun"}
-            tile={colors.amberTint}
-            tint={colors.amberText}
             title="外观"
             hint="浅色、深色与跟随系统"
             value={mode === "dark" ? "深色" : "浅色"}
@@ -119,8 +120,6 @@ export const MineScreen = memo(function MineScreen({
           />
           <Row
             icon="cloud"
-            tile={colors.cyanTint}
-            tint={colors.cyanText}
             title="检查更新"
             hint={check === "busy" ? "正在核对线上版本" : "每 30 分钟自动检查"}
             value={checkLabel(check)}
@@ -130,8 +129,6 @@ export const MineScreen = memo(function MineScreen({
           />
           <Row
             icon="info"
-            tile={colors.greenTint}
-            tint={colors.greenText}
             title="应用信息"
             hint="版本与本机安装信息"
             onPress={onInfo}
@@ -190,7 +187,7 @@ function Shortcut({
           <Icon
             name={icon}
             size={20}
-            color={primary ? colors.onAccent : colors.accentText}
+            color="#FFFFFF"
           />
         </View>
         <Icon name="chevron" size={15} color={colors.ink3} />
@@ -233,7 +230,7 @@ function Row({
       style={[styles.row, !last && styles.divider]}
     >
       <View style={[styles.rowTile, { backgroundColor: tile ?? colors.surfaceRaised }]}>
-        <Icon name={icon} size={18} color={tint ?? colors.ink2} />
+        <Icon name={icon} size={18} color={tint ?? colors.ink1} />
       </View>
       <View style={styles.rowCopy}>
         <Text style={styles.rowTitle}>{title}</Text>
@@ -265,38 +262,49 @@ function checkLabel(state: CheckState): string | undefined {
 }
 const useStyles = createThemedStyles((t) => ({
   screen: { backgroundColor: t.canvas },
-  content: { padding: 16, paddingTop: 16, gap: 16, paddingBottom: 24 },
+  content: { padding: 16, paddingTop: 16, gap: 16, paddingBottom: 28 },
   profile: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
+    gap: 16,
+    paddingVertical: 22,
+    paddingHorizontal: 18,
     borderRadius: t.radius.xl,
-    backgroundColor: t.surface,
-    borderWidth: t.components.surfaceBorder,
-    borderColor: t.line,
+    backgroundColor: t.mode === "dark" ? t.surfaceRaised : "#0C0C0D",
+    borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
+    borderColor: t.dockLine,
+    boxShadow: t.shadow.float,
+    overflow: "hidden",
   },
-  portrait: { width: 56, height: 56, borderRadius: 28 },
-  profileCopy: { flex: 1, minWidth: 0, gap: 3 },
+  profileGlow: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    right: -90,
+    top: -120,
+    opacity: 0.55,
+    experimental_backgroundImage: t.aurora,
+  },
+  portrait: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: "rgba(255,255,255,0.18)" },
+  profileCopy: { flex: 1, minWidth: 0, gap: 4 },
   profileName: {
-    fontSize: 21,
-    lineHeight: 28,
-    letterSpacing: -0.4,
-    fontWeight: "800",
-    color: t.ink1,
+    ...t.type.title2,
+    color: t.onDock,
   },
-  profileHint: { fontSize: 13, lineHeight: 18, color: t.ink3 },
+  profileHint: { fontSize: 13, lineHeight: 18, color: t.onDockMuted },
+  profileArrow: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)" },
   shortcuts: { flexDirection: "row", gap: 10 },
   shortcut: {
     flex: 1,
     minWidth: 0,
-    padding: 16,
+    padding: 18,
     gap: 2,
     borderRadius: t.radius.xl,
-    borderWidth: t.components.surfaceBorder,
+    borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
     borderColor: t.line,
     backgroundColor: t.surface,
+    boxShadow: t.shadow.card,
   },
   shortcutHead: {
     flexDirection: "row",
@@ -305,43 +313,42 @@ const useStyles = createThemedStyles((t) => ({
     marginBottom: 12,
   },
   shortcutTile: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: t.accentTint,
+    experimental_backgroundImage: t.aurora,
   },
   shortcutTitle: {
-    fontSize: 17,
-    lineHeight: 24,
-    fontWeight: "700",
+    ...t.type.headline,
     color: t.ink1,
   },
   group: {
     backgroundColor: t.surface,
     borderRadius: t.radius.xl,
-    borderWidth: t.components.surfaceBorder,
+    borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
     borderColor: t.line,
-    paddingHorizontal: 14,
+    boxShadow: t.shadow.card,
+    paddingHorizontal: 16,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    minHeight: 64,
+    gap: 14,
+    minHeight: 66,
     paddingVertical: 10,
   },
   rowTile: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   divider: { borderBottomWidth: t.components.surfaceBorder, borderBottomColor: t.line },
   rowCopy: { flex: 1, minWidth: 0, gap: 1 },
-  rowTitle: { fontSize: 15, lineHeight: 21, fontWeight: "600", color: t.ink1 },
+  rowTitle: { fontSize: 16, lineHeight: 22, fontWeight: "600", letterSpacing: -0.2, color: t.ink1 },
   rowHint: { fontSize: 12, lineHeight: 17, color: t.ink3 },
   rowValue: {
     maxWidth: "30%",

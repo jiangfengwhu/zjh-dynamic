@@ -4,7 +4,7 @@ import { useTheme } from "../theme";
 
 export type SurfaceTone = "base" | "raised" | "inset";
 
-/** 信息面平整，仅 lifted 弹层使用阴影。 */
+/** 信息面以明度差分层：浅色靠柔和投影，深色靠发丝线；lifted 弹层使用更深的悬浮投影。 */
 export function Surface({
   tone = "base",
   radius,
@@ -20,7 +20,7 @@ export function Surface({
   children?: ReactNode;
 }) {
   const { colors } = useTheme();
-  const background = tone === "raised" ? colors.surfaceRaised : tone === "inset" ? colors.inset : colors.surface;
+  const background = tone === "raised" ? (lifted ? colors.surface : colors.surfaceRaised) : tone === "inset" ? colors.inset : colors.surface;
   const round = radius ?? colors.radius.lg;
   return (
     <View
@@ -28,13 +28,12 @@ export function Surface({
         {
           backgroundColor: background,
           borderRadius: round,
-          borderWidth: colors.components.surfaceBorder,
+          borderWidth: colors.mode === "dark" || lifted ? colors.components.surfaceBorder : 0,
           borderColor: colors.line,
           overflow: "hidden",
         },
-        lifted && {
-          boxShadow: `0 12px 32px ${colors.shade}`,
-        },
+        tone === "base" && !lifted && { boxShadow: colors.shadow.card },
+        lifted && { boxShadow: colors.shadow.modal },
         style,
       ]}
     >

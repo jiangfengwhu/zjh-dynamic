@@ -1,4 +1,4 @@
-import { Search, Plus, Bell, Heart, MessageCircle, ArrowRight, Sparkles, Newspaper, Box, User, Share2, MoreHorizontal, Check, ChevronDown, RefreshCw, TriangleAlert, Image, Layers, ArrowLeft, X, Send, Square, PenLine, Info, Settings, Cloud, Clock, Sun, Moon } from "lucide-react-native";
+import { Search, Plus, Bell, Heart, MessageCircle, ChevronRight, Sparkles, House, LayoutGrid, UserRound, Share, Ellipsis, Check, ChevronDown, RefreshCw, TriangleAlert, ImagePlus, Copy, ChevronLeft, X, ArrowUpRight, Square, PenLine, Info, Cpu, CloudDownload, Clock, Sun, MoonStar } from "lucide-react-native";
 
 export type IconSymbol =
   | "search"
@@ -31,8 +31,8 @@ export type IconSymbol =
   | "clock"
   | "sun"
   | "moon";
-const symbols = { search: Search, plus: Plus, bell: Bell, heart: Heart, chat: MessageCircle, arrow: ArrowRight, spark: Sparkles, feed: Newspaper, box: Box, mine: User, heartOutline: Heart, share: Share2, more: MoreHorizontal, check: Check, down: ChevronDown, refresh: RefreshCw, alert: TriangleAlert, photo: Image, layers: Layers, back: ArrowLeft, close: X, send: Send, stop: Square, edit: PenLine, info: Info, engine: Settings, cloud: Cloud, clock: Clock, sun: Sun, moon: Moon };
-export function SymbolIcon({ name, size = 20, color, strokeWidth = 1.8 }: { name: IconSymbol; size?: number; color: string; strokeWidth?: number }) {
+const symbols = { search: Search, plus: Plus, bell: Bell, heart: Heart, chat: MessageCircle, arrow: ChevronRight, spark: Sparkles, feed: House, box: LayoutGrid, mine: UserRound, heartOutline: Heart, share: Share, more: Ellipsis, check: Check, down: ChevronDown, refresh: RefreshCw, alert: TriangleAlert, photo: ImagePlus, layers: Copy, back: ChevronLeft, close: X, send: ArrowUpRight, stop: Square, edit: PenLine, info: Info, engine: Cpu, cloud: CloudDownload, clock: Clock, sun: Sun, moon: MoonStar };
+export function SymbolIcon({ name, size = 20, color, strokeWidth = 1.7 }: { name: IconSymbol; size?: number; color: string; strokeWidth?: number }) {
   const Glyph = symbols[name];
   return <Glyph size={size} color={color} strokeWidth={strokeWidth} fill={name === "heart" ? color : "none"} accessible={false} />;
 }

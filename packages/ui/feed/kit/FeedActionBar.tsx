@@ -187,7 +187,7 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
               key={index}
               index={index}
               progress={burst}
-              color={[colors.red, colors.orchid, colors.accent][index % 3]}
+              color={[colors.red, colors.orchid, colors.orange][index % 3]}
             />
           ))}
         </>
@@ -203,7 +203,7 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
         <ActivityIndicator
           style={{ position: "absolute" }}
           size="small"
-          color={colors.accentText}
+          color={colors.ink2}
         />
       ) : null}
     </View>

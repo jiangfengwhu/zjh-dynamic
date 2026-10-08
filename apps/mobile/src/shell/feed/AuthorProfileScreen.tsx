@@ -237,17 +237,16 @@ function AuthorProfileContent({
   const header = (
     <View>
       {!embedded ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 14 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 4 }}>
-            <UserAvatar uri={author.avatarUrl} authorId={author.id} size={64} />
-            <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 18 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 4 }}>
+            <View style={{ borderRadius: 40, padding: 3, backgroundColor: colors.surface, boxShadow: colors.shadow.card }}>
+              <UserAvatar uri={author.avatarUrl} authorId={author.id} size={72} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
               <Text
                 numberOfLines={2}
                 style={{
-                  fontSize: 22,
-                  lineHeight: 28,
-                  letterSpacing: -0.5,
-                  fontWeight: "800",
+                  ...colors.type.title1,
                   color: colors.ink1,
                 }}
               >
@@ -255,7 +254,7 @@ function AuthorProfileContent({
               </Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {author.official ? (
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: colors.accentText }}>
+                  <Text style={{ fontSize: 11, lineHeight: 15, fontWeight: "700", letterSpacing: 0.3, color: colors.orchidText, backgroundColor: colors.orchidTint, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: "hidden" }}>
                     官方创作者
                   </Text>
                 ) : null}
@@ -286,10 +285,10 @@ function AuthorProfileContent({
                 disabled={followBusy || busy}
                 onPress={() => void toggleFollow()}
                 style={{
-                  minHeight: 40,
-                  minWidth: 76,
-                  paddingHorizontal: 16,
-                  borderRadius: 20,
+                  minHeight: 42,
+                  minWidth: 80,
+                  paddingHorizontal: 18,
+                  borderRadius: 21,
                   justifyContent: "center",
                   alignItems: "center",
                   backgroundColor: profile.following
@@ -302,6 +301,7 @@ function AuthorProfileContent({
                   style={{
                     fontSize: 14,
                     fontWeight: "700",
+                    letterSpacing: -0.1,
                     color: profile.following ? colors.ink2 : colors.onAccent,
                   }}
                 >
@@ -309,19 +309,19 @@ function AuthorProfileContent({
                     ? "处理中…"
                     : profile.following
                       ? "已关注"
-                      : "+ 关注"}
+                      : "关注"}
                 </Text>
               </Pressable>
             ) : null}
             {onMessage && user?.id !== author.id ? <Pressable accessibilityRole="button" accessibilityLabel={`给${author.name}发私信`} onPress={() => onMessage(author)}
-              style={{ minHeight: 40, minWidth: 58, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised, borderRadius: 20 }}>
+              style={{ minHeight: 42, minWidth: 62, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised, borderRadius: 21 }}>
               <Text style={{ color: colors.ink1, fontSize: 14, fontWeight: "700" }}>私信</Text>
             </Pressable> : null}
           </View>
-          <View style={{ flexDirection: "row", gap: 20, paddingHorizontal: 4 }}>
+          <View style={{ flexDirection: "row", gap: 28, paddingHorizontal: 6 }}>
             {(["following", "followers"] as const).map(kind => <Pressable key={kind} accessibilityRole="button" accessibilityLabel={kind === "following" ? "查看关注" : "查看粉丝"} disabled={!onConnections}
               onPress={() => onConnections?.(author, kind)} style={{ minHeight: 36, justifyContent: "center" }}>
-              <Text style={{ fontSize: 13, color: colors.ink3 }}><Text style={{ fontSize: 15, fontWeight: "800", color: colors.ink1 }}>{loaded ? (kind === "following" ? profile.followingCount ?? 0 : profile.followerCount ?? 0) : "—"}</Text> {kind === "following" ? "关注" : "粉丝"}</Text>
+              <Text style={{ fontSize: 13, color: colors.ink3 }}><Text style={{ fontSize: 18, fontWeight: "800", letterSpacing: -0.4, color: colors.ink1 }}>{loaded ? (kind === "following" ? profile.followingCount ?? 0 : profile.followerCount ?? 0) : "—"}</Text> {kind === "following" ? "关注" : "粉丝"}</Text>
             </Pressable>)}
           </View>
           <CompactTabs
@@ -385,7 +385,7 @@ function AuthorProfileContent({
                     const item = row.app;
                     return (
                       <View
-                        style={{ paddingHorizontal: 12 }}
+                        style={{ paddingHorizontal: 12, paddingBottom: 12 }}
                       >
                         <WorkCard
                           application={item}
@@ -406,7 +406,7 @@ function AuthorProfileContent({
                     <View
                       style={{
                         paddingHorizontal: 12,
-                        paddingBottom: 10,
+                        paddingBottom: 12,
                       }}
                     >
                       <UserPostCard
@@ -435,9 +435,9 @@ function AuthorProfileContent({
                   ) : !loaded && !error ? (
                     <View accessibilityLabel="正在加载作者内容" style={{ padding: 16, gap: 16 }}>
                       {[0, 1, 2].map(key => <View key={key} style={{ gap: 10, paddingVertical: 12 }}>
-                        <View style={{ width: "45%", height: 14, borderRadius: 4, backgroundColor: colors.inset }} />
-                        <View style={{ height: tab === "apps" ? 96 : 54, borderRadius: 12, backgroundColor: colors.inset }} />
-                        <View style={{ width: "70%", height: 10, borderRadius: 4, backgroundColor: colors.inset }} />
+                        <View style={{ width: "45%", height: 14, borderRadius: 7, backgroundColor: colors.surfaceRaised }} />
+                        <View style={{ height: tab === "apps" ? 96 : 54, borderRadius: 20, backgroundColor: colors.surfaceRaised }} />
+                        <View style={{ width: "70%", height: 10, borderRadius: 5, backgroundColor: colors.surfaceRaised }} />
                       </View>)}
                     </View>
                   ) : null
@@ -445,7 +445,7 @@ function AuthorProfileContent({
                 ListFooterComponent={
                   <View style={{ padding: loaded && !(tab === "posts" && profile.nextCursor) ? 0 : 16 }}>
                     {contentReady && busy && !loaded ? (
-                      <ActivityIndicator color={colors.accent} />
+                      <ActivityIndicator color={colors.ink2} />
                     ) : tab === "posts" && profile.nextCursor ? (
                       <Pressable
                         disabled={busy}
@@ -453,12 +453,13 @@ function AuthorProfileContent({
                         style={{ padding: 14 }}
                       >
                         {busy ? (
-                          <ActivityIndicator color={colors.accent} />
+                          <ActivityIndicator color={colors.ink2} />
                         ) : (
                           <Text
                             style={{
                               textAlign: "center",
-                              color: colors.accentText,
+                              color: colors.ink2,
+                              fontWeight: "600",
                             }}
                           >
                             加载更多动态

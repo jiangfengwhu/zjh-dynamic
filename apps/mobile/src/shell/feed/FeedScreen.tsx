@@ -384,13 +384,15 @@ export const FeedScreen = memo(function FeedScreen({
                             )}
                             ListEmptyComponent={
                               <EmptyState>
-                                <SymbolIcon
-                                  name="box"
-                                  size={32}
-                                  color={colors.accentText}
-                                />
+                                <View style={{ width: 72, height: 72, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, boxShadow: colors.shadow.card }}>
+                                  <SymbolIcon
+                                    name="box"
+                                    size={30}
+                                    color={colors.ink1}
+                                  />
+                                </View>
                                 <Text
-                                  style={{ color: colors.ink3, fontSize: 13 }}
+                                  style={{ color: colors.ink3, fontSize: 14, lineHeight: 21, textAlign: "center" }}
                                 >
                                   {shortcuts.loaded
                                     ? "还没有安装应用，去应用市场发现作品吧"
@@ -554,11 +556,12 @@ export const FeedScreen = memo(function FeedScreen({
                                           }}
                                         >
                                           {loadingMore ? (
-                                            <ActivityIndicator color={colors.accentText} />
+                                            <ActivityIndicator color={colors.ink2} />
                                           ) : (
                                             <Text
                                               style={{
-                                                color: colors.accentText,
+                                                color: colors.orchidText,
+                                                fontWeight: "600",
                                               }}
                                             >
                                               加载更多动态
@@ -569,14 +572,11 @@ export const FeedScreen = memo(function FeedScreen({
                                       {visible.length > 0 &&
                                       !page.nextCursor ? (
                                         <View style={styles.end}>
-                                          <SymbolIcon
-                                            name="spark"
-                                            size={16}
-                                            color={colors.accentText}
-                                          />
+                                          <View style={{ flex: 1, height: colors.components.surfaceBorder, backgroundColor: colors.lineStrong }} />
                                           <Text style={styles.endText}>
                                             已浏览全部动态
                                           </Text>
+                                          <View style={{ flex: 1, height: colors.components.surfaceBorder, backgroundColor: colors.lineStrong }} />
                                         </View>
                                       ) : null}
                                     </View>
@@ -670,26 +670,26 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
     >
       <View
         style={{
-          width: 60,
-          height: 60,
-          borderRadius: 18,
+          width: 62,
+          height: 62,
+          borderRadius: 20,
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: colors.surface,
-          borderWidth: colors.components.surfaceBorder,
+          borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
           borderColor: colors.line,
-          overflow: "hidden",
+          boxShadow: colors.shadow.card,
         }}
       >
-        <ApplicationIcon application={app} size={52} />
+        <View style={{ width: 62, height: 62, borderRadius: 20, overflow: "hidden", alignItems: "center", justifyContent: "center" }}><ApplicationIcon application={app} size={54} /></View>
       </View>
       <Text
         numberOfLines={2}
         style={{
-          color: colors.ink1,
+          color: colors.ink2,
           fontSize: 12,
           lineHeight: 16,
-          fontWeight: "500",
+          fontWeight: "600",
           textAlign: "center",
           minHeight: 32,
           paddingHorizontal: 2,
@@ -942,39 +942,42 @@ const useStyles = createThemedStyles((base) => {
       overflow: "visible",
     },
     separator: {
-      height: 10,
+      height: 12,
     },
     empty: {
       marginHorizontal: 4,
       marginTop: 8,
-      paddingHorizontal: 24,
-      paddingVertical: 36,
-      borderRadius: t.radius.window,
+      paddingHorizontal: 28,
+      paddingTop: 40,
+      paddingBottom: 32,
+      borderRadius: t.radius.xl,
       backgroundColor: t.surface,
+      borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
+      borderColor: t.line,
+      boxShadow: t.shadow.card,
       alignItems: "center",
-      gap: 8,
+      gap: 10,
     },
     emptyTitle: {
-      fontSize: 20,
-      lineHeight: 28,
-      fontWeight: "800",
-      letterSpacing: -0.3,
+      ...t.type.title2,
       color: t.ink1,
     },
     emptyBody: {
-      fontSize: 14,
-      lineHeight: 21,
+      fontSize: 15,
+      lineHeight: 22,
       textAlign: "center",
       color: t.ink3,
+      marginBottom: 6,
     },
     end: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 8,
-      paddingTop: 20,
-      paddingBottom: 12,
+      gap: 10,
+      paddingTop: 28,
+      paddingBottom: 16,
+      paddingHorizontal: 48,
     },
-    endText: { fontSize: 12, color: t.ink3 },
+    endText: { ...t.type.overline, fontSize: 11, color: t.ink3 },
   };
 });

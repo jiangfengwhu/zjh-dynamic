@@ -54,31 +54,31 @@ function FeedbackToast({
     : error
     ? colors.redText
     : warning
-    ? colors.orangeText
-    : colors.accentText;
+    ? colors.orange
+    : colors.onDock;
   const tint = success
-    ? colors.greenTint
+    ? colors.green
     : error
-    ? colors.redTint
+    ? colors.red
     : warning
-    ? colors.orangeTint
-    : colors.accentTint;
+    ? "rgba(255,138,61,0.22)"
+    : "rgba(255,255,255,0.14)";
   return (
     <View
       accessibilityLiveRegion={error ? "assertive" : "polite"}
       style={{
         width: Math.min(width - 32, 420),
         borderRadius: colors.radius.xl,
-        backgroundColor: colors.surface,
+        backgroundColor: colors.dock,
         borderWidth: colors.components.surfaceBorder,
-        borderColor: colors.line,
+        borderColor: colors.dockLine,
         flexDirection: "row",
         alignItems: "center",
-        paddingLeft: 12,
+        paddingLeft: 10,
         paddingRight: 4,
         paddingVertical: 8,
         gap: 12,
-        boxShadow: `0 14px 36px ${colors.shade}`,
+        boxShadow: colors.shadow.float,
       }}
     >
       <View
@@ -94,7 +94,8 @@ function FeedbackToast({
         <SymbolIcon
           name={success ? "check" : error || warning ? "alert" : "info"}
           size={18}
-          color={tone}
+          strokeWidth={2.4}
+          color={success || error ? "#FFFFFF" : tone}
         />
       </View>
       <Pressable
@@ -115,7 +116,7 @@ function FeedbackToast({
         {text1 ? (
           <Text
             numberOfLines={2}
-            style={{ color: colors.ink1, fontSize: 15, lineHeight: 21, fontWeight: "600" }}
+            style={{ color: colors.onDock, fontSize: 15, lineHeight: 21, fontWeight: "700", letterSpacing: -0.2 }}
           >
             {text1}
           </Text>
@@ -123,7 +124,7 @@ function FeedbackToast({
         {text2 ? (
           <Text
             numberOfLines={4}
-            style={{ color: colors.ink2, fontSize: 13, lineHeight: 20 }}
+            style={{ color: colors.onDockMuted, fontSize: 13, lineHeight: 19 }}
           >
             {text2}
           </Text>
@@ -140,7 +141,7 @@ function FeedbackToast({
           justifyContent: "center",
         }}
       >
-        <SymbolIcon name="close" size={14} color={colors.ink3} />
+        <SymbolIcon name="close" size={15} color={colors.onDockMuted} />
       </Pressable>
     </View>
   );
@@ -202,8 +203,8 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
   const danger = request.buttons.some(
     (button) => button.style === "destructive"
   );
-  const tone = danger ? colors.redText : colors.accentText;
-  const tint = danger ? colors.redTint : colors.accentTint;
+  const tone = danger ? colors.redText : colors.ink1;
+  const tint = danger ? colors.redTint : colors.surfaceRaised;
   const canDismiss =
     request.options?.cancelable !== false &&
     (request.options?.cancelable === true ||
@@ -276,7 +277,7 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
                 right: 0,
                 bottom: 0,
                 left: 0,
-                backgroundColor: colors.mode === "dark" ? "rgba(0,0,0,0.62)" : "rgba(12,12,16,0.38)",
+                backgroundColor: colors.mode === "dark" ? "rgba(0,0,0,0.72)" : "rgba(12,12,13,0.42)",
               },
               backdrop,
             ]}
@@ -307,29 +308,28 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
                 ),
                 backgroundColor: colors.surface,
                 borderRadius: colors.components.dialogRadius,
-                borderWidth: colors.components.surfaceBorder,
+                borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
                 borderColor: colors.line,
                 overflow: "hidden",
-                boxShadow: `0 20px 48px ${colors.shade}`,
+                boxShadow: colors.shadow.modal,
               },
               motion,
             ]}
           >
             <View
               style={{
-                flexDirection: "row",
                 alignItems: "center",
-                gap: 12,
-                paddingHorizontal: 22,
-                paddingTop: 22,
+                gap: 14,
+                paddingHorizontal: 24,
+                paddingTop: 28,
                 paddingBottom: 10,
               }}
             >
               <View
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
+                  width: 52,
+                  height: 52,
+                  borderRadius: 26,
                   backgroundColor: tint,
                   alignItems: "center",
                   justifyContent: "center",
@@ -337,19 +337,19 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
               >
                 <SymbolIcon
                   name={danger ? "alert" : "info"}
-                  size={20}
+                  size={24}
+                  strokeWidth={2}
                   color={tone}
                 />
               </View>
               <Text
                 accessibilityRole="header"
                 style={{
-                  flex: 1,
                   color: colors.ink1,
-                  fontSize: 19,
+                  ...colors.type.title2,
+                  fontSize: 20,
                   lineHeight: 26,
-                  fontWeight: "700",
-                  letterSpacing: -0.2,
+                  textAlign: "center",
                 }}
               >
                 {request.title}
@@ -359,13 +359,13 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
               <ScrollView
                 style={{ flexShrink: 1 }}
                 contentContainerStyle={{
-                  paddingHorizontal: 22,
-                  paddingBottom: 16,
+                  paddingHorizontal: 26,
+                  paddingBottom: 18,
                 }}
                 showsVerticalScrollIndicator={false}
               >
                 <Text
-                  style={{ color: colors.ink2, fontSize: 14, lineHeight: 22 }}
+                  style={{ color: colors.ink2, fontSize: 15, lineHeight: 23, textAlign: "center" }}
                 >
                   {request.message}
                 </Text>
@@ -373,9 +373,9 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
             ) : null}
             <View
               style={{
-                paddingHorizontal: 18,
-                paddingBottom: 18,
-                paddingTop: 6,
+                paddingHorizontal: 20,
+                paddingBottom: 20,
+                paddingTop: 8,
                 flexDirection: buttons.length > 2 ? "column" : "row",
                 gap: 10,
               }}
@@ -388,8 +388,8 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
                   onPress={() => close(button)}
                   style={({ pressed }) => ({
                     flex: buttons.length <= 2 ? 1 : undefined,
-                    minHeight: 48,
-                    paddingHorizontal: 16,
+                    minHeight: 52,
+                    paddingHorizontal: 18,
                     paddingVertical: 10,
                     borderRadius: colors.radius.pill,
                     alignItems: "center",

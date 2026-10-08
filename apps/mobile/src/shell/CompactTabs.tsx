@@ -73,7 +73,7 @@ export function CompactTabs<T extends string>({
             motion,
           ]}
         >
-          <View style={{ flex: 1, borderRadius: 18, backgroundColor: colors.mode === "dark" ? colors.hover2 : colors.surface, boxShadow: `0 1px 4px ${colors.shade}` }} />
+          <View style={{ flex: 1, borderRadius: 18, backgroundColor: colors.mode === "dark" ? colors.hover2 : colors.surface, boxShadow: "0 1px 2px rgba(24,20,14,0.06), 0 4px 12px rgba(24,20,14,0.08)" }} />
         </Animated.View>
       ) : null}
       {options.map((item, itemIndex) => (
@@ -102,7 +102,7 @@ export function CompactTabs<T extends string>({
             position={progress}
             activeColor={colors.ink1}
             inactiveColor={colors.ink3}
-            labelStyle={{ fontSize: 14, lineHeight: 20, fontWeight: "700" }}
+            labelStyle={{ fontSize: 14, lineHeight: 20, fontWeight: "700", letterSpacing: -0.1 }}
           />
         </Pressy>
       ))}

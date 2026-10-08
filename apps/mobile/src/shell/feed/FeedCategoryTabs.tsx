@@ -9,7 +9,7 @@ import { useTheme } from "../../../../../packages/ui/theme";
 import type { FeedCategory } from "./useFeedPager";
 
 const categories = ["installed", "recommended", "following"] as const;
-const labelStyle = { fontSize: 16, lineHeight: 22, fontWeight: "700" as const, letterSpacing: -0.1 };
+const labelStyle = { fontSize: 15, lineHeight: 20, fontWeight: "700" as const, letterSpacing: -0.2 };
 export function FeedCategoryTabs({
   selected,
   position,
@@ -31,6 +31,15 @@ export function FeedCategoryTabs({
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       style={{ flex: 1, maxWidth: 300, height: 44, flexDirection: "row" }}
     >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          { position: "absolute", top: 3, bottom: 3, left: 0, width: width / 3, paddingHorizontal: 4 },
+          indicator,
+        ]}
+      >
+        <View style={{ flex: 1, borderRadius: 19, backgroundColor: colors.accent }} />
+      </Animated.View>
       {categories.map((category, index) => (
         <Pressable
           key={category}
@@ -50,34 +59,12 @@ export function FeedCategoryTabs({
             }
             index={index}
             position={position}
-            activeColor={colors.ink1}
+            activeColor={colors.onAccent}
             inactiveColor={colors.ink3}
             labelStyle={labelStyle}
           />
         </Pressable>
       ))}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          {
-            position: "absolute",
-            bottom: 2,
-            left: 0,
-            width: width / 3,
-            alignItems: "center",
-          },
-          indicator,
-        ]}
-      >
-        <View
-          style={{
-            width: 18,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: colors.accent,
-          }}
-        />
-      </Animated.View>
     </View>
   );
 }

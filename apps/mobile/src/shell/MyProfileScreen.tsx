@@ -263,11 +263,12 @@ function MyProfileContent({
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: colors.surface,
-              borderWidth: colors.components.surfaceBorder,
+              borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
               borderColor: colors.line,
+              boxShadow: colors.shadow.card,
             }}
           >
-            <SymbolIcon name="more" size={20} color={colors.ink1} />
+            <SymbolIcon name="more" size={20} strokeWidth={2} color={colors.ink1} />
           </Pressy>
         </View>
         <View
@@ -320,20 +321,18 @@ function MyProfileContent({
                     numberOfLines={1}
                     style={{
                       color: colors.ink1,
-                      fontSize: 22,
-                      lineHeight: 28,
+                      ...colors.type.title2,
                       fontWeight: "800",
-                      letterSpacing: -0.4,
                     }}
                   >
                     {user?.name ?? "登录账号"}
                   </Text>
                   {author ? <View style={{ flexDirection: "row", gap: 16 }}>
                     <Pressy accessibilityRole="button" accessibilityLabel="查看我的关注" hitSlop={{ top: 10, bottom: 10 }} onPress={() => onConnections(author, "following")} style={{ minHeight: 24, minWidth: 0, justifyContent: "center" }}>
-                      <Text style={{ color: colors.ink3, fontSize: 13 }}><Text style={{ color: colors.ink1, fontSize: 14, fontWeight: "800" }}>{stats?.id === user?.id ? stats?.following ?? "—" : "—"}</Text> 关注</Text>
+                      <Text style={{ color: colors.ink3, fontSize: 13 }}><Text style={{ color: colors.ink1, fontSize: 16, fontWeight: "800", letterSpacing: -0.3 }}>{stats?.id === user?.id ? stats?.following ?? "—" : "—"}</Text> 关注</Text>
                     </Pressy>
                     <Pressy accessibilityRole="button" accessibilityLabel="查看我的粉丝" hitSlop={{ top: 10, bottom: 10 }} onPress={() => onConnections(author, "followers")} style={{ minHeight: 24, minWidth: 0, justifyContent: "center" }}>
-                      <Text style={{ color: colors.ink3, fontSize: 13 }}><Text style={{ color: colors.ink1, fontSize: 14, fontWeight: "800" }}>{stats?.id === user?.id ? stats?.followers ?? "—" : "—"}</Text> 粉丝</Text>
+                      <Text style={{ color: colors.ink3, fontSize: 13 }}><Text style={{ color: colors.ink1, fontSize: 16, fontWeight: "800", letterSpacing: -0.3 }}>{stats?.id === user?.id ? stats?.followers ?? "—" : "—"}</Text> 粉丝</Text>
                     </Pressy>
                   </View> : <Text style={{ color: colors.ink3, fontSize: 13 }}>记录创造，收藏自己的作品</Text>}
 
@@ -420,7 +419,7 @@ function MyProfileContent({
                   gap: 12,
                 }}
               >
-                <Text style={{ color: colors.ink3 }}>
+                <Text style={{ color: colors.ink3, fontSize: 15, lineHeight: 22 }}>
                   登录后查看你的动态和作品
                 </Text>
                 <Pressy

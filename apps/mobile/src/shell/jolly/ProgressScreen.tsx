@@ -82,22 +82,22 @@ function ProgressContent({
     : danger
     ? colors.redTint
     : waiting
-    ? colors.orchidTint
-    : colors.accentTint;
+    ? colors.amberTint
+    : colors.orchidTint;
   const tone = ready
     ? colors.greenText
     : danger
     ? colors.redText
     : waiting
-    ? colors.orchidText
-    : colors.accentText;
+    ? colors.amberText
+    : colors.orchidText;
   const accent = ready
     ? colors.green
     : danger
     ? colors.red
     : waiting
-    ? colors.orchid
-    : colors.accent;
+    ? colors.amber
+    : colors.orchid;
   const latest = query.snapshot?.detail.traces
     .filter(
       (trace) => trace.kind === "text" && (trace.detail || trace.title).trim()
@@ -125,8 +125,10 @@ function ProgressContent({
         style={{
           flexDirection: "row",
           alignItems: "center",
-          paddingHorizontal: 12,
-          paddingVertical: 2,
+          paddingHorizontal: 16,
+          paddingTop: 6,
+          paddingBottom: 10,
+          gap: 12,
         }}
       >
         <Pressable
@@ -136,15 +138,20 @@ function ProgressContent({
           style={{
             width: 44,
             height: 44,
+            borderRadius: 22,
             alignItems: "center",
             justifyContent: "center",
+            backgroundColor: colors.surface,
+            boxShadow: colors.shadow.card,
+            borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
+            borderColor: colors.line,
           }}
         >
-          <SymbolIcon name="back" color={colors.ink1} />
+          <SymbolIcon name="back" strokeWidth={2} color={colors.ink1} />
         </Pressable>
         <Text
           accessibilityRole="header"
-          style={{ flex: 1, textAlign: "center", fontSize: 18 }}
+          style={{ flex: 1, textAlign: "center", ...colors.type.headline, color: colors.ink1 }}
         >
           制作进度
         </Text>
@@ -162,20 +169,20 @@ function ProgressContent({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           flexGrow: empty ? 1 : 0,
-          paddingHorizontal: 16,
+          paddingHorizontal: 18,
           paddingTop: 8,
-          paddingBottom: 24,
-          gap: 14,
+          paddingBottom: 28,
+          gap: 16,
         }}
       >
         {empty ? (
           <EmptyState style={{ gap: 16 }}>
             <JollyPortrait size={88} animated={false} />
-            <Text style={{ fontSize: 20 }}>暂无制作任务</Text>
+            <Text style={{ ...colors.type.title2, color: colors.ink1 }}>暂无制作任务</Text>
             <Text
               style={{
                 color: colors.ink3,
-                fontSize: 13,
+                fontSize: 15,
                 lineHeight: 21,
                 textAlign: "center",
                 maxWidth: 280,
@@ -188,7 +195,7 @@ function ProgressContent({
           <>
             <Text
               numberOfLines={1}
-              style={{ color: colors.ink2, fontSize: 14, lineHeight: 20 }}
+              style={{ ...colors.type.title1, color: colors.ink1 }}
             >
               {workTitle}
             </Text>
@@ -196,18 +203,19 @@ function ProgressContent({
               <View
                 style={{
                   overflow: "hidden",
-                  borderRadius: 12,
-                  borderWidth: 0.5,
-                  borderColor: colors.lineStrong,
-                  backgroundColor: tint,
+                  borderRadius: colors.radius.xl,
+                  borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
+                  borderColor: colors.line,
+                  backgroundColor: colors.surface,
+                  boxShadow: colors.shadow.card,
                 }}
               >
-                <View style={{ height: 4, backgroundColor: accent }} />
+                <View style={{ height: 3, marginHorizontal: 24, marginTop: 0, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: accent }} />
                 <View
                   style={{
                     flexDirection: "row",
-                    gap: 12,
-                    padding: 14,
+                    gap: 16,
+                    padding: 20,
                     alignItems: "center",
                   }}
                 >
@@ -250,7 +258,7 @@ function ProgressContent({
                         size={16}
                         color={tone}
                       />
-                      <Text style={{ color: tone, fontSize: 11 }}>
+                      <Text style={{ color: tone, ...colors.type.overline, fontSize: 11 }}>
                         {ready
                           ? "已完成"
                           : danger
@@ -264,7 +272,7 @@ function ProgressContent({
                     </View>
                     <Text
                       accessibilityLiveRegion="polite"
-                      style={{ fontSize: 22, lineHeight: 29 }}
+                      style={{ ...colors.type.title2, color: colors.ink1 }}
                     >
                       {progressLabels[state]}
                     </Text>
@@ -272,11 +280,11 @@ function ProgressContent({
                 </View>
                 <Text
                   style={{
-                    paddingHorizontal: 14,
-                    paddingBottom: 14,
+                    paddingHorizontal: 20,
+                    paddingBottom: 20,
                     color: colors.ink2,
-                    fontSize: 13,
-                    lineHeight: 21,
+                    fontSize: 14,
+                    lineHeight: 22,
                   }}
                 >
                   {descriptions[state]}
@@ -307,17 +315,17 @@ function ProgressContent({
                       }`}
                       style={{
                         flex: 1,
-                        minHeight: 78,
+                        minHeight: 84,
                         alignItems: "center",
                         justifyContent: "center",
                         gap: 8,
-                        borderRadius: 8,
+                        borderRadius: colors.radius.lg,
                         backgroundColor: done
                           ? colors.greenTint
                           : current
                           ? tint
-                          : colors.canvas,
-                        borderWidth: 0.5,
+                          : colors.surfaceRaised,
+                        borderWidth: current ? 1.5 : 0,
                         borderColor: current ? foreground : colors.line,
                       }}
                     >
@@ -334,7 +342,7 @@ function ProgressContent({
                         size={18}
                         color={foreground}
                       />
-                      <Text style={{ color: foreground, fontSize: 12 }}>
+                      <Text style={{ color: foreground, fontSize: 13, fontWeight: "700" }}>
                         {label}
                       </Text>
                     </View>
@@ -346,8 +354,8 @@ function ProgressContent({
               <View
                 style={{
                   gap: 6,
-                  padding: 12,
-                  borderRadius: 8,
+                  padding: 18,
+                  borderRadius: colors.radius.lg,
                   backgroundColor: colors.cyanTint,
                 }}
               >
@@ -387,12 +395,12 @@ function ProgressContent({
             ) : null}
             {state && message ? (
               <View style={{ gap: 8, paddingTop: 2 }}>
-                <Text style={{ fontSize: 13, color: colors.ink3 }}>
+                <Text style={{ ...colors.type.overline, color: colors.ink3 }}>
                   近期进展
                 </Text>
                 <Text
                   numberOfLines={expanded ? undefined : 3}
-                  style={{ fontSize: 13, lineHeight: 22, color: colors.ink2 }}
+                  style={{ fontSize: 14, lineHeight: 23, color: colors.ink2 }}
                 >
                   {message}
                 </Text>
@@ -466,8 +474,13 @@ function RefreshButton({
       style={{
         width: 44,
         height: 44,
+        borderRadius: 22,
         alignItems: "center",
         justifyContent: "center",
+        backgroundColor: colors.surface,
+        boxShadow: colors.shadow.card,
+        borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
+        borderColor: colors.line,
         opacity: disabled ? 0.35 : 1,
       }}
     >
@@ -483,7 +496,7 @@ function RefreshButton({
           ],
         }}
       >
-        <SymbolIcon name="refresh" size={18} color={colors.cyanText} />
+        <SymbolIcon name="refresh" size={18} strokeWidth={2} color={colors.ink1} />
       </Animated.View>
     </Pressable>
   );

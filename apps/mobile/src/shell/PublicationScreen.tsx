@@ -110,7 +110,7 @@ function PublicationContent({
     />
   );
   const tabs = (
-    <View style={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 6 }}>
+    <View style={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 8 }}>
       <CompactTabs
         position={position}
         value={mode}
@@ -132,7 +132,8 @@ function PublicationContent({
         title={
           lockedCreation ? (creation?.fork ? "Remix" : "修改应用") : "发布"
         }
-        onBack={postControls?.busy || creating ? undefined : onBack}
+        onBack={onBack}
+        backDisabled={postControls?.busy || creating}
       />
       {lockedCreation ? (
         creationPage
@@ -383,8 +384,8 @@ function CreateApplicationPage({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        paddingHorizontal: 16,
-        gap: 16,
+        paddingHorizontal: 18,
+        gap: 18,
         paddingBottom: 16 + insets.bottom,
       }}
     >
@@ -397,7 +398,7 @@ function CreateApplicationPage({
       >
         <Text
           numberOfLines={1}
-          style={{ flex: 1, color: colors.ink1, fontSize: 14 }}
+          style={{ flex: 1, color: colors.ink1, fontSize: 15, fontWeight: "700", letterSpacing: -0.2 }}
         >
           {intent
             ? `${intent.fork ? "Remix" : "修改"} · ${intent.title}`
@@ -416,8 +417,10 @@ function CreateApplicationPage({
               } else void polish();
             }}
             style={{
-              minHeight: 44,
-              paddingHorizontal: 10,
+              minHeight: 36,
+              paddingHorizontal: 14,
+              borderRadius: 18,
+              backgroundColor: colors.orchidTint,
               flexDirection: "row",
               alignItems: "center",
               gap: 6,
@@ -475,14 +478,15 @@ function CreateApplicationPage({
         placeholderTextColor={colors.ink3}
         style={{
           height: CREATION_INPUT_HEIGHT,
-          padding: 16,
-          borderRadius: colors.radius.lg,
-          borderWidth: colors.components.surfaceBorder,
+          padding: 20,
+          borderRadius: colors.radius.xl,
+          borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
           borderColor: colors.line,
           backgroundColor: colors.surface,
+          boxShadow: colors.shadow.card,
           color: colors.ink1,
-          fontSize: 15,
-          lineHeight: 23,
+          fontSize: 16,
+          lineHeight: 25,
           textAlignVertical: "top",
         }}
       />
@@ -528,7 +532,7 @@ function CreateApplicationPage({
         点击后需求和参考图会交给制作服务；作品发布成功后会收到站内通知，制作进度可手动刷新。
       </Text>
     </KeyboardAwareScrollView>
-    <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 + insets.bottom, backgroundColor: colors.canvas }}>
+    <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12 + insets.bottom, backgroundColor: colors.canvas }}>
       <Pressy
         accessibilityRole="button"
         accessibilityLabel="提交需求并开始制作"
@@ -542,9 +546,10 @@ function CreateApplicationPage({
         }
         onPress={() => void create()}
         style={{
-          minHeight: 52,
-          borderRadius: 26,
-          backgroundColor: colors.accent,
+          minHeight: 56,
+          borderRadius: 28,
+          experimental_backgroundImage: colors.aurora,
+          boxShadow: "0 10px 24px rgba(115,87,255,0.32)",
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
@@ -556,17 +561,17 @@ function CreateApplicationPage({
             !ready ||
             !prompt.trim() ||
             !user
-              ? 0.5
+              ? 0.4
               : 1,
         }}
       >
         {busy ? (
-          <ActivityIndicator color={colors.onAccent} />
+          <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <SymbolIcon name="spark" size={20} color={colors.onAccent} />
+          <SymbolIcon name="spark" size={20} strokeWidth={2} color="#FFFFFF" />
         )}
         <Text
-          style={{ color: colors.onAccent, fontSize: 15, fontWeight: "700" }}
+          style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "800", letterSpacing: -0.1 }}
         >
           {busy ? submitStatus : "进入制作"}
         </Text>

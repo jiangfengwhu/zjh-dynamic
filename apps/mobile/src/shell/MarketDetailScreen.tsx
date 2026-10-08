@@ -644,8 +644,8 @@ function MarketDetailContent({
     });
   }
   const summary = (shared?.summary ?? item.summary ?? app.description ?? "").trim();
-  function renderIcon(size = 84) {
-    const style = [styles.mark, { width: size, height: size, borderRadius: size / 4 }];
+  function renderIcon(size = 96) {
+    const style = [styles.mark, { width: size, height: size, borderRadius: size * 0.27 }];
     const content = <>
       <ApplicationIcon application={{ ...item, manifest: displayed, iconUrl: manualIcon || sharing?.iconUrl || shared?.iconUrl || item.iconUrl }} size={size} />
       {uploadStatus === "正在上传图标…" ? <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.surface, opacity: 0.85, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={colors.accentText} /></View> : null}
@@ -726,14 +726,14 @@ function MarketDetailContent({
                   fontWeight: publishLatest === option.value ? "700" : "500",
                   color:
                     publishLatest === option.value
-                      ? colors.canvas
+                      ? colors.onAccent
                       : colors.ink2,
                 }}
               >
                 {option.label}
               </Text>
               {publishLatest === option.value ? (
-                <SymbolIcon name="check" size={13} color={colors.canvas} />
+                <SymbolIcon name="check" size={13} color={colors.onAccent} />
               ) : null}
             </Pressy>
           ))}
@@ -812,7 +812,7 @@ function MarketDetailContent({
                 style={{
                   width: 44,
                   height: 44,
-                  borderRadius: 10,
+                  borderRadius: 22,
                   alignItems: "center",
                   backgroundColor: colors.redTint,
                 }}
@@ -824,9 +824,9 @@ function MarketDetailContent({
                 accessibilityLabel="公开到应用市场"
                 onPress={onPublication}
                 scale={1}
-                style={{ width: 44, height: 44, alignItems: "center" }}
+                style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", backgroundColor: colors.accent, paddingHorizontal: 0, paddingVertical: 0 }}
               >
-                <SymbolIcon name="send" size={20} color={colors.accentText} />
+                <SymbolIcon name="send" size={20} strokeWidth={2.2} color={colors.onAccent} />
               </Pressy>
             ) : undefined
           }
@@ -1333,26 +1333,28 @@ const useStyles = createThemedStyles((base) => {
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     content: {
-      paddingHorizontal: 16,
+      paddingHorizontal: 18,
       paddingTop: 8,
-      paddingBottom: 16,
-      gap: 12,
+      paddingBottom: 20,
+      gap: 16,
     },
     hero: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 16,
-      paddingVertical: 6,
+      gap: 18,
+      paddingVertical: 8,
     },
     mark: {
-      width: 84,
-      height: 84,
-      borderRadius: 22,
+      width: 96,
+      height: 96,
+      borderRadius: 26,
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
+      borderWidth: t.components.surfaceBorder,
+      borderColor: t.line,
     },
-    title: { fontSize: 24, lineHeight: 31, color: t.ink1, fontWeight: "800", letterSpacing: -0.4 },
+    title: { ...t.type.title1, color: t.ink1 },
     tags: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -1371,8 +1373,8 @@ const useStyles = createThemedStyles((base) => {
       overflow: "hidden",
     },
     official: {
-      color: t.accentText,
-      backgroundColor: t.accentTint,
+      color: t.orchidText,
+      backgroundColor: t.orchidTint,
       fontSize: 11,
       lineHeight: 15,
       fontWeight: "700",
@@ -1382,13 +1384,11 @@ const useStyles = createThemedStyles((base) => {
       overflow: "hidden",
     },
     caption: { color: t.ink3, fontSize: 12, lineHeight: 17 },
-    copy: { color: t.ink2, fontSize: 15, lineHeight: 23 },
+    copy: { color: t.ink2, fontSize: 15, lineHeight: 24 },
     subtitle: {
       color: t.ink1,
-      fontSize: 17,
-      lineHeight: 24,
-      fontWeight: "800",
-      letterSpacing: -0.2,
+      ...t.type.headline,
+      fontSize: 18,
     },
     author: {
       flexDirection: "row",
@@ -1408,34 +1408,36 @@ const useStyles = createThemedStyles((base) => {
       flexDirection: "row",
       gap: 12,
       backgroundColor: t.surface,
-      borderRadius: t.radius.lg,
-      borderWidth: t.components.surfaceBorder,
+      borderRadius: t.radius.xl,
+      borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
       borderColor: t.line,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
+      boxShadow: t.shadow.card,
+      paddingVertical: 18,
+      paddingHorizontal: 20,
     },
     fact: { flex: 1, gap: 4 },
-    factValue: { color: t.ink1, fontSize: 14, lineHeight: 20, fontWeight: "700" },
+    factValue: { color: t.ink1, fontSize: 17, lineHeight: 22, fontWeight: "800", letterSpacing: -0.3 },
     tools: { flexDirection: "row", gap: 10 },
     tool: {
       flex: 1,
       minWidth: 0,
-      minHeight: 68,
-      borderRadius: t.radius.lg,
+      minHeight: 76,
+      borderRadius: t.radius.xl,
       backgroundColor: t.surface,
-      borderWidth: t.components.surfaceBorder,
+      borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
       borderColor: t.line,
+      boxShadow: t.shadow.card,
       alignItems: "center",
       justifyContent: "center",
       gap: 6,
       paddingVertical: 10,
     },
-    toolText: { fontSize: 13, lineHeight: 18, fontWeight: "600", textAlign: "center" },
-    gallery: { gap: 10 },
+    toolText: { fontSize: 13, lineHeight: 18, fontWeight: "700", textAlign: "center" },
+    gallery: { gap: 12 },
     galleryImage: {
-      width: 132,
-      height: 220,
-      borderRadius: t.radius.lg,
+      width: 144,
+      height: 256,
+      borderRadius: t.radius.xl,
       backgroundColor: t.surfaceRaised,
     },
     line: {
@@ -1468,13 +1470,13 @@ const useStyles = createThemedStyles((base) => {
     fieldGroup: { gap: 8, paddingTop: 6 },
     input: {
       color: t.ink1,
-      backgroundColor: t.surface,
-      borderWidth: t.components.surfaceBorder,
+      backgroundColor: t.surfaceRaised,
+      borderWidth: 0,
       borderColor: t.line,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderRadius: t.radius.lg,
-      minHeight: 50,
+      paddingHorizontal: 18,
+      paddingVertical: 13,
+      borderRadius: t.radius.md,
+      minHeight: 52,
       fontSize: 15,
     },
     categories: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -1531,18 +1533,18 @@ const useStyles = createThemedStyles((base) => {
       justifyContent: "flex-start",
     },
     dock: {
-      paddingHorizontal: 16,
+      paddingHorizontal: 18,
       paddingTop: 10,
-      paddingBottom: 10,
+      paddingBottom: 12,
       flexDirection: "row",
       gap: 10,
       backgroundColor: t.canvas,
     },
     primary: {
-      minHeight: 52,
-      borderRadius: 26,
+      minHeight: 54,
+      borderRadius: 27,
       backgroundColor: t.accent,
-      paddingHorizontal: 20,
+      paddingHorizontal: 24,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -1556,10 +1558,10 @@ const useStyles = createThemedStyles((base) => {
     },
     updateButton: {
       minWidth: 84,
-      minHeight: 52,
-      paddingHorizontal: 18,
-      borderRadius: 26,
-      backgroundColor: t.accentTint,
+      minHeight: 54,
+      paddingHorizontal: 20,
+      borderRadius: 27,
+      backgroundColor: t.surfaceRaised,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",

@@ -10,7 +10,7 @@ export function Dialog({ open, onClose, title, children, footer, dismissible = t
   const { colors } = useTheme();
   return <DialogFrame open={open} onClose={onClose} dismissible={dismissible}>
     <View style={{ gap: colors.spacing.item }}>
-      <Text variant="title" accessibilityRole="header" style={{ fontSize: 20, lineHeight: 28, fontWeight: "700", letterSpacing: -0.2 }}>{title}</Text>
+      <Text variant="title" accessibilityRole="header" style={colors.type.title2}>{title}</Text>
       {children}
     </View>
     {footer ? <View style={{ paddingTop: colors.spacing.item }}>{footer}</View> : null}
@@ -41,7 +41,7 @@ function Confirmation({ description, confirmLabel, cancelLabel = "取消", inten
       <Button label={cancelLabel} intent="neutral" disabled={busy} onPress={props.onClose} style={{ flexGrow: 1 }} />
       <Button label={confirmLabel} intent={intent} busy={busy} onPress={() => void confirm()} style={{ flexGrow: 1 }} />
     </View>}>
-    <Text style={{ color: colors.ink2 }}>{description}</Text>
+    <Text style={{ color: colors.ink2, fontSize: 15, lineHeight: 23 }}>{description}</Text>
     {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: colors.redText }}>{error}</Text> : null}
   </Dialog>;
 }

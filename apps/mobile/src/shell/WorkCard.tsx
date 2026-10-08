@@ -64,11 +64,11 @@ export const WorkCard = memo(function WorkCard({
     <View
       style={{
         backgroundColor: colors.surface,
-        borderRadius: colors.radius.lg,
-        borderWidth: colors.components.surfaceBorder,
+        borderRadius: colors.radius.xl,
+        borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
         borderColor: colors.line,
-        overflow: "hidden",
-        marginBottom: 10,
+        boxShadow: colors.shadow.card,
+        marginBottom: 12,
       }}
     >
       <Pressy
@@ -84,22 +84,24 @@ export const WorkCard = memo(function WorkCard({
           style={{
             flexDirection: "row",
             alignItems: "center",
-            paddingHorizontal: 14,
-            paddingTop: 14,
-            paddingBottom: 6,
-            gap: 12,
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: 8,
+            gap: 14,
           }}
         >
           <View
             style={{
-              width: 52,
-              height: 52,
-              borderRadius: 14,
+              width: 56,
+              height: 56,
+              borderRadius: 16,
               alignItems: "center",
               justifyContent: "center",
+              overflow: "hidden",
+              backgroundColor: colors.surfaceRaised,
             }}
           >
-            {application ? <ApplicationIcon application={application} size={52} /> : <SymbolIcon name="box" size={26} color={accent} />}
+            {application ? <ApplicationIcon application={application} size={56} /> : <SymbolIcon name="box" size={26} color={accent} />}
             {busy ? (
               <ActivityIndicator
                 color={accent}
@@ -115,6 +117,7 @@ export const WorkCard = memo(function WorkCard({
                 fontSize: 16,
                 lineHeight: 22,
                 fontWeight: "700",
+                letterSpacing: -0.3,
               }}
             >
               {title}
@@ -132,9 +135,9 @@ export const WorkCard = memo(function WorkCard({
       </Pressy>
       <View
         style={{
-          paddingLeft: 14,
-          paddingRight: 6,
-          paddingBottom: 4,
+          paddingLeft: 16,
+          paddingRight: 8,
+          paddingBottom: 6,
           flexDirection: "row",
           alignItems: "center",
           gap: 4,

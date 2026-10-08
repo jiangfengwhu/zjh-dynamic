@@ -27,7 +27,7 @@ export function LoadingSkeleton({
         animated={focused}
         width={typeof size === "number" ? size : size === "large" ? 40 : 28}
         height={10}
-        borderRadius={2}
+        borderRadius={5}
         style={{ backgroundColor: color || colors.lineStrong }}
       />
     </View>
@@ -41,38 +41,38 @@ export function PageSkeleton({ rows = 3 }: { rows?: number }) {
     <View
       accessibilityLabel="正在加载内容"
       accessibilityState={{ busy: true }}
-      style={{ alignSelf: "stretch", gap: 20, paddingVertical: 12 }}
+      style={{ alignSelf: "stretch", gap: 12, paddingVertical: 8 }}
     >
       {Array.from({ length: rows }, (_, index) => (
-        <View key={index} style={{ flexDirection: "row", gap: 12 }}>
+        <View key={index} style={{ flexDirection: "row", gap: 14, padding: 18, borderRadius: colors.radius.xl, backgroundColor: colors.surface, boxShadow: colors.shadow.card, borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line }}>
           <Skeleton
             animated={focused}
             width={44}
             height={44}
             borderRadius={22}
-            style={{ backgroundColor: colors.line }}
+            style={{ backgroundColor: colors.surfaceRaised }}
           />
           <View style={{ flex: 1, gap: 10, paddingTop: 3 }}>
             <Skeleton
             animated={focused}
               width="60%"
               height={14}
-              borderRadius={2}
-              style={{ backgroundColor: colors.line }}
+              borderRadius={7}
+              style={{ backgroundColor: colors.surfaceRaised }}
             />
             <Skeleton
             animated={focused}
               width="90%"
               height={12}
-              borderRadius={2}
-              style={{ backgroundColor: colors.line }}
+              borderRadius={6}
+              style={{ backgroundColor: colors.surfaceRaised }}
             />
             <Skeleton
             animated={focused}
               width="40%"
               height={10}
-              borderRadius={2}
-              style={{ backgroundColor: colors.line }}
+              borderRadius={5}
+              style={{ backgroundColor: colors.surfaceRaised }}
             />
           </View>
         </View>

@@ -77,7 +77,7 @@ export function PullIndicator({
       },
     ],
   }));
-  const color = phase === "failed" ? colors.redText : colors.accentText;
+  const color = phase === "failed" ? colors.redText : phase === "done" ? colors.greenText : colors.ink2;
   return (
     <Animated.View pointerEvents="none" style={[styles.stage, stage]}>
       <Animated.View style={[styles.icon, rotation]}>
@@ -118,5 +118,5 @@ const useStyles = createThemedStyles((t) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { fontSize: 12, lineHeight: 18, fontWeight: "600" },
+  label: { fontSize: 12, lineHeight: 18, fontWeight: "700", letterSpacing: 0.4 },
 }));

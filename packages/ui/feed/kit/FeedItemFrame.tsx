@@ -36,7 +36,7 @@ export function FeedItemHeading({
         lineHeight: 21,
         fontWeight: "700",
         color: colors.ink1,
-        letterSpacing: -0.1,
+        letterSpacing: -0.2,
       }}
     >
       {name}
@@ -71,7 +71,7 @@ export function FeedItemHeading({
               width: 7,
               height: 7,
               borderRadius: 3.5,
-              backgroundColor: accent ?? colors.accent,
+              backgroundColor: accent ?? colors.orchid,
             }}
           />
         ) : null}
@@ -126,7 +126,7 @@ export function FeedItemFrame({
   const compact = useCompactFeed();
   const frameInset = useFeedFrameInset();
   const rowWidth = useFeedRowWidth();
-  const border = detail ? 0 : colors.components.surfaceBorder;
+  const border = detail || colors.mode !== "dark" ? 0 : colors.components.surfaceBorder;
   const contentWidth = rowWidth === undefined ? undefined : Math.max(1, Math.floor(rowWidth - frameInset * 2 - border * 2));
   const avatarSize = detail ? 44 : 40;
   const avatarSlot = (
@@ -141,12 +141,13 @@ export function FeedItemFrame({
           ? { paddingHorizontal: frameInset, paddingTop: 8, paddingBottom: 6 }
           : {
               paddingHorizontal: frameInset,
-              paddingTop: 14,
-              paddingBottom: 4,
+              paddingTop: 18,
+              paddingBottom: 6,
               backgroundColor: colors.surface,
               borderRadius: colors.radius.xl,
               borderWidth: border,
               borderColor: colors.line,
+              boxShadow: colors.shadow.card,
             },
         style,
       ]}
@@ -180,8 +181,8 @@ export function FeedItemFrame({
           menu={menu}
         />
       </View>
-      <View style={{ paddingTop: detail ? 14 : 12, gap: detail ? 12 : 10 }}>
-        <View style={{ gap: detail ? 12 : 10 }}>{content}</View>
+      <View style={{ paddingTop: detail ? 16 : 14, gap: detail ? 14 : 10 }}>
+        <View style={{ gap: detail ? 14 : 12 }}>{content}</View>
         {actions}
       </View>
     </View></FeedContentWidthContext.Provider>

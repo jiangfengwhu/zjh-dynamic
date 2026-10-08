@@ -67,6 +67,6 @@ export function Skeleton({
 
 const useStyles = createThemedStyles((theme) => ({
   base: {
-    backgroundColor: theme.hover,
+    backgroundColor: theme.surfaceRaised,
   },
 }));

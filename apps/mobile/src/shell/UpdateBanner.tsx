@@ -35,10 +35,10 @@ export function UpdateBanner({ items, busy, completed, error, apkProgress: repor
       <Surface tone="raised" radius={colors.radius.xl} lifted style={styles.card}>
         <View style={styles.row}>
           <View style={styles.avatar}>
-            <Icon name="box" size={28} color={colors.accentText} />
+            <Icon name="box" size={22} color="#FFFFFF" />
           </View>
           <View style={styles.copy}>
-            <Text style={styles.title}>{apk ? `紫金花 ${apk.versionName} 可更新` : completed ? "作品已准备好" : "有可用更新"}</Text>
+            <Text style={styles.title}>{apk ? `新版本 ${apk.versionName} 可更新` : completed ? "作品已准备好" : "有可用更新"}</Text>
             <Text style={styles.detail}>
               {apk ? apkProgress?.phase === "ready" ? "安装包已下载，按系统提示安装；取消后可再次点击安装。" : "在应用内下载并安装更新，保留本机数据。" : completed
                 ? "加载这次的作品，即可体验。加载时会刷新应用。"
@@ -46,7 +46,7 @@ export function UpdateBanner({ items, busy, completed, error, apkProgress: repor
             </Text>
           </View>
         </View>
-        {apk ? <View accessibilityRole="progressbar" accessibilityLabel="安装包下载进度" accessibilityValue={{ min: 0, max: 100, now: percent }} style={{ height: 4, borderRadius: 2, backgroundColor: busy ? colors.accentSoft : "transparent", overflow: "hidden" }}><View style={{ height: 4, width: `${percent}%`, backgroundColor: busy ? colors.accent : "transparent" }} /></View> : null}
+        {apk ? <View accessibilityRole="progressbar" accessibilityLabel="安装包下载进度" accessibilityValue={{ min: 0, max: 100, now: percent }} style={{ height: 4, borderRadius: 2, backgroundColor: busy ? colors.surfaceRaised : "transparent", overflow: "hidden" }}><View style={{ height: 4, width: `${percent}%`, borderRadius: 2, experimental_backgroundImage: busy ? colors.aurora : undefined }} /></View> : null}
         {error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text> : null}
         <View style={styles.actions}>
           <Pressy accessibilityRole="button" disabled={busy} onPress={onLater} style={styles.later}>
@@ -69,8 +69,8 @@ const useStyles = createThemedStyles((t) => ({
     zIndex: 30,
   },
   card: {
-    padding: 16,
-    gap: 12,
+    padding: 18,
+    gap: 14,
   },
   row: {
     flexDirection: "row",
@@ -78,13 +78,13 @@ const useStyles = createThemedStyles((t) => ({
     gap: 12,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    backgroundColor: t.accentTint,
+    experimental_backgroundImage: t.aurora,
   },
   copy: {
     flex: 1,
@@ -92,8 +92,7 @@ const useStyles = createThemedStyles((t) => ({
   },
   title: {
     fontFamily: t.serif,
-    fontSize: 17,
-    fontWeight: "700",
+    ...t.type.headline,
     color: t.ink1,
   },
   detail: {

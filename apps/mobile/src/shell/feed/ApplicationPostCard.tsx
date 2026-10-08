@@ -46,10 +46,10 @@ export function ApplicationPostCard({
       onPress={() => void open()}
       style={{
         paddingLeft: 12,
-        paddingRight: 12,
+        paddingRight: 14,
         paddingVertical: 12,
-        borderRadius: 18,
-        backgroundColor: colors.surfaceRaised,
+        borderRadius: 22,
+        backgroundColor: colors.mode === "dark" ? colors.surfaceRaised : colors.canvas,
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
@@ -57,20 +57,21 @@ export function ApplicationPostCard({
     >
       <View
         style={{
-          width: 48,
-          height: 48,
-          borderRadius: 14,
-          backgroundColor: "transparent",
+          width: 52,
+          height: 52,
+          borderRadius: 16,
+          backgroundColor: colors.surface,
           alignItems: "center",
           justifyContent: "center",
+          overflow: "hidden",
         }}
       >
-        <ApplicationIcon application={{ manifest: application, iconUrl: application.iconUrl }} size={48} />
+        <ApplicationIcon application={{ manifest: application, iconUrl: application.iconUrl }} size={52} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
         <Text
           numberOfLines={1}
-          style={{ fontSize: 15, lineHeight: 21, fontWeight: "700", color: colors.ink1 }}
+          style={{ fontSize: 15, lineHeight: 21, fontWeight: "700", letterSpacing: -0.2, color: colors.ink1 }}
         >
           {application.title}
         </Text>
@@ -84,19 +85,19 @@ export function ApplicationPostCard({
       {!preview ? (
         <View
           style={{
-            minWidth: 56,
-            height: 32,
-            paddingHorizontal: 14,
-            borderRadius: 16,
-            backgroundColor: colors.surface,
+            minWidth: 60,
+            height: 34,
+            paddingHorizontal: 16,
+            borderRadius: 17,
+            backgroundColor: colors.accent,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
           {busy ? (
-            <ActivityIndicator size="small" color={colors.accent} />
+            <ActivityIndicator size="small" color={colors.onAccent} />
           ) : (
-            <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: "700", color: colors.accentText }}>打开</Text>
+            <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: "700", color: colors.onAccent }}>打开</Text>
           )}
         </View>
       ) : null}

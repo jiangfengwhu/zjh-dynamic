@@ -402,7 +402,8 @@ export function ComposePostScreen({
       {!embedded ? (
         <PageHeader
           title={modeTabs ? "发布" : "发动态"}
-          onBack={busy ? undefined : onBack}
+          onBack={onBack}
+          backDisabled={busy}
         />
       ) : null}
       {modeTabs}
@@ -462,7 +463,8 @@ export function ComposePostScreen({
             <View style={styles.tool}>
               <Text style={styles.addText}>HTML</Text>
               <Switch accessibilityLabel="作为 HTML 发布" value={htmlMode} disabled={!draftReady || busy}
-                trackColor={{ false: colors.lineStrong, true: colors.accent }}
+                trackColor={{ false: colors.lineStrong, true: colors.green }}
+                thumbColor="#FFFFFF"
                 onValueChange={value => {
                   revision.current++;
                   polishController.current?.abort();
@@ -476,7 +478,7 @@ export function ComposePostScreen({
                 if (polishing) { polishController.current?.abort(); setPolishing(false); }
                 else void polish();
               }}>
-              {polishing ? <ActivityIndicator color={colors.accentText} size="small" /> : <SymbolIcon name="spark" size={18} color={colors.accentText} />}
+              {polishing ? <ActivityIndicator color={colors.orchidText} size="small" /> : <SymbolIcon name="spark" size={17} color={colors.orchidText} />}
               <Text style={styles.addText}>{polishing ? "取消润色" : "AI 润色"}</Text>
             </Pressy>
             {beforePolish !== undefined ? <Pressy accessibilityLabel="撤销 AI 润色" style={styles.tool} disabled={busy}
@@ -487,7 +489,7 @@ export function ComposePostScreen({
               onPress={() => void choose()}
               style={styles.tool}
             >
-              <SymbolIcon name="photo" size={18} color={colors.accentText} />
+              <SymbolIcon name="photo" size={17} color={colors.ink1} />
               <Text style={styles.addText}>
                 {choosing ? "处理图片…" : `图片 ${photos.length}/4`}
               </Text>
@@ -498,7 +500,7 @@ export function ComposePostScreen({
               onPress={() => void pickApplication()}
               style={styles.tool}
             >
-              <SymbolIcon name="layers" size={18} color={colors.accentText} />
+              <SymbolIcon name="box" size={17} color={colors.ink1} />
               <Text style={styles.addText}>
                 {application ? "更换应用" : "附带应用"}
               </Text>
@@ -541,7 +543,7 @@ export function ComposePostScreen({
 
           {busy ? (
             <View style={styles.status}>
-              <ActivityIndicator size="small" color={colors.accent} />
+              <ActivityIndicator size="small" color={colors.ink2} />
               <Text style={styles.counter}>{status || "准备发布…"}</Text>
             </View>
           ) : null}
@@ -568,7 +570,7 @@ export function ComposePostScreen({
         <View
           style={{
             flex: 1,
-            backgroundColor: colors.mode === "dark" ? "rgba(0,0,0,0.62)" : "rgba(12,12,16,0.38)",
+            backgroundColor: colors.mode === "dark" ? "rgba(0,0,0,0.72)" : "rgba(12,12,13,0.42)",
             justifyContent: "flex-end",
           }}
         >
@@ -582,24 +584,26 @@ export function ComposePostScreen({
               backgroundColor: colors.canvas,
               borderTopLeftRadius: colors.components.dialogRadius,
               borderTopRightRadius: colors.components.dialogRadius,
-              borderTopWidth: colors.components.surfaceBorder,
+              borderTopWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
               borderColor: colors.line,
-              padding: 18,
+              paddingHorizontal: 22,
+              paddingTop: 22,
               paddingBottom: 12 + insets.bottom,
               maxHeight: "75%",
-              gap: 8,
+              gap: 10,
+              boxShadow: colors.shadow.modal,
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="box" size={18} color={colors.accentText} /></View>
-              <Text style={{ flex: 1, color: colors.ink1, fontSize: 17, fontWeight: "800" }}>我的已上架应用</Text>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceRaised, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="box" size={18} color={colors.ink1} /></View>
+              <Text style={{ flex: 1, color: colors.ink1, ...colors.type.headline }}>我的已上架应用</Text>
               <Pressy scale={1} accessibilityLabel="关闭应用选择" onPress={() => setPicking(false)} style={{ width: 44, height: 44, alignItems: "center" }}><SymbolIcon name="close" size={16} color={colors.ink3} /></Pressy>
             </View>
             <Text style={styles.counter}>仅分享应用市场里的公开版本</Text>
             <ScrollView keyboardShouldPersistTaps="handled">
               {loadingApps ? (
                 <ActivityIndicator
-                  color={colors.accent}
+                  color={colors.ink2}
                   style={{ padding: 16 }}
                 />
               ) : appsError ? (
@@ -620,8 +624,10 @@ export function ComposePostScreen({
                     }`}
                     onPress={() => selectApplication(item)}
                     style={{
-                      paddingVertical: 12,
-                      borderBottomWidth: 0.5,
+                      paddingVertical: 14,
+                      paddingHorizontal: 4,
+                      gap: 2,
+                      borderBottomWidth: colors.components.surfaceBorder,
                       borderBottomColor: colors.line,
                     }}
                   >
@@ -655,26 +661,27 @@ const useStyles = createThemedStyles((base) => {
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     fill: { flex: 1 },
-    content: { paddingHorizontal: 16, paddingTop: 8, gap: 16, paddingBottom: 10 },
-    previewText: { color: t.ink1, fontSize: 15, lineHeight: 23 },
+    content: { paddingHorizontal: 18, paddingTop: 10, gap: 18, paddingBottom: 14 },
+    previewText: { color: t.ink1, fontSize: 16, lineHeight: 25 },
     htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-    htmlAction: { minHeight: 44, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
-    publishDock: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: t.canvas },
-    author: { flexDirection: "row", gap: 12, alignItems: "center", paddingHorizontal: 4 },
-    avatar: { width: 40, height: 40, borderRadius: 20 },
-    name: { color: t.ink1, fontSize: 16, fontWeight: "700" },
+    htmlAction: { minHeight: 36, paddingHorizontal: 14, alignItems: "center", justifyContent: "center", borderRadius: 18, backgroundColor: t.surfaceRaised },
+    publishDock: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12, backgroundColor: t.canvas },
+    author: { flexDirection: "row", gap: 12, alignItems: "center", paddingHorizontal: 2 },
+    avatar: { width: 44, height: 44, borderRadius: 22 },
+    name: { color: t.ink1, fontSize: 16, fontWeight: "700", letterSpacing: -0.2 },
     input: {
       minHeight: 160,
       color: t.ink1,
       fontSize: 17,
-      lineHeight: 26,
-      padding: 18,
+      lineHeight: 27,
+      padding: 20,
       borderRadius: t.radius.xl,
-      borderWidth: t.components.surfaceBorder,
+      borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
       borderColor: t.line,
       backgroundColor: t.surface,
+      boxShadow: t.shadow.card,
     },
-    photos: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+    photos: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
     photo: {
       width: "48%",
       aspectRatio: 1,
@@ -690,7 +697,9 @@ const useStyles = createThemedStyles((base) => {
       width: 30,
       height: 30,
       borderRadius: 15,
-      backgroundColor: "#00000099",
+      backgroundColor: "rgba(0,0,0,0.55)",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.3)",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -698,12 +707,12 @@ const useStyles = createThemedStyles((base) => {
     tools: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
     tool: {
       flexDirection: "row",
-      gap: 6,
+      gap: 7,
       alignItems: "center",
-      backgroundColor: t.surface,
-      borderWidth: t.components.surfaceBorder,
-      borderColor: t.line,
-      borderRadius: 22,
+      minHeight: 42,
+      backgroundColor: t.surfaceRaised,
+      borderWidth: 0,
+      borderRadius: 21,
       paddingHorizontal: 16,
     },
     draftStatus: {
@@ -712,25 +721,24 @@ const useStyles = createThemedStyles((base) => {
       gap: 8,
     },
     add: { paddingVertical: 12 },
-    addText: { color: t.accentText, fontSize: 13, fontWeight: "600" },
+    addText: { color: t.ink1, fontSize: 13, fontWeight: "700" },
     counter: {
       color: t.ink3,
-      fontSize: 11,
+      fontSize: 12,
       lineHeight: 17,
-      fontFamily: t.mono,
     },
     publish: {
       backgroundColor: t.accent,
-      paddingHorizontal: 20,
+      paddingHorizontal: 24,
       paddingVertical: 10,
-      borderRadius: 26,
-      minHeight: 52,
+      borderRadius: 27,
+      minHeight: 54,
       minWidth: 76,
       justifyContent: "center",
       alignItems: "center",
     },
-    publishText: { color: t.onAccent, fontWeight: "700", fontSize: 16 },
-    disabled: { opacity: 0.4 },
+    publishText: { color: t.onAccent, fontWeight: "700", fontSize: 16, letterSpacing: -0.1 },
+    disabled: { opacity: 0.3 },
     status: { flexDirection: "row", gap: 10, alignItems: "center" },
   };
 });

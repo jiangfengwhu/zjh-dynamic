@@ -81,30 +81,30 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
       onContentSizeChange={() => { if (atBottom.current) requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false })); }}
       ListHeaderComponent={<View><SocialError error={query.error} retry={() => { reconnectMessages(); void query.load(); }} />
         {query.data.nextCursor ? <Pressy accessibilityRole="button" disabled={query.loading} onPress={() => { atBottom.current = false; void query.load(true); }} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>
-          {query.loading ? <ActivityIndicator color={colors.accent} /> : <Text style={{ color: colors.accentText }}>查看更早的消息</Text>}
+          {query.loading ? <ActivityIndicator color={colors.ink2} /> : <Text style={{ color: colors.ink3, fontSize: 13, fontWeight: "600" }}>查看更早的消息</Text>}
         </Pressy> : null}
       </View>}
       ListEmptyComponent={<SocialEmpty loading={query.loading} loaded={query.loaded} text="说声你好，开始聊天吧" login={!query.user} />}
       renderItem={({ item }) => {
         const mine = item.senderId === query.user?.id;
         return <View style={{ flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-start", gap: 8 }}>
-          <UserAvatar uri={mine ? query.user?.avatarUrl : query.data.peer.avatarUrl} authorId={item.senderId} size={32} />
-          <View style={{ maxWidth: "80%", gap: 4, alignItems: mine ? "flex-end" : "flex-start" }}>
-            <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: 20, borderTopRightRadius: mine ? 6 : 20, borderTopLeftRadius: mine ? 20 : 6, paddingHorizontal: 14, paddingVertical: 10 }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 15, lineHeight: 22 }}>{item.body}</Text></View>
-            <Text style={{ color: colors.ink3, fontSize: 11, paddingHorizontal: 4 }}>{formatWhen(item.createdAt)}</Text>
+          <UserAvatar uri={mine ? query.user?.avatarUrl : query.data.peer.avatarUrl} authorId={item.senderId} size={30} />
+          <View style={{ maxWidth: "78%", gap: 5, alignItems: mine ? "flex-end" : "flex-start" }}>
+            <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: 22, borderTopRightRadius: mine ? 8 : 22, borderTopLeftRadius: mine ? 22 : 8, paddingHorizontal: 16, paddingVertical: 11, boxShadow: mine ? undefined : colors.shadow.card, borderWidth: !mine && colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 15, lineHeight: 22 }}>{item.body}</Text></View>
+            <Text style={{ color: colors.ink3, fontSize: 11, letterSpacing: 0.2, paddingHorizontal: 6 }}>{formatWhen(item.createdAt)}</Text>
           </View>
         </View>;
       }}
     /></PullRefreshSurface>
-    {query.user ? <View style={{ paddingHorizontal: 12, paddingVertical: 10, gap: 6, borderTopWidth: colors.components.surfaceBorder, borderTopColor: colors.line }}>
+    {query.user ? <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12, gap: 6, borderTopWidth: colors.components.surfaceBorder, borderTopColor: colors.line }}>
       <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
         <FormField accessibilityLabel="私信内容" value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={4000} placeholder="写一条私信…" placeholderTextColor={colors.ink3}
-          style={{ flex: 1, minHeight: 44, maxHeight: 140, paddingHorizontal: 16, paddingVertical: 11, color: colors.ink1, fontSize: 15, backgroundColor: colors.surface, borderWidth: colors.components.surfaceBorder, borderColor: colors.line, borderRadius: 22 }} />
+          style={{ flex: 1, minHeight: 46, maxHeight: 140, paddingHorizontal: 18, paddingVertical: 12, color: colors.ink1, fontSize: 15, backgroundColor: colors.surfaceRaised, borderRadius: 23 }} />
         <Pressy accessibilityRole="button" accessibilityLabel="发送私信" disabled={sending || !draftReady || !text.trim() || count > 2000} onPress={() => { void send(); }}
-          style={{ minHeight: 44, minWidth: 64, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent, borderRadius: 22, opacity: !text.trim() || count > 2000 ? 0.45 : 1 }}>
+          style={{ minHeight: 46, minWidth: 68, paddingHorizontal: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent, borderRadius: 23, opacity: !text.trim() || count > 2000 ? 0.35 : 1 }}>
           {sending ? <ActivityIndicator color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontWeight: "700" }}>发送</Text>}
         </Pressy>
       </View>{count > 1600 ? <Text style={{ color: count > 2000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 11 }}>{count}/2000</Text> : null}
-    </View> : <Pressy accessibilityRole="button" onPress={() => { void requireAccount(); }} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accentText }}>登录后发送私信</Text></Pressy>}
+    </View> : <Pressy accessibilityRole="button" onPress={() => { void requireAccount(); }} style={{ minHeight: 48, margin: 14, borderRadius: 24, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.onAccent, fontWeight: "700" }}>登录后发送私信</Text></Pressy>}
   </KeyboardViewport></SocialFrame>;
 }

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 import { createThemedStyles, useTheme } from "../theme";
 
-/** 分组标题。句首大写、常规字重，不做大写字母和装饰。 */
+/** 分组标题：小号、加宽字距的弱化标签，像目录里的栏目名。 */
 export function SectionTitle({ children, aside }: { children: string; aside?: ReactNode }) {
   const styles = useStyles();
 
@@ -21,16 +21,13 @@ const useStyles = createThemedStyles((t) => ({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 4,
-    paddingTop: 8,
-    paddingBottom: 0,
+    paddingHorizontal: 6,
+    paddingTop: 12,
+    paddingBottom: 2,
   },
   text: {
     fontFamily: t.serif,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
+    ...t.type.overline,
     color: t.ink3,
-    letterSpacing: 0.3,
   },
 }));

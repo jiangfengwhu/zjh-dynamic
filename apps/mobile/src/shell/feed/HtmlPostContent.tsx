@@ -167,11 +167,11 @@ export const HtmlPostContent = memo(function HtmlPostContent({
       }])),
       body: { margin: 0 },
       p: { marginTop: 0, marginBottom: 6 },
-      a: { color: colors.accentText },
+      a: { color: colors.orchidText },
       pre: { fontFamily: colors.typography.mono },
       code: { fontFamily: colors.typography.mono },
     }),
-    [colors.accentText, colors.typography.body, colors.typography.mono]
+    [colors.orchidText, colors.typography.body, colors.typography.mono]
   );
   const openLink = useCallback(
     (_event: unknown, href: string) => {
@@ -197,7 +197,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
     }),
     [openLink]
   );
-  const configuration = JSON.stringify([width, window.height, colors.ink1, colors.accentText, colors.typography.body, colors.typography.mono]);
+  const configuration = JSON.stringify([width, window.height, colors.ink1, colors.orchidText, colors.typography.body, colors.typography.mono]);
   return (
     <View
       style={{ width: "100%", minWidth: 0, overflow: "visible" }}

@@ -18,8 +18,8 @@ export function SocialFrame({ title, onBack, children }: { title: string; onBack
 export function SocialEmpty({ loading, loaded, text, login = false }: { loading: boolean; loaded: boolean; text: string; login?: boolean }) {
   const { colors } = useTheme();
   if (loading && !loaded && !login) return <View style={{ padding: 16 }}><PageSkeleton rows={4} /></View>;
-  return <EmptyState><Text style={{ color: colors.ink3, textAlign: "center" }}>{login ? "登录后查看私信" : text}</Text>
-    {login ? <Pressy accessibilityRole="button" onPress={() => { void requireAccount(); }} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ color: colors.accentText }}>登录紫金花</Text></Pressy> : null}
+  return <EmptyState><Text style={{ color: colors.ink3, textAlign: "center", fontSize: 15, lineHeight: 22 }}>{login ? "登录后查看私信" : text}</Text>
+    {login ? <Pressy accessibilityRole="button" onPress={() => { void requireAccount(); }} style={{ minHeight: 48, paddingHorizontal: 24, borderRadius: 24, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.onAccent, fontWeight: "700" }}>立即登录</Text></Pressy> : null}
   </EmptyState>;
 }
 export function SocialError({ error, retry }: { error: string; retry: () => void }) {

@@ -11,7 +11,7 @@ export function Pressy({ style, scale = 0.97, onPressIn, onPressOut, children, d
   const flat = StyleSheet.flatten(style);
   // Explicit caller spacing and radius always win, including shorthand padding.
   const primaryDefaults = flat?.backgroundColor === colors.accent ? {
-    borderRadius: colors.radius.sm,
+    borderRadius: colors.radius.pill,
     paddingHorizontal: flat.paddingHorizontal ?? flat.padding ?? 12,
     paddingVertical: flat.paddingVertical ?? flat.padding ?? 8,
   } : undefined;

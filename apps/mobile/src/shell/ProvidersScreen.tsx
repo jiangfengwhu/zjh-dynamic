@@ -124,7 +124,7 @@ export function ProvidersScreen({ onBack }: Props) {
         title="AI 引擎"
         caption="管理创作和动态小结使用的模型"
         onBack={onBack}
-        right={<Pressy accessibilityLabel="添加 AI 引擎" style={styles.add} disabled={busy} onPress={() => selectDraft(empty)}><Icon name="plus" size={20} color={colors.accentText} /></Pressy>}
+        right={<Pressy accessibilityLabel="添加 AI 引擎" style={styles.add} disabled={busy} onPress={() => selectDraft(empty)}><Icon name="plus" size={20} strokeWidth={2.4} color={colors.onAccent} /></Pressy>}
       />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -184,7 +184,7 @@ export function ProvidersScreen({ onBack }: Props) {
                       <Icon name="close" size={16} color={colors.redText} strokeWidth={2} />
                     </Pressy>
                   </Surface>
-                  <Pressy disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("验证引擎连接", "将发送一条简短请求，可能消耗少量模型额度。", [{ text: "取消", style: "cancel" }, { text: "验证", onPress: () => void verify(item) }])} style={styles.verify}><Text style={{ color: colors.accentText, fontSize: 12 }}>验证连接</Text></Pressy>
+                  <Pressy disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("验证引擎连接", "将发送一条简短请求，可能消耗少量模型额度。", [{ text: "取消", style: "cancel" }, { text: "验证", onPress: () => void verify(item) }])} style={styles.verify}><Text style={{ color: colors.orchidText, fontSize: 13, fontWeight: "600" }}>验证连接</Text></Pressy>
                 </View>
               );
             })}
@@ -265,14 +265,14 @@ const useStyles = createThemedStyles((t) => ({
     backgroundColor: t.canvas,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 12,
-    gap: 8,
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 24,
+    gap: 12,
   },
-  loading: { minHeight: 88, padding: 12, gap: 8, justifyContent: "center" },
+  loading: { minHeight: 96, padding: 20, gap: 10, justifyContent: "center" },
   retry: { minHeight: 44, justifyContent: "center" },
-  add: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: t.radius.sm, backgroundColor: t.accentTint },
+  add: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: t.accent, paddingHorizontal: 0, paddingVertical: 0 },
   verify: { alignSelf: "flex-end", paddingHorizontal: 12 },
   block: {
     gap: 4,
@@ -280,10 +280,10 @@ const useStyles = createThemedStyles((t) => ({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingLeft: 12,
-    paddingRight: 10,
-    paddingVertical: 8,
+    gap: 10,
+    paddingLeft: 18,
+    paddingRight: 12,
+    paddingVertical: 12,
     borderRadius: t.radius.xl,
   },
   main: {
@@ -300,14 +300,15 @@ const useStyles = createThemedStyles((t) => ({
   name: {
     flexShrink: 1,
     fontFamily: t.serif,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
+    letterSpacing: -0.2,
     color: t.ink1,
   },
   badge: {
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: t.radius.sm,
+    borderRadius: 8,
   },
   badgeText: {
     fontSize: 11,
@@ -321,14 +322,14 @@ const useStyles = createThemedStyles((t) => ({
   remove: {
     width: 44,
     height: 44,
-    borderRadius: t.radius.sm,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: t.redTint,
   },
   form: {
-    padding: 12,
-    gap: 10,
+    padding: 20,
+    gap: 12,
   },
   reset: {
     alignSelf: "flex-start",
@@ -339,18 +340,18 @@ const useStyles = createThemedStyles((t) => ({
   },
   resetText: {
     fontSize: 13,
-    fontWeight: "600",
-    color: t.accentText,
+    fontWeight: "700",
+    color: t.ink1,
   },
   defaultRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     borderRadius: t.radius.md,
-    backgroundColor: t.inset,
+    backgroundColor: t.surfaceRaised,
   },
   defaultCopy: {
     flex: 1,
@@ -377,14 +378,14 @@ const useStyles = createThemedStyles((t) => ({
     color: t.redText,
   },
   save: {
-    minHeight: 44,
+    minHeight: t.components.controlHeight,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: t.radius.lg,
+    borderRadius: t.radius.pill,
     backgroundColor: t.accent,
   },
   saveLabel: {
-    fontSize: 15.5,
+    fontSize: 16,
     fontWeight: "700",
     color: t.onAccent,
   },

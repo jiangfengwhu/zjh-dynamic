@@ -63,7 +63,7 @@ export function ApplicationIcon({ application, size }: {
     if ((!url || failed === url) && hash && /^[a-f0-9]{64}$/.test(hash)) void loadSvg(hash).then(xml => { if (live) setSvg({ hash, xml }); }).catch(() => {});
     return () => { live = false; };
   }, [hash, url, failed]);
-  if (url && failed !== url) return <AppImage source={{ uri: url }} resizeMode="cover" resizeMethod="resize" resizeMultiplier={1.5} fadeDuration={0} style={{ width: size, height: size, borderRadius: size / 5 }} onError={() => setFailed(url)} />;
+  if (url && failed !== url) return <AppImage source={{ uri: url }} resizeMode="cover" resizeMethod="resize" resizeMultiplier={1.5} fadeDuration={0} style={{ width: size, height: size, borderRadius: size * 0.27 }} onError={() => setFailed(url)} />;
   const xml = hash ? xmlCache.get(hash) ?? (svg?.hash === hash ? svg.xml : undefined) : undefined;
   if (xml && failed !== hash) return <SvgXml xml={xml} width={size} height={size} onError={() => setFailed(hash!)} />;
   return <SymbolIcon name="box" size={Math.min(size * 0.7, 40)} color={app.accent} />;

@@ -235,8 +235,8 @@ export function CreationImages({
                 style={{
                   width: "100%",
                   aspectRatio: 1,
-                  borderRadius: 8,
-                  backgroundColor: colors.cyanTint,
+                  borderRadius: 14,
+                  backgroundColor: colors.surfaceRaised,
                 }}
               />
               <Pressable

@@ -81,7 +81,7 @@ export function DialogFrame({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: colors.mode === "dark" ? "rgba(0,0,0,0.62)" : "rgba(12,12,16,0.38)",
+              backgroundColor: colors.mode === "dark" ? "rgba(0,0,0,0.72)" : "rgba(12,12,13,0.42)",
             }}
           />
           <View
@@ -95,11 +95,11 @@ export function DialogFrame({
                   height - insets.top - insets.bottom - 48
                 ),
                 backgroundColor: colors.surface,
-                borderWidth: colors.components.surfaceBorder,
+                borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
                 borderColor: colors.line,
                 borderRadius: colors.components.dialogRadius,
                 overflow: "hidden",
-                boxShadow: `0 20px 48px ${colors.shade}`,
+                boxShadow: colors.shadow.modal,
               },
               frame,
             ]}
@@ -108,7 +108,7 @@ export function DialogFrame({
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               style={{ flexShrink: 1 }}
-              contentContainerStyle={[{ padding: 22, gap: 12 }, spacing]}
+              contentContainerStyle={[{ paddingHorizontal: 24, paddingTop: 28, paddingBottom: 24, gap: 14 }, spacing]}
             >
               {children}
             </ScrollView>

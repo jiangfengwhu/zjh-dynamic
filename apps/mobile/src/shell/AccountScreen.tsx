@@ -48,13 +48,13 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
     <PageHeader title={user ? "个人资料" : "邮箱登录"} caption={user ? "让大家认识你" : "一封邮件，就能回来"} onBack={onBack} />
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       {!ready ? <View accessibilityLabel="正在准备个人资料" style={styles.panel}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.inset }} />
-        <View style={{ width: "50%", height: 18, borderRadius: 4, backgroundColor: colors.inset }} />
-        <View style={{ height: 48, borderRadius: 12, backgroundColor: colors.inset }} />
+        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.surfaceRaised }} />
+        <View style={{ width: "50%", height: 18, borderRadius: 9, backgroundColor: colors.surfaceRaised }} />
+        <View style={{ height: 52, borderRadius: 16, backgroundColor: colors.surfaceRaised }} />
       </View> : user ? <>
         <View style={styles.panel}>
           <View style={styles.avatarRow}>
-            <UserAvatar uri={user.avatarUrl} size={56} style={styles.avatar} onError={() => toast.error("头像加载失败，请检查网络后重试")} />
+            <UserAvatar uri={user.avatarUrl} size={64} style={styles.avatar} onError={() => toast.error("头像加载失败，请检查网络后重试")} />
             <View style={styles.fill}><Text style={styles.label}>你的头像</Text><Text style={styles.hint}>从相册选择一张喜欢的照片</Text></View>
           </View>
           {button("更换头像", () => void perform(() => chooseAccountAvatar(setUploadStatus), "头像已更新"), false, true)}
@@ -79,17 +79,18 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
       {storageError ? <Text accessibilityRole="alert" style={styles.hint}>无法读取手机安全存储，请重新登录。</Text> : null}
       {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
     </ScrollView>
-    {busy ? <View pointerEvents="none" style={{ position: "absolute", left: 24, right: 24, bottom: 24, padding: 16, backgroundColor: colors.surfaceRaised, flexDirection: "row", gap: 12, borderRadius: 16 }}><ActivityIndicator color={colors.accent} /><Text style={{ color: colors.ink1 }}>{uploadStatus || "正在处理，请稍候…"}</Text></View> : null}
+    {busy ? <View pointerEvents="none" style={{ position: "absolute", left: 24, right: 24, bottom: 24, paddingHorizontal: 18, paddingVertical: 14, backgroundColor: colors.dock, flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 24, boxShadow: colors.shadow.float }}><ActivityIndicator color={colors.onDock} /><Text style={{ color: colors.onDock, fontWeight: "600" }}>{uploadStatus || "正在处理，请稍候…"}</Text></View> : null}
   </Screen>;
 }
 const useStyles = createThemedStyles(t => ({
-  screen: { flex: 1, backgroundColor: t.canvas }, content: { padding: 16, paddingBottom: 12, gap: 12 },
-  panel: { padding: 12, gap: 8, backgroundColor: t.surface, borderRadius: t.radius.md, borderWidth: 0.5, borderColor: t.line }, label: { color: t.ink1, fontSize: 13, fontWeight: "600" },
-  hint: { color: t.muted, fontSize: 12, lineHeight: 18 }, message: { color: t.ink1, fontSize: 15, lineHeight: 24 },
-  input: { color: t.ink1, backgroundColor: t.field, borderRadius: t.radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, minHeight: 44 },
-  button: { backgroundColor: t.accent, borderRadius: t.radius.md, minHeight: 44, padding: 10, alignItems: "center", justifyContent: "center" },
-  logout: { backgroundColor: t.redTint }, logoutLabel: { color: t.redText }, secondary: { backgroundColor: t.inset }, disabled: { opacity: 0.45 },
-  buttonLabel: { color: t.onAccent, fontSize: 14, fontWeight: "700" }, secondaryLabel: { color: t.accentText, fontSize: 14, fontWeight: "700" },
-  avatarRow: { flexDirection: "row", alignItems: "center", gap: 12 }, fill: { flex: 1 },
-  avatar: { width: 56, height: 56, borderRadius: 28 },
+  screen: { flex: 1, backgroundColor: t.canvas }, content: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24, gap: 16 },
+  panel: { padding: 20, gap: 12, backgroundColor: t.surface, borderRadius: t.radius.xl, borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0, borderColor: t.line, boxShadow: t.shadow.card },
+  label: { color: t.ink2, fontSize: 13, lineHeight: 18, fontWeight: "600", paddingHorizontal: 4, marginTop: 4 },
+  hint: { color: t.muted, fontSize: 13, lineHeight: 19, paddingHorizontal: 4 }, message: { color: t.ink1, fontSize: 15, lineHeight: 24 },
+  input: { color: t.ink1, backgroundColor: t.surfaceRaised, borderRadius: t.components.controlRadius, paddingHorizontal: 18, paddingVertical: 14, fontSize: 16, minHeight: t.components.controlHeight },
+  button: { backgroundColor: t.accent, borderRadius: t.radius.pill, minHeight: t.components.controlHeight, paddingHorizontal: 24, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  logout: { backgroundColor: t.redTint }, logoutLabel: { color: t.redText }, secondary: { backgroundColor: t.surfaceRaised }, disabled: { opacity: 0.35 },
+  buttonLabel: { color: t.onAccent, fontSize: 16, fontWeight: "700", letterSpacing: -0.1 }, secondaryLabel: { color: t.ink1, fontSize: 15, fontWeight: "700" },
+  avatarRow: { flexDirection: "row", alignItems: "center", gap: 16, paddingBottom: 4 }, fill: { flex: 1, gap: 2 },
+  avatar: { width: 64, height: 64, borderRadius: 32 },
 }));

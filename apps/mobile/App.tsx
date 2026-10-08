@@ -110,7 +110,7 @@ function FeatureFailure(props: BoundaryProps) {
 
   return (
         <View style={styles.boot}>
-          <Icon name="alert" size={28} color={theme.accentText} />
+          <View style={styles.stateMark}><Icon name="alert" size={26} color={theme.ink1} /></View>
           <Text accessibilityRole="header" style={styles.stateTitle}>
             应用暂时无法显示
           </Text>
@@ -500,7 +500,7 @@ function FeatureHost({
       ) : null}
       {failed ? (
         <>
-          <Icon name="alert" size={28} color={theme.accentText} />
+          <View style={styles.stateMark}><Icon name="alert" size={26} color={theme.ink1} /></View>
           <Text accessibilityRole="header" style={styles.stateTitle}>
             应用未能打开
           </Text>
@@ -514,7 +514,7 @@ function FeatureHost({
         </>
       ) : opened.id === id && loadingVisible ? (
         <>
-          <ActivityIndicator color={theme.accentText} />
+          <ActivityIndicator color={theme.ink2} />
           <Text style={styles.stateHint}>正在加载应用…</Text>
         </>
       ) : null}
@@ -554,34 +554,46 @@ const useStyles = createThemedStyles((theme) => ({
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 32,
+  },
+  stateMark: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginBottom: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.surface,
+    boxShadow: theme.shadow.card,
+    borderWidth: theme.mode === "dark" ? theme.components.surfaceBorder : 0,
+    borderColor: theme.line,
   },
   stateTitle: {
     color: theme.ink1,
-    fontSize: 21,
-    lineHeight: 28,
-    fontWeight: "700",
+    ...theme.type.title2,
+    textAlign: "center",
   },
   stateHint: {
     color: theme.ink3,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: "center",
   },
-  recoveryActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  recoveryActions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
   retry: {
     backgroundColor: theme.accent,
     borderRadius: theme.radius.pill,
-    minHeight: 48,
-    paddingHorizontal: 24,
+    minHeight: theme.components.controlHeight,
+    paddingHorizontal: 28,
     alignItems: "center",
   },
-  retryText: { color: theme.onAccent, fontSize: 15, fontWeight: "700" },
+  retryText: { color: theme.onAccent, fontSize: 16, fontWeight: "700" },
   backAction: {
     backgroundColor: theme.surfaceRaised,
     borderRadius: theme.radius.pill,
-    minHeight: 48,
-    paddingHorizontal: 24,
+    minHeight: theme.components.controlHeight,
+    paddingHorizontal: 28,
+    alignItems: "center",
   },
   error: {
     color: theme.danger,

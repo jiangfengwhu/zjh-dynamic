@@ -23,7 +23,7 @@ import Animated, {
   runOnUI,
   useEvent,
 } from "react-native-reanimated";
-import { Pressy } from "../../../../packages/ui/chrome";
+import { Pressy, RoundButton } from "../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../packages/ui/edge";
 import { ThemeContext, createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
@@ -120,32 +120,26 @@ function MarketContent(props: MarketProps) {
         style={{
           flexDirection: "column",
           alignItems: "stretch",
-          gap: 12,
+          gap: 14,
           paddingHorizontal: 16,
-          paddingTop: 8,
+          paddingTop: 10,
           paddingBottom: 10,
           backgroundColor: colors.canvas,
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: props.onBack ? 0 : 4 }}>
         {props.onBack ? (
-          <Pressy
-            accessibilityLabel="返回"
-            onPress={props.onBack}
-            style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", backgroundColor: colors.surface, borderWidth: colors.components.surfaceBorder, borderColor: colors.line }}
-          >
-            <SymbolIcon name="back" size={20} strokeWidth={2.2} color={colors.ink1} />
-          </Pressy>
+          <RoundButton icon="back" label="返回" onPress={props.onBack} />
         ) : null}
         <Text
           accessibilityRole="header"
-          style={{ fontSize: 30, lineHeight: 38, fontWeight: "800", letterSpacing: -0.6, color: colors.ink1 }}
+          style={{ ...colors.type.display, color: colors.ink1 }}
         >
           应用市场
         </Text>
         </View>
         <View style={[styles.searchBox, { minWidth: 0 }]}>
-          <SymbolIcon name="search" size={17} color={colors.ink3} />
+          <SymbolIcon name="search" size={18} strokeWidth={2} color={colors.ink3} />
           <TextInput
             accessibilityLabel={
               section === "discover" ? "搜索应用或用途" : "搜索已安装应用"
@@ -443,8 +437,8 @@ function MarketDiscovery({
                 style={{
                   fontSize: 14,
                   lineHeight: 20,
-                  fontWeight: category === item.id ? "700" : "500",
-                  color: category === item.id ? colors.canvas : colors.ink2,
+                  fontWeight: category === item.id ? "700" : "600",
+                  color: category === item.id ? colors.onAccent : colors.ink2,
                 }}
               >
                 {item.label}
@@ -536,30 +530,30 @@ function MarketDiscovery({
                     style={[styles.row, { flexDirection: "row", gap: 12 }]}
                   >
                     <View
-                      style={[styles.mark, { backgroundColor: colors.inset }]}
+                      style={[styles.mark, { backgroundColor: colors.surfaceRaised }]}
                     />
                     <View style={{ flex: 1, gap: 9 }}>
                       <View
                         style={{
                           width: "55%",
                           height: 16,
-                          backgroundColor: colors.inset,
-                          borderRadius: 4,
+                          backgroundColor: colors.surfaceRaised,
+                          borderRadius: 8,
                         }}
                       />
                       <View
                         style={{
                           height: 12,
-                          backgroundColor: colors.inset,
-                          borderRadius: 4,
+                          backgroundColor: colors.surfaceRaised,
+                          borderRadius: 6,
                         }}
                       />
                       <View
                         style={{
                           width: "35%",
                           height: 10,
-                          backgroundColor: colors.inset,
-                          borderRadius: 4,
+                          backgroundColor: colors.surfaceRaised,
+                          borderRadius: 5,
                         }}
                       />
                     </View>
@@ -576,7 +570,7 @@ function MarketDiscovery({
           }
           ListFooterComponent={
             busy && view.applications.length && !pulling ? (
-              <ActivityIndicator style={{ margin: 16 }} color={colors.accent} />
+              <ActivityIndicator style={{ margin: 16 }} color={colors.ink2} />
             ) : view.nextCursor ? (
               <Pressy onPress={() => void load()}>
                 <Text style={styles.empty}>加载更多</Text>
@@ -623,7 +617,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
       style={styles.row}
     >
       <View style={styles.mark}>
-        <ApplicationIcon application={item} size={64} />
+        <ApplicationIcon application={item} size={66} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -679,15 +673,16 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
       <View
         style={[
           styles.openMark,
-          { backgroundColor: installed ? colors.surfaceRaised : colors.accentTint },
+          { backgroundColor: installed ? "transparent" : colors.surfaceRaised },
         ]}
       >
         <Text
           style={{
             fontSize: 13,
             lineHeight: 18,
-            fontWeight: "700",
-            color: installed ? colors.ink3 : colors.accentText,
+            fontWeight: "800",
+            letterSpacing: 0.2,
+            color: installed ? colors.ink3 : colors.ink1,
           }}
         >
           {installed ? "已安装" : "查看"}
@@ -710,11 +705,9 @@ const useStyles = createThemedStyles((base) => {
     searchBox: {
       flexDirection: "row",
       alignItems: "center",
-      paddingLeft: 16,
+      paddingLeft: 18,
       borderRadius: t.radius.pill,
-      backgroundColor: t.surface,
-      borderWidth: t.components.surfaceBorder,
-      borderColor: t.line,
+      backgroundColor: t.surfaceRaised,
       gap: 10,
     },
     search: {
@@ -730,47 +723,47 @@ const useStyles = createThemedStyles((base) => {
       flexDirection: "row",
       alignItems: "baseline",
       justifyContent: "space-between",
-      paddingTop: 10,
+      paddingTop: 14,
       paddingBottom: 4,
     },
-    sectionTitle: { color: t.ink1, fontSize: 17, lineHeight: 24, fontWeight: "800", letterSpacing: -0.2 },
+    sectionTitle: { color: t.ink1, ...t.type.title2 },
     chip: {
-      minHeight: 36,
-      height: 36,
+      minHeight: 38,
+      height: 38,
       justifyContent: "center",
-      borderRadius: 18,
-      paddingHorizontal: 16,
+      borderRadius: 19,
+      paddingHorizontal: 18,
       paddingVertical: 0,
-      backgroundColor: t.surface,
-      borderWidth: t.components.surfaceBorder,
-      borderColor: t.line,
+      backgroundColor: t.surfaceRaised,
+      borderWidth: 0,
     },
     chipSelected: {
-      backgroundColor: t.ink1,
-      borderColor: t.ink1,
+      backgroundColor: t.accent,
     },
     row: {
-      minHeight: 92,
+      minHeight: 96,
       flexDirection: "row",
       alignItems: "center",
-      gap: 14,
-      paddingVertical: 14,
+      gap: 16,
+      paddingVertical: 16,
       borderBottomWidth: t.components.surfaceBorder,
       borderBottomColor: t.line,
     },
     mark: {
-      width: 64,
-      height: 64,
-      borderRadius: 18,
+      width: 66,
+      height: 66,
+      borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
+      borderWidth: t.components.surfaceBorder,
+      borderColor: t.line,
     },
-    name: { color: t.ink1, fontSize: 16, lineHeight: 22, fontWeight: "700", letterSpacing: -0.1 },
+    name: { color: t.ink1, fontSize: 16, lineHeight: 22, fontWeight: "700", letterSpacing: -0.3 },
     summary: { color: t.ink2, fontSize: 13, lineHeight: 19 },
     official: {
-      color: t.accentText,
-      backgroundColor: t.accentTint,
+      color: t.orchidText,
+      backgroundColor: t.orchidTint,
       fontSize: 10,
       lineHeight: 14,
       fontWeight: "700",
@@ -781,9 +774,9 @@ const useStyles = createThemedStyles((base) => {
     },
     category: { color: t.ink3, fontSize: 11, lineHeight: 17 },
     openMark: {
-      minWidth: 60,
+      minWidth: 64,
       height: 32,
-      paddingHorizontal: 14,
+      paddingHorizontal: 16,
       borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",

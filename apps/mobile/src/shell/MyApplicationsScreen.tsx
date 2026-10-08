@@ -391,7 +391,10 @@ export function MyApplicationsScreen({
   useEffect(() => { const next = cachedPage<Snapshot>(cacheKey); setWorks(next?.works ?? []); setInstalled(next?.installed ?? []); setOwner(next ? user?.id : undefined); setLoaded(!!next); }, [cacheKey]);
   const Root = embedded ? View : Screen;
   const actionStyle = {
-    minHeight: 44,
+    minHeight: 48,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    backgroundColor: colors.accent,
     justifyContent: "center" as const,
     flexDirection: "row" as const,
     alignItems: "center" as const,
@@ -446,7 +449,7 @@ export function MyApplicationsScreen({
           ListHeaderComponent={
             <View style={{ gap: 8, paddingBottom: 8 }}>
               {scope === "installed" ? (
-                <Text style={{ fontSize: 12, color: colors.ink3 }}>
+                <Text style={{ ...colors.type.overline, color: colors.ink3, paddingHorizontal: 4 }}>
                   {visibleApps.length} 个已安装应用
                 </Text>
               ) : null}
@@ -464,14 +467,12 @@ export function MyApplicationsScreen({
                   value={query}
                   onChangeText={setQuery}
                   style={{
-                    minHeight: 44,
-                    paddingHorizontal: 16,
-                    backgroundColor: colors.surface,
-                    borderWidth: colors.components.surfaceBorder,
-                    borderColor: colors.line,
+                    minHeight: 46,
+                    paddingHorizontal: 18,
+                    backgroundColor: colors.surfaceRaised,
                     color: colors.ink1,
-                    borderRadius: 22,
-                    fontSize: 14,
+                    borderRadius: 23,
+                    fontSize: 15,
                   }}
                 />
               ) : null}
@@ -583,7 +584,7 @@ export function MyApplicationsScreen({
                           <SymbolIcon
                             name="box"
                             size={18}
-                            color={colors.accentText}
+                            color={colors.ink1}
                           />
                         </Pressy>
                       ) : null}
@@ -598,7 +599,7 @@ export function MyApplicationsScreen({
                       return (
               <View
                 style={{
-                  paddingVertical: 12,
+                  paddingVertical: 14,
                   borderBottomWidth: colors.components.surfaceBorder,
                   borderBottomColor: colors.line,
                   gap: 6,
@@ -632,6 +633,8 @@ export function MyApplicationsScreen({
                         alignItems: "center",
                         justifyContent: "center",
                         overflow: "hidden",
+                        borderWidth: colors.components.surfaceBorder,
+                        borderColor: colors.line,
                       }}
                     >
                       <ApplicationIcon application={app} size={64} />
@@ -644,6 +647,7 @@ export function MyApplicationsScreen({
                           fontSize: 16,
                           lineHeight: 22,
                           fontWeight: "700",
+                          letterSpacing: -0.3,
                         }}
                       >
                         {app.manifest.appName}
@@ -663,7 +667,7 @@ export function MyApplicationsScreen({
                         style={{
                           color:
                             updateState?.status === "update"
-                              ? colors.accentText
+                              ? colors.orchidText
                               : colors.ink3,
                           fontSize: 11,
                           lineHeight: 15,
@@ -745,8 +749,10 @@ export function MyApplicationsScreen({
           ListEmptyComponent={
             loaded || (!busy && !error) ? (
               <EmptyState>
-                <SymbolIcon name="box" size={32} color={colors.accentText} />
-                <Text style={{ color: colors.ink3, fontSize: 13 }}>
+                <View style={{ width: 72, height: 72, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, boxShadow: colors.shadow.card }}>
+                  <SymbolIcon name="box" size={30} color={colors.ink1} />
+                </View>
+                <Text style={{ color: colors.ink3, fontSize: 15, lineHeight: 22, textAlign: "center" }}>
                   {term
                     ? "没有找到匹配的内容"
                     : scope === "works"
@@ -755,7 +761,7 @@ export function MyApplicationsScreen({
                 </Text>
                 {scope === "works" && !term ? (
                   <Pressy onPress={onCreate} style={actionStyle}>
-                    <Text style={{ color: colors.accentText }}>
+                    <Text style={{ color: colors.onAccent, fontWeight: "700" }}>
                       制作第一份作品
                     </Text>
                   </Pressy>

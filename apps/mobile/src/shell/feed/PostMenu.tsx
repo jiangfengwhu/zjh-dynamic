@@ -73,20 +73,20 @@ export function PostMenu({
         disabled={busy}
         onPress={() => action(callback)}
         style={({ pressed }) => ({
-          minHeight: 56,
+          minHeight: 60,
           flexDirection: "row",
           alignItems: "center",
-          gap: 12,
-          paddingHorizontal: 12,
+          gap: 14,
+          paddingHorizontal: 14,
           borderRadius: colors.radius.lg,
           backgroundColor: pressed ? colors.hover : colors.surface,
           opacity: busy ? 0.6 : 1,
         })}
       >
-        <View style={{ width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: tint }}>
-          <SymbolIcon name={icon} size={18} color={tone} />
+        <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: tint }}>
+          <SymbolIcon name={icon} size={18} strokeWidth={2} color={tone} />
         </View>
-        <Text style={{ color: tone === colors.redText ? colors.redText : colors.ink1, fontSize: 15, fontWeight: "600" }}>{label}</Text>
+        <Text style={{ color: tone === colors.redText ? colors.redText : colors.ink1, fontSize: 16, fontWeight: "600", letterSpacing: -0.2 }}>{label}</Text>
       </Pressable>
     );
   }
@@ -117,7 +117,7 @@ export function PostMenu({
           backgroundColor: colors.canvas,
           borderTopLeftRadius: colors.components.dialogRadius,
           borderTopRightRadius: colors.components.dialogRadius,
-          borderWidth: colors.components.surfaceBorder,
+          borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
           borderColor: colors.line,
         }}
         handleIndicatorStyle={{
@@ -135,14 +135,14 @@ export function PostMenu({
             gap: 8,
           }}
         >
-          <Text style={{ color: colors.ink1, fontSize: 17, lineHeight: 24, fontWeight: "800", paddingHorizontal: 4, paddingBottom: 4 }}>动态操作</Text>
-          {row("复制文字", "layers", colors.cyanText, colors.cyanTint, onCopy)}
+          <Text style={{ color: colors.ink3, ...colors.type.overline, textAlign: "center", paddingBottom: 6 }}>动态操作</Text>
+          {row("复制文字", "layers", colors.ink1, colors.surfaceRaised, onCopy)}
           {onShare
             ? row(
                 "分享动态",
                 "share",
-                colors.accentText,
-                colors.accentTint,
+                colors.ink1,
+                colors.surfaceRaised,
                 onShare
               )
             : null}
@@ -153,9 +153,9 @@ export function PostMenu({
             accessibilityRole="button"
             onPress={() => modal.current?.dismiss()}
             style={({ pressed }) => ({
-              minHeight: 52,
-              marginTop: 4,
-              borderRadius: 26,
+              minHeight: 54,
+              marginTop: 6,
+              borderRadius: 27,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: pressed ? colors.hover2 : colors.surfaceRaised,
