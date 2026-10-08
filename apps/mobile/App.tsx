@@ -7,7 +7,7 @@ import type { ApkProgress } from "./src/shell/apkUpdates";
 import { ActivityIndicator } from "react-native";
 import { markStartup } from "./src/runtime/startupTiming";
 import { openCreationComposer } from "./src/shell/creationComposer";
-import { reportApplicationFailure } from "./src/runtime/applications";
+import { reportApplicationFailure, restoreDownloadedApplications } from "./src/runtime/applications";
 import {
   Component,
   useEffect,
@@ -244,6 +244,7 @@ function ShellApp() {
       markStartup("installed-restore-start");
       void (async () => {
         try {
+          await restoreDownloadedApplications();
           await restoreApplications();
           const before = catalogRevision.current;
           const stored = await loadCatalog();

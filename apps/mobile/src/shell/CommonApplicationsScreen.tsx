@@ -65,7 +65,7 @@ export function CommonApplicationsScreen({ onOpen, active = true }: { onOpen: (i
       const application = await fetchPublicMarketApplication(item.appId);
       controller.signal.throwIfAborted();
       if (currentOwner.current !== owner) return;
-      await loadPublicApplicationExperience(application.manifest, controller.signal);
+      await loadPublicApplicationExperience(application.manifest, controller.signal, application);
       controller.signal.throwIfAborted();
       if (currentOwner.current === owner && !await onOpen(item.appId)) throw new Error("暂时无法打开，请重试");
     } catch (cause) { if (!controller.signal.aborted && currentOwner.current === owner) Toast.show({ type: "error", text1: "应用未能打开", text2: cause instanceof Error ? cause.message : "请重试" }); }

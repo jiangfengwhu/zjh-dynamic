@@ -1,4 +1,4 @@
-import { readShellValue, writeShellValue } from "./shellStorage";
+import { readShellValueSync, writeShellValue } from "./shellStorage";
 
 const CATALOG_KEY = "shell.bundles.v1";
 const listeners = new Set<(entries: CatalogEntry[]) => void>();
@@ -33,8 +33,13 @@ type CatalogFile = {
 };
 
 export async function loadCatalog(): Promise<CatalogEntry[]> {
+  return loadCatalogSync();
+}
+
+/** Read immediately before a synchronous catalog mutation to retain newer edits. */
+export function loadCatalogSync(): CatalogEntry[] {
   try {
-    const raw = await readShellValue(CATALOG_KEY);
+    const raw = readShellValueSync(CATALOG_KEY);
     if (!raw) return [];
     const file = JSON.parse(raw) as CatalogFile;
     return Array.isArray(file.entries)

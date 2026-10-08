@@ -2,12 +2,13 @@ import { assertApplicationSdkCompatible, ApplicationSdkError } from "./applicati
 import NativePluginHost from "../NativePluginHost";
 import { waitForInteractions } from "../shell/interactionWork";
 import { edgeUrl } from "../shell/evolveHost";
-import { readShellValue, readShellValueSync, writeShellValue } from "../shell/shellStorage";
+import { readShellValue, readShellValueSync, shellKeys, writeShellValue } from "../shell/shellStorage";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../shell/account";
 import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt } from "../../../../packages/app-sdk/src/runtime";
 import { restoreWorks } from "../shell/workRecovery";
-import { loadCatalog, saveCatalog } from "../shell/catalog";
+import { loadCatalog, loadCatalogSync, saveCatalog } from "../shell/catalog";
 import type { PendingPackage } from "../shell/packageUpdates";
+import type { MarketApplication } from "../shell/market";
 
 import type { ApplicationManifest } from "../../../../packages/app-sdk/src/index";
 export type { ApplicationManifest } from "../../../../packages/app-sdk/src/index";
@@ -74,7 +75,6 @@ async function prepareExperienceResources(manifest: ApplicationManifest, signal:
   let task = experiencePreparations.get(key);
   if (task) {
     await task;
-    signal.throwIfAborted();
     // Publication may have changed while a background download was running.
     await verifyPublicPointer(manifest);
   } else if (preparedExperiences.has(key)) {
@@ -90,14 +90,47 @@ async function prepareExperienceResources(manifest: ApplicationManifest, signal:
       if (experiencePreparations.get(key) === task) experiencePreparations.delete(key);
     }
   }
-  signal.throwIfAborted();
 }
 
 /** Load a public work for the current stage or its bounded warm queue. */
-export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal) {
+export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal, item?: MarketApplication) {
   const appId = manifest.appId;
   assertCompatible(manifest, appId);
   signal.throwIfAborted();
+  const installerId = cachedAccountId();
+  const initialEntry = (await loadCatalog()).find(entry => entry.id === appId);
+  const checkLocal = () => {
+    const saved = readShellValueSync(`application.pending.${appId}`) || readShellValueSync(`application.install.${appId}`);
+    if (saved && !sameApplicationRelease(JSON.parse(saved) as ApplicationManifest, manifest))
+      throw new Error("本机保存的版本与当前公开版本不同，请从作品详情管理版本后再体验");
+  };
+  const persistDownload = async () => {
+    const catalog = loadCatalogSync();
+    checkLocal();
+    const entry = catalog.find(entry => entry.id === appId);
+    // A completed background download must not undo a later uninstall.
+    if (entry?.trashedAt !== initialEntry?.trashedAt || entry?.purged !== initialEntry?.purged)
+      throw new Error("本机安装状态已改变，请重新打开作品");
+    const newlyInstalled = !entry || entry.trashedAt || entry.purged;
+    const saved = readShellValueSync(`application.install.${appId}`);
+    const pending = readShellValueSync(`application.pending.${appId}`);
+    // Downloaded first installs remain staged until their page passes the
+    // existing health check, just like an explicit install.
+    if (!saved && !pending) {
+      writeShellValue(`application.pending.access.${appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
+      writeShellValue(`application.pending.${appId}`, JSON.stringify(manifest));
+    }
+    if (item) writeShellValue(`application.market.${appId}`, JSON.stringify(item));
+    (require("../../../../packages/features/src/registry") as typeof import("../../../../packages/features/src/registry")).registerApplicationMetadata(manifest);
+    if (newlyInstalled) {
+      if (entry) Object.assign(entry, { trashedAt: undefined, purged: false, hidden: false, pinned: true });
+      else catalog.push({ id: appId, hidden: false, pinned: true });
+      await saveCatalog(catalog);
+      if (installerId && installerId === cachedAccountId()) void accountFetch(`/v1/application-download/${appId}`, {
+        method: "POST", body: JSON.stringify({ releaseId: manifest.releaseId }),
+      }).catch(() => {});
+    }
+  };
   const acceptPublicRuntime = async () => {
     const running = active.get(appId);
     const access = activeAccess.get(appId);
@@ -128,27 +161,25 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
     await loadApplication(appId);
     signal.throwIfAborted();
     await acceptPublicRuntime();
+    await persistDownload();
     return;
   }
-  const checkLocal = async () => {
-    const pending = await readShellValue(`application.pending.${appId}`);
-    const saved = pending || await readShellValue(`application.install.${appId}`);
-    if (saved) {
-      const local = JSON.parse(saved) as ApplicationManifest;
-      if (!sameApplicationRelease(local, manifest))
-        throw new Error("本机保存的版本与当前公开版本不同，请从作品详情管理版本后再体验");
-    }
-  };
-  await checkLocal();
+  checkLocal();
   signal.throwIfAborted();
   await prepareExperienceResources(manifest, signal);
+  // Native downloads finish even if the feed moved away. Keep completed,
+  // verified packages installed; cancellation only stops runtime warming.
+  await persistDownload();
   signal.throwIfAborted();
   // Downloads may finish during a gesture. Yield again before staging/evaluating
   // code, and re-check cancellation and local selection after that wait.
   await waitForInteractions();
   signal.throwIfAborted();
   // A workshop/install may have changed the local selection while downloading.
-  await checkLocal();
+  checkLocal();
+  const installedEntry = loadCatalogSync().find(entry => entry.id === appId);
+  if (!installedEntry || installedEntry.trashedAt || installedEntry.purged)
+    throw new Error("应用已卸载，请重新打开作品");
   signal.throwIfAborted();
   if (loading.has(appId)) {
     await loadApplication(appId);
@@ -164,6 +195,30 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
 function sameApplicationRelease(local: ApplicationManifest, published: ApplicationManifest) {
   return local.appId === published.appId && local.releaseId === published.releaseId
     && local.bundle?.sha256 === published.bundle.sha256 && local.source?.commit === published.source.commit;
+}
+
+/** Recover verified public downloads made before feed installs were catalogued. */
+export async function restoreDownloadedApplications() {
+  const catalog = loadCatalogSync();
+  const known = new Set(catalog.map(entry => entry.id));
+  let changed = false;
+  for (const key of shellKeys()) {
+    const appId = key.match(/^application\.(?:install|pending)\.([a-z][a-z0-9-]{0,63})$/)?.[1];
+    // Tombstones are intentional uninstall records and must stay removed.
+    if (!appId || appId === bootstrap.defaultApplication || known.has(appId)) continue;
+    try {
+      const pending = readShellValueSync(`application.pending.${appId}`);
+      const manifest = JSON.parse(pending || readShellValueSync(`application.install.${appId}`) || "null") as ApplicationManifest | null;
+      const access = JSON.parse(readShellValueSync(`application.${pending ? "pending.access" : "access"}.${appId}`) || "null") as Access | null;
+      if (!manifest || !access?.public || access.ownerId || access.releaseId !== manifest.releaseId) continue;
+      assertCompatible(manifest, appId);
+      if (readShellValueSync(`application.failed.${appId}`) === manifest.releaseId && readShellValueSync(`application.failed.host.${appId}`) === hostBuildId) continue;
+      (require("../../../../packages/features/src/registry") as typeof import("../../../../packages/features/src/registry")).registerApplicationMetadata(manifest);
+      catalog.push({ id: appId, hidden: false, pinned: true });
+      known.add(appId); changed = true;
+    } catch { /* Ignore incomplete downloads and invalid local records. */ }
+  }
+  if (changed) await saveCatalog(catalog);
 }
 async function verifyPublicPointer(manifest: ApplicationManifest) {
   const published = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/public`);

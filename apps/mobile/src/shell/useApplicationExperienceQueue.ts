@@ -45,7 +45,7 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     if (!next) return;
     const controller = new AbortController();
     const cancel = afterInteractions(() => {
-      void loadPublicApplicationExperience(next.manifest, controller.signal).then(() => {
+      void loadPublicApplicationExperience(next.manifest, controller.signal, next).then(() => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(experienceId(next), { ready: true, error: "" }));
       }, cause => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(experienceId(next), { ready: false, error: cause instanceof Error ? cause.message : "暂时无法体验这个作品" }));
