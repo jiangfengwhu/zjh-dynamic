@@ -278,9 +278,6 @@ const useStyles = createThemedStyles((t) => ({
   retry: { minHeight: 40, justifyContent: "center" },
   add: { width: 36, height: 36, minWidth: 36, minHeight: 36, alignItems: "center", justifyContent: "center", borderRadius: 18, backgroundColor: t.accent, paddingHorizontal: 0, paddingVertical: 0 },
   verify: { alignSelf: "flex-end", paddingHorizontal: 12 },
-  block: {
-    gap: 4,
-  },
   card: {
     flexDirection: "row",
     alignItems: "center",

@@ -1520,12 +1520,6 @@ const useStyles = createThemedStyles((base) => {
       backgroundColor: t.surfaceRaised,
     },
     error: { color: t.redText, fontSize: 12, lineHeight: 18 },
-    retry: {
-      flexDirection: "row",
-      gap: 6,
-      alignItems: "center",
-      justifyContent: "flex-start",
-    },
     dock: {
       paddingHorizontal: 16,
       paddingTop: 8,

@@ -644,7 +644,6 @@ const useStyles = createThemedStyles((base) => {
   const t = base;
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
-    fill: { flex: 1 },
     content: { paddingHorizontal: 16, paddingTop: 6, gap: 12, paddingBottom: 12 },
     previewText: { color: t.ink1, fontSize: 15, lineHeight: 22 },
     htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },

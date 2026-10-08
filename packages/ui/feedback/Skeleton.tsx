@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { AccessibilityInfo, Animated, type StyleProp, type ViewStyle } from "react-native";
 import { createThemedStyles, useTheme } from "../theme";
 
 export type SkeletonProps = {

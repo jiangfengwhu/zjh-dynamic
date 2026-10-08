@@ -1,5 +1,5 @@
 import { afterInteractions } from "./interactionWork";
-import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
+import { rememberPage, pageCacheKey } from "./pageCache";
 import { accountFetch, currentAccountId, cachedAccountId } from "./account";
 import {
   fetchApplicationCatalog,
@@ -21,7 +21,6 @@ import {
 } from "./shellStorage";
 import {
   registerApplicationMetadata,
-  bundles,
 } from "../../../../packages/features/src/registry";
 import NativePluginHost from "../NativePluginHost";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
@@ -358,10 +357,6 @@ export async function uninstallMarketApplication(appId: string) {
   // Retain storage and cached media; reload to release evaluated JS and timers.
   await NativePluginHost.call("shell", "reloadApplications", "{}");
 }
-export function marketDefinition(item: MarketApplication) {
-  return bundles.find((bundle) => bundle.id === item.manifest.appId);
-}
-
 export type SharingState = {
   iconUrl?: string;
   shared: MarketApplication | null;
@@ -447,8 +442,6 @@ async function marketAction(
     clearTimeout(timer);
   }
 }
-export const loadSharing = (appId: string) =>
-  marketAction(appId, { action: "status" });
 export const shareMarketApplication = (
   appId: string,
   releaseId: string,

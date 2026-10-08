@@ -16,7 +16,6 @@ const seen = new Map();
 const idsFile = path.join(output, 'module-ids.json');
 let ids = {};
 try { ids = JSON.parse(fs.readFileSync(idsFile, 'utf8')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-const used = new Set();
 let next = base;
 for (const id of Object.values(ids)) {
   if (!Number.isSafeInteger(id) || id < base || id >= base + allocation.moduleRangeSize) throw new Error('应用模块编号表无效');
@@ -31,8 +30,6 @@ module.exports = mergeConfig(getDefaultConfig(mobile), {
     nodeModulesPaths: [path.join(root, 'node_modules'), path.resolve(__dirname, '../node_modules'), path.join(mobile, 'node_modules')],
     resolveRequest(context, name, platform) {
       if (shared[name]) {
-        used.add(name);
-        fs.writeFileSync(path.join(output, 'used-modules.json'), JSON.stringify([...used].sort()));
         return { type: 'sourceFile', filePath: path.join(output, 'external', `${Buffer.from(name).toString('hex')}.js`) };
       }
       if (name.startsWith('@zijinhua/') || Object.keys(shared).some(entry => name.startsWith(entry + '/'))) throw new Error(`未公开的共享模块入口：${name}`);

@@ -1,7 +1,7 @@
 import posters from "../posters.json";
 import { jollyAssets } from "../assets";
 import { bundleR2Url } from "../../evolveHost";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppState, Image, StyleSheet, View, ViewStyle } from "react-native";
 import Video, { ViewType } from "react-native-video";
 import { useIsFocused } from "@react-navigation/native";

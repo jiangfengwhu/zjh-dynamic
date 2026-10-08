@@ -5,7 +5,7 @@ import { HostAlert as Alert } from "../HostAlert";
 import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
 import { HostText as Text } from "./HostText";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Pressable, Share, StyleSheet, View } from "react-native";
 import { EdgeModal } from "../../../../../packages/ui/edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

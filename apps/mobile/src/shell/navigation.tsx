@@ -10,7 +10,6 @@ import { AmbientFill } from "../../../../packages/ui/chrome";
 import { parseSharedLink, type SharedLink } from "./deepLinks";
 import { watchClipboardShares } from "./clipboardShares";
 import NativePluginHost from "../NativePluginHost";
-import type { ApplicationManifest } from "../runtime/applications";
 import { openCreationComposer, type CreationIntent } from "./creationComposer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -427,10 +426,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
     return () => { live = false; subscription.remove(); clipboard.stop(); };
   }, []);
   const reduceMotion = useReducedMotion();
-  const installedIds = useMemo(
-    () => props.listed.map((item) => item.id),
-    [props.listed]
-  );
   const previous = useRef({ label: "", depth: 1 });
   const { colors } = useTheme();
   const theme = useMemo(() => ({

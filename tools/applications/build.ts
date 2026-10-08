@@ -36,7 +36,6 @@ export async function buildApplication(repo: string, appId: string) {
     await writeFile(path.join(output, "external", `${Buffer.from(name).toString("hex")}.js`), `module.exports = globalThis.__zijinhuaApplications.require(${JSON.stringify(name)}, ${JSON.stringify(appId)});\n`);
   }
   await writeFile(path.join(output, "public-modules.json"), JSON.stringify(shared));
-  await writeFile(path.join(output, "used-modules.json"), "[]");
   const entry = path.join(output, "entry.js");
   const sourceEntry = await realpath(path.join(root, "src/index.ts"));
   await writeFile(entry, `const definition = require(${JSON.stringify(sourceEntry.replaceAll("\\", "/"))}).default;\nglobalThis.__zijinhuaApplications.register(${JSON.stringify(appId)}, definition);\n`);
