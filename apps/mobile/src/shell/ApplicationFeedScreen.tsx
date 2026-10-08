@@ -3,12 +3,11 @@ import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "r
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { cancelAnimation, Easing, ReduceMotion, runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useSharedValue, withTiming } from "react-native-reanimated";
+import { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, scrollTo, useAnimatedReaction, useAnimatedRef, useSharedValue, withTiming } from "react-native-reanimated";
 import { Ambient, Pressy, RoundButton } from "../../../../packages/ui/chrome";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 import { Skeleton } from "../../../../packages/ui/feedback/Skeleton";
-import { loadPublicApplicationExperience } from "../runtime/applications";
 import { afterInteractions, beginRouteTransition, endRouteTransition } from "./interactionWork";
 import NativePluginHost from "../NativePluginHost";
 import { ApplicationIcon } from "./ApplicationIcon";
@@ -17,7 +16,7 @@ import { HostText as Text } from "./feed/HostText";
 import { useAccount } from "./account";
 import { useProfileDrawer } from "./ProfileDrawer";
 import { bindApplicationExperienceBack, bindNextApplication } from "./applicationExperienceNavigation";
-import { EXPERIENCE_AHEAD, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
+import { EXPERIENCE_AHEAD, EXPERIENCE_CACHE_SIZE, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
 import { ApplicationInteractions } from "./ApplicationInteractions";
 import type { UserPost } from "./feed/userPosts";
 import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
@@ -71,6 +70,7 @@ export function ApplicationFeedScreen(props: Props) {
   const active = focused && foreground && !drawerOpen;
   const drag = useSharedValue(0);
   const moving = useSharedValue(false);
+  const dragging = useSharedValue(false);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", state => setForeground(state === "active"));
@@ -142,6 +142,10 @@ export function ApplicationFeedScreen(props: Props) {
     if (active && page.loaded && page.nextCursor && items.length - index <= EXPERIENCE_AHEAD + 4 && !busy && !error) void load(true);
   }, [active, page.loaded, page.nextCursor, items.length, index, busy, error, load]);
 
+  const startSwitch = useCallback(() => {
+    beginRouteTransition(SWITCH_INTERACTION);
+    setSwitching(true);
+  }, []);
   const commit = useCallback((direction: number) => {
     Keyboard.dismiss();
     setIndex(value => Math.max(0, Math.min(items.length - 1, value + direction)));
@@ -152,24 +156,28 @@ export function ApplicationFeedScreen(props: Props) {
     drag.value = 0;
     moving.value = false;
     setSwitching(false);
-  }, [index, identity, revision, active, drag, moving]);
+  }, [identity, revision, active, drag, moving]);
+  useLayoutEffect(() => {
+    moving.value = false;
+    setSwitching(false);
+  }, [index, moving]);
   const finish = useCallback((direction: number) => {
     "worklet";
     if (moving.value) return;
-    if (direction > 0 ? !next : !previous) { drag.value = withTiming(0, timing); return; }
+    if (direction > 0 ? !next : !previous) return;
     moving.value = true;
-    runOnJS(setSwitching)(true);
+    runOnJS(startSwitch)();
     drag.value = withTiming(-direction * height, timing, done => {
       if (done) runOnJS(commit)(direction);
       else { moving.value = false; runOnJS(setSwitching)(false); }
     });
-  }, [next, previous, height, commit, drag, moving]);
+  }, [next, previous, height, commit, drag, moving, startSwitch]);
   const swipe = useMemo(() => Gesture.Pan()
     .enabled(active && !commentPost && Boolean(item))
     .maxPointers(1)
     .activeOffsetY([-8, 8])
     .failOffsetX([-25, 25])
-    .onStart(() => { runOnJS(setSwitching)(true); })
+    .onStart(() => { dragging.value = true; runOnJS(startSwitch)(); })
     .onUpdate(event => {
       if (moving.value) return;
       const direction = event.translationY < 0 ? 1 : -1;
@@ -180,15 +188,16 @@ export function ApplicationFeedScreen(props: Props) {
       if (moving.value) return;
       const distance = event.translationY;
       if (Math.abs(distance) > 48 || Math.abs(event.velocityY) > 550) finish(distance < 0 ? 1 : -1);
-      else drag.value = withTiming(0, timing);
     })
     .onFinalize(() => {
+      if (!dragging.value) return;
+      dragging.value = false;
       if (!moving.value) {
         moving.value = true;
         drag.value = withTiming(0, timing, () => { moving.value = false; runOnJS(setSwitching)(false); });
       }
     }),
-    [active, commentPost, item, next, previous, height, finish, moving, drag]);
+    [active, commentPost, item, next, previous, height, finish, moving, dragging, drag, startSwitch]);
   const advance = useCallback(() => {
     if (next) finish(1);
     else if (!busy && page.nextCursor) {
@@ -208,7 +217,7 @@ export function ApplicationFeedScreen(props: Props) {
         <RoundButton icon="search" label="搜索作品" onPress={props.onSearch} />
       </View>
       <View style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
-        {item ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
+        {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
@@ -241,7 +250,7 @@ type QueueProps = {
   render: Props["renderApplication"]; onPause: () => void; onResume: () => void; onDetail: Props["onDetail"];
 };
 function ExperienceQueue(props: QueueProps) {
-  const { entries, onSettled, canLoad } = useApplicationExperienceQueue(props.items, props.index, props.active && !props.switching);
+  const { entries, preparations, retry } = useApplicationExperienceQueue(props.items, props.index, props.active && !props.switching);
   const current = props.items[props.index];
   const positions = useMemo(() => new Map(props.items.map((item, index) => [experienceId(item), index])), [props.items]);
   // Keep the retained app instances in feed order, with stable app/version identity.
@@ -250,84 +259,78 @@ function ExperienceQueue(props: QueueProps) {
   const list = useAnimatedRef<FlashListRef<MarketApplication>>();
   const ready = useSharedValue(false);
   const { height, drag } = props;
+  const baseOffset = useSharedValue(0);
   const syncPosition = useCallback(() => {
-    list.current?.scrollToOffset({ offset: Math.max(0, pageIndex * height - drag.value), animated: false });
-  }, [list, pageIndex, height, drag]);
-  useLayoutEffect(syncPosition, [syncPosition, pages]);
-  useAnimatedReaction(() => ready.value ? Math.max(0, pageIndex * height - drag.value) : -1, offset => {
-    // Bottom gestures drive the native scroller on the UI thread, without JS per frame.
+    runOnUI((offset: number) => {
+      // Rebase the completed gesture and the list origin atomically. Reading
+      // the old drag with the new page index briefly targets the following page.
+      cancelAnimation(drag);
+      drag.value = 0;
+      baseOffset.value = offset;
+    })(Math.max(0, pageIndex * height));
+  }, [pageIndex, height, props.index, drag, baseOffset]);
+  useLayoutEffect(syncPosition, [syncPosition]);
+  useAnimatedReaction(() => ready.value ? Math.max(0, baseOffset.value - drag.value) : -1, offset => {
     if (offset >= 0) scrollTo(list, 0, offset, false);
-  }, [list, pageIndex, height, drag]);
+  }, [list, baseOffset, drag]);
   return <AnimatedFlashList ref={list} data={pages} keyExtractor={experienceId} getItemType={experienceId}
     initialScrollIndex={Math.max(0, pageIndex)} scrollEnabled={false} showsVerticalScrollIndicator={false}
     bounces={false} overScrollMode="never" maintainVisibleContentPosition={{ disabled: true }}
-    // The bounded queue is the cache. Keep its cells mounted so app state survives
-    // backtracking; removed entries must not live on in an additional recycle pool.
-    drawDistance={height * pages.length} maxItemsInRecyclePool={0}
-    onLoad={() => { ready.value = true; syncPosition(); }} onContentSizeChange={syncPosition}
-    renderItem={({ item }) => {
+    // Draw nearby pages only. Unique types retain visited app state in the pool;
+    // deleting an identity from the seven-page data window evicts its cell.
+    drawDistance={height} maxItemsInRecyclePool={EXPERIENCE_CACHE_SIZE}
+    onLoad={() => { syncPosition(); ready.value = true; }}
+    renderItem={({ item, target }) => {
+      if (target === "Measurement") return <View style={{ height, width: props.width }} />;
       const offset = (positions.get(experienceId(item)) ?? -2) - props.index;
       const selected = experienceId(item) === experienceId(current);
       const nearby = Math.abs(offset) <= 1;
       return <CachedExperience item={item} selected={selected}
-        enabled={canLoad(experienceId(item))} onSettled={onSettled}
+        ready={preparations.get(experienceId(item))?.ready ?? false} error={preparations.get(experienceId(item))?.error ?? ""} onRetry={retry}
         interactive={selected && props.active && !props.switching}
         accessible={selected && props.active}
-        visible={props.active && !props.paused && (selected || (nearby && props.switching))}
+        visible={props.active && !props.paused && nearby}
         paused={selected && props.paused} foreground={props.foreground}
         width={props.width} height={height} render={props.render}
         onPause={props.onPause} onResume={props.onResume} onDetail={props.onDetail} />;
     }} />;
 }
 type CachedExperienceProps = Omit<QueueProps, "items" | "index" | "active" | "switching" | "drag"> & {
-  item: MarketApplication; selected: boolean; enabled: boolean;
-  interactive: boolean; accessible: boolean; visible: boolean; onSettled: (key: string) => void;
+  item: MarketApplication; selected: boolean; ready: boolean; error: string; onRetry: (key: string) => void;
+  interactive: boolean; accessible: boolean; visible: boolean;
 };
-const CachedExperience = memo(function CachedExperience({ item, selected, enabled, onSettled, ...props }: CachedExperienceProps) {
+const CachedExperience = memo(function CachedExperience({ item, selected, ready, error, onRetry, ...props }: CachedExperienceProps) {
   const { colors: t } = useTheme();
-  const settled = useCallback(() => onSettled(experienceId(item)), [onSettled, item.manifest.appId, item.manifest.releaseId]);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const pause = useCallback(() => { if (selectedRef.current) props.onPause(); }, [props.onPause]);
   const detail = useCallback(() => props.onDetail(item), [props.onDetail, item]);
+  const retry = useCallback(() => onRetry(experienceId(item)), [onRetry, item.manifest.appId, item.manifest.releaseId]);
   const metrics = useMemo(() => ({ frame: { x: 0, y: 0, width: props.width, height: props.height }, insets: { top: 0, bottom: 0, left: 0, right: 0 } }), [props.width, props.height]);
   return <View pointerEvents={props.interactive ? "auto" : "none"} accessibilityElementsHidden={!props.accessible} importantForAccessibility={props.accessible ? "auto" : "no-hide-descendants"} style={{ height: props.height, width: props.width, overflow: "hidden", backgroundColor: t.canvas }}>
     <SafeAreaProvider style={{ flex: 1 }} initialMetrics={metrics}>
-      <InlineExperience item={item} enabled={enabled} foreground={props.foreground} visible={props.visible} render={props.render} onReady={settled} onPause={pause} onDetail={detail} />
+      <InlineExperience ready={ready} error={error} selected={selected} foreground={props.foreground} visible={props.visible} render={props.render} appId={item.manifest.appId} onRetry={retry} onPause={pause} onDetail={detail} />
       {props.paused ? <View style={{ position: "absolute", inset: 0 }}><ExperiencePlaceholder item={item} onResume={props.onResume} /></View> : null}
     </SafeAreaProvider>
   </View>;
 });
 
-const InlineExperience = memo(function InlineExperience({ item, enabled, foreground, visible, render, onReady, onPause, onDetail }: { item: MarketApplication; enabled: boolean; foreground: boolean; visible: boolean; render: Props["renderApplication"]; onReady: () => void; onPause: () => void; onDetail: () => void }) {
+const InlineExperience = memo(function InlineExperience({ appId, ready, error, selected, foreground, visible, render, onRetry, onPause, onDetail }: { appId: string; ready: boolean; error: string; selected: boolean; foreground: boolean; visible: boolean; render: Props["renderApplication"]; onRetry: () => void; onPause: () => void; onDetail: () => void }) {
   const { colors: t } = useTheme();
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
   const showing = foreground && visible;
-  const [retainedVisible, setRetainedVisible] = useState(showing);
+  const [retainedVisible, setRetainedVisible] = useState(false);
   useEffect(() => {
-    if (showing) { setRetainedVisible(true); return; }
-    // Hiding an Activity detaches its native tree. Let navigation paint first.
-    return afterInteractions(() => setRetainedVisible(false));
-  }, [showing]);
-  useEffect(() => {
-    if (!enabled || ready) return;
-    const controller = new AbortController();
-    setError("");
-    void loadPublicApplicationExperience(item.manifest, controller.signal).then(() => {
-      if (!controller.signal.aborted) { setReady(true); onReady(); }
-    }, cause => {
-      if (!controller.signal.aborted) { setError(cause instanceof Error ? cause.message : "暂时无法体验这个作品"); onReady(); }
-    });
-    return () => controller.abort();
-  }, [item.manifest.appId, item.manifest.releaseId, attempt, onReady, enabled, ready]);
-  const content = useMemo(() => render(item.manifest.appId, onPause), [render, item.manifest.appId, onPause]);
-  if (ready) return <Activity mode={foreground && (showing || retainedVisible) ? "visible" : "hidden"}><View style={{ flex: 1 }}>{content}</View></Activity>;
-  // Preload data above, but only animate the skeleton the user can see.
-  if (!visible) return null;
+    if (!ready) return;
+    // Prepare the adjacent native pages while idle, rather than restoring them
+    // when the finger starts moving. Only three nearby pages run effects.
+    return afterInteractions(() => setRetainedVisible(showing));
+  }, [ready, showing]);
+  const content = useMemo(() => render(appId, onPause), [render, appId, onPause]);
+  if (ready) return <Activity mode={foreground && ((showing && selected) || retainedVisible) ? "visible" : "hidden"}><View style={{ flex: 1 }}>{content}</View></Activity>;
+  // Resources warm independently; only the current page needs a loading animation.
+  if (!selected || !visible) return null;
   return <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 16 }}>
-    {error ? <><SymbolIcon name="alert" size={28} color={t.orange} /><Text style={{ color: t.ink1, fontSize: 17, fontWeight: "700" }}>暂时无法体验</Text><Text style={{ color: t.ink3, lineHeight: 21, textAlign: "center" }}>{error}</Text><View style={{ flexDirection: "row", gap: 20 }}><Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>重试</Text></Pressy><Pressy accessibilityRole="button" onPress={onDetail} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>查看详情</Text></Pressy></View></> : <><ExperienceSkeleton /><Text accessibilityLiveRegion="polite" style={{ color: t.ink3, fontSize: 13 }}>正在准备真实应用…</Text></>}
+    {error ? <><SymbolIcon name="alert" size={28} color={t.orange} /><Text style={{ color: t.ink1, fontSize: 17, fontWeight: "700" }}>暂时无法体验</Text><Text style={{ color: t.ink3, lineHeight: 21, textAlign: "center" }}>{error}</Text><View style={{ flexDirection: "row", gap: 20 }}><Pressy accessibilityRole="button" onPress={onRetry} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>重试</Text></Pressy><Pressy accessibilityRole="button" onPress={onDetail} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>查看详情</Text></Pressy></View></> : <><ExperienceSkeleton /><Text accessibilityLiveRegion="polite" style={{ color: t.ink3, fontSize: 13 }}>正在准备真实应用…</Text></>}
   </View>;
 });
 

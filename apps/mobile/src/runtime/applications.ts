@@ -1,5 +1,6 @@
 import { assertApplicationSdkCompatible, ApplicationSdkError } from "./applicationCompatibility";
 import NativePluginHost from "../NativePluginHost";
+import { waitForInteractions } from "../shell/interactionWork";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, readShellValueSync, writeShellValue } from "../shell/shellStorage";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../shell/account";
@@ -141,6 +142,10 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   await checkLocal();
   signal.throwIfAborted();
   await prepareExperienceResources(manifest, signal);
+  signal.throwIfAborted();
+  // Downloads may finish during a gesture. Yield again before staging/evaluating
+  // code, and re-check cancellation and local selection after that wait.
+  await waitForInteractions();
   signal.throwIfAborted();
   // A workshop/install may have changed the local selection while downloading.
   await checkLocal();
