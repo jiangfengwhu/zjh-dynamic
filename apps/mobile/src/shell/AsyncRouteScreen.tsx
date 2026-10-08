@@ -1,3 +1,4 @@
+import { afterInteractions, waitForInteractions } from "./interactionWork";
 import { useAccount } from "./account";
 import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "./pageCache";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -35,15 +36,15 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
     let live = true;
     const run = () => {
       void loader.current().then(
-        value => { if (!live) return; if (cacheKey) rememberPage(cacheKey, value); if (!displayed.current || dataChanged(displayed.current.value, value)) setResult({ value, key: cacheKey }); setError(null); },
+        async value => { await waitForInteractions(); if (!live) return; if (cacheKey) rememberPage(cacheKey, value); if (!displayed.current || dataChanged(displayed.current.value, value)) setResult({ value, key: cacheKey }); setError(null); },
         cause => { if (live) setError(cause instanceof Error ? cause : new Error("加载失败，请重试")); }
       );
     };
     // Missing data is necessary work: start after the route commits. Only
     // background revalidation of displayed content waits for an idle slot.
     const cached = !!displayed.current;
-    const task = cached ? requestIdleCallback(run, { timeout: 1000 }) : requestAnimationFrame(run);
-    return () => { live = false; if (cached) cancelIdleCallback(task); else cancelAnimationFrame(task); };
+    const cancel = cached ? afterInteractions(run) : (() => { const frame = requestAnimationFrame(run); return () => cancelAnimationFrame(frame); })();
+    return () => { live = false; cancel(); };
   }, [focused, attempt, cacheKey]);
   if (visible) return <View style={{ flex: 1 }}><View style={{ flex: 1 }}>{children(visible.value)}</View>{error ? <Pressy onPress={() => { setError(null); setAttempt(value => value + 1); }}><Text>同步未完成 · 点击重试</Text></Pressy> : null}</View>;
   return <ThemeContext.Provider value={theme}>

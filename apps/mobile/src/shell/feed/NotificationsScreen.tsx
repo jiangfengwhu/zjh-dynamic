@@ -1,3 +1,4 @@
+import { afterInteractions, waitForInteractions } from "../interactionWork";
 import { lazyScreen } from "../lazyScreen";
 import { useVisitedPager } from "../useVisitedPager";
 import { Text } from "../../../../../packages/ui/primitives/Typography";
@@ -30,7 +31,7 @@ import { Pressy } from "../../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
 import { currentAccountId, requireAccount, useAccount } from "../account";
-import { readShellValue, writeShellValue } from "../shellStorage";
+
 import {
   markNotificationsRead,
   readNotifications,
@@ -270,8 +271,6 @@ function NotificationsContent({
   const revision = useRef(0);
   const reading = useRef(false);
   const writing = useRef(false);
-  const firstCursor = useRef<string | null>(null);
-  const loadedOwner = useRef<string | undefined>(undefined);
   const noticeVersion = useLiveVersion("notification");
   const reload = useRef<() => Promise<void | boolean>>(async () => {});
   const again = useRef(false);
@@ -311,8 +310,7 @@ function NotificationsContent({
         setPage(previous => {
           const next = { ...previous, unreadCount: result.unreadCount, unreadByCategory: result.unreadByCategory,
             notices: previous.notices.map(item => seen.current.has(item.id) ? { ...item, read: true } : item) };
-          rememberPage(cacheKey, next);
-          return next;
+          return rememberPage(cacheKey, next);
         });
       }).then(() => { readFlight.current = false; readVisible.current(); }, () => { readFlight.current = false; });
     }, 200);
@@ -329,34 +327,17 @@ function NotificationsContent({
     const before = revision.current;
     const owner = user.id;
     try {
-      if (!more && loadedOwner.current !== owner) {
-        loadedOwner.current = owner;
-        const raw = await readShellValue(
-          `social.notifications.${owner}.${category}`
-        );
-        if (raw && alive.current && before === revision.current) {
-          try {
-            const cached = JSON.parse(raw);
-            if (Array.isArray(cached.notices)) {
-              firstCursor.current = cached.nextCursor;
-              setPage(cached);
-              rememberPage(cacheKey, cached);
-              setLoaded(true);
-            }
-          } catch {}
-        }
-      }
       const result = await readNotifications(
         more ? page.nextCursor! : undefined,
         category
       );
+      await waitForInteractions();
       if (
         !alive.current ||
         before !== revision.current ||
         (await currentAccountId()) !== owner
       )
         return false;
-      if (!more) firstCursor.current = result.nextCursor;
       setLoaded(true);
       setPage((previous) => {
         const next = more
@@ -371,8 +352,7 @@ function NotificationsContent({
             }
           : result;
         next.notices = next.notices.map(item => seen.current.has(item.id) ? { ...item, read: true } : item);
-        rememberPage(cacheKey, next);
-        return next;
+        return rememberPage(cacheKey, next);
       });
       setError("");
       return true;
@@ -393,25 +373,6 @@ function NotificationsContent({
     }
   }
   useEffect(() => {
-    if (!user || loadedOwner.current !== user.id) return;
-    const owner = user.id;
-    const before = revision.current;
-    const idle = requestIdleCallback(() => {
-      void currentAccountId().then((current) => {
-        if (alive.current && current === owner && before === revision.current)
-          writeShellValue(
-            `social.notifications.${owner}.${category}`,
-            JSON.stringify({
-              ...page,
-              notices: page.notices.slice(0, 50),
-              nextCursor: firstCursor.current,
-            })
-          );
-      });
-    });
-    return () => cancelIdleCallback(idle);
-  }, [page, user?.id, category]);
-  useEffect(() => {
     const subscription = AppState.addEventListener("change", state => setForeground(state === "active"));
     return () => subscription.remove();
   }, []);
@@ -431,8 +392,6 @@ function NotificationsContent({
     visible.current.clear();
     const cached = cachedPage<NoticePage>(cacheKey);
     setPage(cached ?? { notices: [], nextCursor: null, unreadCount: 0 });
-    firstCursor.current = cached?.nextCursor ?? null;
-    loadedOwner.current = cached ? user?.id : undefined;
     setLoading(Boolean(user));
     setLoaded(!!cached);
     setLoadingMore(false);
@@ -440,10 +399,8 @@ function NotificationsContent({
   }, [user?.id]);
   useEffect(() => {
     if (!user || !foreground) return;
-    const idle = requestIdleCallback(() => {
-      void load(false);
-    });
-    return () => cancelIdleCallback(idle);
+    const cancel = afterInteractions(() => { void load(false); });
+    return cancel;
   }, [focused, foreground, user?.id, noticeVersion]);
   async function act(notice: Notice) {
     if (writing.current || !user) return;

@@ -1,3 +1,4 @@
+import { waitForInteractions, afterInteractions } from "./interactionWork";
 import { ApplicationIcon } from "./ApplicationIcon";
 import { EmptyState } from "./EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
@@ -120,28 +121,23 @@ export function MyApplicationsScreen({
     setPulling(manual);
     setError("");
     try {
-      const [local, apps] = await Promise.all([
-        scope === "works" ? readMyWorks() : Promise.resolve([]),
-        installedMarket(),
-      ]);
-      if (before !== generation.current) return;
-      setWorks(local); setInstalled(apps);
-      setLoaded(true);
-      const localSnapshot = { works: local, installed: apps };
-      rememberPage(cacheKey, localSnapshot);
-      setOwner(user?.id);
+      const apps = await installedMarket();
       if (scope === "works") {
         await restoreWorks(manual, true);
-        const next = await readMyWorks();
+        const next = await readMyWorks(apps);
+        await waitForInteractions();
         if (before !== generation.current) return;
-        const snapshot = { works: next, installed: apps };
-        rememberPage(cacheKey, snapshot);
-        setWorks(next);
+        const snapshot = rememberPage(cacheKey, { works: next, installed: apps });
+        setWorks(snapshot.works); setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id);
       } else {
+        await waitForInteractions();
+        if (before !== generation.current) return;
+        const snapshot = rememberPage(cacheKey, { works: [], installed: apps });
+        setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id);
         const [publicResult, ownResult] = await Promise.allSettled([
           publicApplicationUpdates(true),
           apps.some((app) => app.owned)
-            ? restoreWorks(manual, true).then(() => readMyWorks())
+            ? restoreWorks(manual, true).then(() => readMyWorks(apps))
             : Promise.resolve([] as MyWork[]),
         ]);
         if (
@@ -173,6 +169,8 @@ export function MyApplicationsScreen({
               };
             }
           }
+        await waitForInteractions();
+        if (before !== generation.current) return;
         setUpdates(result);
         if (
           publicResult.status === "rejected" ||
@@ -183,6 +181,12 @@ export function MyApplicationsScreen({
         }
       }
     } catch {
+      if (scope === "works" && before === generation.current) {
+        const apps = await installedMarket();
+        const works = await readMyWorks(apps);
+        await waitForInteractions();
+        if (before === generation.current) { const snapshot = rememberPage(cacheKey, { works, installed: apps }); setWorks(snapshot.works); setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id); }
+      }
       succeeded = false;
       if (before === generation.current)
         setError("暂时无法读取内容，下拉可重试。");
@@ -201,11 +205,9 @@ export function MyApplicationsScreen({
   }
   useEffect(() => {
     if (focused) {
-      const idle = requestIdleCallback(() => {
-        void refresh();
-      });
+      const cancel = afterInteractions(() => { void refresh(); });
       return () => {
-        cancelIdleCallback(idle);
+        cancel();
         generation.current++;
         reading.current = false;
       };
@@ -213,11 +215,11 @@ export function MyApplicationsScreen({
   }, [focused, user?.id, scope, catalogRevision]);
   useEffect(() => {
     if (!focused) return;
-    let idle: ReturnType<typeof requestIdleCallback> | undefined;
+    let cancelReload: (() => void) | undefined;
     const reload = () => {
-      if (idle !== undefined) cancelIdleCallback(idle);
-      idle = requestIdleCallback(() => {
-        idle = undefined;
+      cancelReload?.();
+      cancelReload = afterInteractions(() => {
+        cancelReload = undefined;
         void refresh(false);
       });
     };
@@ -237,7 +239,7 @@ export function MyApplicationsScreen({
       reload
     );
     return () => {
-      if (idle !== undefined) cancelIdleCallback(idle);
+      cancelReload?.();
       appState.remove();
       offCatalog();
       offSharing();

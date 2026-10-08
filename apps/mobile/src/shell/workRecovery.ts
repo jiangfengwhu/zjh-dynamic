@@ -1,3 +1,4 @@
+import { waitForInteractions } from "./interactionWork";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { subscribeLiveEvents } from "./liveEvents";
 import { accountFetch, currentAccountId } from "./account";
@@ -11,7 +12,7 @@ import {
 import type { WorkshopStatus } from "./cloudEvolve";
 import type { SharingState } from "./market";
 
-type Work = {
+export type Work = {
   submissionId?: string;
   appId: string;
   ownerId: string;
@@ -87,6 +88,7 @@ async function restore(owner: string, force: boolean) {
     if (!response.ok) throw new Error("暂时无法加载作品，请稍后重试");
     const { works } = (await response.json()) as { works: Work[] };
     if ((await currentAccountId()) !== owner) return;
+    await waitForInteractions();
     const previous = await readShellValue(`shell.works.cache.${owner}`);
     if ((await currentAccountId()) !== owner) return;
     writeShellValue(`shell.works.cache.${owner}`, JSON.stringify({ at: Date.now(), works }));

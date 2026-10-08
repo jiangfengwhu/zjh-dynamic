@@ -1,3 +1,4 @@
+import { waitForInteractions, afterInteractions } from "./interactionWork";
 import { lazyScreen } from "./lazyScreen";
 import { useVisitedPager } from "./useVisitedPager";
 import { ApplicationIcon } from "./ApplicationIcon";
@@ -324,6 +325,7 @@ function MarketDiscovery({
         search,
         reset ? undefined : before.nextCursor
       );
+      await waitForInteractions();
       if (token !== generation.current) return;
       const known = new Set(
         before.applications.map((item) => item.manifest.appId)
@@ -364,10 +366,7 @@ function MarketDiscovery({
     setBusy(false);
     setPulling(false);
     setError("");
-    writeShellValue(
-      "market.filters",
-      JSON.stringify({ category, query: search })
-    );
+    const cancelPersist = afterInteractions(() => writeShellValue("market.filters", JSON.stringify({ category, query: search })));
     if (current.current.key !== key) {
       current.current = { key, view: empty };
       setView(empty);
@@ -385,6 +384,7 @@ function MarketDiscovery({
       if (!cached || Date.now() - cached.at > 60000) void load(true);
     });
     return () => {
+      cancelPersist();
       if (current.current.key === key)
         rememberMarketView(key, current.current.view);
       generation.current++;

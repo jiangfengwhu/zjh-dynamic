@@ -1,3 +1,4 @@
+import { waitForInteractions } from "../interactionWork";
 import { TextInput as NativeTextInput } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
@@ -73,6 +74,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
     reading.current = true; setLoading(true); setRefreshing(manual); const before = version.current;
     try {
       const result = await fetchPostDetail(initialPost.id, more ? cursor! : undefined, more ? undefined : initialCommentId);
+      await waitForInteractions();
       if (!alive.current || before !== version.current) return;
       loaded.current = true; setFallback(result.post); updateUserPost(result.post); setCursor(result.nextCursor); setError("");
       setComments(previous => (more ? [...previous, ...result.comments.filter(item => !previous.some(old => old.id === item.id))] : result.comments).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)));
@@ -81,8 +83,13 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
     finally { reading.current = false; if (alive.current) { setLoading(false); setRefreshing(false); if (before !== version.current && !writing.current) void load(); } }
   }
   useEffect(() => () => { alive.current = false; }, []);
-  // Start the comments request after route commit, while its entrance runs.
-  useEffect(() => { if (!entered || !focused) return; version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } void load(); }, [entered, focused, user?.id]);
+  useEffect(() => {
+    if (!providedDetail || writing.current) return;
+    loaded.current = true; setFallback(providedDetail.post); setComments(providedDetail.comments); setCursor(providedDetail.nextCursor);
+  }, [providedDetail]);
+  const initialRequest = useRef(!!providedDetail);
+  // The notice route already fetched this visit; later visits still revalidate.
+  useEffect(() => { if (!entered || !focused) return; if (initialRequest.current) { initialRequest.current = false; return; } version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } void load(); }, [entered, focused, user?.id]);
   function updated(post: UserPost) { version.current++; setFallback(post); }
   async function send() {
     if (!draftReady || writing.current || !text.trim() || count > 1000) return;

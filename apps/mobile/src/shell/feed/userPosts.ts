@@ -1,3 +1,4 @@
+import { waitForInteractions } from "../interactionWork";
 import { cachedPage, rememberPage, forgetPageFamily, pageCacheKey } from "../pageCache";
 import { useEffect, useState } from "react";
 import { edgeUrl } from "../evolveHost";
@@ -193,6 +194,7 @@ async function refreshFollowing(silent = false) {
     const before = followingRevision;
     const countBefore = notificationRevision();
     const page = await readSocial<Page>("/v1/posts?feed=following");
+    await waitForInteractions();
     if (before === followingRevision && page.unreadCount !== undefined)
       updateNotificationCount(page.unreadCount, countBefore);
     if (before === followingRevision) {
@@ -282,6 +284,7 @@ export function refreshUserPosts(
     await currentAccountId();
     const before = revision;
     const page = await requestPage();
+    await waitForInteractions();
     if (before === revision) {
       revision++;
       save(refreshedPage(value, page, silent && !manualRefreshRequested));

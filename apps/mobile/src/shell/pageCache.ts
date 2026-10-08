@@ -1,3 +1,4 @@
+import { afterInteractions } from "./interactionWork";
 import { cachedAccountId } from "./account";
 import { readShellValueSync, writeShellValue, removeShellValue, shellKeys } from "./shellStorage";
 import { applicationQueryClient } from "../../../../packages/app-sdk/src/query-runtime";
@@ -23,7 +24,7 @@ export function rememberPage<T>(key: string, value: T) {
   const entries = client.getQueryCache().findAll({ queryKey: ["page"] }).sort((a,b) => a.state.dataUpdatedAt - b.state.dataUpdatedAt);
   while (entries.length > 32) client.removeQueries({ queryKey: entries.shift()!.queryKey, exact: true });
   // Persistence follows the visible response; coalesce rapid local mutations.
-  requestIdleCallback(() => {
+  afterInteractions(() => {
     if (client.getQueryData(["page", key]) !== remembered) return;
     writeShellValue(prefix + key, JSON.stringify({ value }));
     const keys = shellKeys().filter(item => item.startsWith(prefix) && item !== prefix + key);

@@ -1,3 +1,4 @@
+import { beginRouteTransition, endRouteTransition } from "./interactionWork";
 import { isApplicationInstalledSync } from "./market";
 import { markStartup } from "../runtime/startupTiming";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
@@ -39,7 +40,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { type AppEntry } from "./catalog";
 import type { MarketApplication } from "./market";
-import { fetchPublicMarketApplication, isApplicationInstalled } from "./market";
+import { fetchMarketDetail, isApplicationInstalled } from "./market";
 import {
   applicationContext,
   setApplicationPostHandlers,
@@ -534,6 +535,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         }}
       >
         <Stack.Navigator
+          screenListeners={({ route }) => ({ transitionStart: () => beginRouteTransition(route.key), transitionEnd: () => endRouteTransition(route.key) })}
           screenOptions={{
             headerShown: false,
             animation: reduceMotion ? "none" : "slide_from_right",
@@ -575,6 +577,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               >
                 <ScreenEdge bottom={false}>
                   <Tabs.Navigator
+                    screenListeners={{ swipeStart: () => beginRouteTransition("shell-tabs"), swipeEnd: () => endRouteTransition("shell-tabs") }}
                     backBehavior="none"
                     tabBarPosition="bottom"
                     tabBar={(tabProps) => <ShellTabBar {...tabProps} />}
@@ -673,7 +676,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   await openFeature(route.params.appId);
                   return null;
                 }
-                return fetchPublicMarketApplication(route.params.appId);
+                return fetchMarketDetail(route.params.appId);
               }}>
               {item => item
                 ? <MarketDetailPage item={item} onOpen={props.onOpenBundle} />
@@ -692,7 +695,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           </Stack.Screen>
           <Stack.Screen name="sharedApplication">
             {({ route }) => <AsyncRouteScreen key={route.params.appId} title="作品详情" onBack={goBack} cacheKey={`shared-application:${route.params.appId}`}
-              load={() => fetchPublicMarketApplication(route.params.appId)}>
+              load={() => fetchMarketDetail(route.params.appId)}>
               {item => <MarketDetailPage item={item} onOpen={props.onOpenBundle} />}
             </AsyncRouteScreen>}
           </Stack.Screen>

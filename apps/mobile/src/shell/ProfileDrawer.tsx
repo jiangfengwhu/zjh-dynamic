@@ -1,3 +1,4 @@
+import { beginRouteTransition, endRouteTransition } from "./interactionWork";
 import {
   createContext,
   useCallback,
@@ -109,7 +110,7 @@ export function ProfileDrawer({
       setOpening(false);
       if (next) setOpened(true);
       progress.value = withTiming(next ? 1 : 0, timing, (finished) => {
-        if (finished && !next) runOnJS(setOpened)(false);
+        if (finished) { runOnJS(endRouteTransition)("profile-drawer"); if (!next) runOnJS(setOpened)(false); }
       });
     },
     [progress]
@@ -117,6 +118,7 @@ export function ProfileDrawer({
   const open = useCallback(() => settle(true), [settle]);
   const close = useCallback(() => settle(false), [settle]);
   const dismiss = useCallback(() => {
+    endRouteTransition("profile-drawer");
     cancelAnimation(progress);
     progress.value = 0;
     setOpening(false);
@@ -127,6 +129,7 @@ export function ProfileDrawer({
     [contentReady, opened, render, close, dismiss]
   );
   const startDrag = useCallback(() => {
+    beginRouteTransition("profile-drawer");
     setOpening(true);
     setOpened(true);
   }, []);

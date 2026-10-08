@@ -1,3 +1,5 @@
+import { afterInteractions, waitForInteractions } from "./interactionWork";
+import { cachedPage, pageCacheKey } from "./pageCache";
 import { ApplicationIcon, rememberApplicationIcon } from "./ApplicationIcon";
 import { useLiveVersion } from "./liveEvents";
 import { UserAvatar } from "./UserAvatar";
@@ -44,10 +46,9 @@ import {
 } from "../runtime/applications";
 
 import {
-  fetchPublicMarketApplication,
-  cachedSharing,
+  fetchMarketDetail,
+  isApplicationInstalledSync,
   cachedSharingSync,
-  loadSharing,
   editMarketApplication,
   withdrawMarketApplication,
   shareMarketApplication,
@@ -63,41 +64,33 @@ import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { KeyboardViewport } from "./KeyboardViewport";
 import { useRouteRequestReady } from "./useRouteContentReady";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
-export function MarketPublicationScreen(
-  props: Parameters<typeof MarketDetailContent>[0]
-) {
-  const theme = useTheme();
-  return (
-    <ThemeContext.Provider value={theme}>
-      <MarketDetailContent
-        key={props.item.manifest.appId}
-        {...props}
-        publication
-      />
-    </ThemeContext.Provider>
-  );
-}
+export function MarketPublicationScreen(props: Parameters<typeof MarketDetailContent>[0]) { return <MarketDetailScreen {...props} publication />; }
 export function MarketDetailScreen(
   props: Parameters<typeof MarketDetailContent>[0]
 ) {
-  useAccount();
+  const { user } = useAccount();
+  const workVersion = useLiveVersion("work", props.item.manifest.appId);
   const ready = useRouteRequestReady();
   const focused = useIsFocused();
-  const [item, setItem] = useState(props.item);
+  const [result, setResult] = useState(() => ({ owner: user?.id, item: cachedPage<MarketApplication>(pageCacheKey(`market-detail:${props.item.manifest.appId}`)) ?? props.item }));
+  const item = result.owner === user?.id ? result.item : props.item;
+  const setItem = (next: MarketApplication) => setResult({ owner: user?.id, item: next });
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (!ready || !focused || props.item.owned) return;
+    if (!ready || !focused) return;
+    if (props.item.detailOwner === (user?.id ?? "guest") && Date.now() - (props.item.detailAt ?? 0) < 1000 && !attempt) { setItem(props.item); return; }
     let live = true;
-    void fetchPublicMarketApplication(props.item.manifest.appId).then(next => {
+    void fetchMarketDetail(props.item.manifest.appId).then(async next => {
+      await waitForInteractions();
       if (!live) return;
       setError(false);
-      if (dataChanged(item, next, ["latest"])) setItem(next);
+      if (dataChanged(item, next, ["latest", "detailAt", "detailOwner"])) setItem(next);
     }, () => { if (live) setError(true); });
     return () => { live = false; };
-  }, [ready, focused, props.item.manifest.appId, props.item.owned, attempt]);
+  }, [ready, focused, props.item.manifest.appId, props.item, attempt, user?.id, workVersion]);
   // The list already supplies a complete public detail snapshot.
-  return <View style={{ flex: 1 }}><LoadedMarketDetail {...props} item={item} />{error ? <Pressy accessibilityRole="button" accessibilityLabel="重试作品同步" onPress={() => { setError(false); setAttempt(value => value + 1); }}><Text>同步未完成 · 重试</Text></Pressy> : null}</View>;
+  return <View style={{ flex: 1 }}><LoadedMarketDetail {...props} item={item} onRefresh={() => setAttempt(value => value + 1)} />{error ? <Pressy accessibilityRole="button" accessibilityLabel="重试作品同步" onPress={() => { setError(false); setAttempt(value => value + 1); }}><Text>同步未完成 · 重试</Text></Pressy> : null}</View>;
 }
 function LoadedMarketDetail(props: Parameters<typeof MarketDetailContent>[0]) {
   const theme = useTheme();
@@ -116,7 +109,9 @@ function MarketDetailContent({
   onModify,
   onSharePost,
   onAuthor,
+  onRefresh,
 }: {
+  onRefresh?: () => void;
   onModify: (
     manifest: ApplicationManifest,
     ownerId: string,
@@ -141,24 +136,25 @@ function MarketDetailContent({
   const { user } = useAccount();
   const { colors } = useTheme();
   const app = item.manifest;
-  const workVersion = useLiveVersion("work", app.appId);
   const contentReady = useRouteRequestReady();
   const focused = useIsFocused() && contentReady;
-  const [installed, setInstalled] = useState(false);
-  const [release, setRelease] = useState("");
+  const [installed, setInstalled] = useState(() => isApplicationInstalledSync(app.appId));
+  const [release, setRelease] = useState(() => { try { return JSON.parse(readShellValueSync(`application.pending.${app.appId}`) || readShellValueSync(`application.install.${app.appId}`) || "null")?.releaseId ?? ""; } catch { return ""; } });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const [localReady, setLocalReady] = useState(false);
-  const knownOwner = user?.id && readShellValueSync(`shell.jules.apps.${app.appId}.owner`) === user.id ? user.id : undefined;
+  const [localReady, setLocalReady] = useState(true);
+  const knownOwner = user?.id && (item.owned ?? readShellValueSync(`shell.jules.apps.${app.appId}.owner`) === user.id) ? user.id : undefined;
   const initialSharing = knownOwner ? item.sharing ?? cachedSharingSync(app.appId) : undefined;
   const [ownershipReady, setOwnershipReady] = useState(true);
   const [ownerAccount, setOwnerAccount] = useState<string | undefined>(knownOwner);
-  const owner = !!ownerAccount && ownerAccount === user?.id;
-  const [sharing, setSharing] = useState<SharingState | undefined>(initialSharing);
-  const [sharingReady, setSharingReady] = useState(!!initialSharing);
+  const owner = !!user && item.authorId === user.id && (item.owned ?? ownerAccount === user.id);
+  const [localSharing, setLocalSharing] = useState<SharingState | undefined>(initialSharing);
+  const sharingSource = useRef(item.sharing);
+  const sharing = sharingSource.current === item.sharing ? localSharing : item.sharing;
+  const sharingReady = !!sharing;
+  function setSharing(next: SharingState | undefined) { sharingSource.current = item.sharing; setLocalSharing(next); }
   const [shareNotice, setShareNotice] = useState("");
-  const [sharingAttempt, setSharingAttempt] = useState(0);
   const [draftOwner, setDraftOwner] = useState<string>();
   const draftKey = `market.edit-draft.${draftOwner}.${app.appId}`;
   const [publishLatest, setPublishLatest] = useState(false);
@@ -239,25 +235,14 @@ function MarketDetailContent({
     if (!focused) return;
     let live = true;
     async function refresh() {
-      // Retain the known capability while the BFF revalidates it.
-      const accountId = await currentAccountId();
-      const owned =
-        Boolean(accountId) &&
-        (await readShellValue(`shell.jules.apps.${app.appId}.owner`)) ===
-          accountId;
+      const accountId = user?.id;
+      const owned = !!accountId && (item.owned ?? readShellValueSync(`shell.jules.apps.${app.appId}.owner`) === accountId);
       if (!live) return;
-      setOwnerAccount(owned ? accountId : undefined);
-      setOwnershipReady(true);
-      if (!owned) {
-        setSharing(undefined);
-        setDraftOwner(undefined);
-        initializedOwner.current = undefined;
-        return;
-      }
-      const cached = await cachedSharing(app.appId);
-      if (live && cached) { setSharing(cached); setSharingReady(true); }
+      setOwnerAccount(owned ? accountId : undefined); setOwnershipReady(true);
+      if (!owned) { setSharing(undefined); setDraftOwner(undefined); initializedOwner.current = undefined; return; }
+      const state = item.sharing;
+      if (!state) return;
       try {
-        const state = await loadSharing(app.appId);
         if (live) {
           if (publication && initializedOwner.current !== accountId) {
             let draft: {
@@ -335,14 +320,13 @@ function MarketDetailContent({
           }
           if (!live) return;
           setSharing(state);
-          setSharingReady(true);
           setShareNotice("");
         }
       } catch {
         if (live) setShareNotice("分享状态暂未接回，请稍后重新打开详情。");
       }
     }
-    const idle = requestIdleCallback(() => {
+    const cancel = afterInteractions(() => {
       void refresh().catch(() => {
         if (live) {
           setOwnershipReady(true);
@@ -352,9 +336,9 @@ function MarketDetailContent({
     });
     return () => {
       live = false;
-      cancelIdleCallback(idle);
+      cancel();
     };
-  }, [app.appId, focused, user?.id, sharingAttempt, publication, workVersion]);
+  }, [app.appId, focused, user?.id, publication, item.sharing, item.owned]);
   const formValue = JSON.stringify({
     title: shareTitle,
     summary: shareSummary,
@@ -773,7 +757,7 @@ function MarketDetailContent({
       {shareNotice ? (
         <Pressy
           disabled={busy}
-          onPress={() => setSharingAttempt((value) => value + 1)}
+          onPress={onRefresh}
           accessibilityLabel="重新读取市场信息"
         >
           <SymbolIcon name="refresh" size={18} color={colors.orchidText} />

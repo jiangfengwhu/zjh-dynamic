@@ -1,3 +1,4 @@
+import { afterInteractions } from "./interactionWork";
 import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
 import { accountFetch, currentAccountId, cachedAccountId } from "./account";
 import {
@@ -27,6 +28,8 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { confirmCreation } from "./creationConsent";
 export type MarketApplication = {
+  detailAt?: number;
+  detailOwner?: string;
   downloadCount?: number;
   iconUrl?: string;
   manifest: ApplicationManifest & { version?: string };
@@ -70,30 +73,20 @@ export function cachedMarketView(key: string): MarketView | undefined {
 }
 export const marketViewKey = (category: string, query: string) =>
   `${category}:${query.trim().toLowerCase()}`;
-export function rememberMarketView(
-  key: string,
-  view: MarketView,
-  persist = true
-) {
-  if (views.size >= 12 && !views.has(key)) {
-    const oldest = views.keys().next().value!;
-    views.delete(oldest);
-    removeShellValue(`market.view.${encodeURIComponent(oldest)}`);
-  }
+const viewWrites = new Map<string, () => void>();
+export function rememberMarketView(key: string, view: MarketView, persist = true) {
   views.set(key, view);
-  if (persist)
-    writeShellValue(
-      `market.view.${encodeURIComponent(key)}`,
-      JSON.stringify(view)
-    );
-  if (persist) {
-    const stored = shellKeys().filter(
-      (item) =>
-        item.startsWith("market.view.") &&
-        item !== `market.view.${encodeURIComponent(key)}`
-    );
+  if (!persist) return;
+  viewWrites.get(key)?.();
+  const cancel = afterInteractions(() => {
+    viewWrites.delete(key);
+    if (views.get(key) !== view) return;
+    writeShellValue(`market.view.${encodeURIComponent(key)}`, JSON.stringify(view));
+    while (views.size > 12) { const oldest = views.keys().next().value!; views.delete(oldest); }
+    const stored = shellKeys().filter(item => item.startsWith("market.view.") && item !== `market.view.${encodeURIComponent(key)}`);
     while (stored.length >= 12) removeShellValue(stored.shift()!);
-  }
+  });
+  viewWrites.set(key, cancel);
 }
 export async function readMarketView(
   key: string
@@ -122,6 +115,8 @@ export async function readMarketView(
 }
 export function invalidateMarketViews() {
   views.clear();
+  for (const cancel of viewWrites.values()) cancel();
+  viewWrites.clear();
 }
 export async function fetchMarketPage(
   category = "",
@@ -164,6 +159,17 @@ export async function fetchPublicMarketApplication(
   const next = { ...item, latest: true };
   rememberPage(pageCacheKey(`market:${appId}`), next);
   return next;
+}
+/** Account-aware detail BFF; no workshop token is needed for a read. */
+export async function fetchMarketDetail(appId: string): Promise<MarketApplication> {
+  const owner = await currentAccountId();
+  const response = await accountFetch(`${edgeUrl}/v1/market?appId=${encodeURIComponent(appId)}&detail=1`, { signal: AbortSignal.timeout(15000) }, false);
+  const result = await response.json() as { item?: MarketApplication; message?: string };
+  if (!response.ok || !result.item) throw new Error(result.message || "作品详情暂时不可用");
+  if (await currentAccountId() !== owner) throw new Error("账号已改变，请重试");
+  await new Promise<void>(resolve => afterInteractions(resolve));
+  if (await currentAccountId() !== owner) throw new Error("账号已改变，请重试");
+  return rememberPage(pageCacheKey(`market-detail:${appId}`), { ...result.item, latest: true, detailAt: Date.now(), detailOwner: owner ?? "guest" });
 }
 export async function cachedMarket(): Promise<MarketApplication[]> {
   try {

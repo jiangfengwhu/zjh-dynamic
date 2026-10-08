@@ -1,3 +1,4 @@
+import { afterInteractions, waitForInteractions } from "../interactionWork";
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
@@ -25,13 +26,14 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
   const alive = useRef(true), canReadRef = useRef(canRead); canReadRef.current = canRead;
   const flight = useRef<{ key: string } | undefined>(undefined), again = useRef(false);
   const reload = useRef<(more?: boolean) => Promise<boolean>>(async () => false);
-  const commit = (next: T) => { rememberPage(key, next); dataRef.current = next; setState({ key, data: next }); };
+  const commit = (next: T) => { const shared = rememberPage(key, next); dataRef.current = shared; setState(previous => previous.key === key && previous.data === shared ? previous : { key, data: shared }); };
   const load = async (more = false): Promise<boolean> => {
     if (!canReadRef.current || (more && !dataRef.current.nextCursor)) return false;
     if (flight.current?.key === key) { if (!more) again.current = true; return false; }
     const token = { key }; flight.current = token; setLoading(true); setError("");
     try {
       const next = await config.current.read(more ? dataRef.current.nextCursor! : undefined);
+      await waitForInteractions();
       if (!alive.current || identity.current !== key) return false;
       commit(config.current.merge(dataRef.current, next, more));
       return true;
@@ -60,8 +62,8 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
     if (!canRead) return;
     const cached = cachedPage(key) !== undefined;
     const run = () => { void reload.current(); };
-    const task = cached ? requestIdleCallback(run, { timeout: 1000 }) : requestAnimationFrame(run);
-    return () => { if (cached) cancelIdleCallback(task); else cancelAnimationFrame(task); };
+    const cancel = cached ? afterInteractions(run) : (() => { const frame = requestAnimationFrame(run); return () => cancelAnimationFrame(frame); })();
+    return cancel;
   }, [canRead, focused, key, version]);
   const update = (change: (previous: T) => T) => commit(change(dataRef.current));
   return { data, load, commit, update, loading, error, loaded: !!cachedPage(key), focused, user };
