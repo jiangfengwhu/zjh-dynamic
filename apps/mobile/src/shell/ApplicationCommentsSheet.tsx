@@ -20,7 +20,6 @@ import { readShellValue, writeShellValue, removeShellValue } from "./shellStorag
 /** Work discussion stays over the playable stage; no timeline card or route change. */
 export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: UserPost; active: boolean; onDismiss: () => void }) {
   const { colors: t } = useTheme();
-  const insets = useSafeAreaInsets();
   const { user } = useAccount();
   const initial = cachedPostDetail(post.id);
   const [comments, setComments] = useState<UserComment[]>(initial?.comments ?? []);
@@ -120,7 +119,7 @@ export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: Us
     })(); } }]);
   }
   const Footer = useCommentFooter(
-      <View style={{ backgroundColor: t.canvas, borderTopWidth: t.components.surfaceBorder, borderTopColor: t.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: Math.max(12, insets.bottom), gap: 6 }}>
+      <View style={{ backgroundColor: t.canvas, borderTopWidth: t.components.surfaceBorder, borderTopColor: t.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12, gap: 6 }}>
         {reply ? <Pressy disabled={sending} onPress={() => setReply(null)}><Text numberOfLines={1} style={{ color: t.orchidText, fontSize: 12 }}>回复 {reply.author.name} · 取消</Text></Pressy> : null}
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
           <BottomSheetTextInput ref={input} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="留下你的想法…" placeholderTextColor={t.ink3} style={{ flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 14, paddingVertical: 10, color: t.ink1, fontSize: 14, backgroundColor: t.surfaceRaised, borderRadius: t.radius.lg }} />
@@ -170,7 +169,8 @@ function useCommentFooter(content: ReactNode) {
       update(next: ReactNode) { state.content = next; listeners.forEach(listener => listener()); },
       Footer(props: BottomSheetFooterProps) {
         const children = useSyncExternalStore(state.subscribe, state.snapshot, state.snapshot);
-        return <BottomSheetFooter {...props}>{children}</BottomSheetFooter>;
+        const { bottom } = useSafeAreaInsets();
+        return <BottomSheetFooter {...props} bottomInset={bottom}>{children}</BottomSheetFooter>;
       },
     };
     return state;
