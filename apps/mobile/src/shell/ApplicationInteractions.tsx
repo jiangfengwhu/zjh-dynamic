@@ -9,6 +9,7 @@ import { cachedAccountId, requireAccount } from "./account";
 import { fetchApplicationDiscussion, saveApplicationDiscussion, togglePostLike, type UserPost } from "./feed/userPosts";
 import type { MarketApplication } from "./market";
 import { LikeGlyph } from "../../../../packages/ui/feed/kit/FeedActionBar";
+import { afterInteractions } from "./interactionWork";
 
 const cache = new Map<string, UserPost>();
 export function ApplicationInteractions({ item, active, onComment, onShare, onDetail }: {
@@ -41,7 +42,9 @@ export function ApplicationInteractions({ item, active, onComment, onShare, onDe
     reading.current = task;
     return task;
   }
-  useEffect(() => { if (active) void read().catch(() => {}); }, [active]);
+  useEffect(() => {
+    if (active) return afterInteractions(() => { void read().catch(() => {}); });
+  }, [active]);
   function fail(cause: unknown) {
     if (alive.current) Toast.show({ type: "error", text1: "互动未完成", text2: cause instanceof Error ? cause.message : "请重试" });
   }

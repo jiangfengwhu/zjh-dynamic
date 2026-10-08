@@ -39,5 +39,5 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     const next = items.slice(index + 1, index + EXPERIENCE_AHEAD + 1).find(item => !settled.has(experienceId(item)));
     if (next) return afterInteractions(() => setWarming(experienceId(next)));
   }, [enabled, key, entries, settled]);
-  return { entries, onSettled, canLoad: (id: string) => enabled && (id === key || id === warming || settled.has(id)) };
+  return { entries, onSettled, canLoad: (id: string) => settled.has(id) || (enabled && (id === key || id === warming)) };
 }
