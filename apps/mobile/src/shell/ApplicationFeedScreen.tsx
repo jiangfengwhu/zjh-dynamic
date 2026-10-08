@@ -1,4 +1,4 @@
-import { Activity, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Activity, memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "react-native";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -269,8 +269,10 @@ function ExperienceQueue(props: QueueProps) {
   return <AnimatedFlashList ref={list} data={props.items} keyExtractor={experienceId} getItemType={experienceId}
     initialScrollIndex={Math.max(0, props.index)} scrollEnabled={false} showsVerticalScrollIndicator={false}
     bounces={false} overScrollMode="never" maintainVisibleContentPosition={{ disabled: true }}
-    // Draw nearby pages only; recycled cells outside the cache are empty shells.
-    drawDistance={height} maxItemsInRecyclePool={EXPERIENCE_CACHE_SIZE}
+    // Allocate the lookahead cells before the swipe. A one-screen buffer starts
+    // mounting new app trees during forward scrolling; backwards reuses old cells.
+    // Only seven retained identities own app trees, regardless of draw distance.
+    drawDistance={height * EXPERIENCE_AHEAD} maxItemsInRecyclePool={EXPERIENCE_CACHE_SIZE}
     onLoad={() => { syncPosition(); ready.value = true; }}
     renderItem={({ item, index, target }) => {
       if (target === "Measurement" || !retained.has(experienceId(item))) return <View style={{ height, width: props.width }} />;
@@ -315,7 +317,7 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
     if (!ready || !showing) { setRetainedVisible(false); return; }
     // Only activating a neighbour may wait for idle. The `showing` gate below
     // suspends departed pages immediately, even during uninterrupted swiping.
-    return afterInteractions(() => setRetainedVisible(true));
+    return afterInteractions(() => startTransition(() => setRetainedVisible(true)));
   }, [ready, showing]);
   const content = useMemo(() => render(appId, onPause), [render, appId, onPause]);
   if (ready) return <Activity mode={showing && (selected || retainedVisible) ? "visible" : "hidden"}><View style={{ flex: 1 }}>{content}</View></Activity>;
