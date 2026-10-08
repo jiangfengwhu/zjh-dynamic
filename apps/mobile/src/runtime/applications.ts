@@ -58,6 +58,55 @@ export async function preparePublicApplication(manifest: ApplicationManifest, re
   if (rememberAccess) writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
 }
 
+// Immutable resource preparations only: never register/evaluate an application
+// or change its install, workshop, account-access or health records here.
+const experiencePreparations = new Map<string, Promise<void>>();
+const preparedExperiences = new Map<string, true>();
+function experiencePreparationKey(manifest: ApplicationManifest) {
+  return JSON.stringify([manifest.appId, manifest.releaseId, manifest.source.commit,
+    [manifest.bundle.sha256, manifest.bundle.bytes], manifest.assets.map(asset => [asset.sha256, asset.bytes])]);
+}
+async function prepareExperienceResources(manifest: ApplicationManifest, signal: AbortSignal) {
+  assertCompatible(manifest, manifest.appId);
+  signal.throwIfAborted();
+  const key = experiencePreparationKey(manifest);
+  let task = experiencePreparations.get(key);
+  if (task) {
+    await task;
+    signal.throwIfAborted();
+    // Publication may have changed while a background download was running.
+    await verifyPublicPointer(manifest);
+  } else if (preparedExperiences.has(key)) {
+    // Reuse the downloaded bytes, while still checking current public status.
+    await verifyPublicPointer(manifest);
+  } else {
+    task = preparePublicApplication(manifest, false).then(() => {
+      preparedExperiences.set(key, true);
+      while (preparedExperiences.size > 16) preparedExperiences.delete(preparedExperiences.keys().next().value!);
+    });
+    experiencePreparations.set(key, task);
+    try { await task; } finally {
+      if (experiencePreparations.get(key) === task) experiencePreparations.delete(key);
+    }
+  }
+  signal.throwIfAborted();
+}
+
+/** Fill the next public work's native cache without executing it or pinning it. */
+export async function prefetchPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal) {
+  assertCompatible(manifest, manifest.appId);
+  signal.throwIfAborted();
+  if (preparedExperiences.has(experiencePreparationKey(manifest))) return;
+  const running = active.get(manifest.appId);
+  if (running) return; // A loaded work needs no prefetch; foreground handles version/access conflicts.
+  const raw = await readShellValue(`application.pending.${manifest.appId}`) || await readShellValue(`application.install.${manifest.appId}`);
+  if (raw && !sameApplicationRelease(JSON.parse(raw), manifest)) return;
+  signal.throwIfAborted();
+  // A started native transfer cannot be cancelled by this APK. The window
+  // scheduler stops subsequent jobs; a foreground opener joins this same task.
+  await prepareExperienceResources(manifest, signal);
+}
+
 /** Run an explicitly revealed public work without pinning it to the user's catalog. */
 export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal) {
   const appId = manifest.appId;
@@ -95,8 +144,6 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
     await acceptPublicRuntime();
     return;
   }
-  await verifyPublicPointer(manifest);
-  signal.throwIfAborted();
   const checkLocal = async () => {
     const pending = await readShellValue(`application.pending.${appId}`);
     const saved = pending || await readShellValue(`application.install.${appId}`);
@@ -108,7 +155,7 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   };
   await checkLocal();
   signal.throwIfAborted();
-  await preparePublicApplication(manifest, false);
+  await prepareExperienceResources(manifest, signal);
   signal.throwIfAborted();
   // A workshop/install may have changed the local selection while downloading.
   await checkLocal();

@@ -16,6 +16,7 @@ import { HostText as Text } from "./feed/HostText";
 import { useAccount } from "./account";
 import { useProfileDrawer } from "./ProfileDrawer";
 import { bindApplicationExperienceBack } from "./applicationExperienceNavigation";
+import { APPLICATION_PREFETCH_AHEAD, useApplicationPrefetch } from "./useApplicationPrefetch";
 import { fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
 
 type Props = {
@@ -46,6 +47,8 @@ export function ApplicationFeedScreen(props: Props) {
   const [page, setPage] = useState<MarketPage & { owner: string; loaded: boolean }>({ owner: identity, applications: [], loaded: false });
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [readyExperience, setReadyExperience] = useState("");
   const pausedRef = useRef(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -61,6 +64,10 @@ export function ApplicationFeedScreen(props: Props) {
   const previous = items[index - 1];
   const next = items[index + 1];
   const active = focused && foreground && !drawerOpen;
+  const experienceKey = `${identity}:${item?.manifest.appId}:${item?.manifest.releaseId}:${revision}`;
+  const onExperienceReady = useCallback(() => setReadyExperience(experienceKey), [experienceKey]);
+  const upcoming = useMemo(() => items.slice(index + 1, index + 1 + APPLICATION_PREFETCH_AHEAD).map(work => work.manifest), [items, index]);
+  useApplicationPrefetch(upcoming, active && !paused && !switching && readyExperience === experienceKey);
   const drag = useSharedValue(0);
   const moving = useSharedValue(false);
 
@@ -123,7 +130,7 @@ export function ApplicationFeedScreen(props: Props) {
     if (active && page.owner === identity && !page.loaded && !request.current && !error) void load();
   }, [active, page.owner, page.loaded, identity, error, load]);
   useEffect(() => {
-    if (active && page.loaded && page.nextCursor && items.length - index <= 3 && !busy && !error) void load(true);
+    if (active && page.loaded && page.nextCursor && items.length - index <= 8 && !busy && !error) void load(true);
   }, [active, page.loaded, page.nextCursor, items.length, index, busy, error, load]);
 
   const commit = useCallback((direction: number) => {
@@ -135,15 +142,17 @@ export function ApplicationFeedScreen(props: Props) {
     cancelAnimation(drag);
     drag.value = 0;
     moving.value = false;
+    setSwitching(false);
   }, [index, identity, revision, active, drag, moving]);
   const finish = useCallback((direction: number) => {
     "worklet";
     if (moving.value) return;
     if (direction > 0 ? !next : !previous) { drag.value = withTiming(0, timing); return; }
     moving.value = true;
+    runOnJS(setSwitching)(true);
     drag.value = withTiming(-direction * height, timing, done => {
       if (done) runOnJS(commit)(direction);
-      else moving.value = false;
+      else { moving.value = false; runOnJS(setSwitching)(false); }
     });
   }, [next, previous, height, commit, drag, moving]);
   const swipe = useMemo(() => Gesture.Pan()
@@ -151,6 +160,7 @@ export function ApplicationFeedScreen(props: Props) {
     .maxPointers(1)
     .activeOffsetY([-8, 8])
     .failOffsetX([-25, 25])
+    .onStart(() => { runOnJS(setSwitching)(true); })
     .onUpdate(event => {
       if (moving.value) return;
       const direction = event.translationY < 0 ? 1 : -1;
@@ -163,7 +173,7 @@ export function ApplicationFeedScreen(props: Props) {
       if (Math.abs(distance) > 48 || Math.abs(event.velocityY) > 550) finish(distance < 0 ? 1 : -1);
       else drag.value = withTiming(0, timing);
     })
-    .onFinalize(() => { if (!moving.value) drag.value = withTiming(0, timing); }),
+    .onFinalize(() => { if (!moving.value) { drag.value = withTiming(0, timing); runOnJS(setSwitching)(false); } }),
     [active, item, next, previous, height, finish, moving, drag]);
   const stageMotion = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value }] }));
   const nextMotion = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value + height }] }));
@@ -183,7 +193,7 @@ export function ApplicationFeedScreen(props: Props) {
         <Animated.View style={[{ flex: 1, overflow: "hidden", backgroundColor: appTheme.colors.canvas }, stageMotion]}>
           {item ? <ThemeContext.Provider value={appTheme}>
             <SafeAreaProvider key={`${identity}:${item.manifest.appId}`} style={{ flex: 1 }} initialMetrics={{ frame: { x: 0, y: 0, width, height }, insets: { top: 0, bottom: 0, left: 0, right: 0 } }}>
-              {active && !paused ? <InlineExperience key={`${identity}:${item.manifest.appId}:${item.manifest.releaseId}:${revision}`} item={item} render={props.renderApplication} onPause={() => setPause(true)} onDetail={() => props.onDetail(item)} /> : <ExperiencePlaceholder item={item} onResume={active ? () => setPause(false) : undefined} />}
+              {active && !paused ? <InlineExperience key={`${identity}:${item.manifest.appId}:${item.manifest.releaseId}:${revision}`} item={item} render={props.renderApplication} onReady={onExperienceReady} onPause={() => setPause(true)} onDetail={() => props.onDetail(item)} /> : <ExperiencePlaceholder item={item} onResume={active ? () => setPause(false) : undefined} />}
             </SafeAreaProvider>
           </ThemeContext.Provider> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
@@ -221,7 +231,7 @@ function ExperienceAction({ icon, label, onPress }: { icon: "info" | "share" | "
   return <Pressy accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={{ minWidth: label === "完整打开" ? 64 : 48, minHeight: 48, paddingHorizontal: 3, alignItems: "center", justifyContent: "center", gap: 3 }}><SymbolIcon name={icon} size={21} color={t.ink1} /><Text style={{ color: t.ink2, fontSize: 10 }}>{label}</Text></Pressy>;
 }
 
-function InlineExperience({ item, render, onPause, onDetail }: { item: MarketApplication; render: Props["renderApplication"]; onPause: () => void; onDetail: () => void }) {
+function InlineExperience({ item, render, onReady, onPause, onDetail }: { item: MarketApplication; render: Props["renderApplication"]; onReady: () => void; onPause: () => void; onDetail: () => void }) {
   const { colors: t } = useTheme();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
@@ -231,12 +241,12 @@ function InlineExperience({ item, render, onPause, onDetail }: { item: MarketApp
     setError("");
     setReady(false);
     void loadPublicApplicationExperience(item.manifest, controller.signal).then(() => {
-      if (!controller.signal.aborted) setReady(true);
+      if (!controller.signal.aborted) { setReady(true); onReady(); }
     }, cause => {
       if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "暂时无法体验这个作品");
     });
     return () => controller.abort();
-  }, [item.manifest.appId, item.manifest.releaseId, attempt]);
+  }, [item.manifest.appId, item.manifest.releaseId, attempt, onReady]);
   if (ready) return <View style={{ flex: 1 }}>{render(item.manifest.appId, onPause)}</View>;
   return <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 16 }}>
     {error ? <><SymbolIcon name="alert" size={28} color={t.orange} /><Text style={{ color: t.ink1, fontSize: 17, fontWeight: "700" }}>暂时无法体验</Text><Text style={{ color: t.ink3, lineHeight: 21, textAlign: "center" }}>{error}</Text><View style={{ flexDirection: "row", gap: 20 }}><Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>重试</Text></Pressy><Pressy accessibilityRole="button" onPress={onDetail} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>查看详情</Text></Pressy></View></> : <><ExperienceSkeleton /><Text accessibilityLiveRegion="polite" style={{ color: t.ink3, fontSize: 13 }}>正在准备真实应用…</Text></>}
