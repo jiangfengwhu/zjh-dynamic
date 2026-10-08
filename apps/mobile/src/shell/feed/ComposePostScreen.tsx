@@ -665,7 +665,7 @@ const useStyles = createThemedStyles((base) => {
     previewText: { color: t.ink1, fontSize: 15, lineHeight: 22 },
     htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
     htmlAction: { minHeight: 30, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: t.surfaceRaised },
-    publishDock: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, backgroundColor: t.canvas },
+    publishDock: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
     author: { flexDirection: "row", gap: 10, alignItems: "center" },
     avatar: { width: 32, height: 32, borderRadius: 16 },
     name: { color: t.ink1, fontSize: 15, fontWeight: "700", letterSpacing: -0.2 },

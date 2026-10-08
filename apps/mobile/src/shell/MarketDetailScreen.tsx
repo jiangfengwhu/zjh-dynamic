@@ -835,7 +835,7 @@ function MarketDetailContent({
             ) : undefined
           }
         />
-        <KeyboardViewport backgroundColor={colors.canvas}>
+        <KeyboardViewport>
           <ScrollView
             ref={scroll}
             showsVerticalScrollIndicator={false}
@@ -1545,7 +1545,6 @@ const useStyles = createThemedStyles((base) => {
       paddingBottom: 10,
       flexDirection: "row",
       gap: 10,
-      backgroundColor: t.canvas,
     },
     primary: {
       minHeight: 46,

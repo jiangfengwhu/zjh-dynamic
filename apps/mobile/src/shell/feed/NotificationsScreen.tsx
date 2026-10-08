@@ -366,7 +366,7 @@ function NotificationsContent({
     }
   }
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+    <View style={{ flex: 1 }}>
       <GestureDetector gesture={gesture}>
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PullIndicator pull={pull} phase={phase} />

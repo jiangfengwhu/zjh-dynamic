@@ -2,6 +2,7 @@ import { Children, createContext, isValidElement, useContext, useEffect, useMemo
 import { Keyboard, Modal, StyleSheet, View, type ModalProps, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardViewport } from "./keyboard";
+import { Ambient } from "./chrome/Ambient";
 
 const EdgeContext = createContext({ bottom: true });
 
@@ -16,8 +17,9 @@ const BarContext = createContext(0);
 /**
  * 页面根容器。背景色画在同一层上，并铺进状态栏和导航栏。
  * 内容自动躲开系统栏。顶部如果放了 ScreenBar，状态栏就用顶栏自己的背景色。
+ * 默认在背景色之上铺一层固定的氛围底（Ambient）；页面自己画整屏背景时传 ambient={false}。
  */
-export function Screen({ style, children, ...rest }: ViewProps) {
+export function Screen({ style, children, ambient = true, ...rest }: ViewProps & { ambient?: boolean }) {
 
   const insets = useSafeAreaInsets();
   const edge = useContext(EdgeContext);
@@ -28,6 +30,7 @@ export function Screen({ style, children, ...rest }: ViewProps) {
   return (
     <BarContext.Provider value={insets.top}>
         <View {...rest} collapsable={false} style={[styles.fill, style, { paddingTop, paddingBottom }]}>
+          {ambient ? <Ambient /> : null}
           {children}
         </View>
     </BarContext.Provider>

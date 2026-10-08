@@ -72,7 +72,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
     finally { sendingRef.current = false; if (alive.current) setSending(false); }
   }
   const count = Array.from(text).length;
-  return <SocialFrame title={query.data.peer.name || peer.name} onBack={onBack}><KeyboardViewport backgroundColor={colors.canvas}>
+  return <SocialFrame title={query.data.peer.name || peer.name} onBack={onBack}><KeyboardViewport>
     <PullRefreshSurface refresh={refresh}><Animated.FlatList<Message>
       ref={list} data={query.data.messages} keyExtractor={item => item.id} onScroll={scroll} scrollEventThrottle={16}
       keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never"

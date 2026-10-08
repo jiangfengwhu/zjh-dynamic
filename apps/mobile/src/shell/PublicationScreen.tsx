@@ -532,7 +532,7 @@ function CreateApplicationPage({
         点击后需求和参考图会交给制作服务；作品发布成功后会收到站内通知，制作进度可手动刷新。
       </Text>
     </KeyboardAwareScrollView>
-    <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 + insets.bottom, backgroundColor: colors.canvas }}>
+    <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 + insets.bottom }}>
       <Pressy
         accessibilityRole="button"
         accessibilityLabel="提交需求并开始制作"

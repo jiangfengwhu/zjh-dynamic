@@ -10,7 +10,9 @@ import {
 } from "react-native-reanimated";
 
 export const PROFILE_RANGE = 108;
-export const PROFILE_INSET = PROFILE_RANGE + 52;
+/** 动态/作品切换条的高度；条内分段控件垂直居中。 */
+export const PROFILE_TABS = 44;
+export const PROFILE_INSET = PROFILE_RANGE + PROFILE_TABS;
 export const ProfileScrollContext = createContext<{
   active: SharedValue<string>;
   collapsed: SharedValue<number>;
@@ -146,7 +148,7 @@ export function useProfileScroll<T>(
     },
     contentStyle: context
       ? {
-          paddingTop: PROFILE_INSET + 8,
+          paddingTop: PROFILE_INSET,
           minHeight: context.viewport + PROFILE_RANGE,
         }
       : undefined,

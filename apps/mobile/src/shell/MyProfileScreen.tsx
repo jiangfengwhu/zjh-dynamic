@@ -3,7 +3,8 @@ import { Text } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
-import { Pressy } from "../../../../packages/ui/chrome";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AmbientFill, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import Animated, {
   useAnimatedStyle,
@@ -20,7 +21,7 @@ import PagerView, {
 } from "react-native-pager-view";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useFocusEffect } from "@react-navigation/native";
-import { ProfileScrollContext, PROFILE_RANGE } from "./ProfileScroll";
+import { ProfileScrollContext, PROFILE_RANGE, PROFILE_TABS } from "./ProfileScroll";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 
 import { useAccount, requireAccount } from "./account";
@@ -36,6 +37,8 @@ import type { MarketApplication } from "./market";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const AnimatedThemeText = Animated.createAnimatedComponent(Text);
+/** 顶栏（标题与设置按钮）高度；身份区与切换条的氛围底按它对齐页面。 */
+const HEADER_HEIGHT = 52;
 
 export function MyProfileScreen(props: Parameters<typeof MyProfileContent>[0]) {
   const theme = useTheme();
@@ -67,6 +70,7 @@ function MyProfileContent({
   onSharePost: (item: MarketApplication) => void;
 }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { user } = useAccount();
   const [tab, setTab] = useState<"posts" | "works">("posts");
   const { visited, reveal } = useVisitedPager();
@@ -197,13 +201,12 @@ function MyProfileContent({
       >
         <View
           style={{
-            height: 52,
+            height: HEADER_HEIGHT,
             paddingLeft: 16,
             paddingRight: 12,
             flexDirection: "row",
             alignItems: "center",
             zIndex: 10,
-            backgroundColor: colors.canvas,
           }}
         >
           <AnimatedThemeText
@@ -287,11 +290,13 @@ function MyProfileContent({
                   left: 0,
                   right: 0,
                   zIndex: 11,
-                  backgroundColor: colors.canvas,
+                  overflow: "hidden",
                 },
                 identityMask,
               ]}
-            />
+            >
+              <AmbientFill offset={insets.top + HEADER_HEIGHT} />
+            </Animated.View>
             <Animated.View
               style={[
                 {
@@ -347,17 +352,18 @@ function MyProfileContent({
                   style={[
                     {
                       position: "absolute",
-                      top: 108,
+                      top: PROFILE_RANGE,
                       left: 0,
                       right: 0,
-                      height: 52,
+                      height: PROFILE_TABS,
                       paddingHorizontal: 16,
-                      backgroundColor: colors.canvas,
+                      justifyContent: "center",
                       zIndex: 15,
                     },
                     tabsMotion,
                   ]}
                 >
+                  <AmbientFill offset={insets.top + HEADER_HEIGHT + PROFILE_RANGE} shift={collapsed} />
                   <CompactTabs
                     position={profilePosition}
                     value={tab}

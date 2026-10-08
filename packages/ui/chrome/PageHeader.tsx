@@ -41,7 +41,7 @@ export function PageHeader({ title, caption, onBack, backDisabled, right }: { ti
 }
 PageHeader.providesBar = true;
 const useStyles = createThemedStyles(t => ({
-  bar: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingTop: 2, paddingBottom: 4, backgroundColor: t.canvas },
+  bar: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingTop: 2, paddingBottom: 4, backgroundColor: "transparent" },
   row: { flex: 1, height: 44, flexDirection: "row", alignItems: "center" },
   largeBar: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, minHeight: 48, alignItems: "flex-end" },
   center: { position: "absolute", left: 52, right: 52, top: 0, bottom: 0, alignItems: "center", justifyContent: "center" },

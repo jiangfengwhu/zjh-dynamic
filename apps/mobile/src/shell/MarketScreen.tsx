@@ -124,7 +124,6 @@ function MarketContent(props: MarketProps) {
           paddingHorizontal: 16,
           paddingTop: 6,
           paddingBottom: 8,
-          backgroundColor: colors.canvas,
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -410,7 +409,7 @@ function MarketDiscovery({
   const open = useCallback((item: MarketApplication) => onDetail(item), [onDetail]);
   const installedIds = useMemo(() => new Set(installed), [installed]);
   return (
-    <View style={[styles.screen, { backgroundColor: colors.canvas }]}>
+    <View style={styles.screen}>
       <View style={styles.discovery}>
         <ScrollView
           horizontal
@@ -694,7 +693,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
 const useStyles = createThemedStyles((base) => {
   const t = base;
   return {
-    screen: { flex: 1, backgroundColor: t.canvas },
+    screen: { flex: 1 },
     caption: { fontSize: 12, lineHeight: 16, color: t.ink3 },
     content: { paddingHorizontal: 16, paddingBottom: 16 },
     discovery: {

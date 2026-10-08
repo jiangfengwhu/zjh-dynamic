@@ -122,6 +122,8 @@ export type Theme = BaseTheme & {
   mode: ThemeMode; sans: string; onDanger: string; onOrchid: string;
   /** 糖果渐变（紫→粉→黄），只用于发布、AI 与少量品牌时刻。 */
   aurora: string;
+  /** 页面氛围底：叠在 canvas 上的几团糖果色光晕，纵向只按距页面顶部的像素定位。 */
+  ambient: string;
   /** 深色浮层（Toast、新内容提示）：两种模式下都是深紫玻璃。 */
   dock: string; dockLine: string; onDock: string; onDockMuted: string; dockActive: string; onDockActive: string;
   /** 投影层级：card 用于内容卡片，float 用于悬浮控件，modal 用于弹层。 */
@@ -147,6 +149,9 @@ export function getTheme(mode: ThemeMode): Theme {
     gold: palette.amber, goldDim: palette.amberText, danger: palette.red,
     onDanger: "#FFFFFF", onOrchid: "#FFFFFF",
     aurora: "linear-gradient(135deg, #7B4DFF 0%, #FF3D8B 55%, #FFB21A 100%)",
+    ambient: isDark
+      ? "radial-gradient(ellipse 420px 340px at 0px 0px, rgba(139,99,255,0.34) 0%, rgba(139,99,255,0.14) 45%, rgba(139,99,255,0) 100%), radial-gradient(ellipse 340px 280px at 100% 30px, rgba(255,92,159,0.20) 0%, rgba(255,92,159,0.08) 45%, rgba(255,92,159,0) 100%), radial-gradient(ellipse 320px 260px at 100% 440px, rgba(31,184,255,0.12) 0%, rgba(31,184,255,0.05) 45%, rgba(31,184,255,0) 100%), radial-gradient(ellipse 300px 240px at 0px 640px, rgba(255,194,26,0.07) 0%, rgba(255,194,26,0.03) 45%, rgba(255,194,26,0) 100%)"
+      : "radial-gradient(ellipse 420px 340px at 0px 0px, rgba(123,77,255,0.24) 0%, rgba(123,77,255,0.10) 45%, rgba(123,77,255,0) 100%), radial-gradient(ellipse 340px 280px at 100% 30px, rgba(255,61,139,0.18) 0%, rgba(255,61,139,0.07) 45%, rgba(255,61,139,0) 100%), radial-gradient(ellipse 320px 260px at 100% 440px, rgba(31,184,255,0.12) 0%, rgba(31,184,255,0.05) 45%, rgba(31,184,255,0) 100%), radial-gradient(ellipse 300px 240px at 0px 640px, rgba(255,194,26,0.14) 0%, rgba(255,194,26,0.06) 45%, rgba(255,194,26,0) 100%)",
     dock: isDark ? "rgba(40,35,60,0.96)" : "rgba(26,21,48,0.94)",
     dockLine: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.06)",
     onDock: "#FFFFFF", onDockMuted: "rgba(255,255,255,0.56)",

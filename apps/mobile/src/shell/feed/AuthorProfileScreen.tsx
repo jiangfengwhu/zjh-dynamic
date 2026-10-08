@@ -475,7 +475,7 @@ function AuthorProfileContent({
     </PullRefreshSurface>;
   };
   return (
-    <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
+    <Root style={{ flex: 1, backgroundColor: embedded ? "transparent" : colors.canvas }}>
       {!embedded ? (
         <PageHeader title="作者主页" onBack={onBack} />
       ) : null}

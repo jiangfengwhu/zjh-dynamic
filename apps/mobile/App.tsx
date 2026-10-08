@@ -37,7 +37,7 @@ import {
   type CatalogEntry,
 } from "./src/shell/catalog";
 import { openShellBundle, ShellNavigator } from "./src/shell/navigation";
-import { Icon, Pressy } from "../../packages/ui/chrome";
+import { Ambient, Icon, Pressy } from "../../packages/ui/chrome";
 import { BackButton } from "./src/shell/BackButton";
 import { createThemedStyles, type ThemePreference } from "../../packages/ui/theme";
 import { ThemeProvider } from "../../packages/ui/ThemeProvider";
@@ -110,6 +110,7 @@ function FeatureFailure(props: BoundaryProps) {
 
   return (
         <View style={styles.boot}>
+          <Ambient />
           <View style={styles.stateMark}><Icon name="alert" size={22} color={theme.orange} /></View>
           <Text accessibilityRole="header" style={styles.stateTitle}>
             应用暂时无法显示
@@ -493,6 +494,7 @@ function FeatureHost({
   }
   return (
     <View style={styles.boot}>
+      <Ambient />
       {onBack ? (
         <View style={styles.featureBackBtn}>
           <BackButton onPress={onBack} />

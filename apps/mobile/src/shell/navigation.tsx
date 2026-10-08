@@ -5,7 +5,8 @@ const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "../../../../packages/ui/primitives/Button";
 import { ApplicationSdkError } from "../runtime/applicationCompatibility";
-import { Linking, StyleSheet, View } from "react-native";
+import { Linking, StyleSheet, View, useWindowDimensions } from "react-native";
+import { AmbientFill } from "../../../../packages/ui/chrome";
 import { parseSharedLink, type SharedLink } from "./deepLinks";
 import { watchClipboardShares } from "./clipboardShares";
 import NativePluginHost from "../NativePluginHost";
@@ -331,6 +332,8 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
   const { colors } = useTheme();
   const keyboard = useKeyboardOpen();
   const { hidden, tabHeight } = useFeedChrome();
+  const { height: windowHeight } = useWindowDimensions();
+  const [barHeight, setBarHeight] = useState(0);
   const motion = useAnimatedStyle(
     () => ({
       transform: [
@@ -343,17 +346,16 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
     <Animated.View
       onLayout={(event) => {
         tabHeight.value = event.nativeEvent.layout.height;
+        setBarHeight(event.nativeEvent.layout.height);
       }}
       style={[
         {
-          backgroundColor: colors.canvas,
           paddingTop: 8,
           paddingBottom: keyboard
             ? 0
             : Math.max(SHELL_BOTTOM_PADDING, insets.bottom),
         },
         active === "feed" && {
-          backgroundColor: "transparent",
           experimental_backgroundImage: `linear-gradient(180deg, ${colors.canvas}00 0%, ${colors.canvas}E6 55%, ${colors.canvas} 100%)`,
           position: "absolute",
           bottom: 0,
@@ -364,6 +366,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
         motion,
       ]}
     >
+      {active !== "feed" ? <AmbientFill offset={windowHeight - barHeight} /> : null}
       <TabBar
         activeId={active}
         onCompose={() => openPublication()}

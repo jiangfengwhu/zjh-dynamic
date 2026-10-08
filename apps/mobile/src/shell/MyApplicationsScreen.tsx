@@ -401,7 +401,7 @@ export function MyApplicationsScreen({
     gap: 6,
   };
   return (
-    <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
+    <Root style={{ flex: 1, backgroundColor: embedded ? "transparent" : colors.canvas }}>
       {!embedded ? (
         <PageHeader
           title={scope === "works" ? "我的作品" : "我安装的"}

@@ -32,7 +32,7 @@ import Animated, {
   type SharedValue,
   type AnimatedProps,
 } from "react-native-reanimated";
-import { Pressy } from "../../../../../packages/ui/chrome";
+import { Ambient, AmbientFill, Pressy } from "../../../../../packages/ui/chrome";
 import { ThemeContext, createThemedStyles } from "../../../../../packages/ui/theme";
 import { useTheme } from "../../../../../packages/ui/theme";
 import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
@@ -257,6 +257,7 @@ export const FeedScreen = memo(function FeedScreen({
       <FeedPresentationContext.Provider value={presentation}>
         <GestureHandlerRootView style={styles.container}>
           <View style={styles.container} onLayout={() => markStartup("feed-layout")}>
+            <Ambient />
             <View
               style={styles.viewport}
               onLayout={(event) => {
@@ -276,6 +277,7 @@ export const FeedScreen = memo(function FeedScreen({
                   headerMotion,
                 ]}
               >
+                <AmbientFill shift={hiddenHeader} />
                 <View style={styles.header}>
                   <View style={styles.headerRow}>
                     <Pressy
@@ -895,7 +897,6 @@ const useStyles = createThemedStyles((base) => {
       left: 0,
       right: 0,
       zIndex: 10,
-      backgroundColor: t.canvas,
     },
     viewport: { flex: 1, overflow: "hidden" },
     compose: {
@@ -923,7 +924,6 @@ const useStyles = createThemedStyles((base) => {
     },
     profileAvatar: { width: 30, height: 30, borderRadius: 15 },
     header: {
-      backgroundColor: t.canvas,
       paddingLeft: FEED_HEADER_INSET,
       paddingRight: FEED_HEADER_INSET,
       paddingBottom: 0,

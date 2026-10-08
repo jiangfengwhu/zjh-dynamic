@@ -3,6 +3,7 @@ import { PageSkeleton } from "./LoadingSkeleton";
 import { useEffect, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { useTheme } from "../../../../packages/ui/theme";
+import { Ambient } from "../../../../packages/ui/chrome";
 import { markStartup } from "../runtime/startupTiming";
 
 /** Mount only after a visit, then retain the scene and its scroll state. */
@@ -23,6 +24,7 @@ export function ShellTabScene({ children, immediate = false }: { children: React
   }, [ready, route.name]);
   return ready || (immediate && focused) ? (typeof children === "function" ? children() : children) : (
     <View style={{ flex: 1, padding: 16, backgroundColor: colors.canvas }}>
+      <Ambient />
       {focused ? <PageSkeleton rows={4} /> : null}
     </View>
   );
