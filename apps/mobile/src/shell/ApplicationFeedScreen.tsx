@@ -3,7 +3,7 @@ import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "r
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, scrollTo, useAnimatedReaction, useAnimatedRef, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
@@ -249,31 +249,31 @@ function ExperienceQueue(props: QueueProps) {
   const list = useAnimatedRef<FlashListRef<MarketApplication>>();
   const ready = useSharedValue(false);
   const { height, drag } = props;
-  const baseOffset = useSharedValue(0);
+  const motion = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value }] }));
   const syncPosition = useCallback(() => {
     runOnUI((offset: number) => {
-      // Rebase the completed gesture and the list origin atomically. Reading
-      // the old drag with the new page index briefly targets the following page.
+      // Scroll once after committing the new identity, then remove the visual
+      // translation in the same UI task. Paging never emits per-frame scrolls.
       cancelAnimation(drag);
+      if (ready.value) scrollTo(list, 0, offset, false);
       drag.value = 0;
-      baseOffset.value = offset;
     })(Math.max(0, props.index * height));
-  }, [height, props.index, drag, baseOffset]);
+  }, [height, props.index, drag, list, ready]);
   useLayoutEffect(syncPosition, [syncPosition]);
-  useAnimatedReaction(() => ready.value ? Math.max(0, baseOffset.value - drag.value) : -1, offset => {
-    if (offset >= 0) scrollTo(list, 0, offset, false);
-  }, [list, baseOffset, drag]);
   // Keep absolute feed positions stable. Sliding a seven-item data window
   // rebases native layouts separately from the gesture, causing a visible jump.
   // Only identities in `retained` may own an application instance.
-  return <AnimatedFlashList ref={list} data={props.items} keyExtractor={experienceId} getItemType={experienceId}
+  return <Animated.View style={[{ flex: 1 }, motion]}><AnimatedFlashList ref={list} data={props.items} keyExtractor={experienceId} getItemType={experienceId}
+    // The stage clips the moving pages. Both list containers must expose their
+    // already-mounted neighbours while the list's scroll offset stays fixed.
+    style={{ overflow: "visible" }} overrideProps={{ style: { overflow: "visible" } }}
     initialScrollIndex={Math.max(0, props.index)} scrollEnabled={false} showsVerticalScrollIndicator={false}
     bounces={false} overScrollMode="never" maintainVisibleContentPosition={{ disabled: true }}
     // Allocate the lookahead cells before the swipe. A one-screen buffer starts
     // mounting new app trees during forward scrolling; backwards reuses old cells.
     // Only seven retained identities own app trees, regardless of draw distance.
     drawDistance={height * EXPERIENCE_AHEAD} maxItemsInRecyclePool={EXPERIENCE_CACHE_SIZE}
-    onLoad={() => { syncPosition(); ready.value = true; }}
+    onLoad={() => { ready.value = true; syncPosition(); }}
     renderItem={({ item, index, target }) => {
       if (target === "Measurement" || !retained.has(experienceId(item))) return <View style={{ height, width: props.width }} />;
       const offset = index - props.index;
@@ -287,7 +287,7 @@ function ExperienceQueue(props: QueueProps) {
         paused={selected && props.paused} foreground={props.foreground}
         width={props.width} height={height} render={props.render}
         onPause={props.onPause} onResume={props.onResume} onDetail={props.onDetail} />;
-    }} />;
+    }} /></Animated.View>;
 }
 type CachedExperienceProps = Omit<QueueProps, "items" | "index" | "active" | "switching" | "drag"> & {
   item: MarketApplication; selected: boolean; ready: boolean; error: string; onRetry: (key: string) => void;
