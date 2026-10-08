@@ -3,7 +3,7 @@ import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "r
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { SafeAreaFrameContext, SafeAreaInsetsContext, SafeAreaProvider } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
@@ -250,16 +250,22 @@ function ExperienceQueue(props: QueueProps) {
   const ready = useSharedValue(false);
   const { height, drag } = props;
   const metrics = useMemo(() => ({ frame: { x: 0, y: 0, width: props.width, height }, insets: { top: 0, bottom: 0, left: 0, right: 0 } }), [props.width, height]);
-  const motion = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value }] }));
+  const origin = useSharedValue(0);
+  const actualOffset = useSharedValue(0);
+  const trackOffset = useAnimatedScrollHandler(event => { actualOffset.value = event.contentOffset.y; });
+  // Preserve the same visual position until the native scroll event confirms
+  // the new offset. Command dispatch and animated props need not land together.
+  const motion = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value + actualOffset.value - origin.value }] }));
   const syncPosition = useCallback(() => {
     runOnUI((offset: number) => {
       // Scroll once after committing the new identity, then remove the visual
       // translation in the same UI task. Paging never emits per-frame scrolls.
       cancelAnimation(drag);
-      if (ready.value) scrollTo(list, 0, offset, false);
+      origin.value = offset;
       drag.value = 0;
+      if (ready.value) scrollTo(list, 0, offset, false);
     })(Math.max(0, props.index * height));
-  }, [height, props.index, drag, list, ready]);
+  }, [height, props.index, drag, list, ready, origin]);
   useLayoutEffect(syncPosition, [syncPosition]);
   // Keep absolute feed positions stable. Sliding a seven-item data window
   // rebases native layouts separately from the gesture, causing a visible jump.
@@ -271,6 +277,7 @@ function ExperienceQueue(props: QueueProps) {
     // already-mounted neighbours while the list's scroll offset stays fixed.
     style={{ overflow: "visible" }} overrideProps={{ style: { overflow: "visible" } }}
     initialScrollIndex={Math.max(0, props.index)} scrollEnabled={false} showsVerticalScrollIndicator={false}
+    onScroll={trackOffset} scrollEventThrottle={1}
     bounces={false} overScrollMode="never" maintainVisibleContentPosition={{ disabled: true }}
     // Allocate the lookahead cells before the swipe. A one-screen buffer starts
     // mounting new app trees during forward scrolling; backwards reuses old cells.
