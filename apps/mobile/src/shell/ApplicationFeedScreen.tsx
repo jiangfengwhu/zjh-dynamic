@@ -245,10 +245,7 @@ type QueueProps = {
 function ExperienceQueue(props: QueueProps) {
   const { entries, preparations, retry } = useApplicationExperienceQueue(props.items, props.index, props.active, props.active && !props.switching);
   const current = props.items[props.index];
-  const positions = useMemo(() => new Map(props.items.map((item, index) => [experienceId(item), index])), [props.items]);
-  // Keep the retained app instances in feed order, with stable app/version identity.
-  const pages = useMemo(() => [...entries].sort((a, b) => (positions.get(experienceId(a)) ?? 0) - (positions.get(experienceId(b)) ?? 0)), [entries, positions]);
-  const pageIndex = pages.findIndex(item => experienceId(item) === experienceId(current));
+  const retained = useMemo(() => new Set(entries.map(experienceId)), [entries]);
   const list = useAnimatedRef<FlashListRef<MarketApplication>>();
   const ready = useSharedValue(false);
   const { height, drag } = props;
@@ -260,22 +257,24 @@ function ExperienceQueue(props: QueueProps) {
       cancelAnimation(drag);
       drag.value = 0;
       baseOffset.value = offset;
-    })(Math.max(0, pageIndex * height));
-  }, [pageIndex, height, props.index, drag, baseOffset]);
+    })(Math.max(0, props.index * height));
+  }, [height, props.index, drag, baseOffset]);
   useLayoutEffect(syncPosition, [syncPosition]);
   useAnimatedReaction(() => ready.value ? Math.max(0, baseOffset.value - drag.value) : -1, offset => {
     if (offset >= 0) scrollTo(list, 0, offset, false);
   }, [list, baseOffset, drag]);
-  return <AnimatedFlashList ref={list} data={pages} keyExtractor={experienceId} getItemType={experienceId}
-    initialScrollIndex={Math.max(0, pageIndex)} scrollEnabled={false} showsVerticalScrollIndicator={false}
+  // Keep absolute feed positions stable. Sliding a seven-item data window
+  // rebases native layouts separately from the gesture, causing a visible jump.
+  // Only identities in `retained` may own an application instance.
+  return <AnimatedFlashList ref={list} data={props.items} keyExtractor={experienceId} getItemType={experienceId}
+    initialScrollIndex={Math.max(0, props.index)} scrollEnabled={false} showsVerticalScrollIndicator={false}
     bounces={false} overScrollMode="never" maintainVisibleContentPosition={{ disabled: true }}
-    // Draw nearby pages only. Unique types retain visited app state in the pool;
-    // deleting an identity from the seven-page data window evicts its cell.
+    // Draw nearby pages only; recycled cells outside the cache are empty shells.
     drawDistance={height} maxItemsInRecyclePool={EXPERIENCE_CACHE_SIZE}
     onLoad={() => { syncPosition(); ready.value = true; }}
-    renderItem={({ item, target }) => {
-      if (target === "Measurement") return <View style={{ height, width: props.width }} />;
-      const offset = (positions.get(experienceId(item)) ?? -2) - props.index;
+    renderItem={({ item, index, target }) => {
+      if (target === "Measurement" || !retained.has(experienceId(item))) return <View style={{ height, width: props.width }} />;
+      const offset = index - props.index;
       const selected = experienceId(item) === experienceId(current);
       const nearby = Math.abs(offset) <= 1;
       return <CachedExperience item={item} selected={selected}
@@ -313,13 +312,13 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
   const showing = foreground && visible;
   const [retainedVisible, setRetainedVisible] = useState(false);
   useEffect(() => {
-    if (!ready) return;
-    // Prepare the adjacent native pages while idle, rather than restoring them
-    // when the finger starts moving. Only three nearby pages run effects.
-    return afterInteractions(() => setRetainedVisible(showing));
+    if (!ready || !showing) { setRetainedVisible(false); return; }
+    // Only activating a neighbour may wait for idle. The `showing` gate below
+    // suspends departed pages immediately, even during uninterrupted swiping.
+    return afterInteractions(() => setRetainedVisible(true));
   }, [ready, showing]);
   const content = useMemo(() => render(appId, onPause), [render, appId, onPause]);
-  if (ready) return <Activity mode={foreground && ((showing && selected) || retainedVisible) ? "visible" : "hidden"}><View style={{ flex: 1 }}>{content}</View></Activity>;
+  if (ready) return <Activity mode={showing && (selected || retainedVisible) ? "visible" : "hidden"}><View style={{ flex: 1 }}>{content}</View></Activity>;
   // Resources warm independently; only the current page needs a loading animation.
   if (!selected || !visible) return null;
   return <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 16 }}>
