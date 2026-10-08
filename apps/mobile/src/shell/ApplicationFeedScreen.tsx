@@ -1,7 +1,7 @@
 import { Activity, memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "react-native";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaFrameContext, SafeAreaInsetsContext, SafeAreaProvider } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, scrollTo, useAnimatedReaction, useAnimatedRef, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
@@ -249,6 +249,7 @@ function ExperienceQueue(props: QueueProps) {
   const list = useAnimatedRef<FlashListRef<MarketApplication>>();
   const ready = useSharedValue(false);
   const { height, drag } = props;
+  const metrics = useMemo(() => ({ frame: { x: 0, y: 0, width: props.width, height }, insets: { top: 0, bottom: 0, left: 0, right: 0 } }), [props.width, height]);
   const motion = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value }] }));
   const syncPosition = useCallback(() => {
     runOnUI((offset: number) => {
@@ -263,7 +264,9 @@ function ExperienceQueue(props: QueueProps) {
   // Keep absolute feed positions stable. Sliding a seven-item data window
   // rebases native layouts separately from the gesture, causing a visible jump.
   // Only identities in `retained` may own an application instance.
-  return <Animated.View style={[{ flex: 1 }, motion]}><AnimatedFlashList ref={list} data={props.items} keyExtractor={experienceId} getItemType={experienceId}
+  // Native SafeAreaView descendants need a provider, but it must stay outside
+  // the moving list: providers emit frame/inset events on every translated frame.
+  return <SafeAreaProvider style={{ flex: 1 }} initialMetrics={metrics}><Animated.View style={[{ flex: 1 }, motion]}><AnimatedFlashList ref={list} data={props.items} keyExtractor={experienceId} getItemType={experienceId}
     // The stage clips the moving pages. Both list containers must expose their
     // already-mounted neighbours while the list's scroll offset stays fixed.
     style={{ overflow: "visible" }} overrideProps={{ style: { overflow: "visible" } }}
@@ -287,7 +290,7 @@ function ExperienceQueue(props: QueueProps) {
         paused={selected && props.paused} foreground={props.foreground}
         width={props.width} height={height} render={props.render}
         onPause={props.onPause} onResume={props.onResume} onDetail={props.onDetail} />;
-    }} /></Animated.View>;
+    }} /></Animated.View></SafeAreaProvider>;
 }
 type CachedExperienceProps = Omit<QueueProps, "items" | "index" | "active" | "switching" | "drag"> & {
   item: MarketApplication; selected: boolean; ready: boolean; error: string; onRetry: (key: string) => void;
@@ -302,10 +305,10 @@ const CachedExperience = memo(function CachedExperience({ item, selected, ready,
   const retry = useCallback(() => onRetry(experienceId(item)), [onRetry, item.manifest.appId, item.manifest.releaseId]);
   const metrics = useMemo(() => ({ frame: { x: 0, y: 0, width: props.width, height: props.height }, insets: { top: 0, bottom: 0, left: 0, right: 0 } }), [props.width, props.height]);
   return <View pointerEvents={props.interactive ? "auto" : "none"} accessibilityElementsHidden={!props.accessible} importantForAccessibility={props.accessible ? "auto" : "no-hide-descendants"} style={{ height: props.height, width: props.width, overflow: "hidden", backgroundColor: t.canvas }}>
-    <SafeAreaProvider style={{ flex: 1 }} initialMetrics={metrics}>
+    <SafeAreaFrameContext.Provider value={metrics.frame}><SafeAreaInsetsContext.Provider value={metrics.insets}>
       <InlineExperience ready={ready} error={error} selected={selected} foreground={props.foreground} visible={props.visible} render={props.render} appId={item.manifest.appId} onRetry={retry} onPause={pause} onDetail={detail} />
       {props.paused ? <View style={{ position: "absolute", inset: 0 }}><ExperiencePlaceholder item={item} onResume={props.onResume} /></View> : null}
-    </SafeAreaProvider>
+    </SafeAreaInsetsContext.Provider></SafeAreaFrameContext.Provider>
   </View>;
 });
 
