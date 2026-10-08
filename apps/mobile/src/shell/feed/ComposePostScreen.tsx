@@ -677,7 +677,7 @@ const useStyles = createThemedStyles((base) => {
       color: t.ink1,
       fontSize: 15,
       lineHeight: 23,
-      paddingHorizontal: 14,
+      paddingHorizontal: 20,
       paddingVertical: 14,
       borderRadius: t.radius.xl,
       borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
