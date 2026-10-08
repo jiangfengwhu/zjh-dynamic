@@ -93,8 +93,11 @@ export const MineScreen = memo(function MineScreen({
             onPress={user ? onProfile : onAccount}
             style={styles.profile}
           >
-            <View pointerEvents="none" style={styles.profileGlow} />
-            <UserAvatar uri={user?.avatarUrl} size={48} style={styles.portrait} />
+            <View style={styles.portraitRing}>
+              <View style={styles.portraitGap}>
+                <UserAvatar uri={user?.avatarUrl} size={44} style={styles.portrait} />
+              </View>
+            </View>
             <View style={styles.profileCopy}>
               <Text numberOfLines={2} style={styles.profileName}>
                 {user?.name ?? "登录账号"}
@@ -102,7 +105,7 @@ export const MineScreen = memo(function MineScreen({
               <Text style={styles.profileHint}>{user ? "查看我的主页" : "邮箱验证码登录，开始创作"}</Text>
             </View>
             <View style={styles.profileArrow}>
-              <Icon name="chevron" size={14} color="#FFFFFF" />
+              <Icon name="chevron" size={14} color={colors.ink3} />
             </View>
           </Pressy>
         </Animated.View>
@@ -279,31 +282,24 @@ const useStyles = createThemedStyles((t) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: t.radius.xl,
-    experimental_backgroundImage: t.aurora,
-    boxShadow: t.mode === "dark" ? t.shadow.float : "0 8px 22px rgba(255,61,139,0.28)",
-    overflow: "hidden",
+    backgroundColor: t.surface,
+    borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
+    borderColor: t.line,
+    boxShadow: t.shadow.card,
   },
-  profileGlow: {
-    position: "absolute",
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    right: -40,
-    top: -70,
-    backgroundColor: "rgba(255,255,255,0.16)",
-  },
-  portrait: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: "rgba(255,255,255,0.7)" },
+  portraitRing: { borderRadius: 26, padding: 2, experimental_backgroundImage: t.aurora },
+  portraitGap: { borderRadius: 24, padding: 2, backgroundColor: t.surface },
+  portrait: { width: 44, height: 44, borderRadius: 22 },
   profileCopy: { flex: 1, minWidth: 0, gap: 2 },
   profileName: {
     ...t.type.headline,
-    fontSize: 17,
-    color: "#FFFFFF",
+    color: t.ink1,
   },
-  profileHint: { fontSize: 12, lineHeight: 17, color: "rgba(255,255,255,0.82)" },
-  profileArrow: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.22)" },
+  profileHint: { fontSize: 12, lineHeight: 17, color: t.ink3 },
+  profileArrow: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: t.surfaceRaised },
   shortcuts: { flexDirection: "row", gap: 10 },
   shortcut: {
     flex: 1,

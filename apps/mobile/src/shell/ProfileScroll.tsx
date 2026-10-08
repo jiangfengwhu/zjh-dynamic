@@ -9,7 +9,8 @@ import {
   type SharedValue,
 } from "react-native-reanimated";
 
-export const PROFILE_RANGE = 108;
+/** 身份区（头像、昵称与关注数）可折叠的高度。 */
+export const PROFILE_RANGE = 76;
 /** 动态/作品切换条的高度；条内分段控件垂直居中。 */
 export const PROFILE_TABS = 44;
 export const PROFILE_INSET = PROFILE_RANGE + PROFILE_TABS;

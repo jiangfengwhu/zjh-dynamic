@@ -39,6 +39,13 @@ const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const AnimatedThemeText = Animated.createAnimatedComponent(Text);
 /** 顶栏（标题与设置按钮）高度；身份区与切换条的氛围底按它对齐页面。 */
 const HEADER_HEIGHT = 52;
+/** 身份行在身份区内的上边距与高度；头像在身份行内垂直居中。 */
+const IDENTITY_TOP = 2;
+const IDENTITY_HEIGHT = 68;
+const AVATAR_SIZE = 56;
+const AVATAR_TOP = HEADER_HEIGHT + IDENTITY_TOP + (IDENTITY_HEIGHT - AVATAR_SIZE) / 2;
+/** 折叠完成时头像（缩到一半）的中心与顶栏中线对齐。 */
+const AVATAR_LIFT = AVATAR_TOP + AVATAR_SIZE / 2 - HEADER_HEIGHT / 2;
 
 export function MyProfileScreen(props: Parameters<typeof MyProfileContent>[0]) {
   const theme = useTheme();
@@ -127,7 +134,7 @@ function MyProfileContent({
             collapsed.value) /
           PROFILE_RANGE,
       },
-      { translateY: (-76 * collapsed.value) / PROFILE_RANGE },
+      { translateY: (-AVATAR_LIFT * collapsed.value) / PROFILE_RANGE },
     ],
   }));
   const avatarScale = useAnimatedStyle(() => ({
@@ -304,7 +311,7 @@ function MyProfileContent({
                   top: 0,
                   left: 20,
                   right: 16,
-                  height: 108,
+                  height: PROFILE_RANGE,
                   zIndex: 12,
                 },
                 identityMotion,
@@ -313,8 +320,8 @@ function MyProfileContent({
             >
               <View
                 style={{
-                  height: 84,
-                  marginTop: 8,
+                  height: IDENTITY_HEIGHT,
+                  marginTop: IDENTITY_TOP,
                   paddingLeft: 72,
                   flexDirection: "row",
                   alignItems: "center",
@@ -422,7 +429,7 @@ function MyProfileContent({
               <View
                 style={{
                   padding: 24,
-                  paddingTop: 132,
+                  paddingTop: PROFILE_RANGE + 24,
                   alignItems: "center",
                   gap: 12,
                 }}
@@ -452,10 +459,10 @@ function MyProfileContent({
           style={[
             {
               position: "absolute",
-              top: 74,
+              top: AVATAR_TOP,
               left: 20,
-              width: 56,
-              height: 56,
+              width: AVATAR_SIZE,
+              height: AVATAR_SIZE,
               zIndex: 30,
             },
             avatarPosition,
@@ -467,14 +474,14 @@ function MyProfileContent({
             accessibilityLabel={user ? "编辑头像与昵称" : "登录"}
             onPress={onAccount}
             style={{
-              width: 56,
-              height: 56,
+              width: AVATAR_SIZE,
+              height: AVATAR_SIZE,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
             <Animated.View style={avatarScale}>
-              <UserAvatar uri={user?.avatarUrl} size={56} />
+              <UserAvatar uri={user?.avatarUrl} size={AVATAR_SIZE} />
             </Animated.View>
           </Pressy>
         </Animated.View>
