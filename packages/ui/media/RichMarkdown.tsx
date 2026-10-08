@@ -38,7 +38,7 @@ export function RichMarkdown({ markdown, fontFamily, fontSize = 14, lineHeight =
       h3: { ...base, fontSize: fontSize + 2, lineHeight: lineHeight + 2 },
       h4: base, h5: base, h6: base,
       list: { ...base, bulletColor: colors.ink2, markerColor: colors.ink2, gapWidth: 6, itemSpacing: 2 },
-      strong: { fontFamily: base.fontFamily, fontWeight: base.fontFamily === "Fusion Pixel 12px Proportional SC" ? "normal" : "bold", color: colors.ink1 },
+      strong: { fontFamily: base.fontFamily, fontWeight: "bold", color: colors.ink1 },
       link: { fontFamily: base.fontFamily, color: colors.orchidText, underline: true },
       code: { fontFamily: colors.typography.mono, color: colors.ink2, backgroundColor: colors.inset },
       codeBlock: { ...base, fontFamily: colors.typography.mono, backgroundColor: colors.inset, padding: 8, borderRadius: colors.radius.sm },

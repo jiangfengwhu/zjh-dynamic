@@ -7,7 +7,7 @@ const lastOpenedKey = "share.clipboard.lastOpened";
 
 export function createShareText(target: SharedLink, description: string): string {
   const path = target.kind === "post" ? "posts" : "applications";
-  return `${description.slice(0, 1000)}\nhttps://zijinhua.297782.xyz/${path}/${target.id}\n复制这段内容，打开紫金花即可查看`;
+  return `${description.slice(0, 1000)}\nhttps://zijinhua.297782.xyz/${path}/${target.id}\n复制这段内容，打开生花即可查看`;
 }
 
 export function parseClipboardShare(text: string): SharedLink | undefined {

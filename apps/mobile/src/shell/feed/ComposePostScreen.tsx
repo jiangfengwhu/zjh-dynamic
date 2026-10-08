@@ -418,10 +418,23 @@ export function ComposePostScreen({
           </View>
           <View style={styles.htmlHeader}>
             <Text style={styles.name}>{htmlMode ? "HTML 动态" : "动态内容"}</Text>
-            <Pressy accessibilityLabel={previewing ? "编辑动态" : "预览动态"} disabled={busy}
-              onPress={() => { Keyboard.dismiss(); setPreviewing(value => !value); }} style={styles.htmlAction}>
-              <Text style={styles.addText}>{previewing ? "编辑" : "预览"}</Text>
-            </Pressy>
+            <View style={styles.headerActions}>
+              <Pressy accessibilityLabel={polishing ? "取消 AI 润色" : "AI 润色动态"}
+                disabled={!draftReady || busy || !text.trim()} style={styles.htmlAction}
+                onPress={() => {
+                  if (polishing) { polishController.current?.abort(); setPolishing(false); }
+                  else void polish();
+                }}>
+                {polishing ? <ActivityIndicator color={colors.orchidText} size="small" /> : <SymbolIcon name="spark" size={15} strokeWidth={2.1} color={colors.orchid} />}
+                <Text style={styles.addText}>{polishing ? "取消润色" : "AI 润色"}</Text>
+              </Pressy>
+              {beforePolish !== undefined ? <Pressy accessibilityLabel="撤销 AI 润色" style={styles.htmlAction} disabled={busy}
+                onPress={() => change(beforePolish)}><Text style={styles.addText}>撤销润色</Text></Pressy> : null}
+              <Pressy accessibilityLabel={previewing ? "编辑动态" : "预览动态"} disabled={busy}
+                onPress={() => { Keyboard.dismiss(); setPreviewing(value => !value); }} style={styles.htmlAction}>
+                <Text style={styles.addText}>{previewing ? "编辑" : "预览"}</Text>
+              </Pressy>
+              </View>
           </View>
           {previewing ? (
             <View style={{ gap: 8, minHeight: 160 }}>
@@ -462,27 +475,16 @@ export function ComposePostScreen({
           <View style={styles.tools}>
             <View style={styles.tool}>
               <Text style={styles.addText}>HTML</Text>
-              <Switch accessibilityLabel="作为 HTML 发布" value={htmlMode} disabled={!draftReady || busy}
+              <View style={styles.switchSlot}><Switch accessibilityLabel="作为 HTML 发布" value={htmlMode} disabled={!draftReady || busy}
                 trackColor={{ false: colors.lineStrong, true: colors.green }}
-                thumbColor="#FFFFFF"
+                thumbColor="#FFFFFF" hitSlop={12} style={{ transform: [{ scale: 0.7 }] }}
                 onValueChange={value => {
                   revision.current++;
                   polishController.current?.abort();
                   setPolishing(false); setBeforePolish(undefined); setPolishError("");
                   setHtmlMode(value);
-                }} />
+                }} /></View>
             </View>
-            <Pressy accessibilityLabel={polishing ? "取消 AI 润色" : "AI 润色动态"}
-              disabled={!draftReady || busy || !text.trim()} style={styles.tool}
-              onPress={() => {
-                if (polishing) { polishController.current?.abort(); setPolishing(false); }
-                else void polish();
-              }}>
-              {polishing ? <ActivityIndicator color={colors.orchidText} size="small" /> : <SymbolIcon name="spark" size={15} strokeWidth={2.1} color={colors.orchid} />}
-              <Text style={styles.addText}>{polishing ? "取消润色" : "AI 润色"}</Text>
-            </Pressy>
-            {beforePolish !== undefined ? <Pressy accessibilityLabel="撤销 AI 润色" style={styles.tool} disabled={busy}
-              onPress={() => change(beforePolish)}><Text style={styles.addText}>撤销润色</Text></Pressy> : null}
             <Pressy
               accessibilityLabel="添加图片，最多四张"
               disabled={!draftReady || busy || choosing || photos.length >= 4}
@@ -664,7 +666,8 @@ const useStyles = createThemedStyles((base) => {
     content: { paddingHorizontal: 16, paddingTop: 6, gap: 12, paddingBottom: 12 },
     previewText: { color: t.ink1, fontSize: 15, lineHeight: 22 },
     htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-    htmlAction: { minHeight: 30, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: t.surfaceRaised },
+    headerActions: { flexDirection: "row", flexWrap: "wrap", flexShrink: 1, justifyContent: "flex-end", alignItems: "center", gap: 6 },
+    htmlAction: { flexDirection: "row", gap: 4, minHeight: 30, paddingHorizontal: 8, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: t.surfaceRaised },
     publishDock: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
     author: { flexDirection: "row", gap: 10, alignItems: "center" },
     avatar: { width: 32, height: 32, borderRadius: 16 },
@@ -674,7 +677,8 @@ const useStyles = createThemedStyles((base) => {
       color: t.ink1,
       fontSize: 15,
       lineHeight: 23,
-      padding: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
       borderRadius: t.radius.xl,
       borderWidth: t.mode === "dark" ? t.components.surfaceBorder : 0,
       borderColor: t.line,
@@ -704,16 +708,17 @@ const useStyles = createThemedStyles((base) => {
       justifyContent: "center",
     },
     removeText: { color: "#FFFFFF", fontSize: 18 },
+    switchSlot: { width: 36, height: 24, alignItems: "center", justifyContent: "center" },
     tools: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
     tool: {
       flexDirection: "row",
       gap: 5,
       alignItems: "center",
-      minHeight: 34,
+      minHeight: 32,
       backgroundColor: t.surfaceRaised,
       borderWidth: 0,
-      borderRadius: 17,
-      paddingHorizontal: 12,
+      borderRadius: 16,
+      paddingHorizontal: 8,
     },
     draftStatus: {
       flexDirection: "row",

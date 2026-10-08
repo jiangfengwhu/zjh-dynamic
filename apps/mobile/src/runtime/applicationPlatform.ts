@@ -1,9 +1,4 @@
 import { bindApplicationSdk, registerApplication, setApplicationCreationNavigation } from "../../../../packages/app-sdk/src/runtime";
-import { checkApplicationUpdates, applyApplicationUpdate } from "./applications";
-import { loadSharing } from "../shell/market";
-import { currentAccountId } from "../shell/account";
-import { shellNavigationRef } from "../shell/navigationRef";
-import { readShellValue, writeShellValue } from "../shell/shellStorage";
 import { openCreationComposer } from "../shell/creationComposer";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { runningApplication } from "./applications";
@@ -73,37 +68,7 @@ export function installApplicationPlatform() {
   target.__zijinhuaApplications = Object.freeze({
     require: (name: string, appId: string) => {
       if (name === "@zijinhua/app-sdk") return bindApplicationSdk(appId);
-      if (name === "@zijinhua/app-sdk/creation") {
-        // Engineering API selection only: shared JS has no trustworthy caller appId.
-        // Server ownership and per-round authorization protect creation operations.
-        if (appId !== "jolly") throw new Error("当前应用未获得制作能力");
-        const { creationService } = require("../shell/cloudEvolve") as typeof import("../shell/cloudEvolve");
-        return { getCreationService: (targetAppId: string, originalAppId?: string) => ({ ...creationService(targetAppId, originalAppId),
-          // Old companion versions also enter the canonical composer rather than submit.
-          runCloudEvolve: async (options: { requirement: string }) => {
-            const manifest = runningApplication(targetAppId);
-            openCreationComposer({ appId: targetAppId, title: manifest?.appName || targetAppId, originalAppId, fork: false, prompt: options.requirement });
-            return "waiting" as const;
-          },
-          checkPackageUpdates: async () => (await checkApplicationUpdates(targetAppId)).filter(item => item.id === targetAppId),
-          applyPackageUpdates: () => applyApplicationUpdate(targetAppId),
-          openPublication: async () => {
-            const owner = await currentAccountId();
-            const state = await loadSharing(targetAppId);
-            if (!owner || await currentAccountId() !== owner || !state.application) throw new Error("请先完成作品制作");
-            if (!shellNavigationRef.isReady()) throw new Error("页面尚未就绪，请重试");
-            shellNavigationRef.navigate("marketPublication", { item: { manifest: state.application, authorId: owner, authorName: "", originalAppId: null, owned: true } });
-          },
-          readPreference: (key: string) => {
-            if (key !== "shell.companion.name.v1") throw new Error("制作偏好键无效");
-            return readShellValue(key);
-          },
-          writePreference: (key: string, value: string) => {
-            if (key !== "shell.companion.name.v1") throw new Error("制作偏好键无效");
-            writeShellValue(key, value);
-          },
-        }) };
-      }
+      if (name === "@zijinhua/app-sdk/creation") throw new Error("当前应用未获得制作能力");
       if (!Object.prototype.hasOwnProperty.call(modules, name)) throw new Error(`平台没有提供公共入口：${name}`);
       return modules[name]();
     },

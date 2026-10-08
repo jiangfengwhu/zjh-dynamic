@@ -14,7 +14,6 @@ export const Text = forwardRef<ComponentRef<typeof NativeText>, TextProps & { va
   return <NativeText {...props} ref={ref} style={[
     (!parentFamily || variant) && { color: colors.ink1, fontFamily, fontSize: colors.typography.size[sizeRole], lineHeight: colors.typography.lineHeight[sizeRole] },
     style,
-    fontFamily === "Fusion Pixel 12px Proportional SC" && { fontWeight: "normal", fontStyle: "normal" },
   ]}><TextFontContext.Provider value={fontFamily}>{children}</TextFontContext.Provider></NativeText>;
 });
 
@@ -25,6 +24,5 @@ export const TextInput = forwardRef<NativeTextInput, TextInputProps>(function Te
   const fontFamily = flat?.fontFamily ?? colors.typography.body;
   return <NativeTextInput placeholderTextColor={colors.ink3} selectionColor={colors.accentText} {...props} ref={ref} style={[
     { color: colors.ink1, fontFamily, fontSize: colors.typography.size.body }, style,
-    fontFamily === "Fusion Pixel 12px Proportional SC" && { fontWeight: "normal", fontStyle: "normal" },
   ]} />;
 });

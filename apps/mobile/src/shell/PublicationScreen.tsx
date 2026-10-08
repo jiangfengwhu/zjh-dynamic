@@ -473,7 +473,7 @@ function CreateApplicationPage({
         placeholder={
           intent
             ? "希望哪里改变？描述目标效果，也可以添加问题截图…"
-            : "例如：做一个每天记录心情的小应用，有日历和像素花园…"
+            : "例如：做一个每天记录心情的小应用，有日历和心情趋势…"
         }
         placeholderTextColor={colors.ink3}
         style={{

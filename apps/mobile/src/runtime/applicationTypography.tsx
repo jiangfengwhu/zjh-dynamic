@@ -15,7 +15,6 @@ const ApplicationText = forwardRef<NativeTextRef, TextProps>(function Applicatio
   const family = Native.StyleSheet.flatten(style)?.fontFamily ?? inherited ?? colors.typography.body;
   return <OriginalText {...props} ref={ref} style={[
     { fontFamily: family }, style,
-    family === "Fusion Pixel 12px Proportional SC" && { fontWeight: "normal", fontStyle: "normal" },
   ]}><TextFontContext.Provider value={family}>{children}</TextFontContext.Provider></OriginalText>;
 });
 const ApplicationInput = Object.assign(forwardRef<NativeInputRef, TextInputProps>(function ApplicationInput({ style, ...props }, ref) {
@@ -23,7 +22,6 @@ const ApplicationInput = Object.assign(forwardRef<NativeInputRef, TextInputProps
   const family = Native.StyleSheet.flatten(style)?.fontFamily ?? colors.typography.body;
   return <OriginalInput {...props} ref={ref} style={[
     { fontFamily: family }, style,
-    family === "Fusion Pixel 12px Proportional SC" && { fontWeight: "normal", fontStyle: "normal" },
   ]} />;
 }), { State: OriginalInput.State });
 
@@ -66,14 +64,8 @@ export function applicationCalendarsModule() {
       const { colors } = useTheme();
       const themed = useMemo(() => {
         const value: CalendarTheme = { ...(theme ?? {}) };
-        for (const [familyKey, weightKey] of [
-          ["textDayFontFamily", "textDayFontWeight"],
-          ["textMonthFontFamily", "textMonthFontWeight"],
-          ["textDayHeaderFontFamily", "textDayHeaderFontWeight"],
-          ["todayButtonFontFamily", "todayButtonFontWeight"],
-        ] as const) {
+        for (const familyKey of ["textDayFontFamily", "textMonthFontFamily", "textDayHeaderFontFamily", "todayButtonFontFamily"] as const) {
           value[familyKey] ??= colors.typography.body;
-          if (value[familyKey] === "Fusion Pixel 12px Proportional SC") value[weightKey] = "normal";
         }
         return value;
       }, [theme, colors.typography.body]);

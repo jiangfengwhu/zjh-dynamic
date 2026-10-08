@@ -286,7 +286,7 @@ function ApplicationRecovery({ error, onCheckUpdates }: { error: Error; onCheckU
   const [busy, setBusy] = useState(false);
   if (!(error instanceof ApplicationSdkError)) return null;
   if (error.action === "update-application") return <Button label="前往应用市场" onPress={() => openShellTab("market")} />;
-  return <Button label="检查紫金花更新" busy={busy} onPress={() => {
+  return <Button label="检查生花更新" busy={busy} onPress={() => {
     if (busy) return;
     setBusy(true);
     void onCheckUpdates().catch(cause => Toast.show({ type: "error", text1: "检查更新失败", text2: cause instanceof Error ? cause.message : "请稍后重试" })).finally(() => setBusy(false));

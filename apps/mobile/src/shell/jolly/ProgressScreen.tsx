@@ -134,7 +134,7 @@ function ProgressContent({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="返回紫金花"
+          accessibilityLabel="返回生花"
           onPress={onBack}
           hitSlop={6}
           style={{
