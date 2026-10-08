@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ActivityIndicator, BackHandler, Keyboard, View, type TextInput } from "react-native";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetTextInput, useBottomSheetScrollableCreator, useBottomSheetTimingConfigs, type BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetTextInput, useBottomSheetScrollableCreator, useBottomSheetTimingConfigs, type BottomSheetBackdropProps, type BottomSheetFooterProps } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ReduceMotion } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
@@ -45,7 +45,7 @@ export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: Us
   const request = useRef<{ signature: string; id: string } | null>(null);
   const draftKey = `social.comment-draft.${user?.id ?? "guest"}.${post.id}`;
   const characters = Array.from(text).length;
-  const Scrollable = useBottomSheetScrollableCreator();
+  const Scrollable = useBottomSheetScrollableCreator({ enableFooterMarginAdjustment: true });
   const animation = useBottomSheetTimingConfigs({ duration: 220 });
   const close = useCallback(() => { Keyboard.dismiss(); modal.current?.dismiss(); }, []);
   const backdrop = useCallback((props: BottomSheetBackdropProps) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.35} pressBehavior="close" />, []);
@@ -119,7 +119,19 @@ export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: Us
       finally { writing.current = false; if (alive.current) setDeleting(null); }
     })(); } }]);
   }
-  return <BottomSheetModal ref={modal} index={0} snapPoints={["68%", "92%"]} topInset={insets.top} enableDynamicSizing={false} enablePanDownToClose enableBlurKeyboardOnGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustResize" onDismiss={() => { onDismiss(); if (loginAfterClose.current) void requireAccount(); }} backdropComponent={backdrop} animationConfigs={animation} overrideReduceMotion={ReduceMotion.System} backgroundStyle={{ backgroundColor: t.canvas, borderTopLeftRadius: t.radius.xxl, borderTopRightRadius: t.radius.xxl }} handleIndicatorStyle={{ backgroundColor: t.lineStrong, width: 36 }}>
+  const Footer = useCommentFooter(
+      <View style={{ backgroundColor: t.canvas, borderTopWidth: t.components.surfaceBorder, borderTopColor: t.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: Math.max(12, insets.bottom), gap: 6 }}>
+        {reply ? <Pressy disabled={sending} onPress={() => setReply(null)}><Text numberOfLines={1} style={{ color: t.orchidText, fontSize: 12 }}>回复 {reply.author.name} · 取消</Text></Pressy> : null}
+        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
+          <BottomSheetTextInput ref={input} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="留下你的想法…" placeholderTextColor={t.ink3} style={{ flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 14, paddingVertical: 10, color: t.ink1, fontSize: 14, backgroundColor: t.surfaceRaised, borderRadius: t.radius.lg }} />
+          <Pressy accessibilityRole="button" accessibilityLabel="发送评论" disabled={!draftReady || sending || !!deleting || !text.trim() || characters > 1000} onPress={() => void send()} style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center", opacity: !text.trim() || characters > 1000 || !!deleting ? 0.4 : 1 }}>
+            {sending ? <ActivityIndicator color={t.accent} /> : <SymbolIcon name="send" size={23} color={t.accent} />}
+          </Pressy>
+        </View>
+        {characters > 800 ? <Text style={{ color: characters > 1000 ? t.danger : t.ink3, textAlign: "right", fontSize: 11 }}>{characters}/1000</Text> : null}
+      </View>
+  );
+  return <BottomSheetModal ref={modal} footerComponent={Footer} index={0} snapPoints={["68%", "92%"]} topInset={insets.top} enableDynamicSizing={false} enablePanDownToClose enableBlurKeyboardOnGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustResize" onDismiss={() => { onDismiss(); if (loginAfterClose.current) void requireAccount(); }} backdropComponent={backdrop} animationConfigs={animation} overrideReduceMotion={ReduceMotion.System} backgroundStyle={{ backgroundColor: t.canvas, borderTopLeftRadius: t.radius.xxl, borderTopRightRadius: t.radius.xxl }} handleIndicatorStyle={{ backgroundColor: t.lineStrong, width: 36 }}>
     <View style={{ flex: 1 }}>
       <View style={{ height: 40, paddingLeft: 48, paddingRight: 8, flexDirection: "row", alignItems: "center" }}>
         <Text accessibilityRole="header" style={{ flex: 1, textAlign: "center", color: t.ink1, fontSize: 14, fontWeight: "700" }}>{count} 条评论</Text>
@@ -142,16 +154,27 @@ export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: Us
           </View>
         </View>}
         ListFooterComponent={<View style={{ padding: 12 }}>{error ? <Pressy onPress={() => void load()} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ color: t.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressy> : loading && comments.length ? <ActivityIndicator color={t.ink3} /> : null}</View>} />
-      <View style={{ borderTopWidth: t.components.surfaceBorder, borderTopColor: t.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: Math.max(12, insets.bottom), gap: 6 }}>
-        {reply ? <Pressy disabled={sending} onPress={() => setReply(null)}><Text numberOfLines={1} style={{ color: t.orchidText, fontSize: 12 }}>回复 {reply.author.name} · 取消</Text></Pressy> : null}
-        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
-          <BottomSheetTextInput ref={input} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="留下你的想法…" placeholderTextColor={t.ink3} style={{ flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 14, paddingVertical: 10, color: t.ink1, fontSize: 14, backgroundColor: t.surfaceRaised, borderRadius: t.radius.lg }} />
-          <Pressy accessibilityRole="button" accessibilityLabel="发送评论" disabled={!draftReady || sending || !!deleting || !text.trim() || characters > 1000} onPress={() => void send()} style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center", opacity: !text.trim() || characters > 1000 || !!deleting ? 0.4 : 1 }}>
-            {sending ? <ActivityIndicator color={t.accent} /> : <SymbolIcon name="send" size={23} color={t.accent} />}
-          </Pressy>
-        </View>
-        {characters > 800 ? <Text style={{ color: characters > 1000 ? t.danger : t.ink3, textAlign: "right", fontSize: 11 }}>{characters}/1000</Text> : null}
-      </View>
+
     </View>
   </BottomSheetModal>;
+}
+
+/** Keep the footer component identity stable so typing never remounts the input. */
+function useCommentFooter(content: ReactNode) {
+  const [store] = useState(() => {
+    const listeners = new Set<() => void>();
+    const state = {
+      content,
+      subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+      snapshot() { return state.content; },
+      update(next: ReactNode) { state.content = next; listeners.forEach(listener => listener()); },
+      Footer(props: BottomSheetFooterProps) {
+        const children = useSyncExternalStore(state.subscribe, state.snapshot, state.snapshot);
+        return <BottomSheetFooter {...props}>{children}</BottomSheetFooter>;
+      },
+    };
+    return state;
+  });
+  useLayoutEffect(() => { store.update(content); }, [store, content]);
+  return store.Footer;
 }
