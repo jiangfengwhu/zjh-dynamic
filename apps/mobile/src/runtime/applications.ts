@@ -1,5 +1,6 @@
 import { assertApplicationSdkCompatible, ApplicationSdkError } from "./applicationCompatibility";
 import NativePluginHost from "../NativePluginHost";
+import { downloadApplicationResources } from "./applicationDownloads";
 import { waitForInteractions } from "../shell/interactionWork";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, readShellValueSync, shellKeys, writeShellValue } from "../shell/shellStorage";
@@ -37,68 +38,26 @@ subscribeAccountIdentity(id => {
   if (id) void restoreWorks(false, true).catch(() => {});
   if ([...activeAccess.values()].some(access => access.ownerId && access.ownerId !== id)) void NativePluginHost.call("shell", "reloadApplications", "{}").catch(() => {});
 });
-async function verifyAccess(manifest: ApplicationManifest, ownerId: string | null): Promise<void> {
-  if (ownerId) {
-    if (await currentAccountId() !== ownerId) throw new AccessDenied("请登录作品所属账号后再体验候选版本");
-    const response = await accountFetch(`${edgeUrl}/v1/applications/${manifest.appId}/releases/${manifest.releaseId}`, { headers: { "X-Workshop-Token": await readShellValue(`shell.jules.apps.${manifest.appId}.token`) || "" } }, false);
-    if ([401, 403, 404].includes(response.status) || await currentAccountId() !== ownerId) throw new AccessDenied("候选版本的制作权限已失效");
-    if (!response.ok) throw new Error("暂时无法核对制作权限，请联网重试");
-  } else {
-    const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/releases/${manifest.releaseId}`);
-    if ([401, 403, 404].includes(response.status)) throw new AccessDenied("这个版本尚未公开发布");
-    if (!response.ok) throw new Error("暂时无法核对执行版本，请联网重试");
-    const published = await response.json();
-    if (published.releaseId !== manifest.releaseId || published.bundle.sha256 !== manifest.bundle.sha256 || published.source.commit !== manifest.source.commit) throw new AccessDenied("这个版本尚未公开发布");
-  }
+async function verifyCandidateAccess(manifest: ApplicationManifest, ownerId: string): Promise<void> {
+  if (await currentAccountId() !== ownerId) throw new AccessDenied("请登录作品所属账号后再体验候选版本");
+  const response = await accountFetch(`${edgeUrl}/v1/applications/${manifest.appId}/releases/${manifest.releaseId}`, { headers: { "X-Workshop-Token": await readShellValue(`shell.jules.apps.${manifest.appId}.token`) || "" } }, false);
+  if ([401, 403, 404].includes(response.status) || await currentAccountId() !== ownerId) throw new AccessDenied("候选版本的制作权限已失效");
+  if (!response.ok) throw new Error("暂时无法核对制作权限，请联网重试");
 }
+/** Public manifests come from the platform's market/release responses. */
 export async function preparePublicApplication(manifest: ApplicationManifest, rememberAccess = true) {
-  await verifyPublicPointer(manifest);
-  assertCompatible(manifest, manifest.appId); await verifyAccess(manifest, null);
-  await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
-  await verifyPublicPointer(manifest);
-  await verifyAccess(manifest, null);
+  assertCompatible(manifest, manifest.appId);
+  await downloadApplicationResources(manifest);
   if (rememberAccess) writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
 }
 
-// Immutable resource preparations only: never register/evaluate an application
-// or change its install, workshop, account-access or health records here.
-const experiencePreparations = new Map<string, Promise<void>>();
-const preparedExperiences = new Map<string, true>();
-function experiencePreparationKey(manifest: ApplicationManifest) {
-  return JSON.stringify([manifest.appId, manifest.releaseId, manifest.source.commit,
-    [manifest.bundle.sha256, manifest.bundle.bytes], manifest.assets.map(asset => [asset.sha256, asset.bytes])]);
-}
-async function prepareExperienceResources(manifest: ApplicationManifest, signal: AbortSignal) {
-  assertCompatible(manifest, manifest.appId);
-  signal.throwIfAborted();
-  const key = experiencePreparationKey(manifest);
-  let task = experiencePreparations.get(key);
-  if (task) {
-    await task;
-    // Publication may have changed while a background download was running.
-    await verifyPublicPointer(manifest);
-  } else if (preparedExperiences.has(key)) {
-    // Reuse the downloaded bytes, while still checking current public status.
-    await verifyPublicPointer(manifest);
-  } else {
-    task = preparePublicApplication(manifest, false).then(() => {
-      preparedExperiences.set(key, true);
-      while (preparedExperiences.size > 16) preparedExperiences.delete(preparedExperiences.keys().next().value!);
-    });
-    experiencePreparations.set(key, task);
-    try { await task; } finally {
-      if (experiencePreparations.get(key) === task) experiencePreparations.delete(key);
-    }
-  }
-}
-
 /** Load a public work for the current stage or its bounded warm queue. */
-export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal, item?: MarketApplication) {
+export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal, item?: MarketApplication, downloadOnly = false) {
   const appId = manifest.appId;
   assertCompatible(manifest, appId);
   signal.throwIfAborted();
   const installerId = cachedAccountId();
-  const initialEntry = (await loadCatalog()).find(entry => entry.id === appId);
+  const initialEntry = loadCatalogSync().find(entry => entry.id === appId);
   const checkLocal = () => {
     const saved = readShellValueSync(`application.pending.${appId}`) || readShellValueSync(`application.install.${appId}`);
     if (saved && !sameApplicationRelease(JSON.parse(saved) as ApplicationManifest, manifest))
@@ -120,7 +79,10 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
       writeShellValue(`application.pending.access.${appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
       writeShellValue(`application.pending.${appId}`, JSON.stringify(manifest));
     }
-    if (item) writeShellValue(`application.market.${appId}`, JSON.stringify(item));
+    if (item) {
+      const metadata = JSON.stringify(item);
+      if (readShellValueSync(`application.market.${appId}`) !== metadata) writeShellValue(`application.market.${appId}`, metadata);
+    }
     (require("../../../../packages/features/src/registry") as typeof import("../../../../packages/features/src/registry")).registerApplicationMetadata(manifest);
     if (newlyInstalled) {
       if (entry) Object.assign(entry, { trashedAt: undefined, purged: false, hidden: false, pinned: true });
@@ -133,15 +95,9 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   };
   const acceptPublicRuntime = async () => {
     const running = active.get(appId);
-    const access = activeAccess.get(appId);
     if (!running || !sameApplicationRelease(running, manifest))
       throw new Error("本机正在使用其他版本，请从作品详情管理版本后再体验");
-    // Publishing does not change a candidate's identity. Verify its public
-    // availability before upgrading the author's old private access record.
-    if (!access?.public || access.ownerId) {
-      await verifyPublicPointer(manifest);
-      await verifyAccess(manifest, null);
-    }
+    // This exact version was supplied by the public market snapshot.
     signal.throwIfAborted();
     if (active.get(appId) !== running || quarantined.has(appId))
       throw new Error("本机应用状态已改变，请重试");
@@ -166,10 +122,11 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   }
   checkLocal();
   signal.throwIfAborted();
-  await prepareExperienceResources(manifest, signal);
+  await downloadApplicationResources(manifest, signal);
   // Native downloads finish even if the feed moved away. Keep completed,
-  // verified packages installed; cancellation only stops runtime warming.
+  // complete packages installed; cancellation only stops runtime warming.
   await persistDownload();
+  if (downloadOnly) return;
   signal.throwIfAborted();
   // Downloads may finish during a gesture. Yield again before staging/evaluating
   // code, and re-check cancellation and local selection after that wait.
@@ -219,10 +176,6 @@ export async function restoreDownloadedApplications() {
     } catch { /* Ignore incomplete downloads and invalid local records. */ }
   }
   if (changed) await saveCatalog(catalog);
-}
-async function verifyPublicPointer(manifest: ApplicationManifest) {
-  const published = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/public`);
-  if (!published.ok || (await published.json()).releaseId !== manifest.releaseId) throw new Error("公开版本已改变，请刷新作品列表");
 }
 // Generated from the dependency lock at host build time.
 const contract = require("./application-contract.json") as { engineAbi: string; sdk: string; shared: Record<string, string> };
@@ -313,8 +266,7 @@ export async function stageApplicationUpdates(appId?: string): Promise<number> {
     (active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId || !!appId && !installed.has(item.manifest.appId))
   );
   for (const { manifest, ownerId } of pending) {
-    if (!ownerId) await verifyPublicPointer(manifest);
-    await verifyAccess(manifest, ownerId);
+    if (ownerId) await verifyCandidateAccess(manifest, ownerId);
     await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
   }
   const currentCatalog = await loadCatalog();
@@ -322,8 +274,7 @@ export async function stageApplicationUpdates(appId?: string): Promise<number> {
   for (const { manifest, ownerId } of pending) {
     const entry = currentCatalog.find(entry => entry.id === manifest.appId);
     if (!appId && (!entry || entry.trashedAt || entry.purged)) continue;
-    if (!ownerId) await verifyPublicPointer(manifest);
-    await verifyAccess(manifest, ownerId);
+    if (ownerId) await verifyCandidateAccess(manifest, ownerId);
     writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId, public: !ownerId }));
     writeShellValue(`application.pending.${manifest.appId}`, JSON.stringify(manifest));
     if (!entry) currentCatalog.push({ id: manifest.appId, hidden: false, pinned: true });
@@ -404,7 +355,7 @@ async function load(appId: string) {
   if (!access || access.ownerId || !access.public) {
     try {
       const ownerId = access?.ownerId ?? null;
-      await verifyAccess(manifest, ownerId);
+      if (ownerId) await verifyCandidateAccess(manifest, ownerId);
       access = { releaseId: manifest.releaseId, ownerId, public: !ownerId };
     } catch (error) {
       if (!(error instanceof AccessDenied)) { if (!access?.public || access.ownerId) throw error; }
@@ -505,7 +456,6 @@ async function firstManifest(appId: string): Promise<ApplicationManifest> {
   const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/public`);
   if (!response.ok) throw new Error(`应用尚未安装或发布：${appId}`);
   const manifest = await response.json() as ApplicationManifest;
-  await verifyAccess(manifest, null);
   return manifest;
 }
 

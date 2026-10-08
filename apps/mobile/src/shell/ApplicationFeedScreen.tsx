@@ -243,7 +243,7 @@ type QueueProps = {
   render: Props["renderApplication"]; onPause: () => void; onResume: () => void; onDetail: Props["onDetail"];
 };
 function ExperienceQueue(props: QueueProps) {
-  const { entries, preparations, retry } = useApplicationExperienceQueue(props.items, props.index, props.active && !props.switching);
+  const { entries, preparations, retry } = useApplicationExperienceQueue(props.items, props.index, props.active, props.active && !props.switching);
   const current = props.items[props.index];
   const positions = useMemo(() => new Map(props.items.map((item, index) => [experienceId(item), index])), [props.items]);
   // Keep the retained app instances in feed order, with stable app/version identity.

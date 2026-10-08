@@ -18,12 +18,12 @@ export async function installApkUpdate(apk: PendingPackage, onProgress?: (value:
   const valid = async (path: string) => {
     if (!await BlobUtil.fs.exists(path)) return false;
     const stat = await BlobUtil.fs.stat(path);
-    return Number(stat.size) === apk.bytes && await BlobUtil.fs.hash(path, "sha256") === apk.sha256;
+    return Number(stat.size) === apk.bytes;
   };
   report("verifying", 0);
   if (!await BlobUtil.fs.exists(directory)) await BlobUtil.fs.mkdir(directory);
   if (!await valid(file)) {
-    // Only one verified APK and its temporary download are kept on the device.
+    // Only one complete APK and its temporary download are kept on the device.
     for (const name of await BlobUtil.fs.ls(directory)) {
       if (/^[a-f0-9]{64}\.apk(?:\.part)?$/.test(name)) await BlobUtil.fs.unlink(`${directory}/${name}`).catch(() => {});
     }
@@ -33,7 +33,7 @@ export async function installApkUpdate(apk: PendingPackage, onProgress?: (value:
         .progress({ interval: 250 }, received => report("downloading", Math.min(apk.bytes, Math.max(0, Number(received) || 0))));
       if (response.info().status !== 200) throw new Error("安装包下载失败，请重试");
       report("verifying");
-      if (!await valid(temporary)) throw new Error("安装包校验失败，请重新下载");
+      if (!await valid(temporary)) throw new Error("安装包下载不完整，请重新下载");
       await BlobUtil.fs.mv(temporary, file);
     } catch (error) {
       await BlobUtil.fs.unlink(temporary).catch(() => {});
