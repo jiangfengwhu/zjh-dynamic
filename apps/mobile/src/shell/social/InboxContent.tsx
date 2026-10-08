@@ -4,7 +4,7 @@ import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native
 import type { Gesture } from "react-native-gesture-handler";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { useTheme } from "../../../../../packages/ui/theme";
-import { PixelText as Text } from "../feed/PixelText";
+import { HostText as Text } from "../feed/HostText";
 import { UserAvatar } from "../UserAvatar";
 import type { PublicAuthor } from "../feed/userPosts";
 import { usePullToRefresh } from "../feed/pullToRefresh";

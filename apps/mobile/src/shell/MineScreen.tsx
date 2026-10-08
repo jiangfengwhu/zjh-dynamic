@@ -91,7 +91,7 @@ export const MineScreen = memo(function MineScreen({
             <UserAvatar uri={user?.avatarUrl} size={52} style={styles.portrait} />
             <View style={styles.profileCopy}>
               <Text numberOfLines={2} style={styles.profileName}>
-                {user?.name ?? "登录紫金花"}
+                {user?.name ?? "登录账号"}
               </Text>
               {!user ? <Text style={styles.profileHint}>邮箱验证码登录，开始创作</Text> : null}
             </View>
@@ -111,7 +111,7 @@ export const MineScreen = memo(function MineScreen({
           <Row
             icon={mode === "dark" ? "moon" : "sun"}
             title="外观"
-            hint="皮肤与深浅模式，即时切换"
+            hint="浅色、深色与跟随系统"
             value={mode === "dark" ? "深色" : "浅色"}
             onPress={onAppearance}
           />
@@ -251,15 +251,15 @@ function checkLabel(state: CheckState): string | undefined {
 }
 const useStyles = createThemedStyles((t) => ({
   screen: { backgroundColor: t.canvas },
-  content: { padding: 16, paddingTop: 12, gap: 12, paddingBottom: 24 },
+  content: { padding: 20, paddingTop: 16, gap: 20, paddingBottom: 24 },
   profile: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: t.line,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: t.amberTint,
   },
   portrait: { width: 52, height: 52, borderRadius: 26 },
   profileCopy: { flex: 1, minWidth: 0, gap: 4 },
@@ -275,12 +275,12 @@ const useStyles = createThemedStyles((t) => ({
   shortcut: {
     flex: 1,
     minWidth: 0,
-    padding: 12,
-    gap: 4,
+    padding: 18,
+    gap: 6,
     borderRadius: t.radius.md,
     borderWidth: 0.5,
     borderColor: t.line,
-    backgroundColor: t.surface,
+    backgroundColor: t.cyanTint,
   },
   shortcutHead: {
     flexDirection: "row",
@@ -289,8 +289,8 @@ const useStyles = createThemedStyles((t) => ({
     marginBottom: 8,
   },
   shortcutTitle: {
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 18,
+    lineHeight: 25,
     fontWeight: "700",
     color: t.ink1,
   },

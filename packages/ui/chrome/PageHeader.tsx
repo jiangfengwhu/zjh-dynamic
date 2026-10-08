@@ -1,138 +1,21 @@
 import { Text } from "../primitives/Typography";
 import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { ScreenBar } from "../edge";
 import { createThemedStyles, useTheme } from "../theme";
-import { Icon } from "./Icon";
 import { Pressy } from "./Pressy";
 import { SymbolIcon } from "./SymbolIcon";
-
-/** 返回键保持 44 点触控区域，与紧凑顶栏对齐。 */
 export function BackChip({ onPress }: { onPress: () => void }) {
-  const styles = useStyles();
-
   const { colors } = useTheme();
-  return (
-    <Pressy
-      accessibilityRole="button"
-      accessibilityLabel="返回上一级"
-      onPress={onPress}
-      scale={0.9}
-      style={styles.back}
-    >
-      <Icon name="back" size={20} color={colors.ink1} strokeWidth={1.9} />
-    </Pressy>
-  );
+  return <Pressy accessibilityLabel="返回上一级" onPress={onPress} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfaceRaised, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="back" size={21} color={colors.ink1} /></Pressy>;
 }
-
-/** 详情与设置共用的紧凑顶栏。 */
-export function PageHeader({
-  title,
-  caption,
-  onBack,
-  right,
-  variant = "default",
-}: {
-  title: string;
-  caption?: string;
-  onBack?: () => void;
-  right?: ReactNode;
-  variant?: "default" | "pixel";
-}) {
+export function PageHeader({ title, caption, onBack, right }: { title: string; caption?: string; onBack?: () => void; right?: ReactNode }) {
   const styles = useStyles();
-
-  const { colors } = useTheme();
-  return (
-    <ScreenBar
-      style={[
-        styles.bar,
-        variant === "pixel" && {
-          backgroundColor: colors.canvas,
-          borderBottomWidth: 0,
-          paddingHorizontal: 16,
-          paddingBottom: 2,
-        },
-      ]}
-    >
-      {onBack ? (
-        variant === "pixel" ? (
-          <Pressy
-            accessibilityRole="button"
-            accessibilityLabel="返回上一级"
-            onPress={onBack}
-            scale={1}
-            style={styles.back}
-          >
-            <SymbolIcon name="back" size={20} color={colors.ink1} />
-          </Pressy>
-        ) : (
-          <BackChip onPress={onBack} />
-        )
-      ) : null}
-      <View style={styles.titleBox}>
-        <Text
-          accessibilityRole="header"
-          style={[
-            styles.title,
-            variant === "pixel" && {
-              fontFamily: colors.typography.body,
-              fontSize: 21,
-              color: colors.ink1,
-            },
-          ]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-        {caption ? (
-          <Text style={styles.caption} numberOfLines={1}>
-            {caption}
-          </Text>
-        ) : null}
-      </View>
-      {right}
-    </ScreenBar>
-  );
+  return <ScreenBar style={styles.bar}>
+    {onBack ? <BackChip onPress={onBack} /> : null}
+    <View style={{ flex: 1, minWidth: 0, gap: 2 }}><Text accessibilityRole="header" style={styles.title} numberOfLines={1}>{title}</Text>{caption ? <Text variant="caption" style={styles.caption} numberOfLines={1}>{caption}</Text> : null}</View>
+    {right}
+  </ScreenBar>;
 }
-
-/** 告诉 Screen：状态栏这一段由顶栏自己铺，页面根容器不必再留顶部安全区。 */
 PageHeader.providesBar = true;
-
-const useStyles = createThemedStyles((t) => ({
-  bar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 4,
-    backgroundColor: t.canvas,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: t.line,
-  },
-  back: {
-    width: 44,
-    height: 44,
-    borderRadius: t.radius.sm,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  titleBox: {
-    flex: 1,
-    minWidth: 0,
-    gap: 1,
-  },
-  title: {
-    fontFamily: t.serif,
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: "700",
-    color: t.ink1,
-    letterSpacing: -0.4,
-  },
-  caption: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: t.ink3,
-  },
-}));
+const useStyles = createThemedStyles(t => ({ bar: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, minHeight: 64, backgroundColor: t.canvas }, title: { fontSize: 24, lineHeight: 31, fontWeight: "700", color: t.ink1, letterSpacing: -0.5 }, caption: { color: t.ink3 } }));

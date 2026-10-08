@@ -5,7 +5,7 @@ import { memo, useRef, useState } from "react";
 import { View } from "react-native";
 import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../packages/ui/chrome";
-import { PixelText as Text } from "./feed/PixelText";
+import { HostText as Text } from "./feed/HostText";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useTheme } from "../../../../packages/ui/theme";
 

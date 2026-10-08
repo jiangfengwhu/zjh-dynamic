@@ -306,8 +306,8 @@ function MyProfileContent({
                   marginTop: 8,
                   paddingLeft: 84,
                   paddingRight: 14,
-                  backgroundColor: colors.greenTint,
-                  borderRadius: 12,
+                  backgroundColor: colors.amberTint,
+                  borderRadius: 20,
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 12,
@@ -323,7 +323,7 @@ function MyProfileContent({
                       fontWeight: "700",
                     }}
                   >
-                    {user?.name ?? "登录紫金花"}
+                    {user?.name ?? "登录账号"}
                   </Text>
                   {author ? <View style={{ flexDirection: "row", gap: 12 }}>
                     <Pressy accessibilityRole="button" accessibilityLabel="查看我的关注" hitSlop={{ top: 10, bottom: 10 }} onPress={() => onConnections(author, "following")} style={{ minHeight: 24, justifyContent: "center" }}>

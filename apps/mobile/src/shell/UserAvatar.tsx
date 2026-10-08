@@ -1,9 +1,9 @@
 import { memo, useState } from "react";
 import { Image, View, StyleSheet, type ImageProps, type StyleProp, type ViewStyle } from "react-native";
-import { pixelAssets } from "./feed/pixelAssets";
+import { brandAssets } from "./feed/brandAssets";
 import { useAccount } from "./account";
 
-export const defaultAvatarSource = { uri: `data:image/webp;base64,${pixelAssets.avatar.base64}` };
+export const defaultAvatarSource = { uri: `data:image/webp;base64,${brandAssets.avatar.base64}` };
 
 /** All user identities share one fallback, round crop and current-account avatar. */
 export const UserAvatar = memo(function UserAvatar({ uri, authorId, size = 36, style, onError }: {

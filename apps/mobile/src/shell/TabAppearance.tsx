@@ -5,9 +5,9 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { SymbolIcon, type IconSymbol } from "../../../../packages/ui/chrome/SymbolIcon";
-import { PixelText } from "./feed/PixelText";
+import { HostText } from "./feed/HostText";
 
-const AnimatedPixelText = Animated.createAnimatedComponent(PixelText);
+const AnimatedHostText = Animated.createAnimatedComponent(HostText);
 
 /** Labels follow the same UI-thread progress as the selection indicator. */
 export function TabLabel({
@@ -51,12 +51,12 @@ export function TabLabel({
           </Animated.View>
         </View>
       ) : null}
-      <AnimatedPixelText
+      <AnimatedHostText
         accessible={false}
-        style={[{ fontSize: 13, lineHeight: 20, textAlign: "center" }, textStyle]}
+        style={[{ fontSize: 14, lineHeight: 21, fontWeight: "600", textAlign: "center" }, textStyle]}
       >
         {label}
-      </AnimatedPixelText>
+      </AnimatedHostText>
     </View>
   );
 }

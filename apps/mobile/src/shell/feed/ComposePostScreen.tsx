@@ -402,7 +402,6 @@ export function ComposePostScreen({
       {!embedded ? (
         <PageHeader
           title={modeTabs ? "发布" : "发动态"}
-          variant="pixel"
           onBack={busy ? undefined : onBack}
         />
       ) : null}
@@ -424,7 +423,7 @@ export function ComposePostScreen({
             </Pressy>
           </View>
           {previewing ? (
-            <View style={{ gap: 8, minHeight: 144 }}>
+            <View style={{ gap: 8, minHeight: 176 }}>
               {htmlMode && caption ? <Text style={styles.previewText}>{caption}</Text> : null}
               {htmlMode ? <HtmlPostContent html={previewHtml} /> : <Text selectable style={styles.previewText}>{text || "还没有内容，点击编辑开始输入"}</Text>}
             </View>
@@ -656,7 +655,7 @@ const useStyles = createThemedStyles((base) => {
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     fill: { flex: 1 },
-    content: { paddingHorizontal: 16, paddingTop: 6, gap: 10, paddingBottom: 10 },
+    content: { paddingHorizontal: 20, paddingTop: 8, gap: 16, paddingBottom: 10 },
     previewText: { color: t.ink1, fontSize: 15, lineHeight: 22 },
     htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
     htmlAction: { minHeight: 44, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
@@ -667,10 +666,12 @@ const useStyles = createThemedStyles((base) => {
     input: {
       minHeight: 144,
       color: t.ink1,
-      fontSize: 15,
-      lineHeight: 22,
-      padding: 12,
-      borderRadius: t.radius.xs,
+      fontSize: 16,
+      lineHeight: 25,
+      padding: 16,
+      borderRadius: t.radius.md,
+      borderWidth: 1,
+      borderColor: t.lineStrong,
       backgroundColor: t.field,
     },
     photos: { flexDirection: "row", gap: 8, flexWrap: "wrap" },

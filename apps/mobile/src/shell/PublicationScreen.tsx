@@ -132,7 +132,6 @@ function PublicationContent({
         title={
           lockedCreation ? (creation?.fork ? "Remix" : "修改应用") : "发布"
         }
-        variant="pixel"
         onBack={postControls?.busy || creating ? undefined : onBack}
       />
       {lockedCreation ? (

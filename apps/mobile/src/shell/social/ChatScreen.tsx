@@ -7,7 +7,7 @@ import { Pressy } from "../../../../../packages/ui/chrome";
 import { KeyboardViewport } from "../KeyboardViewport";
 import { FormField } from "../FormField";
 import { UserAvatar } from "../UserAvatar";
-import { PixelText as Text } from "../feed/PixelText";
+import { HostText as Text } from "../feed/HostText";
 import { useTheme } from "../../../../../packages/ui/theme";
 import type { PublicAuthor } from "../feed/userPosts";
 import { readShellValue, writeShellValue, removeShellValue } from "../shellStorage";

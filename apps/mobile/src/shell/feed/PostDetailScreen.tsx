@@ -2,10 +2,10 @@ import { waitForInteractions } from "../interactionWork";
 import { TextInput as NativeTextInput } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
-import { PixelText as Text } from "./PixelText";
+import { HostText as Text } from "./HostText";
 import { ActivityIndicator } from "react-native";
 import { PageSkeleton } from "../LoadingSkeleton";
-import { PixelAlert as Alert } from "../PixelAlert";
+import { HostAlert as Alert } from "../HostAlert";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
@@ -114,7 +114,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
     })(); } }]);
   }
   return <ScreenEdge bottom={false}><Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-    <PageHeader variant="pixel" title="动态" onBack={onBack} />
+    <PageHeader title="动态" onBack={onBack} />
     <KeyboardViewport backgroundColor={colors.canvas}>
       <View style={{ flex: 1, backgroundColor: colors.canvas }}>
       <PullRefreshSurface refresh={refreshPull}>
@@ -135,7 +135,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
       </View>
       <View style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.canvas, borderTopWidth: 0.5, borderTopColor: colors.line, gap: 8 }}>
         {reply ? <Pressable disabled={sending} onPress={() => setReply(null)}><Text style={{ color: colors.accentText }}>回复 {reply.author.name} · 取消</Text></Pressable> : null}
-        <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}><TextInput ref={input} onFocus={() => { jumped.current = true; }} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="写下你的评论…" placeholderTextColor={colors.ink3} style={{ flex: 1, color: colors.ink1, fontSize: 15, maxHeight: 120, minHeight: 42, padding: 10, backgroundColor: colors.surface, borderColor: colors.line, borderRadius: colors.radius.sm }} />
+        <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}><TextInput ref={input} onFocus={() => { jumped.current = true; }} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="写下你的评论…" placeholderTextColor={colors.ink3} style={{ flex: 1, color: colors.ink1, fontSize: 15, maxHeight: 120, minHeight: 42, padding: 10, backgroundColor: colors.field, borderWidth: 1, borderColor: colors.lineStrong, borderRadius: colors.radius.md }} />
           <Pressy accessibilityRole="button" accessibilityLabel="发送评论" disabled={!draftReady || sending || !!deleting || !text.trim() || count > 1000} onPress={() => void send()} style={{ backgroundColor: colors.accent, borderRadius: colors.radius.sm, minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, opacity: !text.trim() || count > 1000 || !!deleting ? 0.4 : 1 }}>{sending ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontWeight: "700" }}>发送</Text>}</Pressy></View>
         {count > 800 ? <Text style={{ color: count > 1000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 12 }}>{count}/1000</Text> : null}
       </View>

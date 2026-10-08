@@ -1,6 +1,6 @@
 import type { AlertButton, AlertOptions } from "react-native";
 
-export type PixelAlertRequest = {
+export type HostAlertRequest = {
   id: number;
   title: string;
   message?: string;
@@ -8,14 +8,14 @@ export type PixelAlertRequest = {
   options?: AlertOptions;
 };
 let sequence = 0;
-const queue: PixelAlertRequest[] = [];
+const queue: HostAlertRequest[] = [];
 const listeners = new Set<() => void>();
 function notify() {
   listeners.forEach((listener) => listener());
 }
 
 /** Host-owned confirmations retain native Alert callback semantics. */
-export const PixelAlert = {
+export const HostAlert = {
   alert(
     title: string,
     message?: string,
@@ -32,16 +32,16 @@ export const PixelAlert = {
     notify();
   },
 };
-export function currentPixelAlert() {
+export function currentHostAlert() {
   return queue[0];
 }
-export function subscribePixelAlerts(listener: () => void) {
+export function subscribeHostAlerts(listener: () => void) {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
-export function finishPixelAlert(id: number, button?: AlertButton) {
+export function finishHostAlert(id: number, button?: AlertButton) {
   if (queue[0]?.id !== id) return;
   const request = queue.shift()!;
   notify();

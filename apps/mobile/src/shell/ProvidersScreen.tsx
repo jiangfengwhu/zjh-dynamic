@@ -1,7 +1,7 @@
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { useRouteRequestReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
-import { PixelAlert as Alert } from "./PixelAlert";
+import { HostAlert as Alert } from "./HostAlert";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";

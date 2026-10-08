@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import Svg, { Path } from "react-native-svg";
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -13,7 +12,7 @@ import type { IconSymbol } from "../../../../packages/ui/chrome/SymbolIcon";
 import { TabLabel } from "./TabAppearance";
 import { useTheme } from "../../../../packages/ui/theme";
 
-/** A shared pixel-cut switch: one UI-thread selection surface, no nested pill. */
+/** Labels and the selection surface share native pager progress. */
 export function CompactTabs<T extends string>({
   value,
   options,
@@ -27,7 +26,7 @@ export function CompactTabs<T extends string>({
   tone?: "sun" | "mint" | "berry" | "violet";
   position?: SharedValue<number>;
 }) {
-  const { colors, skin } = useTheme();
+  const { colors } = useTheme();
   const [width, setWidth] = useState(0);
   const slot = options.length ? width / options.length : 0;
   const index = Math.max(
@@ -49,7 +48,7 @@ export function CompactTabs<T extends string>({
     }],
   }));
   const fill =
-    skin === "soft" ? colors.accent : tone === "mint"
+    tone === "mint"
       ? colors.green
       : tone === "berry"
         ? colors.red
@@ -65,8 +64,8 @@ export function CompactTabs<T extends string>({
         width: Math.min(options.length * 112, 336),
         maxWidth: "100%",
         height: 44,
-        backgroundColor: "transparent",
-        borderRadius: 4,
+        backgroundColor: colors.surfaceRaised,
+        borderRadius: colors.radius.pill,
       }}
     >
       {slot > 0 ? (
@@ -76,24 +75,14 @@ export function CompactTabs<T extends string>({
             {
               position: "absolute",
               left: 0,
-              top: 5,
-              bottom: 5,
+              top: 4,
+              bottom: 4,
               width: slot,
             },
             motion,
           ]}
         >
-          {skin === "soft" ? <View style={{ flex: 1, borderRadius: colors.components.controlRadius, backgroundColor: fill }} /> : <Svg
-            width="100%"
-            height="100%"
-            viewBox={`0 0 ${slot} 34`}
-            preserveAspectRatio="none"
-          >
-            <Path
-              d={`M3 0H${slot - 3}V3H${slot}V31H${slot - 3}V34H3V31H0V3H3Z`}
-              fill={fill}
-            />
-          </Svg>}
+          <View style={{ flex: 1, marginHorizontal: 4, borderRadius: colors.radius.pill, backgroundColor: fill }} />
         </Animated.View>
       ) : null}
       {options.map((item, itemIndex) => (

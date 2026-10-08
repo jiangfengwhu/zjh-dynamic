@@ -1,7 +1,4 @@
 import { Search, Plus, Bell, Heart, MessageCircle, ArrowRight, Sparkles, Newspaper, Box, User, Share2, MoreHorizontal, Check, ChevronDown, RefreshCw, TriangleAlert, Image, Layers, ArrowLeft, X, Send, Square, PenLine, Info, Settings, Cloud, Clock, Sun, Moon } from "lucide-react-native";
-import { useTheme } from "../theme";
-import { Image as NativeImage } from "react-native";
-import { pixelGlyphs } from "./pixelGlyphs";
 
 export type IconSymbol =
   | "search"
@@ -34,24 +31,8 @@ export type IconSymbol =
   | "clock"
   | "sun"
   | "moon";
-function PixelGlyph({
-  name,
-  size = 20,
-  color,
-}: {
-  name: IconSymbol;
-  size?: number;
-  color: string;
-}) {
-  return (
-    <NativeImage source={pixelGlyphs[name]} style={{ width: size, height: size, tintColor: color }} resizeMode="contain" fadeDuration={0} accessible={false} />
-  );
-}
-
 const symbols = { search: Search, plus: Plus, bell: Bell, heart: Heart, chat: MessageCircle, arrow: ArrowRight, spark: Sparkles, feed: Newspaper, box: Box, mine: User, heartOutline: Heart, share: Share2, more: MoreHorizontal, check: Check, down: ChevronDown, refresh: RefreshCw, alert: TriangleAlert, photo: Image, layers: Layers, back: ArrowLeft, close: X, send: Send, stop: Square, edit: PenLine, info: Info, engine: Settings, cloud: Cloud, clock: Clock, sun: Sun, moon: Moon };
 export function SymbolIcon({ name, size = 20, color, strokeWidth = 1.8 }: { name: IconSymbol; size?: number; color: string; strokeWidth?: number }) {
-  const { skin } = useTheme();
-  if (skin === "pixel-street") return <PixelGlyph name={name} size={size} color={color} />;
   const Glyph = symbols[name];
   return <Glyph size={size} color={color} strokeWidth={strokeWidth} fill={name === "heart" ? color : "none"} accessible={false} />;
 }

@@ -1,4 +1,4 @@
-import { PixelAlert as Alert } from "./PixelAlert";
+import { HostAlert as Alert } from "./HostAlert";
 
 import { currentAccountId, requireAccount } from "./account";
 

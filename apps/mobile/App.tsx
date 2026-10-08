@@ -21,7 +21,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { KeyboardViewport } from "../../packages/ui/keyboard";
-import { PixelFeedback } from "./src/shell/PixelFeedback";
+import { Feedback } from "./src/shell/Feedback";
 import {
   bundles,
   openFeature,
@@ -39,7 +39,7 @@ import {
 import { openShellBundle, ShellNavigator } from "./src/shell/navigation";
 import { Icon, Pressy } from "../../packages/ui/chrome";
 import { BackButton } from "./src/shell/BackButton";
-import { createThemedStyles, type SkinId, type ThemePreference } from "../../packages/ui/theme";
+import { createThemedStyles, type ThemePreference } from "../../packages/ui/theme";
 import { ThemeProvider } from "../../packages/ui/ThemeProvider";
 
 import {
@@ -129,13 +129,13 @@ function FeatureFailure(props: BoundaryProps) {
   );
 }
 
-type Appearance = { skin: SkinId; mode: ThemePreference };
+type Appearance = { mode: ThemePreference };
 function storedAppearance(): Appearance {
   try {
     const value = JSON.parse(readShellValueSync("appearance.v2") ?? "null");
-    if (value && ["pixel-street", "soft"].includes(value.skin) && ["system", "light", "dark"].includes(value.mode)) return value;
+    if (value && ["system", "light", "dark"].includes(value.mode)) return { mode: value.mode };
   } catch {}
-  return { skin: "pixel-street", mode: "system" };
+  return { mode: "system" };
 }
 function HostAppearance({ children }: { children: ReactNode }) {
   const [appearance, setAppearance] = useState<Appearance>(storedAppearance);
@@ -146,8 +146,7 @@ function HostAppearance({ children }: { children: ReactNode }) {
     }, { timeout: 1000 });
     return () => cancelIdleCallback(idle);
   }, [appearance]);
-  return <ThemeProvider skin={appearance.skin} mode={appearance.mode}
-    onSkin={skin => setAppearance(current => ({ ...current, skin }))}
+  return <ThemeProvider mode={appearance.mode}
     onMode={mode => setAppearance(current => ({ ...current, mode }))}>{children}</ThemeProvider>;
 }
 
@@ -426,7 +425,7 @@ function ShellApp() {
           />
         ) : null}
       </View>
-      <PixelFeedback />
+      <Feedback />
     </>
   );
 }

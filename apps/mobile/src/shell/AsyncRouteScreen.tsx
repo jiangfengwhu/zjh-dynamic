@@ -7,7 +7,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { Screen } from "../../../../packages/ui/edge";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { ThemeContext } from "../../../../packages/ui/theme";
-import { PixelText as Text } from "./feed/PixelText";
+import { HostText as Text } from "./feed/HostText";
 import { useTheme } from "../../../../packages/ui/theme";
 import { PageSkeleton } from "./LoadingSkeleton";
 
@@ -49,7 +49,7 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
   if (visible) return <View style={{ flex: 1 }}><View style={{ flex: 1 }}>{children(visible.value)}</View>{error ? <Pressy onPress={() => { setError(null); setAttempt(value => value + 1); }}><Text>同步未完成 · 点击重试</Text></Pressy> : null}</View>;
   return <ThemeContext.Provider value={theme}>
     <Screen style={{ flex: 1, backgroundColor: theme.colors.canvas }}>
-      <PageHeader variant="pixel" title={title} onBack={onBack} />
+      <PageHeader title={title} onBack={onBack} />
       <View style={{ padding: 16, gap: 16 }}>
         {error ? <>
           <Text accessibilityRole="alert" style={{ color: theme.colors.redText }}>{error.message}</Text>

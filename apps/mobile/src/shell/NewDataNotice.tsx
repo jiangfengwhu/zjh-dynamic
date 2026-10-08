@@ -1,7 +1,7 @@
 import { UserAvatar } from "./UserAvatar";
 import { View } from "react-native";
 import { Pressy } from "../../../../packages/ui/chrome";
-import { PixelText as Text } from "./feed/PixelText";
+import { HostText as Text } from "./feed/HostText";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useTheme } from "../../../../packages/ui/theme";
 /** An overlay never shifts the list or replaces data under the reader. */

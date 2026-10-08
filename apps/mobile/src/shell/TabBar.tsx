@@ -1,4 +1,4 @@
-import { PixelText as Text } from "./feed/PixelText";
+import { HostText as Text } from "./feed/HostText";
 import { useEffect } from "react";
 import { View } from "react-native";
 import Animated, {
@@ -55,16 +55,16 @@ export function TabBar({
         onPress={onCompose}
         scale={1}
         style={{
-          width: 48,
-          height: 48,
-          borderRadius: colors.components.controlRadius,
+          width: 52,
+          height: 52,
+          borderRadius: 26,
           alignSelf: "center",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: colors.orchid,
+          backgroundColor: colors.accent,
         }}
       >
-        <SymbolIcon name="plus" size={22} color={colors.onOrchid} />
+        <SymbolIcon name="plus" size={22} color={colors.onAccent} />
       </Pressy>
       {SHELL_TABS.slice(2).map((item) => (
         <Tab
@@ -116,8 +116,8 @@ function Tab({
       <View style={styles.icon}>
         <SymbolIcon
           name={item.icon}
-          size={20}
-          color={active ? colors.onAccent : colors.ink3}
+          size={22}
+          color={active ? colors.ink1 : colors.ink3}
         />
         {unread > 0 ? (
           <View
@@ -132,7 +132,7 @@ function Tab({
         numberOfLines={1}
         style={[
           styles.label,
-          active && { color: colors.onAccent, fontWeight: "700" },
+          active && { color: colors.ink1, fontWeight: "700" },
         ]}
       >
         {item.title}
@@ -145,17 +145,19 @@ const useStyles = createThemedStyles((base) => {
   return {
     bar: {
       flexDirection: "row",
-      backgroundColor: "transparent",
-      marginHorizontal: 12,
+      backgroundColor: t.surface,
+      marginHorizontal: 16,
       borderRadius: t.radius.lg,
-      paddingHorizontal: 8,
+      paddingHorizontal: 6,
       paddingVertical: 8,
-      gap: 8,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: t.line,
     },
     tab: {
       flex: 1,
       minWidth: 0,
-      minHeight: 44,
+      minHeight: 48,
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
@@ -168,9 +170,7 @@ const useStyles = createThemedStyles((base) => {
       left: 0,
       right: 0,
       borderRadius: t.radius.md,
-      borderWidth: 0.5,
-      borderColor: t.accentSoft,
-      backgroundColor: t.accent,
+      backgroundColor: t.amberTint,
     },
     icon: { alignItems: "center", justifyContent: "center" },
     unread: {
@@ -181,6 +181,6 @@ const useStyles = createThemedStyles((base) => {
       height: 5,
       borderRadius: 3,
     },
-    label: { fontSize: 12, lineHeight: 17, color: t.ink3, flexShrink: 1 },
+    label: { fontSize: 11, lineHeight: 16, color: t.ink3, flexShrink: 1 },
   };
 });

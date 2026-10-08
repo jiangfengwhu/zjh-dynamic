@@ -4,14 +4,14 @@ import { Screen, ScreenEdge } from "../../../../../packages/ui/edge";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { ThemeContext } from "../../../../../packages/ui/theme";
 import { useTheme } from "../../../../../packages/ui/theme";
-import { PixelText as Text } from "../feed/PixelText";
+import { HostText as Text } from "../feed/HostText";
 import { EmptyState } from "../EmptyState";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { requireAccount } from "../account";
 export function SocialFrame({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
   const theme = useTheme();
   return <ThemeContext.Provider value={theme}><ScreenEdge bottom={false}><Screen style={{ flex: 1, backgroundColor: theme.colors.canvas }}>
-    <PageHeader variant="pixel" title={title} onBack={onBack} />
+    <PageHeader title={title} onBack={onBack} />
     {children}
   </Screen></ScreenEdge></ThemeContext.Provider>;
 }

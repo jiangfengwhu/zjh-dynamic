@@ -6,11 +6,11 @@ import { useLiveVersion } from "../liveEvents";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { NewDataNotice } from "../NewDataNotice";
-import { PixelText as Text } from "./PixelText";
+import { HostText as Text } from "./HostText";
 import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
 import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
-import { PixelText } from "./PixelText";
+import { HostText } from "./HostText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
 import { cloneElement, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, View, type FlatListProps, type ScrollViewProps } from "react-native";
@@ -59,7 +59,7 @@ import { type MarketApplication } from "../market";
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as typeof FlashList;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
-const FEED_PAGE_INSET = 16;
+const FEED_PAGE_INSET = 20;
 function timelineItemType({ post }: { post: UserPost }) {
   return post.content?.format === "html" ? "html" : post.images.length ? "images" : post.application ? "application" : "text";
 }
@@ -876,7 +876,7 @@ function FeedSeparator() {
   return <View style={styles.separator} />;
 }
 
-const feedPresentation = { Text: PixelText, compact: true, frameInset: 0 };
+const feedPresentation = { Text: HostText, compact: true, frameInset: 0 };
 
 function formatWhen(ms: number): string {
   const delta = Date.now() - ms;
@@ -909,8 +909,7 @@ const useStyles = createThemedStyles((base) => {
       alignItems: "center",
       backgroundColor: t.accent,
       borderRadius: t.components.controlRadius,
-      borderWidth: t.components.surfaceBorder,
-      borderColor: t.accentSoft,
+      borderWidth: 0,
     },
     profileControl: {
       width: 44,
@@ -933,8 +932,8 @@ const useStyles = createThemedStyles((base) => {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      paddingTop: 4,
-      paddingBottom: 4,
+      paddingTop: 8,
+      paddingBottom: 10,
     },
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },

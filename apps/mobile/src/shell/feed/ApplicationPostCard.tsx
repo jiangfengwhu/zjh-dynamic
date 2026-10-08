@@ -1,6 +1,6 @@
 import { ApplicationIcon } from "../ApplicationIcon";
 import { ActivityIndicator } from "react-native";
-import { PixelText as Text } from "./PixelText";
+import { HostText as Text } from "./HostText";
 import { useRef, useState } from "react";
 import { View } from "react-native";
 import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
@@ -46,16 +46,16 @@ export function ApplicationPostCard({
       disabled={preview || busy}
       onPress={() => void open()}
       style={{
-        marginTop: 3,
-        paddingHorizontal: 12,
-        paddingVertical: 5,
+        marginTop: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         borderRadius: 12,
         borderWidth: 0.5,
         borderColor: colors.line,
-        backgroundColor: colors.skin === "pixel-street" ? colors.inset : undefined,
+        backgroundColor: colors.surfaceRaised,
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        gap: 12,
       }}
     >
       <View
@@ -63,7 +63,7 @@ export function ApplicationPostCard({
           width: 44,
           height: 44,
           borderRadius: 22,
-          backgroundColor: `${application.accent}18`,
+          backgroundColor: "transparent",
           alignItems: "center",
           justifyContent: "center",
         }}

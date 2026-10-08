@@ -27,15 +27,15 @@ import {
   setModalFeedbackRenderer,
 } from "../../../../packages/ui/edge";
 import { ThemeContext } from "../../../../packages/ui/theme";
-import { PixelText as Text } from "./feed/PixelText";
+import { HostText as Text } from "./feed/HostText";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useTheme } from "../../../../packages/ui/theme";
 import {
-  currentPixelAlert,
-  finishPixelAlert,
-  subscribePixelAlerts,
-  type PixelAlertRequest,
-} from "./PixelAlert";
+  currentHostAlert,
+  finishHostAlert,
+  subscribeHostAlerts,
+  type HostAlertRequest,
+} from "./HostAlert";
 
 function FeedbackToast({
   text1,
@@ -69,17 +69,17 @@ function FeedbackToast({
       style={{
         width: Math.min(width - 32, 420),
         borderRadius: colors.components.dialogRadius,
-        backgroundColor: colors.canvas,
-        borderWidth: 0.5,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
         borderColor: colors.lineStrong,
         flexDirection: "row",
         alignItems: "center",
-        paddingLeft: 10,
-        paddingVertical: 6,
-        gap: 8,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        gap: 12,
         shadowColor: colors.ink1,
         shadowOpacity: 0.12,
-        shadowRadius: colors.skin === "pixel-street" ? 0 : 16,
+        shadowRadius: 16,
         shadowOffset: { width: 0, height: 3 },
         elevation: 4,
       }}
@@ -195,7 +195,7 @@ export function PixelToasts({ modal = false }: { modal?: boolean }) {
     />
   );
 }
-function Confirmation({ request }: { request: PixelAlertRequest }) {
+function Confirmation({ request }: { request: HostAlertRequest }) {
   const theme = useTheme();
   const { colors } = theme;
   const insets = useSafeAreaInsets();
@@ -235,7 +235,7 @@ function Confirmation({ request }: { request: PixelAlertRequest }) {
       button = cancel;
     }
     closing.current = true;
-    const finish = () => finishPixelAlert(request.id, button);
+    const finish = () => finishHostAlert(request.id, button);
     progress.value = withTiming(
       0,
       {
@@ -315,8 +315,8 @@ function Confirmation({ request }: { request: PixelAlertRequest }) {
                 overflow: "hidden",
                 shadowColor: colors.ink1,
                 shadowOpacity: 0.2,
-                shadowRadius: colors.skin === "pixel-street" ? 0 : 16,
-                shadowOffset: colors.skin === "pixel-street" ? { width: 4, height: 4 } : { width: 0, height: 6 },
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 6 },
                 elevation: 8,
               },
               motion,
@@ -435,14 +435,14 @@ function Confirmation({ request }: { request: PixelAlertRequest }) {
     </ThemeContext.Provider>
   );
 }
-export function PixelFeedback() {
-  const [request, setRequest] = useState(currentPixelAlert);
+export function Feedback() {
+  const [request, setRequest] = useState(currentHostAlert);
   useEffect(() => {
     const stopModalFeedback = setModalFeedbackRenderer(() => (
       <PixelToasts modal />
     ));
-    const off = subscribePixelAlerts(() => setRequest(currentPixelAlert()));
-    setRequest(currentPixelAlert());
+    const off = subscribeHostAlerts(() => setRequest(currentHostAlert()));
+    setRequest(currentHostAlert());
     return () => {
       off();
       stopModalFeedback();

@@ -10,7 +10,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input({ label, h
   const [focused, setFocused] = useState(false);
   const labelId = useId();
   return <Field label={label} labelId={labelId} hint={helperText} error={error} style={containerStyle}>
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, minHeight: colors.components.controlHeight, paddingHorizontal: colors.spacing.control, borderRadius: colors.components.controlRadius, backgroundColor: colors.field, borderWidth: 1, borderColor: error ? colors.red : focused ? colors.accentText : colors.lineStrong, opacity: disabled || props.editable === false ? 0.55 : 1 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, minHeight: colors.components.controlHeight, paddingHorizontal: colors.spacing.control, borderRadius: colors.components.controlRadius, backgroundColor: colors.field, borderWidth: 1, borderColor: error ? colors.red : focused ? colors.accentText : colors.line, opacity: disabled || props.editable === false ? 0.55 : 1 }}>
       {leftSlot}<TextInput {...props} editable={!disabled && props.editable !== false} ref={ref} accessibilityLabel={accessibilityLabel ?? label} accessibilityLabelledBy={label ? labelId : props.accessibilityLabelledBy}
         accessibilityState={{ ...props.accessibilityState, disabled: disabled || props.editable === false }}
         accessibilityHint={accessibilityHint ?? error ?? helperText}

@@ -15,7 +15,7 @@ import PagerView, {
 } from "react-native-pager-view";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
-import { PixelText as Text } from "./feed/PixelText";
+import { HostText as Text } from "./feed/HostText";
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
@@ -712,9 +712,9 @@ const useStyles = createThemedStyles((base) => {
       flexDirection: "row",
       alignItems: "center",
       paddingLeft: 12,
-      borderRadius: t.radius.sm,
+      borderRadius: t.radius.pill,
       backgroundColor: t.surface,
-      borderWidth: 0.5,
+      borderWidth: 1,
       borderColor: t.lineStrong,
       gap: 8,
     },
@@ -746,8 +746,8 @@ const useStyles = createThemedStyles((base) => {
       minHeight: 88,
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      paddingVertical: 8,
+      gap: 14,
+      paddingVertical: 16,
       borderBottomWidth: 0.5,
       borderBottomColor: t.line,
     },
@@ -759,8 +759,8 @@ const useStyles = createThemedStyles((base) => {
       justifyContent: "center",
       overflow: "hidden",
     },
-    name: { color: t.ink1, fontSize: 16, lineHeight: 21, fontWeight: "600" },
-    summary: { color: t.ink2, fontSize: 12, lineHeight: 17 },
+    name: { color: t.ink1, fontSize: 17, lineHeight: 24, fontWeight: "700" },
+    summary: { color: t.ink2, fontSize: 13, lineHeight: 20 },
     official: {
       color: t.orchidText,
       backgroundColor: t.orchidTint,
@@ -771,7 +771,7 @@ const useStyles = createThemedStyles((base) => {
       paddingVertical: 2,
       overflow: "hidden",
     },
-    category: { color: t.ink3, fontSize: 10, lineHeight: 14 },
+    category: { color: t.ink3, fontSize: 11, lineHeight: 17 },
     openMark: {
       width: 42,
       minHeight: 42,

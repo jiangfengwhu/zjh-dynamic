@@ -33,7 +33,8 @@ export function FeedItemHeading({
       style={{
         flexShrink: 1,
         fontSize: 15,
-        lineHeight: 20,
+        lineHeight: 22,
+        fontWeight: "700",
         color: colors.ink1,
       }}
     >
@@ -66,9 +67,9 @@ export function FeedItemHeading({
         numberOfLines={1}
         style={{
           flexShrink: 1,
-          fontSize: 11,
-          lineHeight: 17,
-          fontFamily: colors.mono,
+          fontSize: 12,
+          lineHeight: 18,
+          fontFamily: colors.sans,
           color: colors.ink3,
         }}
       >
@@ -122,7 +123,7 @@ export function FeedItemFrame({
   const compact = useCompactFeed();
   const frameInset = useFeedFrameInset();
   const rowWidth = useFeedRowWidth();
-  const contentWidth = rowWidth === undefined ? undefined : Math.max(1, rowWidth - frameInset * 2 - (detail ? 0 : 44 + (compact ? 5 : 10)));
+  const contentWidth = rowWidth === undefined ? undefined : Math.max(1, rowWidth - frameInset * 2 - (detail ? 0 : 44 + (compact ? 10 : 12)));
   const avatarSlot = (
     <View style={{ width: detail ? 36 : 44, height: 44, alignItems: "center" }}>
       {avatar}
@@ -133,8 +134,8 @@ export function FeedItemFrame({
       style={[
         {
           paddingHorizontal: frameInset,
-          paddingTop: compact ? 4 : detail ? 6 : 8,
-          paddingBottom: compact ? 3 : detail ? 4 : 6,
+          paddingTop: detail ? 6 : 14,
+          paddingBottom: detail ? 8 : 12,
         },
         style,
       ]}
@@ -143,7 +144,7 @@ export function FeedItemFrame({
         style={{
           flexDirection: "row",
           alignItems: "flex-start",
-          gap: compact ? 5 : 10,
+          gap: compact ? 10 : 12,
         }}
       >
         {onIdentity ? (
@@ -158,7 +159,7 @@ export function FeedItemFrame({
         ) : (
           avatarSlot
         )}
-        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+        <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
           <FeedItemHeading
             name={name}
             time={time}
@@ -167,7 +168,7 @@ export function FeedItemFrame({
             onIdentity={onIdentity}
             menu={menu}
           />
-          {!detail ? <><View style={{ gap: 3 }}>{content}</View>{actions}</> : null}
+          {!detail ? <><View style={{ gap: 8 }}>{content}</View>{actions}</> : null}
         </View>
       </View>
       {detail ? <View style={{ gap: 6, paddingTop: 6 }}><View style={{ gap: 3 }}>{content}</View>{actions}</View> : null}

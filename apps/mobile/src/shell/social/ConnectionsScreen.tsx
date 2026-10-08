@@ -6,7 +6,7 @@ import Animated, { runOnJS, useEvent, useSharedValue, useAnimatedScrollHandler }
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { CompactTabs } from "../CompactTabs";
 import { UserAvatar } from "../UserAvatar";
-import { PixelText as Text } from "../feed/PixelText";
+import { HostText as Text } from "../feed/HostText";
 import { useTheme } from "../../../../../packages/ui/theme";
 import { setAuthorFollow, type PublicAuthor } from "../feed/userPosts";
 import { usePullToRefresh } from "../feed/pullToRefresh";

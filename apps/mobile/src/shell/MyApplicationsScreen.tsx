@@ -5,7 +5,7 @@ import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
 import { ActivityIndicator } from "react-native";
 import { PageSkeleton } from "./LoadingSkeleton";
 import { useEffect, useRef, useState } from "react";
-import { PixelAlert } from "./PixelAlert";
+import { HostAlert } from "./HostAlert";
 import NativePluginHost from "../NativePluginHost";
 import { AppState, View } from "react-native";
 import Animated, { useSharedValue } from "react-native-reanimated";
@@ -45,7 +45,7 @@ import { readMyWorks, workLabels, type MyWork } from "./works";
 import { WorkCard } from "./WorkCard";
 import { marketDefinition } from "./market";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
-import { PixelText as Text } from "./feed/PixelText";
+import { HostText as Text } from "./feed/HostText";
 import { useTheme } from "../../../../packages/ui/theme";
 
 /** One collection per surface: creations on profiles, installs in the market. */
@@ -313,7 +313,7 @@ export function MyApplicationsScreen({
             : "应用已更新，本机数据保留",
       });
       if (status === "pending")
-        PixelAlert.alert(
+        HostAlert.alert(
           "应用已更新，重新加载？",
           "新版已下载，本机数据保留。当前加载器需要重新加载整个 App 才能替换已运行的版本，其他页面会退出。",
           [
@@ -401,7 +401,6 @@ export function MyApplicationsScreen({
     <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
       {!embedded ? (
         <PageHeader
-          variant="pixel"
           title={scope === "works" ? "我的作品" : "我安装的"}
           onBack={onBack}
         />

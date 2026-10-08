@@ -1,7 +1,7 @@
 export { Icon, type IconName } from "../../ui/chrome/Icon";
 export { Pressy, type PressyProps } from "../../ui/chrome/Pressy";
 export { Surface, type SurfaceTone } from "../../ui/chrome/Surface";
-export { useTheme, ThemeProvider, createThemedStyles, getTheme, skins, type Theme, type ThemeMode, type ThemePreference, type SkinId, type ThemeContextValue } from "../../ui/theme";
+export { useTheme, ThemeProvider, createThemedStyles, getTheme, type Theme, type ThemeMode, type ThemePreference, type ThemeContextValue } from "../../ui/theme";
 export * from "../../ui/primitives";
 export { Skeleton, type SkeletonProps } from "../../ui/feedback/Skeleton";
 export { EmptyState } from "../../ui/feedback/EmptyState";

@@ -22,14 +22,13 @@ import {
 import { ErrorBoundary } from "react-error-boundary";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { useTheme } from "../../../../../packages/ui/theme";
-import { PixelText } from "./PixelText";
+import { HostText } from "./HostText";
 import { htmlByteLength } from "./postDraft";
 import { htmlNativeStyles, htmlTextLayout, prepareHtmlElement } from "./htmlStyles";
 import { useFeedContentWidth } from "../../../../../packages/ui/feed/kit/FeedPresentation";
 import { cachedHtmlDocument } from "./htmlDocumentCache";
 
-const font = "Fusion Pixel 12px Proportional SC";
-const fonts = [...defaultSystemFonts, font, "sans-serif", "serif", "monospace"];
+const fonts = [...defaultSystemFonts, "sans-serif", "serif", "monospace"];
 const tags = new Set([
   "html",
   "body",
@@ -79,7 +78,6 @@ const ignoreNode: NonNullable<RenderHTMLProps["ignoreDomNode"]> = (
 };
 const defaultTextProps = { selectable: false };
 const ignoredFontStyles: NonNullable<RenderHTMLProps["ignoredStyles"]> = ["fontFamily"];
-const ignoredPixelFontStyles: NonNullable<RenderHTMLProps["ignoredStyles"]> = ["fontFamily", "fontWeight", "fontStyle"];
 function CachedHtmlSource({ html, configuration, width }: { html: string; configuration: string; width: number }) {
   const engine = useAmbientTRenderEngine();
   const source = useMemo(() => cachedHtmlDocument(engine, html, configuration, htmlByteLength(html)), [engine, html, configuration]);
@@ -166,7 +164,6 @@ export const HtmlPostContent = memo(function HtmlPostContent({
     () => ({
       ...Object.fromEntries([...tags].map(tag => [tag, {
         fontFamily: colors.typography.body,
-        ...(colors.skin === "pixel-street" ? { fontWeight: "normal" as const, fontStyle: "normal" as const } : {}),
       }])),
       body: { margin: 0 },
       p: { marginTop: 0, marginBottom: 6 },
@@ -174,7 +171,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
       pre: { fontFamily: colors.typography.mono },
       code: { fontFamily: colors.typography.mono },
     }),
-    [colors.accentText, colors.typography.body, colors.typography.mono, colors.skin]
+    [colors.accentText, colors.typography.body, colors.typography.mono]
   );
   const openLink = useCallback(
     (_event: unknown, href: string) => {
@@ -200,7 +197,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
     }),
     [openLink]
   );
-  const configuration = JSON.stringify([width, window.height, colors.skin, colors.ink1, colors.accentText, colors.typography.body, colors.typography.mono]);
+  const configuration = JSON.stringify([width, window.height, colors.ink1, colors.accentText, colors.typography.body, colors.typography.mono]);
   return (
     <View
       style={{ width: "100%", minWidth: 0, overflow: "visible" }}
@@ -215,13 +212,13 @@ export const HtmlPostContent = memo(function HtmlPostContent({
       <ErrorBoundary
         resetKeys={[html, configuration]}
         fallback={
-          <PixelText>{fallback || "这条动态的内容暂时无法展示"}</PixelText>
+          <HostText>{fallback || "这条动态的内容暂时无法展示"}</HostText>
         }
       >
         {width > 0 ? <TRenderEngineProvider
           baseStyle={baseStyle}
           tagsStyles={tagsStyles}
-          ignoredStyles={colors.skin === "pixel-street" ? ignoredPixelFontStyles : ignoredFontStyles}
+          ignoredStyles={ignoredFontStyles}
           systemFonts={fonts}
           ignoreDomNode={ignoreNode}
           domVisitors={domVisitors}

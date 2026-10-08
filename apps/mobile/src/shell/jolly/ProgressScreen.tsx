@@ -11,7 +11,7 @@ import { Screen, ScreenBar } from "../../../../../packages/ui/edge";
 import { JollyVideoPlayer } from "./ui/video";
 import { JollyPortrait } from "./ui/portrait";
 import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
-import { PixelText as Text } from "../feed/PixelText";
+import { HostText as Text } from "../feed/HostText";
 import { useTheme as useProgressTheme } from "../../../../../packages/ui/theme";
 import {
   progressLabels,

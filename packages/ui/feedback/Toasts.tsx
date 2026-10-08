@@ -1,2 +1,2 @@
-// Host feedback uses the native skin-aware renderer.
+// Host feedback uses the shared host feedback renderer.
 export { default as notify } from "react-native-toast-message";

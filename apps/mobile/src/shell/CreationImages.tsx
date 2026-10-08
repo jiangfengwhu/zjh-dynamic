@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { MediaPicker } from "../../../../packages/ui/media/MediaPicker";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
-import { PixelText as Text } from "./feed/PixelText";
+import { HostText as Text } from "./feed/HostText";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useTheme } from "../../../../packages/ui/theme";
 import {

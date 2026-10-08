@@ -2,36 +2,24 @@ import { ScrollView, View } from "react-native";
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
-import { getTheme, skins, useTheme } from "../../../../packages/ui/theme";
+import { getTheme, useTheme } from "../../../../packages/ui/theme";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
-import { CompactTabs } from "./CompactTabs";
-const modes = [{ id: "system", label: "跟随系统" }, { id: "light", label: "浅色" }, { id: "dark", label: "深色" }] as const;
+const modes = [{ id: "system", label: "跟随系统", hint: "随手机的显示设置自动切换", icon: "layers" }, { id: "light", label: "浅色", hint: "暖白底色，清晰而轻快", icon: "sun" }, { id: "dark", label: "深色", hint: "深墨底色，适合夜间浏览", icon: "moon" }] as const;
 export function AppearanceScreen({ onBack }: { onBack: () => void }) {
-  const { colors, skin, mode, preference, setSkin, setMode } = useTheme();
+  const { colors, mode, preference, setMode } = useTheme();
   return <Screen style={{ backgroundColor: colors.canvas }}>
     <PageHeader title="外观" onBack={onBack} />
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: colors.spacing.page, gap: colors.spacing.section }}>
-      <Text variant="title">选择你的风格</Text>
-      <View accessibilityRole="radiogroup" style={{ gap: 12 }}>{skins.map(item => {
-        const selected = item.id === skin;
-        const palette = getTheme(item.id, mode);
-        return <Pressy key={item.id} accessibilityRole="radio" accessibilityLabel={item.title + "，" + item.description} accessibilityState={{ checked: selected }} onPress={() => setSkin(item.id)} style={{ minHeight: 108, padding: 16, flexDirection: "row", alignItems: "center", gap: 14, borderRadius: colors.radius.lg, backgroundColor: selected ? colors.accentTint : colors.surface }}>
-          <View importantForAccessibility="no-hide-descendants" style={{ width: 56, height: 64, alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: palette.canvas, borderRadius: palette.radius.md }}>
-            <Text style={{ fontFamily: palette.sans, fontSize: 23, lineHeight: 28, color: palette.ink1 }}>花</Text>
-            <View style={{ flexDirection: "row", gap: 4 }}>{[palette.accent, palette.orchid, palette.cyan].map((color, index) => <View key={index} style={{ width: 9, height: 9, borderRadius: item.id === "soft" ? 5 : 0, backgroundColor: color }} />)}</View>
-          </View>
-          <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
-            <Text style={{ fontFamily: palette.sans, fontSize: 17, lineHeight: 24, fontWeight: "700", color: colors.ink1 }}>{item.title}</Text>
-            <Text variant="caption" style={{ color: colors.ink2 }}>{item.description}</Text>
-          </View>
-          <View importantForAccessibility="no-hide-descendants" style={{ width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: selected ? colors.accent : colors.inset, borderWidth: selected ? 0 : 1, borderColor: colors.lineStrong }}>
-            {selected ? <SymbolIcon name="check" size={16} color={colors.onAccent} /> : null}
-          </View>
+    <ScrollView contentContainerStyle={{ padding: 20, gap: 24 }}>
+      <View style={{ gap: 6 }}><Text style={{ fontSize: 28, lineHeight: 36, fontWeight: "700" }}>舒服地看，尽情地创作。</Text><Text style={{ color: colors.ink2 }}>选择适合此刻的显示模式。</Text></View>
+      <View accessibilityRole="radiogroup" style={{ gap: 12 }}>{modes.map(item => {
+        const selected = preference === item.id;
+        const palette = getTheme(item.id === "system" ? mode : item.id);
+        return <Pressy key={item.id} accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={() => setMode(item.id)} style={{ padding: 16, minHeight: 96, borderRadius: 20, backgroundColor: colors.surface, borderWidth: selected ? 2 : 1, borderColor: selected ? colors.accentText : colors.line, flexDirection: "row", alignItems: "center", gap: 16 }}>
+          <View style={{ width: 52, height: 60, borderRadius: 14, backgroundColor: palette.canvas, borderWidth: 1, borderColor: palette.line, padding: 9, justifyContent: "space-between" }} importantForAccessibility="no-hide-descendants"><SymbolIcon name={item.icon} size={20} color={palette.ink1} /><View style={{ height: 6, width: 30, borderRadius: 3, backgroundColor: palette.accent }} /></View>
+          <View style={{ flex: 1, gap: 4 }}><Text style={{ fontWeight: "700", fontSize: 17 }}>{item.label}</Text><Text variant="caption" style={{ color: colors.ink2 }}>{item.hint}</Text></View>
+          {selected ? <SymbolIcon name="check" color={colors.accentText} size={22} /> : null}
         </Pressy>;
       })}</View>
-      <Text variant="caption">显示模式</Text>
-      <CompactTabs value={preference} options={modes} onChange={setMode} />
-      <Text variant="caption" style={{ color: colors.ink3 }}>外观即时切换，动效遵循手机的减少动态效果设置。</Text>
     </ScrollView>
   </Screen>;
 }

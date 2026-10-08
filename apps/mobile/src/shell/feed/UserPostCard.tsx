@@ -1,10 +1,10 @@
 import { useRecyclingState, useMappingHelper } from "@shopify/flash-list";
 import { lazyScreen } from "../lazyScreen";
 import { UserAvatar } from "../UserAvatar";
-import { PixelAlert as Alert } from "../PixelAlert";
+import { HostAlert as Alert } from "../HostAlert";
 import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
-import { PixelText as Text } from "./PixelText";
+import { HostText as Text } from "./HostText";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Share, StyleSheet, View } from "react-native";
 import { EdgeModal } from "../../../../../packages/ui/edge";
@@ -159,7 +159,7 @@ export function UserPostCard({
                 </Text>
               ) : null}
               {post.content?.format === "html" && post.content.version === 1 ? (
-                <View style={{ paddingTop: !post.body && !detail ? 5 : 0 }}>
+                <View style={{ paddingTop: !post.body && !detail ? 6 : 0 }}>
                 <HtmlPostContent
                   html={post.content.html}
                   fallback={post.body}
@@ -250,7 +250,7 @@ const makeStyles = (t: Theme) =>
       borderWidth: 0,
       borderColor: t.line,
     },
-    body: { fontSize: 15, lineHeight: 22, color: t.ink1 },
+    body: { fontSize: 16, lineHeight: 25, color: t.ink1 },
     detailBody: { fontSize: 16, lineHeight: 24 },
     images: { flexDirection: "row", flexWrap: "wrap", gap: 2, marginTop: 2 },
     imageCell: {

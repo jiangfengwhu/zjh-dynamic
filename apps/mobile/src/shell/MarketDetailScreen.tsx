@@ -6,7 +6,7 @@ import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
 import { dataChanged } from "./pageCache";
 import { ActivityIndicator } from "react-native";
-import { PixelAlert as Alert } from "./PixelAlert";
+import { HostAlert as Alert } from "./HostAlert";
 import {
   currentAccountId,
   requireAccount,
@@ -58,7 +58,7 @@ import {
   type MarketApplication,
   type SharingState,
 } from "./market";
-import { PixelText as Text } from "./feed/PixelText";
+import { HostText as Text } from "./feed/HostText";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 import { KeyboardViewport } from "./KeyboardViewport";
@@ -775,7 +775,7 @@ function MarketDetailContent({
   if (item.owned && item.authorId !== user?.id)
     return (
       <Screen style={styles.screen}>
-        <PageHeader variant="pixel" title="作品详情" onBack={onBack} />
+        <PageHeader title="作品详情" onBack={onBack} />
         <EmptyState style={styles.empty}>
           <SymbolIcon name="mine" size={32} color={colors.orchidText} />
           <Text style={styles.copy}>请登录作品所属账号后查看。</Text>
@@ -789,7 +789,6 @@ function MarketDetailContent({
     <ScreenEdge bottom={false}>
       <Screen style={styles.screen}>
         <PageHeader
-          variant="pixel"
           title={
             publication
               ? "公开到应用市场"

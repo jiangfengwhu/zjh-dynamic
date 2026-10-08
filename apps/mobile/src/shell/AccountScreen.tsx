@@ -1,7 +1,7 @@
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
 import { ActivityIndicator } from "react-native";
-import { PixelAlert as Alert } from "./PixelAlert";
+import { HostAlert as Alert } from "./HostAlert";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { View } from "react-native";

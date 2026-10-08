@@ -472,7 +472,7 @@ function AuthorProfileContent({
   return (
     <Root style={{ flex: 1, backgroundColor: colors.canvas }}>
       {!embedded ? (
-        <PageHeader title="作者主页" variant="pixel" onBack={onBack} />
+        <PageHeader title="作者主页" onBack={onBack} />
       ) : null}
       {header}
       {embedded ? renderPage("posts") : (

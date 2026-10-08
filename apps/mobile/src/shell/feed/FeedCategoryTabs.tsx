@@ -69,8 +69,8 @@ export function FeedCategoryTabs({
       >
         <View
           style={{
-            width: 28,
-            height: 3,
+            width: 32,
+            height: 4,
             borderRadius: 2,
             backgroundColor: colors.accent,
           }}
