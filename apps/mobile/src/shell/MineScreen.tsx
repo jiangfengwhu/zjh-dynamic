@@ -1,8 +1,7 @@
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { ScrollView, View } from "react-native";
-import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { useAccount } from "./account";
 import { Screen } from "../../../../packages/ui/edge";
 import {
@@ -85,9 +84,7 @@ export const MineScreen = memo(function MineScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View
-          entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
-        >
+        <View>
           <Pressy
             accessibilityLabel={user ? "查看我的主页" : "邮箱登录"}
             onPress={user ? onProfile : onAccount}
@@ -108,7 +105,7 @@ export const MineScreen = memo(function MineScreen({
               <Icon name="chevron" size={14} color={colors.ink3} />
             </View>
           </Pressy>
-        </Animated.View>
+        </View>
         <View style={styles.shortcuts}>
           <Shortcut
             icon="engine"

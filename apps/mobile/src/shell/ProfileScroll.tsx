@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { FlatList } from "react-native";
+import type { FlashListRef } from "./AnimatedFlashList";
 import {
   scrollTo,
   useAnimatedReaction,
@@ -34,7 +34,7 @@ export function useProfileScroll<T>(
   const collapsed = context?.collapsed ?? fallbackCollapsed;
   const paging = context?.paging ?? fallbackPaging;
   const enabled = !!context;
-  const ref = useAnimatedRef<FlatList<T>>();
+  const ref = useAnimatedRef<FlashListRef<T>>();
   const offset = useSharedValue(0);
   const body = useSharedValue(0);
   const syncing = useSharedValue(-1);

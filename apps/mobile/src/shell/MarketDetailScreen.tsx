@@ -1,3 +1,4 @@
+import { AnimatedFlashList } from "./AnimatedFlashList";
 import { afterInteractions, waitForInteractions } from "./interactionWork";
 import { cachedPage, pageCacheKey } from "./pageCache";
 import { ApplicationIcon, rememberApplicationIcon } from "./ApplicationIcon";
@@ -41,7 +42,6 @@ import {
   offerApplication,
   applyApplicationUpdate,
   runningApplication,
-  runningApplicationReleases,
   type ApplicationManifest,
 } from "../runtime/applications";
 
@@ -934,14 +934,8 @@ function MarketDetailContent({
                       <Text style={styles.subtitle}>真实截图 · 可选</Text>
                       <Text style={styles.caption}>{screenshots.length}/6</Text>
                     </View>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      keyboardShouldPersistTaps="handled"
-                      contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
-                    >
-                      {screenshots.map((url, index) => (
-                        <View key={url} style={styles.editShot}>
+                    <AnimatedFlashList horizontal data={screenshots} keyExtractor={url => url} extraData={busy} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ height: 144 }} contentContainerStyle={{ paddingVertical: 2 }} ItemSeparatorComponent={() => <View style={{ width: 8 }} />} renderItem={({ item: url, index }) => (
+                        <View style={styles.editShot}>
                           <Pressy
                             scale={1}
                             onPress={() => setPreview(url)}
@@ -970,7 +964,7 @@ function MarketDetailContent({
                             />
                           </Pressy>
                         </View>
-                      ))}
+                    )} ListFooterComponent={<View style={{ paddingLeft: screenshots.length ? 8 : 0 }}>
                       {screenshots.length < 6 ? (
                         <Pressy
                           disabled={busy}
@@ -990,7 +984,7 @@ function MarketDetailContent({
                           </Text>
                         </Pressy>
                       ) : null}
-                    </ScrollView>
+                    </View>} />
                     <Text style={styles.caption}>
                       上传真实的使用画面，第一张用于市场预览。
                     </Text>
@@ -1063,15 +1057,9 @@ function MarketDetailContent({
                       <Text style={styles.subtitle}>使用预览</Text>
                       <Text style={styles.caption}>{gallery.length} 张</Text>
                     </View>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ gap: 10 }}
-                    >
-                      {gallery.map((url, index) => (
+                    <AnimatedFlashList horizontal data={gallery} keyExtractor={url => url} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} style={{ height: 213 }} ItemSeparatorComponent={() => <View style={{ width: 10 }} />} renderItem={({ item: url, index }) => (
                         <Pressy
                           scale={1}
-                          key={url}
                           accessibilityLabel={`查看截图 ${index + 1}`}
                           onPress={() => setPreview(url)}
                         >
@@ -1081,8 +1069,7 @@ function MarketDetailContent({
                             resizeMode="contain"
                           />
                         </Pressy>
-                      ))}
-                    </ScrollView>
+                    )} />
                   </View>
                 ) : null}
                 <Pressy

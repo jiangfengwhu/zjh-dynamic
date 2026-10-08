@@ -1,7 +1,8 @@
 import { ApplicationIcon } from "./ApplicationIcon";
 import { UserAvatar } from "./UserAvatar";
 import { ActivityIndicator } from "react-native";
-import { memo, useRef, useState } from "react";
+import { memo, useRef } from "react";
+import { useRecyclingState } from "@shopify/flash-list";
 import { View } from "react-native";
 import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../packages/ui/chrome";
@@ -11,6 +12,7 @@ import { useTheme } from "../../../../packages/ui/theme";
 
 /** Public profiles and the owner's gallery share one honest presentation. */
 export const WorkCard = memo(function WorkCard({
+  appId,
   application,
   title,
   summary,
@@ -22,6 +24,7 @@ export const WorkCard = memo(function WorkCard({
   onOpen,
   actions,
 }: {
+  appId?: string;
   application?: Parameters<typeof ApplicationIcon>[0]["application"];
   title: string;
   summary: string;
@@ -34,8 +37,11 @@ export const WorkCard = memo(function WorkCard({
   actions?: import("react").ReactNode;
 }) {
   const { colors } = useTheme();
-  const [busy, setBusy] = useState(false);
   const acting = useRef(false);
+  const itemId = appId ?? application?.manifest.appId ?? title;
+  const identity = useRef({ id: itemId });
+  if (identity.current.id !== itemId) identity.current = { id: itemId };
+  const [busy, setBusy] = useRecyclingState(false, [itemId], () => { acting.current = false; });
   const accents = [
     colors.orchidText,
     colors.greenText,
@@ -45,6 +51,7 @@ export const WorkCard = memo(function WorkCard({
   const accent = accents[tone % 4];
   async function open() {
     if (acting.current) return;
+    const operation = identity.current;
     acting.current = true;
     setBusy(true);
     try {
@@ -56,8 +63,10 @@ export const WorkCard = memo(function WorkCard({
         text2: cause instanceof Error ? cause.message : "请重试",
       });
     } finally {
-      acting.current = false;
-      setBusy(false);
+      if (identity.current === operation) {
+        acting.current = false;
+        setBusy(false);
+      }
     }
   }
   return (

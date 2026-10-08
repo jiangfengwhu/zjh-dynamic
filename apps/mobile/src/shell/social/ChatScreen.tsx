@@ -1,7 +1,8 @@
+import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { usePreventRemove } from "@react-navigation/native";
-import Animated, { useAnimatedScrollHandler, useSharedValue, runOnJS } from "react-native-reanimated";
+import { useAnimatedScrollHandler, useSharedValue, runOnJS } from "react-native-reanimated";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { KeyboardViewport } from "../KeyboardViewport";
@@ -30,7 +31,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
     } });
   const [text, setText] = useState(""), [sending, setSending] = useState(false), [draftReady, setDraftReady] = useState(false);
   const draftKey = `social.message-draft.${query.user?.id ?? "guest"}.${peer.id}`;
-  const sendingRef = useRef(false), alive = useRef(true), list = useRef<FlatList<Message>>(null), atBottom = useRef(true);
+  const sendingRef = useRef(false), alive = useRef(true), list = useRef<FlashListRef<Message>>(null), atBottom = useRef(true);
   const request = useRef<{ body: string; id: string } | undefined>(undefined);
   const loadedDraftKey = useRef<string | undefined>(undefined);
   const ownerRef = useRef(query.user?.id); ownerRef.current = query.user?.id;
@@ -73,18 +74,19 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
   }
   const count = Array.from(text).length;
   return <SocialFrame title={query.data.peer.name || peer.name} onBack={onBack}><KeyboardViewport>
-    <PullRefreshSurface refresh={refresh}><Animated.FlatList<Message>
+    <PullRefreshSurface refresh={refresh}><AnimatedFlashList<Message>
       ref={list} data={query.data.messages} keyExtractor={item => item.id} onScroll={scroll} scrollEventThrottle={16}
       keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never"
-      maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-      contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8, ...(!query.data.messages.length ? { flexGrow: 1 } : {}) }}
+      maintainVisibleContentPosition={{ startRenderingFromBottom: true }}
+      contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, ...(!query.data.messages.length ? { flexGrow: 1 } : {}) }}
+      ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
       onContentSizeChange={() => { if (atBottom.current) requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false })); }}
       ListHeaderComponent={<View><SocialError error={query.error} retry={() => { reconnectMessages(); void query.load(); }} />
         {query.data.nextCursor ? <Pressy accessibilityRole="button" disabled={query.loading} onPress={() => { atBottom.current = false; void query.load(true); }} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>
           {query.loading ? <ActivityIndicator color={colors.ink2} /> : <Text style={{ color: colors.ink3, fontSize: 13, fontWeight: "600" }}>查看更早的消息</Text>}
         </Pressy> : null}
       </View>}
-      ListEmptyComponent={<SocialEmpty loading={query.loading} loaded={query.loaded} text="说声你好，开始聊天吧" login={!query.user} />}
+      ListEmptyComponent={<SocialEmpty shape="chat" inset={0} loading={query.loading} loaded={query.loaded} text="说声你好，开始聊天吧" login={!query.user} />}
       renderItem={({ item }) => {
         const mine = item.senderId === query.user?.id;
         return <View style={{ flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-start", gap: 8 }}>

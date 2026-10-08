@@ -1,3 +1,4 @@
+import { AnimatedFlashList, type FlashListRef } from "./AnimatedFlashList";
 import { waitForInteractions, afterInteractions } from "./interactionWork";
 import { lazyScreen } from "./lazyScreen";
 import { useVisitedPager } from "./useVisitedPager";
@@ -6,9 +7,9 @@ import { TextInput } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
 import { ActivityIndicator } from "react-native";
-import { LoadingSkeleton } from "./LoadingSkeleton";
+import { PageSkeleton } from "./LoadingSkeleton";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, ScrollView, View } from "react-native";
+import { View } from "react-native";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
   type PagerViewOnPageSelectedEvent,
@@ -267,7 +268,7 @@ function MarketDiscovery({
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const edited = useRef(false);
-  const list = useRef<FlatList<MarketApplication>>(null);
+  const list = useRef<FlashListRef<MarketApplication>>(null);
   const generation = useRef(0);
   const loading = useRef(false);
   const current = useRef({ key: "", view: empty });
@@ -411,14 +412,8 @@ function MarketDiscovery({
   return (
     <View style={styles.screen}>
       <View style={styles.discovery}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}
-        >
-          {marketDiscoveryCategories.map((item) => (
+        <AnimatedFlashList horizontal data={marketDiscoveryCategories} keyExtractor={item => item.id} extraData={category} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} style={{ height: 36 }} contentContainerStyle={{ paddingHorizontal: 16 }} ItemSeparatorComponent={() => <View style={{ width: 8 }} />} renderItem={({ item }) => (
             <Pressy
-              key={item.id}
               accessibilityRole="button"
               accessibilityState={{ selected: category === item.id }}
               onPress={() => {
@@ -443,21 +438,16 @@ function MarketDiscovery({
                 {item.label}
               </Text>
             </Pressy>
-          ))}
-        </ScrollView>
+        )} />
       </View>
       <PullRefreshSurface refresh={refreshPull} drawerGesture={drawerGesture}>
-        <Animated.FlatList
+        <AnimatedFlashList maintainVisibleContentPosition={{ disabled: true }}
           ref={list}
           data={view.applications}
-          initialNumToRender={10}
-          maxToRenderPerBatch={10}
-          windowSize={7}
           keyExtractor={(item) => item.manifest.appId}
           contentContainerStyle={[styles.content, !view.applications.length && { flexGrow: 1 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          removeClippedSubviews={false}
           onContentSizeChange={(_, height) => {
             if (
               restoreOffset.current !== undefined &&
@@ -522,43 +512,7 @@ function MarketDiscovery({
           )}
           ListEmptyComponent={
             view.applications.length || error ? null : !view.at ? (
-              <View accessibilityLabel="正在加载应用" style={{ gap: 1 }}>
-                {[0, 1, 2, 3, 4].map((id) => (
-                  <View
-                    key={id}
-                    style={[styles.row, { flexDirection: "row", gap: 12 }]}
-                  >
-                    <View
-                      style={[styles.mark, { backgroundColor: colors.surfaceRaised }]}
-                    />
-                    <View style={{ flex: 1, gap: 9 }}>
-                      <View
-                        style={{
-                          width: "55%",
-                          height: 16,
-                          backgroundColor: colors.surfaceRaised,
-                          borderRadius: 8,
-                        }}
-                      />
-                      <View
-                        style={{
-                          height: 12,
-                          backgroundColor: colors.surfaceRaised,
-                          borderRadius: 6,
-                        }}
-                      />
-                      <View
-                        style={{
-                          width: "35%",
-                          height: 10,
-                          backgroundColor: colors.surfaceRaised,
-                          borderRadius: 5,
-                        }}
-                      />
-                    </View>
-                  </View>
-                ))}
-              </View>
+              <PageSkeleton rows={5} shape="application" />
             ) : (
               <EmptyState><Text style={styles.empty}>
                 {search || category

@@ -1,3 +1,4 @@
+import { AnimatedFlashList } from "./AnimatedFlashList";
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { brandAssets } from "./feed/brandAssets";
 import { Image } from "react-native";
@@ -5,7 +6,7 @@ import { EmptyState } from "./EmptyState";
 import { useRouteRequestReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
@@ -71,32 +72,16 @@ export function AppInfoScreen({ onBack }: Props) {
   return (
     <Screen style={styles.screen}>
       <PageHeader title="应用信息" caption="本机正在使用的包" onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <AnimatedFlashList<InstalledPackage | "extensions"> data={details ? [...packages, "extensions", ...dexes] : []} keyExtractor={item => typeof item === "string" ? item : item.kind + ":" + item.id} getItemType={item => typeof item === "string" ? "heading" : "package"} maintainVisibleContentPosition={{ disabled: true }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+        ListHeaderComponent={<View style={{ gap: 12 }}>
         <Surface style={styles.version}><View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}><Image accessible={false} fadeDuration={0} source={{ uri: `data:image/webp;base64,${brandAssets.logo.base64}` }} style={{ width: 48, height: 48, borderRadius: 14 }} /><Text accessibilityRole="header" style={styles.brand}>生花</Text></View><View style={styles.metrics}><View style={styles.metric}><Text style={styles.empty}>APK 版本</Text><Text style={styles.metricValue}>{apk?.versionName ?? sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>SDK 版本</Text><Text selectable style={styles.metricValue}>{sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>界面版本</Text><Text selectable style={styles.metricValue}>{buildId.slice(0, 8)}</Text></View></View><View style={styles.storage}><Text style={styles.empty}>本机安装文件</Text><View style={styles.storageValue}><View style={styles.loadingSlot}>{loading ? <ActivityIndicator size="small" color={colors.ink2} /> : null}</View><Text style={styles.metricValue}>{cachedPackages !== undefined ? formatBytes(total) : error ? "未读取" : "读取中"}</Text></View></View></Surface>
         {error ? <Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)}><Text style={styles.error}>{error} · 重试</Text></Pressy> : null}
         <Text style={styles.empty}>页面运行包负责界面，原生扩展提供手机能力。下方体积为本机安装文件大小。</Text>
         <Pressy accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(value => !value)}><Text style={styles.total}>{details ? "收起技术详情" : "查看技术详情"}</Text></Pressy>
-        {details ? <>
-        {packages.length > 0 ? (
-          <Surface style={styles.group}>
-            {packages.map((item, index) => (
-              <PackageRow key={`${item.kind}:${item.id}`} item={item} last={index === packages.length - 1} />
-            ))}
-          </Surface>
-        ) : null}
-
-        <SectionTitle>原生扩展（技术详情）</SectionTitle>
-        {!loading && !error && dexes.length === 0 ? (
-          <EmptyState style={{ minHeight: 120, flexGrow: 0 }}><Text style={styles.empty}>还没有安装</Text></EmptyState>
-        ) : (
-          <Surface style={styles.group}>
-            {dexes.map((item, index) => (
-              <PackageRow key={`${item.kind}:${item.id}`} item={item} last={index === dexes.length - 1} />
-            ))}
-          </Surface>
-        )}
-        </> : null}
-      </ScrollView>
+        </View>}
+        renderItem={({ item }) => typeof item === "string" ? <SectionTitle>原生扩展（技术详情）</SectionTitle> : <Surface style={styles.group}><PackageRow item={item} last /></Surface>}
+        ListFooterComponent={details && !loading && !error && !dexes.length ? <EmptyState style={{ minHeight: 120, flexGrow: 0 }}><Text style={styles.empty}>还没有安装原生扩展</Text></EmptyState> : null}
+      />
     </Screen>
   );
 }

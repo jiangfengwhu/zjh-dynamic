@@ -1,9 +1,11 @@
+import { PageSkeleton } from "../LoadingSkeleton";
+import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
 import { useVisitedPager } from "../useVisitedPager";
 import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { ActivityIndicator } from "react-native";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouteContentReady, useRouteRequestReady } from "../useRouteContentReady";
 import { useIsFocused } from "@react-navigation/native";
 import { Pressable, View } from "react-native";
@@ -96,7 +98,7 @@ function AuthorProfileContent({
   const pager = useRef<PagerView>(null);
   const position = useSharedValue(0);
   const appY = useSharedValue(0);
-  const appList = useAnimatedRef<import("react-native").FlatList<ProfileRow>>();
+  const appList = useAnimatedRef<FlashListRef<ProfileRow>>();
   const appScroll = useAnimatedScrollHandler(event => { appY.value = Math.max(0, event.contentOffset.y); });
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(event => {
     "worklet"; reveal(event.position, event.offset); position.value = event.position + event.offset;
@@ -353,11 +355,8 @@ function AuthorProfileContent({
   const renderPage = (tab: "posts" | "apps") => {
     const refresh = tab === "posts" ? postsRefresh : appsRefresh;
     return <PullRefreshSurface refresh={refresh} drawerGesture={drawerGesture} top={profileScroll.refreshOffset}>
-              <Animated.FlatList<ProfileRow>
+              <AnimatedFlashList<ProfileRow> maintainVisibleContentPosition={{ disabled: true }}
                 ref={tab === "posts" ? list : appList}
-                initialNumToRender={4}
-                maxToRenderPerBatch={4}
-                windowSize={5}
                 data={
                   !contentReady && !loaded ? [] : tab === "posts"
                     ? profile.posts.map((post) => ({
@@ -369,10 +368,10 @@ function AuthorProfileContent({
                         app,
                       }))
                 }
+                getItemType={row => row.type}
                 keyExtractor={(row) =>
                   row.type === "post" ? row.post.id : row.app.manifest.appId
                 }
-                removeClippedSubviews={false}
                 onScroll={tab === "posts" ? profileScroll.onScroll : appScroll}
                 onLayout={tab === "posts" ? profileScroll.onLayout : undefined}
                 onContentSizeChange={tab === "posts" ? profileScroll.onContentSizeChange : undefined}
@@ -435,20 +434,12 @@ function AuthorProfileContent({
                       {tab === "apps" ? "还没有公开作品" : "还没有公开动态"}
                     </Text></EmptyState>
                   ) : !loaded && !error ? (
-                    <View accessibilityLabel="正在加载作者内容" style={{ padding: 16, gap: 12 }}>
-                      {[0, 1, 2].map(key => <View key={key} style={{ gap: 10, paddingVertical: 12 }}>
-                        <View style={{ width: "45%", height: 14, borderRadius: 7, backgroundColor: colors.surfaceRaised }} />
-                        <View style={{ height: tab === "apps" ? 76 : 48, borderRadius: 14, backgroundColor: colors.surfaceRaised }} />
-                        <View style={{ width: "70%", height: 10, borderRadius: 5, backgroundColor: colors.surfaceRaised }} />
-                      </View>)}
-                    </View>
+                    <PageSkeleton rows={3} shape={tab === "apps" ? "work" : "feed"} inset={tab === "apps" ? 12 : 16} />
                   ) : null
                 }
                 ListFooterComponent={
-                  <View style={{ padding: loaded && !(tab === "posts" && profile.nextCursor) ? 0 : 16 }}>
-                    {contentReady && busy && !loaded ? (
-                      <ActivityIndicator color={colors.ink2} />
-                    ) : tab === "posts" && profile.nextCursor ? (
+                  <View style={{ padding: tab === "posts" && loaded && profile.nextCursor ? 16 : 0 }}>
+                    {tab === "posts" && loaded && profile.nextCursor ? (
                       <Pressable
                         disabled={busy}
                         onPress={() => void load(true)}

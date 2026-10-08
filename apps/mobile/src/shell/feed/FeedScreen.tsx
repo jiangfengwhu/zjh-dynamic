@@ -1,4 +1,5 @@
-import { FlashList, type FlashListProps, type FlashListRef } from "@shopify/flash-list";
+import { AnimatedFlashList, type FlashListProps, type FlashListRef } from "../AnimatedFlashList";
+import { ListGesture } from "./ListGesture";
 import { ApplicationIcon } from "../ApplicationIcon";
 import { markStartup } from "../../runtime/startupTiming";
 import { reconnectMessages } from "../social/api";
@@ -7,13 +8,13 @@ import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { NewDataNotice } from "../NewDataNotice";
 import { HostText as Text } from "./HostText";
-import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
+import { PageSkeleton } from "../LoadingSkeleton";
 import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { HostText } from "./HostText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
-import { cloneElement, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, View, type FlatListProps, type ScrollViewProps } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -30,7 +31,6 @@ import Animated, {
   useAnimatedReaction,
   scrollTo,
   type SharedValue,
-  type AnimatedProps,
 } from "react-native-reanimated";
 import { Ambient, AmbientFill, Pressy } from "../../../../../packages/ui/chrome";
 import { ThemeContext, createThemedStyles } from "../../../../../packages/ui/theme";
@@ -58,7 +58,6 @@ import { useInstalledShortcuts } from "./useInstalledShortcuts";
 import { type MarketApplication } from "../market";
 import { formatWhen } from "../formatTime";
 
-const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as typeof FlashList;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const FEED_PAGE_INSET = 0;
 const FEED_HEADER_INSET = 12;
@@ -337,11 +336,7 @@ export const FeedScreen = memo(function FeedScreen({
                             scrollY={scrollY}
                             data={shortcuts.items}
                             numColumns={4}
-                            columnWrapperStyle={{ gap: 4 }}
                             keyExtractor={(item) => item.manifest.appId}
-                            initialNumToRender={12}
-                            maxToRenderPerBatch={9}
-                            windowSize={5}
                             style={styles.scroll}
                             contentContainerStyle={[
                               styles.content,
@@ -386,7 +381,7 @@ export const FeedScreen = memo(function FeedScreen({
                               />
                             )}
                             ListEmptyComponent={
-                              <EmptyState>
+                              !shortcuts.loaded ? <PageSkeleton rows={2} shape="grid" /> : <EmptyState>
                                 <View style={{ width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.orangeTint }}>
                                   <SymbolIcon
                                     name="box"
@@ -436,7 +431,6 @@ export const FeedScreen = memo(function FeedScreen({
                                   keyExtractor={(item) =>
                                     `${item.type}-${item.post.id}`
                                   }
-                                  recycle
                                   getItemType={timelineItemType}
                                   style={styles.scroll}
                                   contentContainerStyle={[
@@ -478,7 +472,7 @@ export const FeedScreen = memo(function FeedScreen({
                                     !userPostsLoaded(pageKind) &&
                                     (pageKind !== "following" || user) ? (
                                       <View style={{ padding: 16 }}>
-                                        <PageSkeleton rows={4} />
+                                        <PageSkeleton rows={4} shape="feed" />
                                       </View>
                                     ) : (
                                       <EmptyState style={{ paddingHorizontal: 0 }}><View style={styles.empty}>
@@ -664,7 +658,7 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
       onPress={open}
       style={{
         flex: 1,
-        maxWidth: "25%",
+        width: "100%",
         minWidth: 0,
         alignItems: "center",
         paddingTop: 10,
@@ -710,7 +704,6 @@ const FeedScrollSurface = memo(
 ) as typeof FeedScrollSurfaceImpl;
 function FeedScrollSurfaceImpl<Item>({
   onListReady,
-  recycle = false,
   getItemType,
   renderScrollComponent,
   categoryKey,
@@ -721,9 +714,8 @@ function FeedScrollSurfaceImpl<Item>({
   bottomTravel,
   scrollY,
   ...props
-}: Omit<AnimatedProps<FlatListProps<Item>>, "CellRendererComponent"> & {
-  onListReady?: (value: FlatList<Item> | FlashListRef<Item> | null) => void;
-  recycle?: boolean;
+}: FlashListProps<Item> & {
+  onListReady?: (value: FlashListRef<Item> | null) => void;
   getItemType?: FlashListProps<Item>["getItemType"];
   renderScrollComponent?: FlashListProps<Item>["renderScrollComponent"];
   categoryKey: string;
@@ -734,7 +726,7 @@ function FeedScrollSurfaceImpl<Item>({
   bottomTravel: SharedValue<number>;
   scrollY: SharedValue<number>;
 }) {
-  const ref = useAnimatedRef<FlatList<Item> | FlashListRef<Item>>();
+  const ref = useAnimatedRef<FlashListRef<Item>>();
   const ready = useSharedValue(false);
   const offset = useSharedValue(0);
   const dragging = useSharedValue(false);
@@ -826,8 +818,8 @@ function FeedScrollSurfaceImpl<Item>({
     },
     [categoryKey]
   );
-  if (recycle) return <AnimatedFlashList
-    {...props as FlashListProps<Item>}
+  return <AnimatedFlashList maintainVisibleContentPosition={{ disabled: true }}
+    {...props}
     ref={value => { ref(value); onListReady?.(value); }}
     onScroll={onScroll}
     getItemType={getItemType}
@@ -835,16 +827,6 @@ function FeedScrollSurfaceImpl<Item>({
     drawDistance={250}
     onContentSizeChange={(_width, height) => { if (height > 0) ready.value = true; }}
   />;
-  return (
-    <Animated.FlatList
-      {...props}
-      ref={value => { ref(value); onListReady?.(value); }}
-      onScroll={onScroll}
-      onContentSizeChange={(_width, height) => {
-        if (height > 0) ready.value = true;
-      }}
-    />
-  );
 }
 
 function FeedListGesture({
@@ -865,19 +847,7 @@ function FeedListGesture({
         .simultaneousWithExternalGesture(pager),
     [pull, drawer, pager]
   );
-  const renderScrollComponent = useCallback((props: ScrollViewProps) => (
-    <GestureDetector gesture={native}>
-      <Animated.ScrollView {...props} />
-    </GestureDetector>
-  ), [native]);
-  // FlashList has a native layout wrapper before its ScrollView. Bind the
-  // native gesture to the ScrollView itself so it can arbitrate with the pager.
-  const list = children as import("react").ReactElement<{
-    recycle?: boolean;
-    renderScrollComponent?: FlashListProps<unknown>["renderScrollComponent"];
-  }>;
-  if (list.props.recycle) return cloneElement(list, { renderScrollComponent });
-  return <GestureDetector gesture={native}>{children}</GestureDetector>;
+  return <ListGesture gesture={native}>{children}</ListGesture>;
 }
 function FeedSeparator() {
   const styles = useStyles();

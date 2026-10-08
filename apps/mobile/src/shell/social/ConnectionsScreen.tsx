@@ -1,3 +1,4 @@
+import { AnimatedFlashList } from "../AnimatedFlashList";
 import { useVisitedPager } from "../useVisitedPager";
 import { useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -57,11 +58,11 @@ function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAut
     } catch (cause) { Toast.show({ type: "error", text1: "关注未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
     finally { locks.current.delete(id); setActing(undefined); }
   }
-  return <PullRefreshSurface refresh={refresh}><Animated.FlatList
+  return <PullRefreshSurface refresh={refresh}><AnimatedFlashList maintainVisibleContentPosition={{ disabled: true }}
     data={query.data.authors} keyExtractor={item => item.author.id} onScroll={scroll} scrollEventThrottle={16}
     showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never" contentContainerStyle={!query.data.authors.length ? { flexGrow: 1 } : undefined}
     ListHeaderComponent={<SocialError error={query.error} retry={() => { void query.load(); }} />}
-    ListEmptyComponent={<SocialEmpty loading={query.loading} loaded={query.loaded} text={kind === "following" ? "还没有关注的人" : "还没有粉丝"} />}
+    ListEmptyComponent={<SocialEmpty shape="person" loading={query.loading} loaded={query.loaded} text={kind === "following" ? "还没有关注的人" : "还没有粉丝"} />}
     renderItem={({ item }) => <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line }}>
       <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)} style={{ flex: 1, minWidth: 0, paddingVertical: 10, flexDirection: "row", gap: 10, alignItems: "center" }}>
         <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={40} />

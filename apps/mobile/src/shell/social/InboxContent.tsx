@@ -1,6 +1,7 @@
+import { AnimatedFlashList } from "../AnimatedFlashList";
 import { useEffect, useRef } from "react";
 import { View, ActivityIndicator, AppState, type ViewToken } from "react-native";
-import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
+import { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import type { Gesture } from "react-native-gesture-handler";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { useTheme } from "../../../../../packages/ui/theme";
@@ -47,7 +48,7 @@ export function InboxContent({ active, onMessage, drawerGesture }: { active: boo
   useEffect(() => { markVisible.current(); }, [query.focused, query.data, query.user?.id]);
   const scrollY = useSharedValue(0), scroll = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
   const refresh = usePullToRefresh({ scrollY, onRefresh: () => { reconnectMessages(); return query.load(); } });
-  return <PullRefreshSurface refresh={refresh} drawerGesture={drawerGesture}><Animated.FlatList
+  return <PullRefreshSurface refresh={refresh} drawerGesture={drawerGesture}><AnimatedFlashList maintainVisibleContentPosition={{ disabled: true }}
     data={query.data.conversations} keyExtractor={item => item.peer.id} onScroll={scroll} scrollEventThrottle={16}
     viewabilityConfig={viewabilityConfig} onViewableItemsChanged={onViewableItemsChanged}
     showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never" contentContainerStyle={!query.data.conversations.length ? { flexGrow: 1 } : undefined}

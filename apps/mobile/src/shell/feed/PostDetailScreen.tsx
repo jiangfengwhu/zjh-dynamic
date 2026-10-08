@@ -1,3 +1,4 @@
+import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
 import { waitForInteractions } from "../interactionWork";
 import { TextInput as NativeTextInput } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
@@ -7,9 +8,9 @@ import { ActivityIndicator } from "react-native";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { HostAlert as Alert } from "../HostAlert";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
-import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
+import { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { KeyboardViewport } from "../KeyboardViewport";
 import { useIsFocused, usePreventRemove } from "@react-navigation/native";
@@ -46,7 +47,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   const [loading, setLoading] = useState(!initialDetail); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState(""); const [text, setText] = useState("");
   const [reply, setReply] = useState<UserComment | null>(null); const [sending, setSending] = useState(false); const [deleting, setDeleting] = useState<string | null>(null);
   const alive = useRef(true); const version = useRef(0); const loaded = useRef(!!initialDetail); const reading = useRef(false); const writing = useRef(false); const input = useRef<NativeTextInput>(null);
-  const identity = useRef(user?.id); const list = useRef<FlatList<UserComment>>(null); const headerHeight = useRef(0); const jumped = useRef(false);
+  const identity = useRef(user?.id); const list = useRef<FlashListRef<UserComment>>(null); const headerHeight = useRef(0); const jumped = useRef(false);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const count = Array.from(text).length;
   const draftKey = `social.comment-draft.${user?.id || "guest"}.${initialPost.id}`;
@@ -119,10 +120,10 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
     <KeyboardViewport>
       <View style={{ flex: 1 }}>
       <PullRefreshSurface refresh={refreshPull}>
-      <Animated.FlatList ref={list} onScroll={trackScroll} scrollEventThrottle={16} bounces={false} overScrollMode="never" scrollEnabled={refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"} data={comments} keyExtractor={item => item.id} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" onContentSizeChange={() => { if (initialCommentId && loaded.current && headerHeight.current && !jumped.current) { jumped.current = true; requestAnimationFrame(() => { if (!input.current?.isFocused()) list.current?.scrollToOffset({ offset: headerHeight.current, animated: false }); }); } }}
+      <AnimatedFlashList maintainVisibleContentPosition={{ disabled: true }} ref={list} onScroll={trackScroll} scrollEventThrottle={16} bounces={false} overScrollMode="never" scrollEnabled={refreshPull.phase !== "refreshing" && refreshPull.phase !== "done"} data={comments} keyExtractor={item => item.id} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" onContentSizeChange={() => { if (initialCommentId && loaded.current && headerHeight.current && !jumped.current) { jumped.current = true; requestAnimationFrame(() => { if (!input.current?.isFocused()) list.current?.scrollToOffset({ offset: headerHeight.current, animated: false }); }); } }}
         ListHeaderComponent={<View onLayout={event => { headerHeight.current = event.nativeEvent.layout.height; }}><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} onAuthor={onAuthor} onUpdated={updated} /><View style={{ height: colors.components.surfaceBorder, marginTop: 8, backgroundColor: colors.line }} /><Text style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6, ...colors.type.headline, fontSize: 15, color: colors.ink1 }}>评论 <Text style={{ color: colors.ink3, fontWeight: "600", fontSize: 13 }}>{post.commentCount ?? 0}</Text></Text>{initialCommentId ? <Text style={{ paddingHorizontal: 16, paddingBottom: 6, color: colors.ink3, fontSize: 12 }}>从提醒中的评论开始显示</Text> : null}</View>}
         contentContainerStyle={!comments.length ? { flexGrow: 1 } : undefined}
-        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} /></View> : !error ? <EmptyState><Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text></EmptyState> : null}
+        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" /></View> : !error ? <EmptyState><Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text></EmptyState> : null}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 10, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line, backgroundColor: item.id === initialCommentId ? colors.orchidTint : "transparent" }}>
           <Pressable accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)}><UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} /></Pressable>
           <View style={{ flex: 1, minWidth: 0 }}><View style={{ flexDirection: "row", alignItems: "center", minHeight: 20 }}><View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5 }}><Text onPress={() => onAuthor(item.author)} numberOfLines={1} style={{ flexShrink: 1, color: colors.ink1, fontWeight: "700", fontSize: 14, lineHeight: 20 }}>{item.author.name}</Text><Text style={{ color: colors.ink3, fontSize: 12, lineHeight: 20 }}>· {when(item.createdAt)}</Text></View>

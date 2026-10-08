@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { PullIndicator } from "./PullIndicator";
 import type { usePullToRefresh } from "./pullToRefresh";
+import { ListGesture } from "./ListGesture";
 
 /** Shared timeline refresh presentation and gesture arbitration. */
 export function PullRefreshSurface({ refresh, drawerGesture, top = 0, children }: {
@@ -20,7 +21,7 @@ export function PullRefreshSurface({ refresh, drawerGesture, top = 0, children }
   return <GestureDetector gesture={refresh.gesture}>
     <View style={{ flex: 1, overflow: "hidden" }}>
       <View pointerEvents="none" style={{ position: "absolute", top, left: 0, right: 0 }}><PullIndicator pull={refresh.pull} phase={refresh.phase} /></View>
-      <Animated.View style={[{ flex: 1 }, lift]}><GestureDetector gesture={native}>{children}</GestureDetector></Animated.View>
+      <Animated.View style={[{ flex: 1 }, lift]}><ListGesture gesture={native}>{children}</ListGesture></Animated.View>
     </View>
   </GestureDetector>;
 }

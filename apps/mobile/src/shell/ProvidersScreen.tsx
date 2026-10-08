@@ -1,3 +1,5 @@
+import { AnimatedFlashList } from "./AnimatedFlashList";
+import { PageSkeleton } from "./LoadingSkeleton";
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { useRouteRequestReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
@@ -127,16 +129,16 @@ export function ProvidersScreen({ onBack }: Props) {
         right={<Pressy accessibilityLabel="添加 AI 引擎" style={styles.add} disabled={busy} onPress={() => selectDraft(empty)}><Icon name="plus" size={20} strokeWidth={2.4} color={colors.onAccent} /></Pressy>}
       />
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {!loaded ? <Surface style={styles.loading}><Text style={styles.meta}>{error || "正在读取本机引擎配置"}</Text>{error ? <Pressy accessibilityRole="button" accessibilityLabel="重试读取引擎配置" onPress={() => setAttempt(value => value + 1)} style={styles.retry}><Text style={styles.resetText}>重试</Text></Pressy> : <ActivityIndicator color={colors.accent} />}</Surface> : null}
+      <AnimatedFlashList data={items} keyExtractor={item => item.id} extraData={{ draft, busy }} maintainVisibleContentPosition={{ disabled: true }} renderScrollComponent={ScrollView} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+        ListHeaderComponent={<>
+        {!loaded ? error ? <Surface style={styles.loading}><Text style={styles.meta}>{error}</Text><Pressy accessibilityRole="button" accessibilityLabel="重试读取引擎配置" onPress={() => setAttempt(value => value + 1)} style={styles.retry}><Text style={styles.resetText}>重试</Text></Pressy></Surface> : <PageSkeleton rows={3} shape="provider" /> : null}
         {error && !editing && items.length ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-        {items.length > 0 ? (
-          <View style={styles.block}>
-            <SectionTitle>已接入</SectionTitle>
-            {items.map((item) => {
+          {items.length ? <SectionTitle>已接入</SectionTitle> : null}
+        </>}
+        renderItem={({ item }) => {
               const selected = draft.id === item.id;
               return (
-                <View key={item.id}>
+                <View style={{ marginBottom: 12 }}>
                   <Surface
                     tone={selected ? "raised" : "base"}
                     style={[
@@ -187,9 +189,9 @@ export function ProvidersScreen({ onBack }: Props) {
                   <Pressy disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("验证引擎连接", "将发送一条简短请求，可能消耗少量模型额度。", [{ text: "取消", style: "cancel" }, { text: "验证", onPress: () => void verify(item) }])} style={styles.verify}><Text style={{ color: colors.orchidText, fontSize: 13, fontWeight: "600" }}>验证连接</Text></Pressy>
                 </View>
               );
-            })}
-          </View>
-        ) : null}
+        }}
+        ListFooterComponent={<>
+
 
         {editing || (loaded && !items.length) ? <>
         <SectionTitle>{draft.id ? "编辑引擎" : "添加引擎"}</SectionTitle>
@@ -254,7 +256,9 @@ export function ProvidersScreen({ onBack }: Props) {
           </Pressy>
         </Surface>
         </> : loaded ? <Text style={styles.meta}>平台和应用共用这些配置；点击引擎编辑，右上角添加。</Text> : null}
-      </ScrollView>
+
+        </>}
+      />
     </Screen>
   );
 }

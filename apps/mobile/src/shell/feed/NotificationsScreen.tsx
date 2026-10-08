@@ -1,3 +1,5 @@
+import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
+import { ListGesture } from "./ListGesture";
 import { afterInteractions, waitForInteractions } from "../interactionWork";
 import { lazyScreen } from "../lazyScreen";
 import { useVisitedPager } from "../useVisitedPager";
@@ -11,8 +13,8 @@ import type { PublicAuthor } from "./userPosts";
 import { JollyPortrait } from "../jolly/ui/portrait";
 import { EmptyState } from "../EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "../pageCache";
-import { ActivityIndicator, AppState, FlatList, type ViewToken } from "react-native";
-import { PageSkeleton, LoadingSkeleton } from "../LoadingSkeleton";
+import { ActivityIndicator, AppState, type ViewToken } from "react-native";
+import { PageSkeleton } from "../LoadingSkeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { Pressable, View } from "react-native";
@@ -216,7 +218,7 @@ function NotificationsContent({
   const reload = useRef<() => Promise<void | boolean>>(async () => {});
   const again = useRef(false);
   reload.current = () => load(false);
-  const list = useRef<FlatList<Notice>>(null);
+  const list = useRef<FlashListRef<Notice>>(null);
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -371,8 +373,8 @@ function NotificationsContent({
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PullIndicator pull={pull} phase={phase} />
           <Animated.View style={[{ flex: 1 }, lift]}>
-            <GestureDetector gesture={scrollGesture}>
-              <Animated.FlatList<Notice>
+            <ListGesture gesture={scrollGesture}>
+              <AnimatedFlashList<Notice> maintainVisibleContentPosition={{ disabled: true }}
                 ref={list}
                 data={user ? page.notices : []}
                 contentContainerStyle={!user || !page.notices.length ? { flexGrow: 1 } : undefined}
@@ -385,7 +387,6 @@ function NotificationsContent({
                 bounces={false}
                 overScrollMode="never"
                 scrollEnabled={phase !== "refreshing" && phase !== "done"}
-                removeClippedSubviews={false}
                 ListHeaderComponent={
                   error ? (
                     <Pressable
@@ -465,7 +466,7 @@ function NotificationsContent({
                 ListEmptyComponent={
                   <EmptyState style={user && loading && !loaded ? { flexGrow: 0, alignItems: "stretch", padding: 16 } : undefined}>
                     {user && loading && !loaded ? (
-                      <PageSkeleton rows={4} />
+                      <PageSkeleton rows={4} shape="notification" />
                     ) : (
                       <Text style={{ color: colors.ink3, textAlign: "center", fontSize: 14, lineHeight: 20 }}>
                         {user
@@ -515,7 +516,7 @@ function NotificationsContent({
                   ) : null
                 }
               />
-            </GestureDetector>
+            </ListGesture>
           </Animated.View>
         </View>
       </GestureDetector>

@@ -1,3 +1,4 @@
+import { AnimatedFlashList } from "./AnimatedFlashList";
 import { waitForInteractions, afterInteractions } from "./interactionWork";
 import { ApplicationIcon } from "./ApplicationIcon";
 import { EmptyState } from "./EmptyState";
@@ -8,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { HostAlert } from "./HostAlert";
 import NativePluginHost from "../NativePluginHost";
 import { AppState, View } from "react-native";
-import Animated, { useSharedValue } from "react-native-reanimated";
+import { useSharedValue } from "react-native-reanimated";
 import { usePullToRefresh } from "./feed/pullToRefresh";
 import { PullRefreshSurface } from "./feed/PullRefreshSurface";
 import { useProfileScroll } from "./ProfileScroll";
@@ -43,7 +44,6 @@ import { openCreationComposer } from "./creationComposer";
 import { restoreWorks } from "./workRecovery";
 import { readMyWorks, workLabels, type MyWork } from "./works";
 import { WorkCard } from "./WorkCard";
-import { marketDefinition } from "./market";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { HostText as Text } from "./feed/HostText";
 import { useTheme } from "../../../../packages/ui/theme";
@@ -413,7 +413,7 @@ export function MyApplicationsScreen({
         drawerGesture={drawerGesture}
         top={profileScroll.refreshOffset}
       >
-        <Animated.FlatList<Row>
+        <AnimatedFlashList<Row> maintainVisibleContentPosition={{ disabled: true }}
           ref={profileScroll.ref}
           onScroll={profileScroll.onScroll}
           onLayout={profileScroll.onLayout}
@@ -424,13 +424,11 @@ export function MyApplicationsScreen({
               ? visibleWorks.map((work) => ({ type: "work" as const, work }))
               : visibleApps.map((app) => ({ type: "app" as const, app }))
           }
+          getItemType={row => row.type}
           keyExtractor={(row) =>
             row.type === "work" ? row.work.appId : row.app.manifest.appId
           }
-          initialNumToRender={6}
-          windowSize={7}
           showsVerticalScrollIndicator={false}
-          removeClippedSubviews={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             {
@@ -486,7 +484,7 @@ export function MyApplicationsScreen({
               ) : null}
               {busy && !loaded &&
               !(scope === "works" ? works.length : installed.length) ? (
-                <PageSkeleton rows={3} />
+                <PageSkeleton rows={3} shape={scope === "works" ? "work" : "installed"} />
               ) : null}
             </View>
           }
@@ -497,6 +495,7 @@ export function MyApplicationsScreen({
               const visual = published?.manifest ?? work.manifest;
               return (
                 <WorkCard
+                  appId={work.appId}
                   application={visual ? { manifest: visual, iconUrl: work.sharing?.iconUrl || published?.iconUrl } : undefined}
                   title={published?.title || visual?.appName || work.title}
                   summary={published?.summary || visual?.description || work.wish}

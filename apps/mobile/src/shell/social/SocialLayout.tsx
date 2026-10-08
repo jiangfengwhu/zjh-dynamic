@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
-import { View } from "react-native";
 import { Screen, ScreenEdge } from "../../../../../packages/ui/edge";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { ThemeContext } from "../../../../../packages/ui/theme";
 import { useTheme } from "../../../../../packages/ui/theme";
 import { HostText as Text } from "../feed/HostText";
 import { EmptyState } from "../EmptyState";
-import { PageSkeleton } from "../LoadingSkeleton";
+import { PageSkeleton, type ListSkeletonShape } from "../LoadingSkeleton";
 import { requireAccount } from "../account";
 export function SocialFrame({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
   const theme = useTheme();
@@ -15,9 +14,9 @@ export function SocialFrame({ title, onBack, children }: { title: string; onBack
     {children}
   </Screen></ScreenEdge></ThemeContext.Provider>;
 }
-export function SocialEmpty({ loading, loaded, text, login = false }: { loading: boolean; loaded: boolean; text: string; login?: boolean }) {
+export function SocialEmpty({ loading, loaded, text, login = false, shape = "inbox", inset = 16 }: { loading: boolean; loaded: boolean; text: string; login?: boolean; shape?: ListSkeletonShape; inset?: number }) {
   const { colors } = useTheme();
-  if (loading && !loaded && !login) return <View style={{ padding: 16 }}><PageSkeleton rows={4} /></View>;
+  if (loading && !loaded && !login) return <PageSkeleton rows={4} shape={shape} inset={inset} />;
   return <EmptyState><Text style={{ color: colors.ink3, textAlign: "center", fontSize: 15, lineHeight: 22 }}>{login ? "登录后查看私信" : text}</Text>
     {login ? <Pressy accessibilityRole="button" onPress={() => { void requireAccount(); }} style={{ minHeight: 40, paddingHorizontal: 20, borderRadius: 20, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.onAccent, fontWeight: "700" }}>立即登录</Text></Pressy> : null}
   </EmptyState>;
