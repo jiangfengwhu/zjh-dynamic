@@ -73,6 +73,7 @@ export function ApplicationInteractions({ item, active, onComment, onShare, onDe
       try {
         const result = await saveApplicationDiscussion(original.id, !original.saved);
         remember({ ...(current.current ?? original), saved: result.saved });
+        if (alive.current && cachedAccountId() === owner) Toast.show({ type: "success", text1: result.saved ? "已添加到常用" : "已从常用移除" });
       } catch (cause) { remember({ ...(current.current ?? original), saved: original.saved }); throw cause; }
     } catch (cause) { fail(cause); }
     finally { writing.current = false; if (alive.current) setSaving(false); }
@@ -92,7 +93,7 @@ export function ApplicationInteractions({ item, active, onComment, onShare, onDe
   return <View style={{ flexDirection: "row", alignItems: "center" }}>
     {action(post?.liked ? "heart" : "heartOutline", post?.liked ? "取消点赞" : "点赞", () => void like(), !!post?.liked)}
     {action("chat", "评论", () => void comment())}
-    {action("bookmark", post?.saved ? "取消收藏" : "收藏", () => void bookmark(), !!post?.saved, saving)}
+    {action("bookmark", post?.saved ? "从常用移除" : "添加到常用", () => void bookmark(), !!post?.saved, saving)}
     <View style={{ flex: 1 }} />
     {action("share", "分享", onShare)}
     {action("info", "详情", onDetail)}

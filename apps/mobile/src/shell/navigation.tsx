@@ -84,6 +84,7 @@ import { ShellTabScene } from "./ShellTabScene";
 import { shellNavigationRef } from "./navigationRef";
 import { lazyScreen } from "./lazyScreen";
 
+const CommonApplicationsScreen = lazyScreen(() => (require("./CommonApplicationsScreen") as typeof import("./CommonApplicationsScreen")).CommonApplicationsScreen, true);
 const MyApplicationsScreen = lazyScreen(() => (require("./MyApplicationsScreen") as typeof import("./MyApplicationsScreen")).MyApplicationsScreen, true);
 const MarketScreen = lazyScreen(() => (require("./MarketScreen") as typeof import("./MarketScreen")).MarketScreen, true);
 const MarketDetailScreen = lazyScreen(() => (require("./MarketDetailScreen") as typeof import("./MarketDetailScreen")).MarketDetailScreen, true);
@@ -117,6 +118,7 @@ export type RootParamList = {
   marketPublication: { item: MarketApplication };
   myApps: undefined;
   discovery: undefined;
+  commonApplications: undefined;
   account: undefined;
   composePost:
     | {
@@ -338,7 +340,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
   const theme = useTheme();
   const colors = theme.colors;
   const keyboard = useKeyboardOpen();
-  const { hidden, tabHeight } = useFeedChrome();
+  const { hidden, tabHeight, applicationExpanded } = useFeedChrome();
   const { height: windowHeight } = useWindowDimensions();
   const [barHeight, setBarHeight] = useState(0);
   const motion = useAnimatedStyle(
@@ -349,6 +351,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
     }),
     [active]
   );
+  if (active === "feed" && applicationExpanded) return null;
   return (
     <Animated.View
       onLayout={(event) => {
@@ -615,6 +618,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             renderApplication={props.renderBundle}
                             onProfile={showProfileDrawer}
                             onSearch={() => shellNavigationRef.navigate("discovery")}
+                            onCommon={() => shellNavigationRef.navigate("commonApplications")}
                             onAuthor={openAuthor}
                             onDetail={item => shellNavigationRef.navigate("marketDetail", { item })}
                             onShare={application => shellNavigationRef.navigate("composePost", { application })}
@@ -681,6 +685,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 </ScreenEdge>
               </ProfileDrawer>
             )}
+          </Stack.Screen>
+          <Stack.Screen name="commonApplications">
+            {() => <CommonApplicationsScreen onBack={goBack} onOpen={props.onOpenBundle} />}
           </Stack.Screen>
           <Stack.Screen name="discovery">
             {() => <MarketScreen onBack={goBack} onOpen={props.onOpenBundle} onAuthor={openAuthor} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => openCreationComposer()} />}

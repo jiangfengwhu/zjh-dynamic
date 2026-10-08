@@ -10,6 +10,7 @@ import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 import { Skeleton } from "../../../../packages/ui/feedback/Skeleton";
 import { afterInteractions, beginRouteTransition, endRouteTransition } from "./interactionWork";
 import NativePluginHost from "../NativePluginHost";
+import { useFeedChrome } from "./feed/FeedChrome";
 import { ApplicationIcon } from "./ApplicationIcon";
 import { UserAvatar } from "./UserAvatar";
 import { HostText as Text } from "./feed/HostText";
@@ -27,6 +28,7 @@ type Props = {
   renderApplication: (id: string, onBack: () => void) => ReactNode;
   onProfile: () => void;
   onSearch: () => void;
+  onCommon: () => void;
   onDetail: (item: MarketApplication) => void;
   onShare: (item: MarketApplication) => void;
   onRemix: (item: MarketApplication) => void;
@@ -42,6 +44,8 @@ export function ApplicationFeedScreen(props: Props) {
   const theme = appTheme;
   const t = theme.colors;
   const insets = useSafeAreaInsets();
+  const { applicationExpanded: expanded, setApplicationExpanded: setExpanded } = useFeedChrome();
+  useEffect(() => () => setExpanded(false), [setExpanded]);
   const focused = useIsFocused();
   const { user } = useAccount();
   const identity = user?.id ?? "guest";
@@ -95,6 +99,7 @@ export function ApplicationFeedScreen(props: Props) {
   }, [switching]);
   useFocusEffect(useCallback(() => {
     const leave = () => {
+      if (expanded) { setExpanded(false); return true; }
       if (!item || pausedRef.current) return false;
       Keyboard.dismiss();
       setPause(true);
@@ -103,7 +108,7 @@ export function ApplicationFeedScreen(props: Props) {
     const unbind = bindApplicationExperienceBack(leave);
     const back = BackHandler.addEventListener("hardwareBackPress", leave);
     return () => { unbind(); back.remove(); };
-  }, [item?.manifest.appId, setPause]));
+  }, [item?.manifest.appId, setPause, expanded, setExpanded]));
 
   const load = useCallback(async (more = false) => {
     if (request.current || (more && !page.nextCursor)) return;
@@ -173,7 +178,7 @@ export function ApplicationFeedScreen(props: Props) {
     });
   }, [next, previous, height, commit, drag, moving, startSwitch]);
   const swipe = useMemo(() => Gesture.Pan()
-    .enabled(active && !commentPost && Boolean(item))
+    .enabled(active && !expanded && !commentPost && Boolean(item))
     .maxPointers(1)
     .activeOffsetY([-8, 8])
     .failOffsetX([-25, 25])
@@ -197,33 +202,34 @@ export function ApplicationFeedScreen(props: Props) {
         drag.value = withTiming(0, timing, () => { moving.value = false; runOnJS(setSwitching)(false); });
       }
     }),
-    [active, commentPost, item, next, previous, height, finish, moving, dragging, drag, startSwitch]);
+    [active, expanded, commentPost, item, next, previous, height, finish, moving, dragging, drag, startSwitch]);
   const advance = useCallback(() => {
+    if (expanded) return;
     if (next) finish(1);
     else if (!busy && page.nextCursor) {
       const owner = identity;
       void load(true).then(added => { if (added && currentOwner.current === owner) { setIndex(value => value === index ? value + 1 : value); setPause(false); } });
     } else if (!busy) void load();
-  }, [next, finish, busy, load, page.nextCursor, identity, index, setPause]);
+  }, [expanded, next, finish, busy, load, page.nextCursor, identity, index, setPause]);
   useFocusEffect(useCallback(() => bindNextApplication(advance), [advance]));
   const layout = (event: LayoutChangeEvent) => { setHeight(Math.max(1, event.nativeEvent.layout.height)); setWidth(Math.max(1, event.nativeEvent.layout.width)); };
 
   return <ThemeContext.Provider value={theme}>
-    <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: insets.top }}>
+    <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: insets.top, paddingBottom: expanded ? insets.bottom : 0 }}>
       <Ambient />
-      <View style={{ height: 52, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+      <View pointerEvents={expanded ? "none" : "auto"} style={{ height: expanded ? 0 : 52, overflow: "hidden", opacity: expanded ? 0 : 1, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <Pressy accessibilityRole="button" accessibilityLabel="打开我的侧边抽屉" onPress={props.onProfile} style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}><UserAvatar uri={user?.avatarUrl} size={30} /></Pressy>
-        <Text accessibilityRole="header" style={{ color: t.ink1, fontSize: 17, fontWeight: "700" }}>发现作品</Text>
-        <RoundButton icon="search" label="搜索作品" onPress={props.onSearch} />
+        <View pointerEvents="none" style={{ position: "absolute", left: 56, right: 56, alignItems: "center" }}><Text accessibilityRole="header" style={{ color: t.ink1, fontSize: 17, fontWeight: "700" }}>发现作品</Text></View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Pressy accessibilityRole="button" accessibilityLabel="打开常用应用" onPress={props.onCommon} style={{ minHeight: 44, paddingHorizontal: 6 }}><Text style={{ color: t.accentText, fontSize: 13, fontWeight: "700" }}>常用</Text></Pressy><RoundButton icon="search" label="搜索作品" onPress={props.onSearch} /></View>
       </View>
-      <View style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
+      <View style={{ flex: 1, marginHorizontal: expanded ? 0 : 4, borderRadius: expanded ? 0 : t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
         {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
-        <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
+        <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: expanded ? 0 : 1, borderColor: t.lineStrong, borderRadius: expanded ? 0 : t.radius.xxl }} />
       </View>
       <GestureDetector gesture={swipe}>
-        <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
+        <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ display: expanded ? "none" : "flex", paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
           {!item && (page.owner !== identity || (!page.loaded && !error)) ? <DiscoveryFooterSkeleton animated={active} /> : null}
           {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={setCommentPost} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -234,11 +240,13 @@ export function ApplicationFeedScreen(props: Props) {
                 {item.summary || item.manifest.description ? <Text numberOfLines={1} ellipsizeMode="tail" style={{ color: t.ink3, fontSize: 11, lineHeight: 16 }}>{(item.summary || item.manifest.description).replace(/\s+/g, " ").trim()}</Text> : null}
               </View>
             </Pressy>
+            <Pressy accessibilityRole="button" accessibilityLabel="打开应用" hitSlop={4} disabled={switching} onPress={() => { setPause(false); setExpanded(true); }} style={{ minHeight: 36, paddingHorizontal: 14, borderRadius: t.radius.pill, backgroundColor: t.accent, justifyContent: "center" }}><Text style={{ color: t.onAccent, fontSize: 13, fontWeight: "700" }}>打开</Text></Pressy>
             <Pressy accessibilityRole="button" accessibilityLabel="改编这个作品" hitSlop={6} onPress={() => props.onRemix(item)} style={{ minHeight: 32, paddingHorizontal: 10, borderRadius: t.radius.pill, backgroundColor: t.surfaceRaised, flexDirection: "row", alignItems: "center", gap: 4 }}><SymbolIcon name="layers" size={14} color={t.ink1} /><Text style={{ color: t.ink1, fontSize: 12, fontWeight: "700" }}>改编</Text></Pressy>
           </View> : null}
 
         </View>
       </GestureDetector>
+      {expanded ? <View style={{ position: "absolute", top: insets.top + 8, right: 12, zIndex: 10 }}><RoundButton icon="close" label="返回发现作品" onPress={() => setExpanded(false)} /></View> : null}
       {commentPost ? <ApplicationCommentsSheet key={`${identity}:${commentPost.id}`} post={commentPost} active={active} onDismiss={() => setCommentPost(null)} /> : null}
     </View>
   </ThemeContext.Provider>;

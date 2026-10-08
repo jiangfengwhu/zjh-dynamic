@@ -493,8 +493,15 @@ export function togglePostLike(post: UserPost) {
 export async function fetchApplicationDiscussion(appId: string) {
   return (await readSocial<{ post: UserPost }>(`/v1/application-discussions/${appId}`)).post;
 }
+export type CommonApplication = ApplicationLink & { discussionId: string };
+export function fetchCommonApplications(cursor?: string) {
+  return readSocial<{ applications: CommonApplication[]; nextCursor: string | null }>(`/v1/application-bookmarks${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
+}
 export function saveApplicationDiscussion(id: string, saved: boolean) {
-  return readSocial<{ saved: boolean }>(`/v1/posts/${id}/bookmark`, { method: saved ? "POST" : "DELETE" });
+  return readSocial<{ saved: boolean }>(`/v1/posts/${id}/bookmark`, { method: saved ? "POST" : "DELETE" }).then(result => {
+    forgetPageFamily(pageCacheKey("common-applications"));
+    return result;
+  });
 }
 export async function publishPostComment(
   id: string,
