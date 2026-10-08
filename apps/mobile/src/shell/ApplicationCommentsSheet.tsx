@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { ActivityIndicator, BackHandler, Keyboard, View, type TextInput } from "react-native";
+import { ActivityIndicator, BackHandler, Dimensions, Keyboard, Platform, View, useWindowDimensions, type TextInput } from "react-native";
 import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetTextInput, useBottomSheetScrollableCreator, useBottomSheetTimingConfigs, type BottomSheetBackdropProps, type BottomSheetFooterProps } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ReduceMotion } from "react-native-reanimated";
@@ -170,7 +170,10 @@ function useCommentFooter(content: ReactNode) {
       Footer(props: BottomSheetFooterProps) {
         const children = useSyncExternalStore(state.subscribe, state.snapshot, state.snapshot);
         const { bottom } = useSafeAreaInsets();
-        return <BottomSheetFooter {...props} bottomInset={bottom}>{children}</BottomSheetFooter>;
+        const window = useWindowDimensions();
+        // Android's sheet coordinates can include bars outside the host viewport.
+        const viewportInset = Platform.OS === "android" ? Math.max(0, Dimensions.get("screen").height - window.height) : 0;
+        return <BottomSheetFooter {...props} bottomInset={Math.max(bottom, viewportInset)}>{children}</BottomSheetFooter>;
       },
     };
     return state;
