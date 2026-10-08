@@ -9,6 +9,7 @@ import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 import { Skeleton } from "../../../../packages/ui/feedback/Skeleton";
 import { loadPublicApplicationExperience } from "../runtime/applications";
+import { afterInteractions } from "./interactionWork";
 import NativePluginHost from "../NativePluginHost";
 import { ApplicationIcon } from "./ApplicationIcon";
 import { UserAvatar } from "./UserAvatar";
@@ -251,6 +252,13 @@ function InlineExperience({ item, enabled, foreground, visible, render, onReady,
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const showing = foreground && visible;
+  const [retainedVisible, setRetainedVisible] = useState(showing);
+  useEffect(() => {
+    if (showing) { setRetainedVisible(true); return; }
+    // Hiding an Activity detaches its native tree. Let navigation paint first.
+    return afterInteractions(() => setRetainedVisible(false));
+  }, [showing]);
   useEffect(() => {
     if (!enabled || ready) return;
     const controller = new AbortController();
@@ -262,7 +270,7 @@ function InlineExperience({ item, enabled, foreground, visible, render, onReady,
     });
     return () => controller.abort();
   }, [item.manifest.appId, item.manifest.releaseId, attempt, onReady, enabled, ready]);
-  if (ready) return <Activity mode={foreground && visible ? "visible" : "hidden"}><View style={{ flex: 1 }}>{render(item.manifest.appId, onPause)}</View></Activity>;
+  if (ready) return <Activity mode={showing || retainedVisible ? "visible" : "hidden"}><View style={{ flex: 1 }}>{render(item.manifest.appId, onPause)}</View></Activity>;
   // Preload data above, but only animate the skeleton the user can see.
   if (!visible) return null;
   return <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 16 }}>
