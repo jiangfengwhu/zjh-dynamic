@@ -68,7 +68,7 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
     checkLocal();
     const entry = catalog.find(entry => entry.id === appId);
     // A completed background download must not undo a later uninstall.
-    if (entry?.trashedAt !== initialEntry?.trashedAt || entry?.purged !== initialEntry?.purged)
+    if ((entry?.trashedAt && entry.trashedAt !== initialEntry?.trashedAt) || (entry?.purged && !initialEntry?.purged))
       throw new Error("本机安装状态已改变，请重新打开作品");
     const newlyInstalled = !entry || entry.trashedAt || entry.purged;
     const saved = readShellValueSync(`application.install.${appId}`);
