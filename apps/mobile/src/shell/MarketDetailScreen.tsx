@@ -144,7 +144,7 @@ function MarketDetailContent({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [localReady, setLocalReady] = useState(true);
-  const knownOwner = user?.id && (item.owned ?? readShellValueSync(`shell.jules.apps.${app.appId}.owner`) === user.id) ? user.id : undefined;
+  const knownOwner = user?.id && item.authorId === user.id && item.owned !== false ? user.id : undefined;
   const initialSharing = knownOwner ? item.sharing ?? cachedSharingSync(app.appId) : undefined;
   const [ownershipReady, setOwnershipReady] = useState(true);
   const [ownerAccount, setOwnerAccount] = useState<string | undefined>(knownOwner);
@@ -236,7 +236,7 @@ function MarketDetailContent({
     let live = true;
     async function refresh() {
       const accountId = user?.id;
-      const owned = !!accountId && (item.owned ?? readShellValueSync(`shell.jules.apps.${app.appId}.owner`) === accountId);
+      const owned = !!accountId && item.authorId === accountId && item.owned !== false;
       if (!live) return;
       setOwnerAccount(owned ? accountId : undefined); setOwnershipReady(true);
       if (!owned) { setSharing(undefined); setDraftOwner(undefined); initializedOwner.current = undefined; return; }
