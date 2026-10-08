@@ -1,15 +1,14 @@
 import { Activity, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "react-native";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
-import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, scrollTo, useAnimatedReaction, useAnimatedRef, useSharedValue, withTiming } from "react-native-reanimated";
-import { Pressy, RoundButton } from "../../../../packages/ui/chrome";
+import { Pressy } from "../../../../packages/ui/chrome";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
 import { Skeleton } from "../../../../packages/ui/feedback/Skeleton";
 import { afterInteractions, beginRouteTransition, endRouteTransition } from "./interactionWork";
-import { useFeedChrome } from "./feed/FeedChrome";
 import { ApplicationIcon } from "./ApplicationIcon";
 import { UserAvatar } from "./UserAvatar";
 import { HostText as Text } from "./feed/HostText";
@@ -27,6 +26,7 @@ type Props = {
   renderApplication: (id: string, onBack: () => void) => ReactNode;
   onProfile: () => void;
   onSearch: () => void;
+  onOpen: (id: string) => Promise<boolean>;
   active?: boolean;
   stageGesture: ReturnType<typeof Gesture.Native>;
   onDetail: (item: MarketApplication) => void;
@@ -43,9 +43,6 @@ export function ApplicationFeedScreen(props: Props) {
   const appTheme = useTheme();
   const theme = appTheme;
   const t = theme.colors;
-  const insets = useSafeAreaInsets();
-  const { applicationExpanded: expanded, setApplicationExpanded: setExpanded } = useFeedChrome();
-  useEffect(() => () => setExpanded(false), [setExpanded]);
   const focused = useIsFocused() && (props.active ?? true);
   const { user } = useAccount();
   const identity = user?.id ?? "guest";
@@ -95,7 +92,6 @@ export function ApplicationFeedScreen(props: Props) {
   useFocusEffect(useCallback(() => {
     if (!focused) return;
     const leave = () => {
-      if (expanded) { setExpanded(false); return true; }
       if (!item || pausedRef.current) return false;
       Keyboard.dismiss();
       setPause(true);
@@ -104,7 +100,7 @@ export function ApplicationFeedScreen(props: Props) {
     const unbind = bindApplicationExperienceBack(leave);
     const back = BackHandler.addEventListener("hardwareBackPress", leave);
     return () => { unbind(); back.remove(); };
-  }, [focused, item?.manifest.appId, setPause, expanded, setExpanded]));
+  }, [focused, item?.manifest.appId, setPause]));
 
   const load = useCallback(async (more = false) => {
     if (request.current || (more && !page.nextCursor)) return;
@@ -174,7 +170,7 @@ export function ApplicationFeedScreen(props: Props) {
     });
   }, [next, previous, height, commit, drag, moving, startSwitch]);
   const swipe = useMemo(() => Gesture.Pan()
-    .enabled(active && !expanded && !commentPost && Boolean(item))
+    .enabled(active && !commentPost && Boolean(item))
     .maxPointers(1)
     .activeOffsetY([-8, 8])
     .failOffsetX([-25, 25])
@@ -198,32 +194,31 @@ export function ApplicationFeedScreen(props: Props) {
         drag.value = withTiming(0, timing, () => { moving.value = false; runOnJS(setSwitching)(false); });
       }
     }),
-    [active, expanded, commentPost, item, next, previous, height, finish, moving, dragging, drag, startSwitch]);
+    [active, commentPost, item, next, previous, height, finish, moving, dragging, drag, startSwitch]);
   const advance = useCallback(() => {
-    if (expanded) return;
     if (next) finish(1);
     else if (!busy && page.nextCursor) {
       const owner = identity;
       void load(true).then(added => { if (added && currentOwner.current === owner) { setIndex(value => value === index ? value + 1 : value); setPause(false); } });
     } else if (!busy) void load();
-  }, [expanded, next, finish, busy, load, page.nextCursor, identity, index, setPause]);
+  }, [next, finish, busy, load, page.nextCursor, identity, index, setPause]);
   useFocusEffect(useCallback(() => focused ? bindNextApplication(advance) : undefined, [focused, advance]));
   const layout = (event: LayoutChangeEvent) => { setHeight(Math.max(1, event.nativeEvent.layout.height)); setWidth(Math.max(1, event.nativeEvent.layout.width)); };
 
   return <ThemeContext.Provider value={theme}>
-    <View style={{ flex: 1, backgroundColor: "transparent", paddingBottom: expanded ? insets.bottom : 0 }}>
+    <View style={{ flex: 1, backgroundColor: "transparent" }}>
       <GestureDetector gesture={props.stageGesture}>
-      <View collapsable={false} style={{ flex: 1, marginHorizontal: expanded ? 0 : 4, borderRadius: expanded ? 0 : t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
+      <View collapsable={false} style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
         {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
-        <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: expanded ? 0 : 1, borderColor: t.lineStrong, borderRadius: expanded ? 0 : t.radius.xxl }} />
+        <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
       </View>
       </GestureDetector>
       <GestureDetector gesture={swipe}>
-        <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ display: expanded ? "none" : "flex", paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
+        <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
           {!item && (page.owner !== identity || (!page.loaded && !error)) ? <DiscoveryFooterSkeleton animated={active} /> : null}
-          {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={setCommentPost} onOpen={() => { setPause(false); setExpanded(true); }} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
+          {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={setCommentPost} onOpen={() => { void props.onOpen(item.manifest.appId); }} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Pressy accessibilityRole="button" accessibilityLabel={`查看作者${item.authorName}`} disabled={!item.authorId} onPress={() => item.authorId && props.onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial })} style={{ flex: 1, minWidth: 0, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 }}>
               <UserAvatar uri={item.authorAvatarUrl} size={32} />
@@ -237,7 +232,6 @@ export function ApplicationFeedScreen(props: Props) {
 
         </View>
       </GestureDetector>
-      {expanded ? <View style={{ position: "absolute", top: 8, right: 12, zIndex: 10 }}><RoundButton icon="close" label="返回发现作品" onPress={() => setExpanded(false)} /></View> : null}
       {commentPost ? <ApplicationCommentsSheet key={`${identity}:${commentPost.id}`} post={commentPost} active={active} onDismiss={() => setCommentPost(null)} /> : null}
     </View>
   </ThemeContext.Provider>;

@@ -338,7 +338,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
   const theme = useTheme();
   const colors = theme.colors;
   const keyboard = useKeyboardOpen();
-  const { hidden, tabHeight, applicationExpanded } = useFeedChrome();
+  const { hidden, tabHeight } = useFeedChrome();
   const { height: windowHeight } = useWindowDimensions();
   const [barHeight, setBarHeight] = useState(0);
   const motion = useAnimatedStyle(
@@ -349,7 +349,6 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
     }),
     [active]
   );
-  if (active === "feed" && applicationExpanded) return null;
   return (
     <Animated.View
       onLayout={(event) => {

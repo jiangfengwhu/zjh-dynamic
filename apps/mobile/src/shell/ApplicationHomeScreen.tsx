@@ -12,7 +12,6 @@ import { CommonApplicationsScreen } from "./CommonApplicationsScreen";
 import { CompactTabs } from "./CompactTabs";
 import { UserAvatar } from "./UserAvatar";
 import { useAccount } from "./account";
-import { useFeedChrome } from "./feed/FeedChrome";
 import { useProfileDrawer } from "./ProfileDrawer";
 import { useVisitedPager } from "./useVisitedPager";
 import { beginRouteTransition, endRouteTransition } from "./interactionWork";
@@ -28,7 +27,6 @@ export function ApplicationHomeScreen(props: Props) {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAccount();
-  const { applicationExpanded: expanded } = useFeedChrome();
   const { applicationActive, gesture: drawerGesture } = useProfileDrawer();
   const [tab, setTab] = useState<Tab>("discovery");
   const pager = useRef<PagerView>(null);
@@ -73,13 +71,13 @@ export function ApplicationHomeScreen(props: Props) {
 
   return <View style={{ flex: 1, backgroundColor: colors.canvas, paddingTop: insets.top }}>
     <Ambient />
-    {!expanded ? <View style={{ height: 52, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
+    <View style={{ height: 52, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 }}>
       <Pressy accessibilityRole="button" accessibilityLabel="打开我的侧边抽屉" onPress={props.onProfile} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><UserAvatar uri={user?.avatarUrl} size={30} /></Pressy>
       <View style={{ flex: 1, alignItems: "center" }}><View style={{ width: "100%", maxWidth: 240 }}><CompactTabs value={tab} options={options} onChange={select} position={position} /></View></View>
       <RoundButton icon="search" label="搜索作品" onPress={props.onSearch} />
-    </View> : null}
+    </View>
     <GestureDetector gesture={pagerGesture}>
-      <AnimatedPagerView ref={pager} style={{ flex: 1 }} initialPage={0} offscreenPageLimit={1} overScrollMode="never" scrollEnabled={!expanded} onPageScroll={onPageScroll} onPageSelected={onPageSelected} onPageScrollStateChanged={onPageScrollStateChanged}>
+      <AnimatedPagerView ref={pager} style={{ flex: 1 }} initialPage={0} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected} onPageScrollStateChanged={onPageScrollStateChanged}>
         <View key="discovery" collapsable={false} style={{ flex: 1 }}><ApplicationFeedScreen {...props} active={tab === "discovery"} stageGesture={stageGesture} /></View>
         <View key="common" collapsable={false} style={{ flex: 1 }}>{visited.has(1) ? <CommonApplicationsScreen active={tab === "common"} onOpen={props.onOpen} /> : null}</View>
       </AnimatedPagerView>
