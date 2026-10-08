@@ -499,7 +499,7 @@ export function ComposePostScreen({
               </Text>
             </Pressy>
             <Pressy
-              accessibilityLabel="选择自己已上架的应用"
+              accessibilityLabel="选择自己已公开的应用"
               disabled={!draftReady || busy || choosing}
               onPress={() => void pickApplication()}
               style={styles.tool}
@@ -600,10 +600,10 @@ export function ComposePostScreen({
           >
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
               <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: colors.orangeTint, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="box" size={16} strokeWidth={2.1} color={colors.orange} /></View>
-              <Text style={{ flex: 1, color: colors.ink1, ...colors.type.headline }}>我的已上架应用</Text>
+              <Text style={{ flex: 1, color: colors.ink1, ...colors.type.headline }}>我的已公开应用</Text>
               <Pressy scale={1} accessibilityLabel="关闭应用选择" onPress={() => setPicking(false)} style={{ width: 44, height: 44, alignItems: "center" }}><SymbolIcon name="close" size={16} color={colors.ink3} /></Pressy>
             </View>
-            <Text style={styles.counter}>仅分享应用市场里的公开版本</Text>
+            <Text style={styles.counter}>仅分享已经公开的作品版本</Text>
             <AnimatedFlashList data={loadingApps || appsError ? [] : applications} keyExtractor={item => item.manifest.appId} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" style={{ minHeight: 160 }}
               renderItem={({ item }) => (
                   <Pressable
@@ -627,7 +627,7 @@ export function ComposePostScreen({
                     </Text>
                   </Pressable>
               )}
-              ListEmptyComponent={loadingApps ? <PageSkeleton rows={3} shape="picker" /> : appsError ? <Pressable onPress={() => void pickApplication()} style={styles.add}><Text style={{ color: colors.danger }}>{appsError} · 重试</Text></Pressable> : <EmptyState style={{ minHeight: 160, flexGrow: 0 }}><Text style={{ color: colors.ink3, textAlign: "center" }}>还没有已上架应用。先在作品详情中发布到市场，就可以分享了。</Text></EmptyState>}
+              ListEmptyComponent={loadingApps ? <PageSkeleton rows={3} shape="picker" /> : appsError ? <Pressable onPress={() => void pickApplication()} style={styles.add}><Text style={{ color: colors.danger }}>{appsError} · 重试</Text></Pressable> : <EmptyState style={{ minHeight: 160, flexGrow: 0 }}><Text style={{ color: colors.ink3, textAlign: "center" }}>还没有已公开应用。先在作品详情中公开作品，就可以分享了。</Text></EmptyState>}
             />
             <Pressable onPress={() => setPicking(false)} style={styles.add}>
               <Text style={[styles.addText, { textAlign: "center" }]}>

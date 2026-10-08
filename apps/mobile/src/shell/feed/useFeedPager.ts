@@ -9,7 +9,7 @@ import { Gesture } from "react-native-gesture-handler";
 import { runOnJS, runOnUI, useEvent } from "react-native-reanimated";
 import { useVisitedPager } from "../useVisitedPager";
 import { useProfileDrawer } from "../ProfileDrawer";
-export type FeedCategory = "installed" | "recommended" | "following";
+export type FeedCategory = "recommended" | "following";
 
 /** Native paging owns both directions; only the first page defers right swipes to the drawer. */
 export function useFeedPager({

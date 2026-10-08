@@ -40,6 +40,7 @@ export function showProfileDrawer() {
   reveal?.();
 }
 type Drawer = {
+  applicationActive: SharedValue<boolean>;
   feedActive: SharedValue<boolean>;
   feedPage: SharedValue<number>;
   feedPosition: SharedValue<number>;
@@ -82,6 +83,7 @@ export function ProfileDrawer({
     [theme, colors]
   );
   const width = Math.min(340, screenWidth * 0.84);
+  const applicationActive = useSharedValue(false);
   const feedActive = useSharedValue(false);
   const feedPage = useSharedValue(0);
   const feedPosition = useSharedValue(0);
@@ -169,6 +171,7 @@ export function ProfileDrawer({
           // very touch, so it must not veto an edge-originating drawer drag.
           eligible.value =
             canOpen.value &&
+            !applicationActive.value &&
             (!profileActive.value ||
               Math.abs(profilePosition.value) <= 0.001) &&
             (!marketActive.value || Math.abs(marketPosition.value) <= 0.001) &&
@@ -218,6 +221,7 @@ export function ProfileDrawer({
         }),
     [
       canOpen,
+      applicationActive,
       feedActive,
       feedPage,
       feedPosition,
@@ -238,6 +242,7 @@ export function ProfileDrawer({
   );
   const value = useMemo(
     () => ({
+      applicationActive,
       feedActive,
       feedPage,
       feedPosition,
@@ -257,6 +262,7 @@ export function ProfileDrawer({
       settle,
     }),
     [
+      applicationActive,
       feedActive,
       feedPage,
       feedPosition,

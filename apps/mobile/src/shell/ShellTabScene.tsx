@@ -25,7 +25,7 @@ export function ShellTabScene({ children, immediate = false }: { children: React
   return ready || (immediate && focused) ? (typeof children === "function" ? children() : children) : (
     <View style={{ flex: 1, padding: 16, backgroundColor: colors.canvas }}>
       <Ambient />
-      {focused ? <PageSkeleton rows={4} shape={route.name === "feed" ? "feed" : route.name === "market" ? "application" : route.name === "notifications" ? "notification" : "work"} /> : null}
+      {focused ? <PageSkeleton rows={4} shape={route.name === "market" ? "feed" : route.name === "feed" ? "application" : route.name === "notifications" ? "notification" : "work"} /> : null}
     </View>
   );
 }

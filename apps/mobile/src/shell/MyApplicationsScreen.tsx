@@ -501,7 +501,7 @@ export function MyApplicationsScreen({
                   summary={published?.summary || visual?.description || work.wish}
                   visibility={published ? "public" : "private"}
                   status={
-                    (published && ["ready", "load"].includes(work.stage) ? "已上架" : workLabels[work.stage] + (published ? " · 已上架" : "")) + (work.stale ? " · 待同步" : "")
+                    (published && ["ready", "load"].includes(work.stage) ? "已公开" : workLabels[work.stage] + (published ? " · 已公开" : "")) + (work.stale ? " · 待同步" : "")
                   }
                   authorName={user?.name}
                   authorAvatarUrl={user?.avatarUrl}
@@ -511,7 +511,7 @@ export function MyApplicationsScreen({
                     <>
                       {work.manifest && onManagePublication ? (
                         <Pressy
-                          accessibilityLabel="管理市场公开状态"
+                          accessibilityLabel="管理作品公开状态"
                           onPress={() => detail(work, true)}
                           style={{
                             width: 44,

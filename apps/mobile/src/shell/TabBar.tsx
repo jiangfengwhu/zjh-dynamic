@@ -11,8 +11,8 @@ import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 
 export const SHELL_TABS = [
-  { id: "feed", title: "动态", short: "动态", icon: "feed" },
-  { id: "market", title: "应用市场", short: "市场", icon: "box" },
+  { id: "feed", title: "首页", short: "首页", icon: "feed" },
+  { id: "market", title: "社区", short: "社区", icon: "chat" },
   { id: "notifications", title: "通知", short: "通知", icon: "bell" },
   { id: "mine", title: "我的", short: "我的", icon: "mine" },
 ] as const;
@@ -33,10 +33,12 @@ export function TabBar({
   activeId,
   onChange,
   onCompose,
+  immersive = false,
 }: {
   activeId: string;
   onChange: (id: ShellTabId) => void;
   onCompose: () => void;
+  immersive?: boolean;
 }) {
   const styles = useStyles();
 
@@ -44,7 +46,7 @@ export function TabBar({
   const unread = useNotificationCount() + useMessageCount();
   useMessagesSync();
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, immersive && { backgroundColor: colors.canvas, marginHorizontal: 4, borderWidth: 0, borderRadius: 0, boxShadow: "none" }]}>
       {SHELL_TABS.slice(0, 2).map((item) => (
         <Tab
           key={item.id}

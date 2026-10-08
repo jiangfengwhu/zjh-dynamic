@@ -505,7 +505,7 @@ function MarketDetailContent({
             );
       Toast.show({
         type: "success",
-        text1: mode === "edit" ? "市场信息已保存" : "作品已上架",
+        text1: mode === "edit" ? "作品介绍已保存" : "作品已公开",
       });
       discardSavedDraft();
       setBaseline(formValue);
@@ -515,7 +515,7 @@ function MarketDetailContent({
       setShareNotice(
         mode === "edit"
           ? "分享信息已保存，公开版本保持不变。"
-          : "已将选定版本分享到应用市场。"
+          : "已公开选定版本，大家可以发现并体验它。"
       );
     } catch (e) {
       const message = e instanceof Error ? e.message : "分享未完成，请重试";
@@ -536,7 +536,7 @@ function MarketDetailContent({
         setSharing(state);
         setPublishLatest(true);
         setBaseline("");
-        setShareNotice("已撤回上架，填写的信息仍保留，可以再次公开。");
+        setShareNotice("已撤回公开，填写的信息仍保留，可以再次公开。");
       })
       .catch((e) => setError(e instanceof Error ? e.message : "撤回未完成"))
       .finally(() => {
@@ -672,10 +672,10 @@ function MarketDetailContent({
             ]}
           >
             {shared
-              ? "已公开 · 大家可以在市场找到它"
+              ? "已公开 · 大家可以发现并体验它"
               : sharing?.application
-              ? "未公开 · 完成介绍后即可上架"
-              : "未公开 · 完成制作后即可上架"}
+              ? "未公开 · 完成介绍后即可公开"
+              : "未公开 · 完成制作后即可公开"}
           </Text>
         </View>
         <SymbolIcon
@@ -687,7 +687,7 @@ function MarketDetailContent({
       <View style={styles.versionLine}>
         {shared ? (
           <Text style={styles.caption}>
-            市场 v{versionName(shared.manifest)}
+            公开 v{versionName(shared.manifest)}
           </Text>
         ) : null}
         {sharing?.application ? (
@@ -697,7 +697,7 @@ function MarketDetailContent({
       {shared && hasNewVersion ? (
         <View style={styles.versionChoices}>
           {[
-            { value: false, label: "保留市场版本" },
+            { value: false, label: "保留公开版本" },
             { value: true, label: "发布制作新版" },
           ].map((option) => (
             <Pressy
@@ -741,7 +741,7 @@ function MarketDetailContent({
       ) : null}
       <Text style={styles.caption}>
         {shared && !publishLatest
-          ? "保存介绍不会替换市场中的应用版本。"
+          ? "保存介绍不会替换当前公开的应用版本。"
           : "本次公开制作版本，之后制作的新版需要再次发布。"}
       </Text>
     </View>
@@ -757,13 +757,13 @@ function MarketDetailContent({
         {!ownershipReady
           ? "正在读取作者权限…"
           : shareNotice ||
-            (owner ? "正在准备市场信息…" : "仅作品作者可管理公开状态。")}
+            (owner ? "正在准备作品介绍…" : "仅作品作者可管理公开状态。")}
       </Text>
       {shareNotice ? (
         <Pressy
           disabled={busy}
           onPress={onRefresh}
-          accessibilityLabel="重新读取市场信息"
+          accessibilityLabel="重新读取作品介绍"
         >
           <SymbolIcon name="refresh" size={18} color={colors.accentText} />
         </Pressy>
@@ -796,7 +796,7 @@ function MarketDetailContent({
         <PageHeader
           title={
             publication
-              ? "公开到应用市场"
+              ? "公开作品"
               : ownsSurface
               ? "作品详情"
               : "应用详情"
@@ -807,7 +807,7 @@ function MarketDetailContent({
               <Pressy
                 disabled={busy || !sharingReady}
                 onPress={withdraw}
-                accessibilityLabel="撤回上架"
+                accessibilityLabel="撤回公开"
                 scale={1}
                 hitSlop={6}
                 style={{
@@ -824,7 +824,7 @@ function MarketDetailContent({
               </Pressy>
             ) : !publication && owner && onPublication ? (
               <Pressy
-                accessibilityLabel="公开到应用市场"
+                accessibilityLabel="公开作品"
                 onPress={onPublication}
                 scale={1}
                 hitSlop={6}
@@ -986,7 +986,7 @@ function MarketDetailContent({
                       ) : null}
                     </View>} />
                     <Text style={styles.caption}>
-                      上传真实的使用画面，第一张用于市场预览。
+                      上传真实的使用画面，第一张用于搜索和详情预览。
                     </Text>
                   </View>
                   {uploadStatus ? (
@@ -1232,11 +1232,11 @@ function MarketDetailContent({
                       : !shared && !sharing?.application
                       ? "完成制作后可公开"
                       : !shared
-                      ? "公开到应用市场"
+                      ? "公开作品"
                       : publishLatest
                       ? "发布新版并保存信息"
                       : formDirty
-                      ? "保存市场信息"
+                      ? "保存作品介绍"
                       : "信息已保存"}
                   </Text>
                 </Pressy>

@@ -9,7 +9,7 @@ import { TabLabel } from "../TabAppearance";
 import { useTheme } from "../../../../../packages/ui/theme";
 import type { FeedCategory } from "./useFeedPager";
 
-const categories = ["installed", "recommended", "following"] as const;
+const categories = ["recommended", "following"] as const;
 const labelStyle = { fontSize: 14, lineHeight: 19, fontWeight: "700" as const, letterSpacing: -0.2 };
 export function FeedCategoryTabs({
   selected,
@@ -24,15 +24,15 @@ export function FeedCategoryTabs({
   const [width, setWidth] = useState(0);
   const indicator = useAnimatedStyle(() => ({
     transform: [
-      { translateX: (Math.max(0, Math.min(2, position.value)) * width) / 3 },
+      { translateX: (Math.max(0, Math.min(1, position.value)) * width) / 2 },
     ],
   }));
   // 每个分类一种糖果色，滑块颜色随分页进度连续过渡。
   const fill = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
-      Math.max(0, Math.min(2, position.value)),
-      [0, 1, 2],
-      [colors.orange, colors.accent, colors.orchid],
+      Math.max(0, Math.min(1, position.value)),
+      [0, 1],
+      [colors.accent, colors.orchid],
     ),
   }));
   return (
@@ -43,7 +43,7 @@ export function FeedCategoryTabs({
       <Animated.View
         pointerEvents="none"
         style={[
-          { position: "absolute", top: 2, bottom: 2, left: 0, width: width / 3, paddingHorizontal: 3 },
+          { position: "absolute", top: 2, bottom: 2, left: 0, width: width / 2, paddingHorizontal: 3 },
           indicator,
         ]}
       >
@@ -54,8 +54,7 @@ export function FeedCategoryTabs({
           key={category}
           accessibilityRole="tab"
           accessibilityLabel={
-            category === "installed" ? "我的应用"
-              : category === "recommended" ? "为你推荐" : "正在关注"
+            category === "recommended" ? "为你推荐" : "正在关注"
           }
           accessibilityState={{ selected: category === selected }}
           onPress={() => onSelect(category)}
@@ -63,8 +62,7 @@ export function FeedCategoryTabs({
         >
           <TabLabel
             label={
-              category === "installed" ? "我的应用"
-                : category === "recommended" ? "为你推荐" : "正在关注"
+              category === "recommended" ? "为你推荐" : "正在关注"
             }
             index={index}
             position={position}

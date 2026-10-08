@@ -29,6 +29,8 @@ import type { MaterialTopTabBarProps } from "@react-navigation/material-top-tabs
 import { TabBar, type ShellTabId } from "./TabBar";
 
 import { FeedScreen } from "./feed/FeedScreen";
+import { ApplicationFeedScreen } from "./ApplicationFeedScreen";
+import { backFromApplicationExperience } from "./applicationExperienceNavigation";
 import {
   FeedChromeProvider,
   useFeedChrome,
@@ -52,7 +54,7 @@ import {
 } from "./ProfileDrawer";
 import { requireAccount, currentAccountId, cachedAccountId } from "./account";
 import { readShellValue, removeShellValue } from "./shellStorage";
-import { useTheme, type ThemeMode, type ThemePreference } from "../../../../packages/ui/theme";
+import { ThemeContext, getTheme, useTheme, type ThemeMode, type ThemePreference } from "../../../../packages/ui/theme";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { AsyncRouteScreen } from "./AsyncRouteScreen";
 import { cachedFeature, openFeature } from "../../../../packages/features/src/registry";
@@ -114,6 +116,7 @@ export type RootParamList = {
   marketDetail: { item: MarketApplication };
   marketPublication: { item: MarketApplication };
   myApps: undefined;
+  discovery: undefined;
   account: undefined;
   composePost:
     | {
@@ -228,7 +231,7 @@ function goBack() {
   if (shellNavigationRef.isReady() && shellNavigationRef.canGoBack()) {
     shellNavigationRef.goBack();
   } else {
-    openShellTab("feed");
+    if (!backFromApplicationExperience()) openShellTab("feed");
   }
 }
 
@@ -284,7 +287,7 @@ function handleShellRequest(raw: string | undefined) {
 function ApplicationRecovery({ error, onCheckUpdates }: { error: Error; onCheckUpdates: () => Promise<boolean> }) {
   const [busy, setBusy] = useState(false);
   if (!(error instanceof ApplicationSdkError)) return null;
-  if (error.action === "update-application") return <Button label="前往应用市场" onPress={() => openShellTab("market")} />;
+  if (error.action === "update-application") return <Button label="管理应用版本" onPress={() => shellNavigationRef.navigate("discovery")} />;
   return <Button label="检查生花更新" busy={busy} onPress={() => {
     if (busy) return;
     setBusy(true);
@@ -328,7 +331,9 @@ function MarketDetailPage({ item, onOpen }: {
 function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
   const active = state.routes[state.index]?.name ?? "feed";
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const theme = useTheme();
+  const homeTheme = useMemo(() => ({ ...theme, mode: "dark" as const, colors: getTheme("dark") }), [theme]);
+  const colors = active === "feed" ? homeTheme.colors : theme.colors;
   const keyboard = useKeyboardOpen();
   const { hidden, tabHeight } = useFeedChrome();
   const { height: windowHeight } = useWindowDimensions();
@@ -336,7 +341,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
   const motion = useAnimatedStyle(
     () => ({
       transform: [
-        { translateY: active === "feed" ? hidden.value * tabHeight.value : 0 },
+        { translateY: active === "market" ? hidden.value * tabHeight.value : 0 },
       ],
     }),
     [active]
@@ -354,7 +359,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
             ? 0
             : Math.max(SHELL_BOTTOM_PADDING, insets.bottom),
         },
-        active === "feed" && {
+        active === "market" && {
           experimental_backgroundImage: `linear-gradient(180deg, ${colors.canvas}00 0%, ${colors.canvas}E6 55%, ${colors.canvas} 100%)`,
           position: "absolute",
           bottom: 0,
@@ -362,12 +367,15 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
           right: 0,
           zIndex: 20,
         },
+        active === "feed" && { backgroundColor: colors.canvas },
         motion,
       ]}
     >
-      {active !== "feed" ? <AmbientFill offset={windowHeight - barHeight} /> : null}
+      {active !== "market" && active !== "feed" ? <AmbientFill offset={windowHeight - barHeight} /> : null}
+      <ThemeContext.Provider value={active === "feed" ? homeTheme : theme}>
       <TabBar
         activeId={active}
+        immersive={active === "feed"}
         onCompose={() => openPublication()}
         onChange={(id) => {
           const route = state.routes.find((item) => item.name === id);
@@ -376,6 +384,7 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
           }
         }}
       />
+      </ThemeContext.Provider>
     </Animated.View>
   );
 }
@@ -593,16 +602,15 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     <Tabs.Screen name="feed">
                       {() => (
                         <ShellTabScene immediate>
-                          <FeedScreen
-                            onAuthor={openAuthor}
-                            onApplication={openPublicMarketApplication}
+                          <ApplicationFeedScreen
+                            renderApplication={props.renderBundle}
                             onProfile={showProfileDrawer}
-                            onPost={(post) =>
-                              shellNavigationRef.navigate("postDetail", {
-                                post,
-                              })
-                            }
-                            onCompose={() => openPublication()}
+                            onSearch={() => shellNavigationRef.navigate("discovery")}
+                            onAuthor={openAuthor}
+                            onDetail={item => shellNavigationRef.navigate("marketDetail", { item })}
+                            onOpen={id => shellNavigationRef.navigate("bundle", { id })}
+                            onShare={application => shellNavigationRef.navigate("composePost", { application })}
+                            onRemix={item => openCreationComposer({ appId: item.manifest.appId, title: item.manifest.appName, releaseId: item.manifest.releaseId, fork: true })}
                           />
                         </ShellTabScene>
                       )}
@@ -610,15 +618,12 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     <Tabs.Screen name="market">
                       {() => (
                         <ShellTabScene>
-                          {() => <MarketScreen
-                            onOpen={props.onOpenBundle}
+                          {() => <FeedScreen
                             onAuthor={openAuthor}
-                            onDetail={(item) =>
-                              shellNavigationRef.navigate("marketDetail", {
-                                item,
-                              })
-                            }
-                            onCreate={() => openCreationComposer()}
+                            onApplication={openPublicMarketApplication}
+                            onProfile={showProfileDrawer}
+                            onPost={post => shellNavigationRef.navigate("postDetail", { post })}
+                            onCompose={() => openPublication()}
                           />}
                         </ShellTabScene>
                       )}
@@ -669,6 +674,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 </ScreenEdge>
               </ProfileDrawer>
             )}
+          </Stack.Screen>
+          <Stack.Screen name="discovery">
+            {() => <MarketScreen onBack={goBack} onOpen={props.onOpenBundle} onAuthor={openAuthor} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => openCreationComposer()} />}
           </Stack.Screen>
           <Stack.Screen name="applicationLink">
             {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack} renderErrorAction={error => <ApplicationRecovery error={error} onCheckUpdates={props.onCheckUpdates} />} cacheKey={`link:${route.params.appId}:${isApplicationInstalledSync(route.params.appId) ? "installed" : "public"}`}

@@ -129,9 +129,9 @@ export async function fetchMarketPage(
   const response = await fetchApplicationCatalog(
     `${edgeUrl}/v1/market?${params}`
   );
-  if (!response.ok) throw new Error("市场加载失败，请重试");
+  if (!response.ok) throw new Error("作品加载失败，请重试");
   const data = (await response.json()) as MarketPage;
-  if (!Array.isArray(data.applications)) throw new Error("市场数据暂时不可用");
+  if (!Array.isArray(data.applications)) throw new Error("作品数据暂时不可用");
   return {
     applications: data.applications
       .filter((item) => item.manifest.appId !== "jolly")
@@ -154,7 +154,7 @@ export async function fetchPublicMarketApplication(
   const item = data.applications?.find(
     (item) => item.manifest?.appId === appId
   );
-  if (!item) throw new Error("这个应用已撤回或暂未上架");
+  if (!item) throw new Error("这个应用已撤回或暂未公开");
   const next = { ...item, latest: true };
   rememberPage(pageCacheKey(`market:${appId}`), next);
   return next;
@@ -191,10 +191,10 @@ export async function fetchMarket(
       authorId ? `?authorId=${encodeURIComponent(authorId)}` : ""
     }`
   );
-  if (!response.ok) throw new Error("暂时无法获取应用市场，请稍后重试");
+  if (!response.ok) throw new Error("暂时无法获取公开作品，请稍后重试");
   const data = (await response.json()) as { applications: MarketApplication[] };
   if (!Array.isArray(data.applications))
-    throw new Error("应用市场数据暂时不可用");
+    throw new Error("公开作品数据暂时不可用");
   const items = data.applications
     .filter((item) => item.manifest?.appId !== "jolly")
     .filter((item) => /^[a-z][a-z0-9-]{0,63}$/.test(item.manifest?.appId))
@@ -391,11 +391,11 @@ async function marketAction(
       input.action === "withdraw"
         ? "撤回分享"
         : input.action === "edit"
-        ? "修改市场介绍"
-        : "上架到应用市场",
+        ? "修改作品介绍"
+        : "公开作品",
       appId,
       input.action === "withdraw"
-        ? "作品会从市场移除；已安装版本和你的作品仍保留。"
+        ? "作品将不再公开展示；已安装版本和你的作品仍保留。"
         : [input.title, input.summary].filter(Boolean).join("\n")
     );
   const token = await readShellValue(`shell.jules.apps.${appId}.token`);

@@ -1,6 +1,5 @@
 import { AnimatedFlashList, type FlashListProps, type FlashListRef } from "../AnimatedFlashList";
 import { ListGesture } from "./ListGesture";
-import { ApplicationIcon } from "../ApplicationIcon";
 import { markStartup } from "../../runtime/startupTiming";
 import { reconnectMessages } from "../social/api";
 import { useLiveVersion } from "../liveEvents";
@@ -54,8 +53,6 @@ import { UserPostCard } from "./UserPostCard";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import { requireAccount } from "../account";
-import { useInstalledShortcuts } from "./useInstalledShortcuts";
-import { type MarketApplication } from "../market";
 import { formatWhen } from "../formatTime";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
@@ -130,7 +127,6 @@ export const FeedScreen = memo(function FeedScreen({
   );
   const [kind, selectCategory] = useState<FeedCategory>("recommended");
   const followingTimeline = useUserPosts("following", focused && kind === "following");
-  const shortcuts = useInstalledShortcuts(focused && kind === "installed");
   const [timeTick, tickTime] = useState(0);
   useFocusEffect(
     useCallback(() => {
@@ -164,7 +160,7 @@ export const FeedScreen = memo(function FeedScreen({
 
   useFocusEffect(
     useCallback(() => {
-      if (kind === "installed" || (seenFeedVersion.current[kind] ?? 0) === feedVersion && !shouldRefreshUserPosts(kind)) return;
+      if ((seenFeedVersion.current[kind] ?? 0) === feedVersion && !shouldRefreshUserPosts(kind)) return;
       let live = true;
       const refresh = () => {
         if (!live) return;
@@ -193,7 +189,6 @@ export const FeedScreen = memo(function FeedScreen({
     scrollY,
     onRefresh: async () => {
       reconnectMessages();
-      if (kind === "installed") return shortcuts.refresh();
       try {
         await refreshUserPosts(kind);
         setTimelineError(kind, "");
@@ -215,7 +210,7 @@ export const FeedScreen = memo(function FeedScreen({
     [userTimeline.posts]
   );
   const pages = useMemo(
-    () => ["installed", "recommended", "following"] as FeedCategory[],
+    () => ["recommended", "following"] as FeedCategory[],
     []
   );
   const pageRows = useMemo(
@@ -315,94 +310,6 @@ export const FeedScreen = memo(function FeedScreen({
                       onPageScroll={pager.onPageScroll}
                       onPageScrollStateChanged={pager.onPageScrollStateChanged}
                     >
-                      <View
-                        key="installed"
-                        collapsable={false}
-                        style={{ width: "100%", height: "100%" }}
-                      >
-                        {pager.mounted.has("installed") || kind === "installed" ? (
-                        <FeedListGesture
-                          pull={gesture}
-                          drawer={pager.gesture}
-                          pager={pager.nativeGesture}
-                        >
-                          <FeedScrollSurface
-                            categoryKey="installed"
-                            activeCategory={activeCategory}
-                            hiddenHeader={hiddenHeader}
-                            headerHeight={headerHeight}
-                            chromeHidden={chromeTarget}
-                            bottomTravel={bottomTravel}
-                            scrollY={scrollY}
-                            data={shortcuts.items}
-                            numColumns={4}
-                            keyExtractor={(item) => item.manifest.appId}
-                            style={styles.scroll}
-                            contentContainerStyle={[
-                              styles.content,
-                              styles.grid,
-                              bottomSpace,
-                              { minHeight: shortcuts.items.length ? viewportSize + headerSize : viewportSize, flexGrow: 1 },
-                            ]}
-                            showsVerticalScrollIndicator={false}
-                            scrollEventThrottle={16}
-                            overScrollMode="never"
-                            bounces={false}
-                            scrollEnabled={
-                              phase !== "refreshing" && phase !== "done"
-                            }
-                            ListHeaderComponent={
-                              <View>
-                                <View style={{ height: headerSize }} />
-                                <Animated.View style={refreshSpace}>
-                                  <PullIndicator pull={pull} phase={phase} />
-                                </Animated.View>
-                                {shortcuts.error ? (
-                                  <Pressy
-                                    onPress={() => void shortcuts.refresh()}
-                                  >
-                                    <Text
-                                      style={{
-                                        color: colors.redText,
-                                        fontSize: 12,
-                                      }}
-                                    >
-                                      {shortcuts.error}
-                                    </Text>
-                                  </Pressy>
-                                ) : null}
-                              </View>
-                            }
-                            renderItem={({ item, index }) => (
-                              <InstalledAppShortcut
-                                app={item}
-                                tone={index}
-                                onOpen={onApplication}
-                              />
-                            )}
-                            ListEmptyComponent={
-                              !shortcuts.loaded ? <PageSkeleton rows={2} shape="grid" /> : <EmptyState>
-                                <View style={{ width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.orangeTint }}>
-                                  <SymbolIcon
-                                    name="box"
-                                    size={24}
-                                    strokeWidth={2}
-                                    color={colors.orange}
-                                  />
-                                </View>
-                                <Text
-                                  style={{ color: colors.ink3, fontSize: 13, lineHeight: 19, textAlign: "center" }}
-                                >
-                                  {shortcuts.loaded
-                                    ? "还没有安装应用，去应用市场发现作品吧"
-                                    : "正在读取我的应用…"}
-                                </Text>
-                              </EmptyState>
-                            }
-                          />
-                        </FeedListGesture>
-                        ) : null}
-                      </View>
                       {pageRows.map(
                         ({ category: pageKind, items: visible, page }) => (
                           <View
@@ -587,7 +494,7 @@ export const FeedScreen = memo(function FeedScreen({
                       )}
                     </AnimatedPagerView>
                   </GestureDetector>
-                    {kind !== "installed" && (kind === "following" ? followingTimeline : userTimeline).pending ? <NewDataNotice top={headerSize + 8} label="已发布 · 查看新动态" avatars={(kind === "following" ? followingTimeline : userTimeline).pending!.posts.map(post => post.author.avatarUrl).filter((uri): uri is string => !!uri).filter((uri, index, list) => list.indexOf(uri) === index)} onPress={() => { acceptUserPosts(kind); lists.current[kind]?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
+                    {(kind === "following" ? followingTimeline : userTimeline).pending ? <NewDataNotice top={headerSize + 8} label="已发布 · 查看新动态" avatars={(kind === "following" ? followingTimeline : userTimeline).pending!.posts.map(post => post.author.avatarUrl).filter((uri): uri is string => !!uri).filter((uri, index, list) => list.indexOf(uri) === index)} onPress={() => { acceptUserPosts(kind); lists.current[kind]?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
                 </View>
               </GestureDetector>
             </View>
@@ -633,71 +540,6 @@ const UserTimelineItem = memo(function UserTimelineItem({
     </View>
   );
 });
-const InstalledAppShortcut = memo(function InstalledAppShortcut({
-  app,
-  onOpen,
-}: {
-  app: MarketApplication;
-  tone: number;
-  onOpen: FeedProps["onApplication"];
-}) {
-  const { colors } = useTheme();
-  const open = () => {
-    void onOpen(app.manifest.appId).catch((cause) =>
-      Toast.show({
-        type: "error",
-        text1: "应用未能打开",
-        text2: cause instanceof Error ? cause.message : "请重试",
-      })
-    );
-  };
-  return (
-    <Pressy
-      scale={0.94}
-      accessibilityLabel={`打开${app.manifest.appName}`}
-      onPress={open}
-      style={{
-        flex: 1,
-        width: "100%",
-        minWidth: 0,
-        alignItems: "center",
-        paddingTop: 10,
-        paddingBottom: 6,
-        gap: 6,
-      }}
-    >
-      <View
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: 16,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: colors.surface,
-          borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0,
-          borderColor: colors.line,
-          boxShadow: colors.shadow.card,
-        }}
-      >
-        <View style={{ width: 52, height: 52, borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center" }}><ApplicationIcon application={app} size={46} /></View>
-      </View>
-      <Text
-        numberOfLines={2}
-        style={{
-          color: colors.ink2,
-          fontSize: 11,
-          lineHeight: 15,
-          fontWeight: "600",
-          textAlign: "center",
-          minHeight: 30,
-          paddingHorizontal: 2,
-        }}
-      >
-        {app.manifest.appName}
-      </Text>
-    </Pressy>
-  );
-});
 /** Lists share only the header range. Body offsets stay on their native list. */
 const FeedScrollSurface = memo(
   FeedScrollSurfaceImpl
@@ -719,7 +561,7 @@ function FeedScrollSurfaceImpl<Item>({
   getItemType?: FlashListProps<Item>["getItemType"];
   renderScrollComponent?: FlashListProps<Item>["renderScrollComponent"];
   categoryKey: string;
-  activeCategory: SharedValue<"recommended" | "following" | "installed">;
+  activeCategory: SharedValue<FeedCategory>;
   hiddenHeader: SharedValue<number>;
   headerHeight: SharedValue<number>;
   chromeHidden: SharedValue<number>;
@@ -910,7 +752,6 @@ const useStyles = createThemedStyles((base) => {
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
     content: { paddingBottom: 16, paddingHorizontal: FEED_PAGE_INSET },
-    grid: { paddingHorizontal: 10 },
     post: {
       width: "100%",
       minWidth: 0,

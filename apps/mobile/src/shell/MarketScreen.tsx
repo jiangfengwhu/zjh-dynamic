@@ -135,7 +135,7 @@ function MarketContent(props: MarketProps) {
           accessibilityRole="header"
           style={{ ...colors.type.display, color: colors.ink1 }}
         >
-          应用市场
+          发现与搜索
         </Text>
         </View>
         <View style={[styles.searchBox, { minWidth: 0 }]}>
@@ -344,7 +344,7 @@ function MarketDiscovery({
       return true;
     } catch (e) {
       if (token === generation.current)
-        setError(e instanceof Error ? e.message : "市场加载失败，请重试");
+        setError(e instanceof Error ? e.message : "作品加载失败，请重试");
       return false;
     } finally {
       if (token === generation.current) {

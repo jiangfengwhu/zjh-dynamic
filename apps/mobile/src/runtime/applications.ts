@@ -49,17 +49,65 @@ async function verifyAccess(manifest: ApplicationManifest, ownerId: string | nul
     if (published.releaseId !== manifest.releaseId || published.bundle.sha256 !== manifest.bundle.sha256 || published.source.commit !== manifest.source.commit) throw new AccessDenied("这个版本尚未公开发布");
   }
 }
-export async function preparePublicApplication(manifest: ApplicationManifest) {
+export async function preparePublicApplication(manifest: ApplicationManifest, rememberAccess = true) {
   await verifyPublicPointer(manifest);
   assertCompatible(manifest, manifest.appId); await verifyAccess(manifest, null);
   await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
   await verifyPublicPointer(manifest);
   await verifyAccess(manifest, null);
-  writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
+  if (rememberAccess) writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
+}
+
+/** Run an explicitly revealed public work without pinning it to the user's catalog. */
+export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal) {
+  const appId = manifest.appId;
+  assertCompatible(manifest, appId);
+  signal.throwIfAborted();
+  const assertPublicRuntime = () => {
+    const running = active.get(appId);
+    const access = activeAccess.get(appId);
+    if (running?.releaseId !== manifest.releaseId || access?.ownerId || !access?.public)
+      throw new Error("本机正在使用其他版本，请从作品详情管理版本后再体验");
+  };
+  if (loading.has(appId)) {
+    await loadApplication(appId);
+    signal.throwIfAborted();
+    assertPublicRuntime();
+    return;
+  }
+  await verifyPublicPointer(manifest);
+  signal.throwIfAborted();
+  const checkLocal = async () => {
+    const pending = await readShellValue(`application.pending.${appId}`);
+    const saved = pending || await readShellValue(`application.install.${appId}`);
+    const rawAccess = await readShellValue(pending ? `application.pending.access.${appId}` : `application.access.${appId}`);
+    if (saved) {
+      const local = JSON.parse(saved) as ApplicationManifest;
+      const access = rawAccess ? JSON.parse(rawAccess) as Access : undefined;
+      if (local.releaseId !== manifest.releaseId || access?.ownerId || !access?.public)
+        throw new Error("本机有其他版本或制作中的作品，请从作品详情管理版本后再体验");
+    }
+  };
+  await checkLocal();
+  signal.throwIfAborted();
+  await preparePublicApplication(manifest, false);
+  signal.throwIfAborted();
+  // A workshop/install may have changed the local selection while downloading.
+  await checkLocal();
+  signal.throwIfAborted();
+  if (loading.has(appId)) {
+    await loadApplication(appId);
+  } else {
+    writeShellValue(`application.pending.access.${appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
+    writeShellValue(`application.pending.${appId}`, JSON.stringify(manifest));
+    await loadApplication(appId);
+  }
+  signal.throwIfAborted();
+  assertPublicRuntime();
 }
 async function verifyPublicPointer(manifest: ApplicationManifest) {
   const published = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/public`);
-  if (!published.ok || (await published.json()).releaseId !== manifest.releaseId) throw new Error("公开版本已改变，请刷新应用市场");
+  if (!published.ok || (await published.json()).releaseId !== manifest.releaseId) throw new Error("公开版本已改变，请刷新作品列表");
 }
 // Generated from the dependency lock at host build time.
 const contract = require("./application-contract.json") as { engineAbi: string; sdk: string; shared: Record<string, string> };
