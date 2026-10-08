@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Keyboard, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelectedEvent, type PageScrollStateChangedNativeEvent } from "react-native-pager-view";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { runOnJS, useEvent, useSharedValue } from "react-native-reanimated";
+import Animated, { dispatchCommand, measure, runOnJS, useAnimatedRef, useEvent, useSharedValue } from "react-native-reanimated";
 import { Ambient, Pressy, RoundButton } from "../../../../packages/ui/chrome";
 import { useTheme } from "../../../../packages/ui/theme";
 import { ApplicationFeedScreen } from "./ApplicationFeedScreen";
@@ -21,7 +21,7 @@ const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const options = [{ id: "discovery", label: "发现作品" }, { id: "common", label: "常用" }] as const;
 const TRANSITION = "application-home-pages";
 type Tab = typeof options[number]["id"];
-type Props = Omit<Parameters<typeof ApplicationFeedScreen>[0], "active" | "stageGesture"> & { onOpen: (id: string) => Promise<boolean> };
+type Props = Omit<Parameters<typeof ApplicationFeedScreen>[0], "active" | "stageRef"> & { onOpen: (id: string) => Promise<boolean> };
 
 export function ApplicationHomeScreen(props: Props) {
   const { colors, mode } = useTheme();
@@ -29,11 +29,20 @@ export function ApplicationHomeScreen(props: Props) {
   const { user } = useAccount();
   const { applicationActive, gesture: drawerGesture } = useProfileDrawer();
   const [tab, setTab] = useState<Tab>("discovery");
-  const pager = useRef<PagerView>(null);
+  const pager = useAnimatedRef<PagerView>();
+  const stage = useAnimatedRef<View>();
   const position = useSharedValue(0);
   const { visited, visit, reveal } = useVisitedPager();
-  const stageGesture = useMemo(() => Gesture.Native().shouldActivateOnStart(true), []);
-  const pagerGesture = useMemo(() => Gesture.Native().requireExternalGestureToFail(stageGesture, drawerGesture), [stageGesture, drawerGesture]);
+  const pagerGesture = useMemo(() => Gesture.Native().requireExternalGestureToFail(drawerGesture)
+    .onTouchesDown(event => {
+      const touch = event.allTouches[0];
+      const bounds = position.value < 0.001 ? measure(stage) : null;
+      const inside = !!touch && !!bounds && touch.absoluteX >= bounds.pageX && touch.absoluteX <= bounds.pageX + bounds.width
+        && touch.absoluteY >= bounds.pageY && touch.absoluteY <= bounds.pageY + bounds.height;
+      // Change only the ancestor pager's native interception. Never activate a
+      // competing recognizer around application gestures, even when JS is busy.
+      dispatchCommand(pager, "setScrollEnabledImperatively", [!inside]);
+    }), [drawerGesture, pager, position, stage]);
   useFocusEffect(useCallback(() => {
     applicationActive.value = true;
     return () => { applicationActive.value = false; };
@@ -78,7 +87,7 @@ export function ApplicationHomeScreen(props: Props) {
     </View>
     <GestureDetector gesture={pagerGesture}>
       <AnimatedPagerView ref={pager} style={{ flex: 1 }} initialPage={0} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected} onPageScrollStateChanged={onPageScrollStateChanged}>
-        <View key="discovery" collapsable={false} style={{ flex: 1 }}><ApplicationFeedScreen {...props} active={tab === "discovery"} stageGesture={stageGesture} /></View>
+        <View key="discovery" collapsable={false} style={{ flex: 1 }}><ApplicationFeedScreen {...props} active={tab === "discovery"} stageRef={stage} /></View>
         <View key="common" collapsable={false} style={{ flex: 1 }}>{visited.has(1) ? <CommonApplicationsScreen active={tab === "common"} onOpen={props.onOpen} /> : null}</View>
       </AnimatedPagerView>
     </GestureDetector>

@@ -3,7 +3,7 @@ import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "r
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { SafeAreaFrameContext, SafeAreaInsetsContext, SafeAreaProvider } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, runOnUI, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming, type AnimatedRef } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
@@ -27,7 +27,7 @@ type Props = {
   onSearch: () => void;
   onOpen: (id: string) => Promise<boolean>;
   active?: boolean;
-  stageGesture: ReturnType<typeof Gesture.Native>;
+  stageRef: AnimatedRef<View>;
   onDetail: (item: MarketApplication) => void;
   onShare: (item: MarketApplication) => void;
   onRemix: (item: MarketApplication) => void;
@@ -206,14 +206,12 @@ export function ApplicationFeedScreen(props: Props) {
 
   return <ThemeContext.Provider value={theme}>
     <View style={{ flex: 1, backgroundColor: "transparent" }}>
-      <GestureDetector gesture={props.stageGesture}>
-      <View collapsable={false} style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
+      <Animated.View ref={props.stageRef} collapsable={false} style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
         {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
-      </View>
-      </GestureDetector>
+      </Animated.View>
       <GestureDetector gesture={swipe}>
         <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
           {!item && (page.owner !== identity || (!page.loaded && !error)) ? <DiscoveryFooterSkeleton animated={active} /> : null}
