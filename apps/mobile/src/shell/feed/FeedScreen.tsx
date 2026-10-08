@@ -12,8 +12,8 @@ import PagerView from "react-native-pager-view";
 import { useFeedPager, type FeedCategory } from "./useFeedPager";
 import { PixelText } from "./PixelText";
 import { FeedPresentationContext } from "../../../../../packages/ui/feed/kit/FeedPresentation";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, View, type FlatListProps } from "react-native";
+import { cloneElement, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, View, type FlatListProps, type ScrollViewProps } from "react-native";
 import {
   Gesture,
   GestureDetector,
@@ -703,6 +703,7 @@ function FeedScrollSurfaceImpl<Item>({
   onListReady,
   recycle = false,
   getItemType,
+  renderScrollComponent,
   categoryKey,
   activeCategory,
   hiddenHeader,
@@ -715,6 +716,7 @@ function FeedScrollSurfaceImpl<Item>({
   onListReady?: (value: FlatList<Item> | FlashListRef<Item> | null) => void;
   recycle?: boolean;
   getItemType?: FlashListProps<Item>["getItemType"];
+  renderScrollComponent?: FlashListProps<Item>["renderScrollComponent"];
   categoryKey: string;
   activeCategory: SharedValue<"recommended" | "following" | "installed">;
   hiddenHeader: SharedValue<number>;
@@ -820,6 +822,7 @@ function FeedScrollSurfaceImpl<Item>({
     ref={value => { ref(value); onListReady?.(value); }}
     onScroll={onScroll}
     getItemType={getItemType}
+    renderScrollComponent={renderScrollComponent}
     drawDistance={250}
     onContentSizeChange={(_width, height) => { if (height > 0) ready.value = true; }}
   />;
@@ -853,6 +856,18 @@ function FeedListGesture({
         .simultaneousWithExternalGesture(pager),
     [pull, drawer, pager]
   );
+  const renderScrollComponent = useCallback((props: ScrollViewProps) => (
+    <GestureDetector gesture={native}>
+      <Animated.ScrollView {...props} />
+    </GestureDetector>
+  ), [native]);
+  // FlashList has a native layout wrapper before its ScrollView. Bind the
+  // native gesture to the ScrollView itself so it can arbitrate with the pager.
+  const list = children as import("react").ReactElement<{
+    recycle?: boolean;
+    renderScrollComponent?: FlashListProps<unknown>["renderScrollComponent"];
+  }>;
+  if (list.props.recycle) return cloneElement(list, { renderScrollComponent });
   return <GestureDetector gesture={native}>{children}</GestureDetector>;
 }
 function FeedSeparator() {
