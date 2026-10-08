@@ -118,15 +118,16 @@ function MarketContent(props: MarketProps) {
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
       <ScreenBar
         style={{
-          flexDirection: "row",
-          alignItems: "center",
+          flexDirection: "column",
+          alignItems: "stretch",
           gap: 10,
-          paddingHorizontal: 16,
-          paddingTop: 6,
-          paddingBottom: 6,
+          paddingHorizontal: 20,
+          paddingTop: 8,
+          paddingBottom: 12,
           backgroundColor: colors.canvas,
         }}
       >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         {props.onBack ? (
           <Pressy
             accessibilityLabel="返回"
@@ -138,11 +139,12 @@ function MarketContent(props: MarketProps) {
         ) : null}
         <Text
           accessibilityRole="header"
-          style={{ fontSize: 18, color: colors.ink1 }}
+          style={{ fontSize: 28, lineHeight: 36, fontWeight: "700", color: colors.ink1 }}
         >
           应用市场
         </Text>
-        <View style={[styles.searchBox, { flex: 1, minWidth: 0 }]}>
+        </View>
+        <View style={[styles.searchBox, { minWidth: 0 }]}>
           <SymbolIcon name="search" size={15} color={colors.ink3} />
           <TextInput
             accessibilityLabel={
@@ -158,7 +160,7 @@ function MarketContent(props: MarketProps) {
                 setDiscoveryQuery(value);
               } else setInstalledQuery(value);
             }}
-            style={[styles.search, { fontSize: 13 }]}
+            style={styles.search}
           />
           {(section === "discover" ? discoveryQuery : installedQuery) ? (
             <Pressy

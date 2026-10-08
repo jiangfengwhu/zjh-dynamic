@@ -118,7 +118,7 @@ function FeedbackToast({
         {text1 ? (
           <Text
             numberOfLines={2}
-            style={{ color: colors.ink1, fontSize: 13, lineHeight: 19 }}
+            style={{ color: colors.ink1, fontSize: 15, lineHeight: 22 }}
           >
             {text1}
           </Text>
@@ -126,7 +126,7 @@ function FeedbackToast({
         {text2 ? (
           <Text
             numberOfLines={4}
-            style={{ color: colors.ink2, fontSize: 11, lineHeight: 17 }}
+            style={{ color: colors.ink2, fontSize: 13, lineHeight: 20 }}
           >
             {text2}
           </Text>
@@ -154,7 +154,7 @@ const toastConfig: ToastConfig = {
   info: (props) => <FeedbackToast {...props} />,
   warning: (props) => <FeedbackToast {...props} />,
 };
-export function PixelToasts({ modal = false }: { modal?: boolean }) {
+export function HostToasts({ modal = false }: { modal?: boolean }) {
   const insets = useSafeAreaInsets();
   const visible = useRef<{ params: ToastShowParams; at: number } | undefined>(undefined);
   useEffect(
@@ -439,7 +439,7 @@ export function Feedback() {
   const [request, setRequest] = useState(currentHostAlert);
   useEffect(() => {
     const stopModalFeedback = setModalFeedbackRenderer(() => (
-      <PixelToasts modal />
+      <HostToasts modal />
     ));
     const off = subscribeHostAlerts(() => setRequest(currentHostAlert()));
     setRequest(currentHostAlert());
@@ -450,7 +450,7 @@ export function Feedback() {
   }, []);
   return (
     <>
-      <PixelToasts />
+      <HostToasts />
       {request ? <Confirmation key={request.id} request={request} /> : null}
     </>
   );

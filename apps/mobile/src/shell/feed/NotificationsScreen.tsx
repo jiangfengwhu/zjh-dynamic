@@ -140,73 +140,13 @@ function NotificationsPage(props: Props) {
   }
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <ScreenBar
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 16,
-          paddingVertical: 4,
-          gap: 0,
-        }}
-      >
-        <View style={{ width: 56, height: 44, justifyContent: "center" }}>
-          {props.onBack ? (
-            <Pressy
-              accessibilityLabel="返回"
-              onPress={props.onBack}
-              style={{ width: 44, height: 44, justifyContent: "center" }}
-            >
-              <SymbolIcon name="back" size={20} color={colors.ink1} />
-            </Pressy>
-          ) : (
-            <Text
-              accessibilityRole="header"
-              style={{ color: colors.ink1, fontSize: 18 }}
-            >
-              通知
-            </Text>
-          )}
+      <ScreenBar style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          {props.onBack ? <Pressy accessibilityLabel="返回" onPress={props.onBack} style={{ width: 44, height: 44 }}><SymbolIcon name="back" size={21} color={colors.ink1} /></Pressy> : null}
+          <Text accessibilityRole="header" style={{ flex: 1, fontSize: 28, lineHeight: 36, fontWeight: "700" }}>通知</Text>
+          {category !== "messages" ? <Pressy accessibilityLabel="将所有通知标记为已读" disabled={marking || !count} onPress={() => void markAll()} style={{ width: 44, height: 44, alignItems: "center", backgroundColor: colors.surfaceRaised, borderRadius: 22 }}>{marking ? <ActivityIndicator color={colors.accentText} /> : <SymbolIcon name="check" size={21} color={count ? colors.accentText : colors.ink3} />}</Pressy> : null}
         </View>
-        <View style={{ flex: 1, minWidth: 0, alignItems: "center" }}>
-          <View style={{ width: 336, maxWidth: "100%" }}>
-            <CompactTabs
-              value={category}
-              position={position}
-              tone="mint"
-              options={[
-                { id: "creation", label: tabLabel("制作", counts.creation) },
-                { id: "interaction", label: tabLabel("互动", counts.interaction) },
-                { id: "messages", label: tabLabel("私信", messageCount) },
-              ]}
-              onChange={(value) =>
-                pager.current?.setPage(value === "creation" ? 0 : value === "interaction" ? 1 : 2)
-              }
-            />
-          </View>
-        </View>
-        <View style={{ width: 56, alignItems: "flex-end" }}>
-          {category !== "messages" ? <Pressy
-            accessibilityLabel="将所有通知标记为已读"
-            disabled={marking || !count}
-            onPress={() => void markAll()}
-            style={{
-              width: 44,
-              height: 44,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {marking ? (
-              <ActivityIndicator color={colors.accent} />
-            ) : (
-              <SymbolIcon
-                name="check"
-                size={20}
-                color={count ? colors.accentText : colors.ink3}
-              />
-            )}
-          </Pressy> : null}
-        </View>
+        <CompactTabs value={category} position={position} tone="mint" options={[{ id: "creation", label: tabLabel("制作", counts.creation) }, { id: "interaction", label: tabLabel("互动", counts.interaction) }, { id: "messages", label: tabLabel("私信", messageCount) }]} onChange={value => pager.current?.setPage(value === "creation" ? 0 : value === "interaction" ? 1 : 2)} />
       </ScreenBar>
       <GestureDetector gesture={native}>
         <AnimatedPager

@@ -208,7 +208,7 @@ function MyProfileContent({
           <AnimatedThemeText
             accessibilityRole="header"
             style={[
-              { color: colors.ink1, fontSize: 21, fontWeight: "700" },
+              { color: colors.ink1, fontSize: 28, lineHeight: 36, fontWeight: "700" },
               expandedTitle,
             ]}
           >
