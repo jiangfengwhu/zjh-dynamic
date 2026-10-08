@@ -194,7 +194,7 @@ export function ApplicationFeedScreen(props: Props) {
         <RoundButton icon="search" label="搜索作品" onPress={props.onSearch} />
       </View>
       <View style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
-        {item ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} switching={switching} paused={paused} width={width} height={height} drag={drag} render={props.renderApplication} onPause={() => setPause(true)} onResume={() => setPause(false)} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
+        {item ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} drag={drag} render={props.renderApplication} onPause={() => setPause(true)} onResume={() => setPause(false)} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
@@ -221,7 +221,7 @@ export function ApplicationFeedScreen(props: Props) {
 }
 
 type QueueProps = {
-  items: MarketApplication[]; index: number; active: boolean; switching: boolean; paused: boolean;
+  items: MarketApplication[]; index: number; active: boolean; foreground: boolean; switching: boolean; paused: boolean;
   width: number; height: number; drag: ReturnType<typeof useSharedValue<number>>;
   render: Props["renderApplication"]; onPause: () => void; onResume: () => void; onDetail: Props["onDetail"];
 };
@@ -241,7 +241,7 @@ function CachedExperience({ item, offset, selected, enabled, onSettled, ...props
   const settled = useCallback(() => onSettled(experienceId(item)), [onSettled, item.manifest.appId, item.manifest.releaseId]);
   return <Animated.View pointerEvents={selected && props.active && !props.switching ? "auto" : "none"} accessibilityElementsHidden={!selected || !props.active} importantForAccessibility={selected && props.active ? "auto" : "no-hide-descendants"} style={[{ position: "absolute", inset: 0, overflow: "hidden", backgroundColor: t.canvas, opacity: nearby ? 1 : 0, zIndex: selected ? 2 : 1 }, motion]}>
     <SafeAreaProvider style={{ flex: 1 }} initialMetrics={{ frame: { x: 0, y: 0, width: props.width, height: props.height }, insets: { top: 0, bottom: 0, left: 0, right: 0 } }}>
-      <InlineExperience item={item} enabled={enabled} foreground={props.active} visible={props.active && !props.paused && (selected || (nearby && props.switching))} render={props.render} onReady={settled} onPause={selected ? props.onPause : () => {}} onDetail={() => props.onDetail(item)} />
+      <InlineExperience item={item} enabled={enabled} foreground={props.foreground} visible={props.active && !props.paused && (selected || (nearby && props.switching))} render={props.render} onReady={settled} onPause={selected ? props.onPause : () => {}} onDetail={() => props.onDetail(item)} />
       {selected && props.paused ? <View style={{ position: "absolute", inset: 0 }}><ExperiencePlaceholder item={item} onResume={props.onResume} /></View> : null}
     </SafeAreaProvider>
   </Animated.View>;
@@ -270,7 +270,7 @@ function InlineExperience({ item, enabled, foreground, visible, render, onReady,
     });
     return () => controller.abort();
   }, [item.manifest.appId, item.manifest.releaseId, attempt, onReady, enabled, ready]);
-  if (ready) return <Activity mode={showing || retainedVisible ? "visible" : "hidden"}><View style={{ flex: 1 }}>{render(item.manifest.appId, onPause)}</View></Activity>;
+  if (ready) return <Activity mode={foreground && (showing || retainedVisible) ? "visible" : "hidden"}><View style={{ flex: 1 }}>{render(item.manifest.appId, onPause)}</View></Activity>;
   // Preload data above, but only animate the skeleton the user can see.
   if (!visible) return null;
   return <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 16 }}>
