@@ -560,7 +560,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             contentStyle: { backgroundColor: colors.canvas },
           }}
         >
-          <Stack.Screen name="tabs" options={{ freezeOnBlur: true }}>
+          {/* Activity boundaries suspend cached apps after the transition; freezing
+              the whole route would prevent that deferred cleanup from committing. */}
+          <Stack.Screen name="tabs" options={{ freezeOnBlur: false }}>
             {() => (
               <ProfileDrawer
                 render={(close, dismiss) => (
