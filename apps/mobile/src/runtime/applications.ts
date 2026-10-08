@@ -83,7 +83,8 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
       const metadata = JSON.stringify(item);
       if (readShellValueSync(`application.market.${appId}`) !== metadata) writeShellValue(`application.market.${appId}`, metadata);
     }
-    (require("../../../../packages/features/src/registry") as typeof import("../../../../packages/features/src/registry")).registerApplicationMetadata(manifest);
+    const registry = require("../../../../packages/features/src/registry") as typeof import("../../../../packages/features/src/registry");
+    if (!registry.bundles.some(entry => entry.id === appId)) registry.registerApplicationMetadata(manifest);
     if (newlyInstalled) {
       if (entry) Object.assign(entry, { trashedAt: undefined, purged: false, hidden: false, pinned: true });
       else catalog.push({ id: appId, hidden: false, pinned: true });
@@ -110,7 +111,9 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
       try { local = JSON.parse(raw); } catch { continue; }
       if (!sameApplicationRelease(local, manifest)) continue;
       // Leave a different/newer workshop candidate and its access untouched.
-      writeShellValue(`application.${slot === "pending" ? "pending.access" : "access"}.${appId}`, JSON.stringify(publicAccess));
+      const accessKey = `application.${slot === "pending" ? "pending.access" : "access"}.${appId}`;
+      const value = JSON.stringify(publicAccess);
+      if (readShellValueSync(accessKey) !== value) writeShellValue(accessKey, value);
     }
   };
   if (loading.has(appId)) {
@@ -130,7 +133,7 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   signal.throwIfAborted();
   // Downloads may finish during a gesture. Yield again before staging/evaluating
   // code, and re-check cancellation and local selection after that wait.
-  await waitForInteractions();
+  await waitForInteractions(signal);
   signal.throwIfAborted();
   // A workshop/install may have changed the local selection while downloading.
   checkLocal();

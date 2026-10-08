@@ -31,4 +31,14 @@ export function afterInteractions(work: () => void) {
   frame = requestAnimationFrame(() => { frame = requestAnimationFrame(run); });
   return () => { cancelled = true; waiting.delete(run); if (frame !== undefined) cancelAnimationFrame(frame); if (idle !== undefined) cancelIdleCallback(idle); };
 }
-export function waitForInteractions() { return new Promise<void>(resolve => afterInteractions(resolve)); }
+export function waitForInteractions(signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  return new Promise<void>((resolve, reject) => {
+    const cancel = afterInteractions(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    });
+    const onAbort = () => { cancel(); reject(signal?.reason ?? new Error("操作已取消")); };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}

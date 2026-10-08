@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadPublicApplicationExperience } from "../runtime/applications";
-import { afterInteractions } from "./interactionWork";
 import type { MarketApplication } from "./market";
 
 export const EXPERIENCE_AHEAD = 3;
@@ -65,14 +64,12 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     });
     if (!next) return;
     const controller = new AbortController();
-    const cancel = afterInteractions(() => {
-      void loadPublicApplicationExperience(next.manifest, controller.signal, next).then(() => {
+    void loadPublicApplicationExperience(next.manifest, controller.signal, next).then(() => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(experienceId(next), { ready: true, downloaded: true, error: "" }));
       }, cause => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(experienceId(next), { ready: false, downloaded: true, error: cause instanceof Error ? cause.message : "暂时无法体验这个作品" }));
-      });
     });
-    return () => { cancel(); controller.abort(); };
+    return () => controller.abort();
   }, [executeEnabled, key, entries, preparations]);
   const retry = useCallback((id: string) => {
     setPreparations(prior => { const next = new Map(prior); next.delete(id); return next; });
