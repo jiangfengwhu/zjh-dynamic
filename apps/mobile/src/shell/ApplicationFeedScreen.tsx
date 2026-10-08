@@ -3,7 +3,7 @@ import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "r
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { cancelAnimation, Easing, ReduceMotion, runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { cancelAnimation, Easing, ReduceMotion, runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef, useSharedValue, withTiming } from "react-native-reanimated";
 import { Ambient, Pressy, RoundButton } from "../../../../packages/ui/chrome";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { ThemeContext, useTheme } from "../../../../packages/ui/theme";
@@ -21,6 +21,7 @@ import { EXPERIENCE_AHEAD, experienceId, useApplicationExperienceQueue } from ".
 import { ApplicationInteractions } from "./ApplicationInteractions";
 import type { UserPost } from "./feed/userPosts";
 import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
+import { AnimatedFlashList, type FlashListRef } from "./AnimatedFlashList";
 import { fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
 
 type Props = {
@@ -243,44 +244,59 @@ function ExperienceQueue(props: QueueProps) {
   const { entries, onSettled, canLoad } = useApplicationExperienceQueue(props.items, props.index, props.active && !props.switching);
   const current = props.items[props.index];
   const positions = useMemo(() => new Map(props.items.map((item, index) => [experienceId(item), index])), [props.items]);
-  return <>{entries.map(item => {
-    const offset = (positions.get(experienceId(item)) ?? -2) - props.index;
-    const selected = experienceId(item) === experienceId(current);
-    const nearby = Math.abs(offset) <= 1;
-    return <CachedExperience key={experienceId(item)} item={item}
-      offset={Math.max(-2, Math.min(2, offset))} selected={selected}
-      enabled={canLoad(experienceId(item))} onSettled={onSettled}
-      interactive={selected && props.active && !props.switching}
-      accessible={selected && props.active}
-      visible={props.active && !props.paused && (selected || (nearby && props.switching))}
-      paused={selected && props.paused} foreground={props.foreground}
-      width={props.width} height={props.height} drag={props.drag} render={props.render}
-      onPause={props.onPause} onResume={props.onResume} onDetail={props.onDetail} />;
-  })}</>;
+  // Keep the retained app instances in feed order, with stable app/version identity.
+  const pages = useMemo(() => [...entries].sort((a, b) => (positions.get(experienceId(a)) ?? 0) - (positions.get(experienceId(b)) ?? 0)), [entries, positions]);
+  const pageIndex = pages.findIndex(item => experienceId(item) === experienceId(current));
+  const list = useAnimatedRef<FlashListRef<MarketApplication>>();
+  const ready = useSharedValue(false);
+  const { height, drag } = props;
+  const syncPosition = useCallback(() => {
+    list.current?.scrollToOffset({ offset: Math.max(0, pageIndex * height - drag.value), animated: false });
+  }, [list, pageIndex, height, drag]);
+  useLayoutEffect(syncPosition, [syncPosition, pages]);
+  useAnimatedReaction(() => ready.value ? Math.max(0, pageIndex * height - drag.value) : -1, offset => {
+    // Bottom gestures drive the native scroller on the UI thread, without JS per frame.
+    if (offset >= 0) scrollTo(list, 0, offset, false);
+  }, [list, pageIndex, height, drag]);
+  return <AnimatedFlashList ref={list} data={pages} keyExtractor={experienceId} getItemType={experienceId}
+    initialScrollIndex={Math.max(0, pageIndex)} scrollEnabled={false} showsVerticalScrollIndicator={false}
+    bounces={false} overScrollMode="never" maintainVisibleContentPosition={{ disabled: true }}
+    // The bounded queue is the cache. Keep its cells mounted so app state survives
+    // backtracking; removed entries must not live on in an additional recycle pool.
+    drawDistance={height * pages.length} maxItemsInRecyclePool={0}
+    onLoad={() => { ready.value = true; syncPosition(); }} onContentSizeChange={syncPosition}
+    renderItem={({ item }) => {
+      const offset = (positions.get(experienceId(item)) ?? -2) - props.index;
+      const selected = experienceId(item) === experienceId(current);
+      const nearby = Math.abs(offset) <= 1;
+      return <CachedExperience item={item} selected={selected}
+        enabled={canLoad(experienceId(item))} onSettled={onSettled}
+        interactive={selected && props.active && !props.switching}
+        accessible={selected && props.active}
+        visible={props.active && !props.paused && (selected || (nearby && props.switching))}
+        paused={selected && props.paused} foreground={props.foreground}
+        width={props.width} height={height} render={props.render}
+        onPause={props.onPause} onResume={props.onResume} onDetail={props.onDetail} />;
+    }} />;
 }
-type CachedExperienceProps = Omit<QueueProps, "items" | "index" | "active" | "switching"> & {
-  item: MarketApplication; offset: number; selected: boolean; enabled: boolean;
+type CachedExperienceProps = Omit<QueueProps, "items" | "index" | "active" | "switching" | "drag"> & {
+  item: MarketApplication; selected: boolean; enabled: boolean;
   interactive: boolean; accessible: boolean; visible: boolean; onSettled: (key: string) => void;
 };
-const CachedExperience = memo(function CachedExperience({ item, offset, selected, enabled, onSettled, ...props }: CachedExperienceProps) {
+const CachedExperience = memo(function CachedExperience({ item, selected, enabled, onSettled, ...props }: CachedExperienceProps) {
   const { colors: t } = useTheme();
-  const nearby = Math.abs(offset) <= 1;
-  // Distant cache slots do not subscribe to the gesture's per-frame updates.
-  const animatedDrag = nearby ? props.drag : undefined;
-  const slotHeight = props.height;
-  const motion = useAnimatedStyle(() => ({ transform: [{ translateY: animatedDrag ? animatedDrag.value + offset * slotHeight : 0 }] }), [animatedDrag, offset, slotHeight]);
   const settled = useCallback(() => onSettled(experienceId(item)), [onSettled, item.manifest.appId, item.manifest.releaseId]);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const pause = useCallback(() => { if (selectedRef.current) props.onPause(); }, [props.onPause]);
   const detail = useCallback(() => props.onDetail(item), [props.onDetail, item]);
   const metrics = useMemo(() => ({ frame: { x: 0, y: 0, width: props.width, height: props.height }, insets: { top: 0, bottom: 0, left: 0, right: 0 } }), [props.width, props.height]);
-  return <Animated.View pointerEvents={props.interactive ? "auto" : "none"} accessibilityElementsHidden={!props.accessible} importantForAccessibility={props.accessible ? "auto" : "no-hide-descendants"} style={[{ position: "absolute", inset: 0, overflow: "hidden", backgroundColor: t.canvas, opacity: nearby ? 1 : 0, zIndex: selected ? 2 : 1 }, motion]}>
+  return <View pointerEvents={props.interactive ? "auto" : "none"} accessibilityElementsHidden={!props.accessible} importantForAccessibility={props.accessible ? "auto" : "no-hide-descendants"} style={{ height: props.height, width: props.width, overflow: "hidden", backgroundColor: t.canvas }}>
     <SafeAreaProvider style={{ flex: 1 }} initialMetrics={metrics}>
       <InlineExperience item={item} enabled={enabled} foreground={props.foreground} visible={props.visible} render={props.render} onReady={settled} onPause={pause} onDetail={detail} />
       {props.paused ? <View style={{ position: "absolute", inset: 0 }}><ExperiencePlaceholder item={item} onResume={props.onResume} /></View> : null}
     </SafeAreaProvider>
-  </Animated.View>;
+  </View>;
 });
 
 const InlineExperience = memo(function InlineExperience({ item, enabled, foreground, visible, render, onReady, onPause, onDetail }: { item: MarketApplication; enabled: boolean; foreground: boolean; visible: boolean; render: Props["renderApplication"]; onReady: () => void; onPause: () => void; onDetail: () => void }) {

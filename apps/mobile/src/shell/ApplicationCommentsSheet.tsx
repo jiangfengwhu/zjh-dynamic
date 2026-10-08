@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { ActivityIndicator, BackHandler, Dimensions, Keyboard, Platform, View, useWindowDimensions, type TextInput } from "react-native";
+import { ActivityIndicator, BackHandler, Keyboard, View, type TextInput } from "react-native";
 import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetTextInput, useBottomSheetScrollableCreator, useBottomSheetTimingConfigs, type BottomSheetBackdropProps, type BottomSheetFooterProps } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ReduceMotion } from "react-native-reanimated";
@@ -119,7 +119,7 @@ export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: Us
     })(); } }]);
   }
   const Footer = useCommentFooter(
-      <View style={{ backgroundColor: t.canvas, borderTopWidth: t.components.surfaceBorder, borderTopColor: t.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12, gap: 6 }}>
+      <View style={{ backgroundColor: t.canvas, borderTopWidth: t.components.surfaceBorder, borderTopColor: t.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8, gap: 6 }}>
         {reply ? <Pressy disabled={sending} onPress={() => setReply(null)}><Text numberOfLines={1} style={{ color: t.orchidText, fontSize: 12 }}>回复 {reply.author.name} · 取消</Text></Pressy> : null}
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
           <BottomSheetTextInput ref={input} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="留下你的想法…" placeholderTextColor={t.ink3} style={{ flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 14, paddingVertical: 10, color: t.ink1, fontSize: 14, backgroundColor: t.surfaceRaised, borderRadius: t.radius.lg }} />
@@ -170,10 +170,8 @@ function useCommentFooter(content: ReactNode) {
       Footer(props: BottomSheetFooterProps) {
         const children = useSyncExternalStore(state.subscribe, state.snapshot, state.snapshot);
         const { bottom } = useSafeAreaInsets();
-        const window = useWindowDimensions();
-        // Android's sheet coordinates can include bars outside the host viewport.
-        const viewportInset = Platform.OS === "android" ? Math.max(0, Dimensions.get("screen").height - window.height) : 0;
-        return <BottomSheetFooter {...props} bottomInset={Math.max(bottom, viewportInset)}>{children}</BottomSheetFooter>;
+        // Screen minus window includes the status bar too; only avoid the lower safe area.
+        return <BottomSheetFooter {...props} bottomInset={bottom}>{children}</BottomSheetFooter>;
       },
     };
     return state;
