@@ -96,7 +96,7 @@ const AppearanceScreen = lazyScreen(() => (require("./AppearanceScreen") as type
 const PublicationScreen = lazyScreen(() => (require("./PublicationScreen") as typeof import("./PublicationScreen")).PublicationScreen, true);
 const MyProfileScreen = lazyScreen(() => (require("./MyProfileScreen") as typeof import("./MyProfileScreen")).MyProfileScreen, true);
 const PostDetailScreen = lazyScreen(() => (require("./feed/PostDetailScreen") as typeof import("./feed/PostDetailScreen")).PostDetailScreen, true);
-const AuthorProfileScreen = lazyScreen(() => (require("./feed/AuthorProfileScreen") as typeof import("./feed/AuthorProfileScreen")).AuthorProfileScreen, true);
+const AuthorProfileScreen = lazyScreen(() => (require("./feed/AuthorProfileScreen") as typeof import("./feed/AuthorProfileScreen")).AuthorProfileScreen, true, true);
 const NotificationsScreen = lazyScreen(() => (require("./feed/NotificationsScreen") as typeof import("./feed/NotificationsScreen")).NotificationsScreen, true);
 const ConnectionsScreen = lazyScreen(() => (require("./social/ConnectionsScreen") as typeof import("./social/ConnectionsScreen")).ConnectionsScreen, true);
 const ChatScreen = lazyScreen(() => (require("./social/ChatScreen") as typeof import("./social/ChatScreen")).ChatScreen, true);

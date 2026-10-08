@@ -4,12 +4,12 @@ import { View } from "react-native";
 import { useIsFocused, useRoute } from "@react-navigation/native";
 
 /** A stable component boundary; the module is evaluated on the first visit. */
-export function lazyScreen<P extends object>(load: () => ComponentType<P>, afterPaint = false): ComponentType<P> {
+export function lazyScreen<P extends object>(load: () => ComponentType<P>, afterPaint = false, deferCached = false): ComponentType<P> {
   let screen: ComponentType<P> | undefined;
   if (afterPaint) return function DeferredScreen(props: P) {
     const focused = useIsFocused();
     const route = useRoute();
-    const [loaded, setLoaded] = useState<{ component?: ComponentType<P>; error?: unknown }>(() => ({ component: screen }));
+    const [loaded, setLoaded] = useState<{ component?: ComponentType<P>; error?: unknown }>(() => ({ component: deferCached ? undefined : screen }));
     useEffect(() => {
       if (loaded.component || loaded.error || !focused) return;
       return afterInteractions(() => {
