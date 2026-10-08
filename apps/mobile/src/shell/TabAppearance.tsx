@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, type StyleProp, type TextStyle } from "react-native";
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -17,6 +17,7 @@ export function TabLabel({
   position,
   activeColor,
   inactiveColor,
+  labelStyle,
 }: {
   label: string;
   icon?: IconSymbol;
@@ -24,6 +25,7 @@ export function TabLabel({
   position: SharedValue<number>;
   activeColor: string;
   inactiveColor: string;
+  labelStyle?: StyleProp<TextStyle>;
 }) {
   const textStyle = useAnimatedStyle(() => ({
     color: interpolateColor(
@@ -53,7 +55,7 @@ export function TabLabel({
       ) : null}
       <AnimatedHostText
         accessible={false}
-        style={[{ fontSize: 14, lineHeight: 21, fontWeight: "600", textAlign: "center" }, textStyle]}
+        style={[{ fontSize: 14, lineHeight: 21, fontWeight: "600", textAlign: "center" }, labelStyle, textStyle]}
       >
         {label}
       </AnimatedHostText>

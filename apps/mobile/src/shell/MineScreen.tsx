@@ -110,6 +110,8 @@ export const MineScreen = memo(function MineScreen({
         <View style={styles.group}>
           <Row
             icon={mode === "dark" ? "moon" : "sun"}
+            tile={colors.amberTint}
+            tint={colors.amberText}
             title="外观"
             hint="浅色、深色与跟随系统"
             value={mode === "dark" ? "深色" : "浅色"}
@@ -117,6 +119,8 @@ export const MineScreen = memo(function MineScreen({
           />
           <Row
             icon="cloud"
+            tile={colors.cyanTint}
+            tint={colors.cyanText}
             title="检查更新"
             hint={check === "busy" ? "正在核对线上版本" : "每 30 分钟自动检查"}
             value={checkLabel(check)}
@@ -126,6 +130,8 @@ export const MineScreen = memo(function MineScreen({
           />
           <Row
             icon="info"
+            tile={colors.greenTint}
+            tint={colors.greenText}
             title="应用信息"
             hint="版本与本机安装信息"
             onPress={onInfo}
@@ -145,7 +151,7 @@ export const MineScreen = memo(function MineScreen({
             }}
           >
             <Icon name="back" size={18} color={colors.ink3} />
-            <Text style={{ fontSize: 12, color: colors.ink3 }}>收起</Text>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.ink3 }}>收起</Text>
           </Pressy>
         ) : null}
       </ScrollView>
@@ -180,11 +186,13 @@ function Shortcut({
       ]}
     >
       <View style={styles.shortcutHead}>
-        <Icon
-          name={icon}
-          size={22}
-          color={primary ? colors.accentText : colors.ink1}
-        />
+        <View style={[styles.shortcutTile, primary && { backgroundColor: colors.accent }]}>
+          <Icon
+            name={icon}
+            size={20}
+            color={primary ? colors.onAccent : colors.accentText}
+          />
+        </View>
         <Icon name="chevron" size={15} color={colors.ink3} />
       </View>
       <Text style={styles.shortcutTitle}>{title}</Text>
@@ -194,6 +202,8 @@ function Shortcut({
 }
 function Row({
   icon,
+  tile,
+  tint,
   title,
   hint,
   value,
@@ -203,6 +213,8 @@ function Row({
   onPress,
 }: {
   icon: IconName;
+  tile?: string;
+  tint?: string;
   title: string;
   hint: string;
   value?: string;
@@ -220,7 +232,9 @@ function Row({
       onPress={onPress}
       style={[styles.row, !last && styles.divider]}
     >
-      <Icon name={icon} size={19} color={colors.ink2} />
+      <View style={[styles.rowTile, { backgroundColor: tile ?? colors.surfaceRaised }]}>
+        <Icon name={icon} size={18} color={tint ?? colors.ink2} />
+      </View>
       <View style={styles.rowCopy}>
         <Text style={styles.rowTitle}>{title}</Text>
         <Text numberOfLines={1} style={styles.rowHint}>
@@ -251,53 +265,65 @@ function checkLabel(state: CheckState): string | undefined {
 }
 const useStyles = createThemedStyles((t) => ({
   screen: { backgroundColor: t.canvas },
-  content: { padding: 20, paddingTop: 16, gap: 20, paddingBottom: 24 },
+  content: { padding: 16, paddingTop: 16, gap: 16, paddingBottom: 24 },
   profile: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 20,
+    gap: 14,
+    paddingVertical: 18,
     paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: t.amberTint,
+    borderRadius: t.radius.xl,
+    backgroundColor: t.surface,
+    borderWidth: t.components.surfaceBorder,
+    borderColor: t.line,
   },
-  portrait: { width: 52, height: 52, borderRadius: 26 },
-  profileCopy: { flex: 1, minWidth: 0, gap: 4 },
+  portrait: { width: 56, height: 56, borderRadius: 28 },
+  profileCopy: { flex: 1, minWidth: 0, gap: 3 },
   profileName: {
-    fontSize: 22,
+    fontSize: 21,
     lineHeight: 28,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
     fontWeight: "800",
     color: t.ink1,
   },
-  profileHint: { fontSize: 12, lineHeight: 18, color: t.ink3 },
-  shortcuts: { flexDirection: "row", gap: 8 },
+  profileHint: { fontSize: 13, lineHeight: 18, color: t.ink3 },
+  shortcuts: { flexDirection: "row", gap: 10 },
   shortcut: {
     flex: 1,
     minWidth: 0,
-    padding: 18,
-    gap: 6,
-    borderRadius: t.radius.md,
-    borderWidth: 0.5,
+    padding: 16,
+    gap: 2,
+    borderRadius: t.radius.xl,
+    borderWidth: t.components.surfaceBorder,
     borderColor: t.line,
-    backgroundColor: t.cyanTint,
+    backgroundColor: t.surface,
   },
   shortcutHead: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  shortcutTile: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: t.accentTint,
   },
   shortcutTitle: {
-    fontSize: 18,
-    lineHeight: 25,
+    fontSize: 17,
+    lineHeight: 24,
     fontWeight: "700",
     color: t.ink1,
   },
   group: {
     backgroundColor: t.surface,
-    borderRadius: t.radius.md,
-    paddingHorizontal: 12,
+    borderRadius: t.radius.xl,
+    borderWidth: t.components.surfaceBorder,
+    borderColor: t.line,
+    paddingHorizontal: 14,
   },
   row: {
     flexDirection: "row",
@@ -306,15 +332,23 @@ const useStyles = createThemedStyles((t) => ({
     minHeight: 64,
     paddingVertical: 10,
   },
-  divider: { borderBottomWidth: 0.5, borderBottomColor: t.line },
-  rowCopy: { flex: 1, minWidth: 0, gap: 2 },
-  rowTitle: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: t.ink1 },
-  rowHint: { fontSize: 11, lineHeight: 16, color: t.ink3 },
+  rowTile: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  divider: { borderBottomWidth: t.components.surfaceBorder, borderBottomColor: t.line },
+  rowCopy: { flex: 1, minWidth: 0, gap: 1 },
+  rowTitle: { fontSize: 15, lineHeight: 21, fontWeight: "600", color: t.ink1 },
+  rowHint: { fontSize: 12, lineHeight: 17, color: t.ink3 },
   rowValue: {
     maxWidth: "30%",
     flexShrink: 1,
-    fontSize: 12,
-    lineHeight: 17,
-    color: t.accentText,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+    color: t.ink3,
   },
 }));

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { View } from "react-native";
 import Animated, {
   ReduceMotion,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -49,23 +50,17 @@ export function TabBar({
           onPress={() => onChange(item.id)}
         />
       ))}
-      <Pressy
-        accessibilityRole="button"
-        accessibilityLabel="发布动态或制作应用"
-        onPress={onCompose}
-        scale={1}
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: 26,
-          alignSelf: "center",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: colors.accent,
-        }}
-      >
-        <SymbolIcon name="plus" size={22} color={colors.onAccent} />
-      </Pressy>
+      <View style={styles.composeSlot}>
+        <Pressy
+          accessibilityRole="button"
+          accessibilityLabel="发布动态或制作应用"
+          onPress={onCompose}
+          scale={0.92}
+          style={styles.compose}
+        >
+          <SymbolIcon name="plus" size={24} strokeWidth={2.4} color={colors.onAccent} />
+        </Pressy>
+      </View>
       {SHELL_TABS.slice(2).map((item) => (
         <Tab
           key={item.id}
@@ -96,37 +91,32 @@ function Tab({
   const progress = useSharedValue(active ? 1 : 0);
   useEffect(() => {
     progress.value = withTiming(active ? 1 : 0, {
-      duration: 150,
+      duration: 180,
       reduceMotion: ReduceMotion.System,
     });
   }, [active, progress]);
   const motion = useAnimatedStyle(() => ({
     opacity: progress.value,
+    transform: [{ scaleX: interpolate(progress.value, [0, 1], [0.6, 1]) }],
   }));
   return (
     <Pressy
       onPress={onPress}
-      scale={1}
+      scale={0.94}
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       accessibilityLabel={item.title + (unread ? `，${unread}条未读通知` : "")}
       style={styles.tab}
     >
-      <Animated.View pointerEvents="none" style={[styles.selected, motion]} />
       <View style={styles.icon}>
+        <Animated.View pointerEvents="none" style={[styles.selected, motion]} />
         <SymbolIcon
           name={item.icon}
           size={22}
+          strokeWidth={active ? 2.2 : 1.8}
           color={active ? colors.ink1 : colors.ink3}
         />
-        {unread > 0 ? (
-          <View
-            style={[
-              styles.unread,
-              { backgroundColor: active ? colors.onAccent : colors.accentText },
-            ]}
-          />
-        ) : null}
+        {unread > 0 ? <View style={styles.unread} /> : null}
       </View>
       <Text
         numberOfLines={1}
@@ -145,23 +135,24 @@ const useStyles = createThemedStyles((base) => {
   return {
     bar: {
       flexDirection: "row",
+      alignItems: "center",
       backgroundColor: t.surface,
       marginHorizontal: 16,
-      borderRadius: t.radius.lg,
+      height: 68,
+      borderRadius: 34,
       paddingHorizontal: 6,
-      paddingVertical: 8,
-      gap: 4,
-      borderWidth: 1,
+      borderWidth: t.components.surfaceBorder,
       borderColor: t.line,
+      boxShadow: `0 10px 30px ${t.shade}`,
     },
     tab: {
       flex: 1,
       minWidth: 0,
-      minHeight: 48,
+      minHeight: 56,
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      gap: 3,
+      gap: 2,
     },
     selected: {
       position: "absolute",
@@ -169,18 +160,36 @@ const useStyles = createThemedStyles((base) => {
       bottom: 0,
       left: 0,
       right: 0,
-      borderRadius: t.radius.md,
-      backgroundColor: t.amberTint,
+      borderRadius: 15,
+      backgroundColor: t.surfaceRaised,
     },
-    icon: { alignItems: "center", justifyContent: "center" },
+    icon: { width: 52, height: 30, alignItems: "center", justifyContent: "center" },
     unread: {
       position: "absolute",
-      right: -3,
-      top: -2,
-      width: 5,
-      height: 5,
-      borderRadius: 3,
+      right: 12,
+      top: 2,
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+      borderWidth: 1.5,
+      borderColor: t.surface,
+      backgroundColor: t.accent,
     },
-    label: { fontSize: 11, lineHeight: 16, color: t.ink3, flexShrink: 1 },
+    label: { fontSize: 11, lineHeight: 14, color: t.ink3, flexShrink: 1 },
+    composeSlot: { paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
+    compose: {
+      width: 58,
+      height: 46,
+      minWidth: 58,
+      minHeight: 46,
+      padding: 0,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+      borderRadius: 23,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: t.accent,
+      boxShadow: `0 6px 16px ${t.accent}55`,
+    },
   };
 });

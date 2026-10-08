@@ -27,6 +27,7 @@ import { useAccount, requireAccount, currentAccountId } from "../account";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { WorkCard } from "../WorkCard";
 import { UserPostCard } from "./UserPostCard";
+import { formatWhen } from "../formatTime";
 import { usePullToRefresh } from "./pullToRefresh";
 import { PullRefreshSurface } from "./PullRefreshSurface";
 import {
@@ -236,9 +237,9 @@ function AuthorProfileContent({
   const header = (
     <View>
       {!embedded ? (
-        <View style={{ padding: 16, gap: 12 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <UserAvatar uri={author.avatarUrl} authorId={author.id} size={56} />
+        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 14 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 4 }}>
+            <UserAvatar uri={author.avatarUrl} authorId={author.id} size={64} />
             <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
               <Text
                 numberOfLines={2}
@@ -254,16 +255,16 @@ function AuthorProfileContent({
               </Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {author.official ? (
-                  <Text style={{ fontSize: 11, color: colors.accentText }}>
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: colors.accentText }}>
                     官方创作者
                   </Text>
                 ) : null}
                 {user?.id === author.id ? (
-                  <Text style={{ fontSize: 11, color: colors.ink3 }}>
+                  <Text style={{ fontSize: 12, color: colors.ink3 }}>
                     我的主页
                   </Text>
                 ) : null}
-                <Text style={{ color: colors.ink3, fontSize: 11 }}>
+                <Text style={{ color: colors.ink3, fontSize: 12 }}>
                   {loaded
                     ? `${profile.applications.length} 个公开应用`
                     : error
@@ -285,21 +286,22 @@ function AuthorProfileContent({
                 disabled={followBusy || busy}
                 onPress={() => void toggleFollow()}
                 style={{
-                  minHeight: 44,
+                  minHeight: 40,
                   minWidth: 76,
-                  paddingHorizontal: 12,
-                  borderRadius: colors.components.controlRadius,
+                  paddingHorizontal: 16,
+                  borderRadius: 20,
                   justifyContent: "center",
                   alignItems: "center",
                   backgroundColor: profile.following
-                    ? colors.inset
+                    ? colors.surfaceRaised
                     : colors.accent,
                   opacity: followBusy || busy ? 0.6 : 1,
                 }}
               >
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
+                    fontWeight: "700",
                     color: profile.following ? colors.ink2 : colors.onAccent,
                   }}
                 >
@@ -312,14 +314,14 @@ function AuthorProfileContent({
               </Pressable>
             ) : null}
             {onMessage && user?.id !== author.id ? <Pressable accessibilityRole="button" accessibilityLabel={`给${author.name}发私信`} onPress={() => onMessage(author)}
-              style={{ minHeight: 44, minWidth: 58, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.orchid, borderRadius: colors.components.controlRadius }}>
-              <Text style={{ color: colors.onOrchid }}>私信</Text>
+              style={{ minHeight: 40, minWidth: 58, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised, borderRadius: 20 }}>
+              <Text style={{ color: colors.ink1, fontSize: 14, fontWeight: "700" }}>私信</Text>
             </Pressable> : null}
           </View>
-          <View style={{ flexDirection: "row", gap: 16 }}>
+          <View style={{ flexDirection: "row", gap: 20, paddingHorizontal: 4 }}>
             {(["following", "followers"] as const).map(kind => <Pressable key={kind} accessibilityRole="button" accessibilityLabel={kind === "following" ? "查看关注" : "查看粉丝"} disabled={!onConnections}
-              onPress={() => onConnections?.(author, kind)} style={{ minHeight: 44, justifyContent: "center" }}>
-              <Text style={{ fontSize: 12, color: kind === "following" ? colors.greenText : colors.orchidText }}>{loaded ? (kind === "following" ? profile.followingCount ?? 0 : profile.followerCount ?? 0) : "—"} {kind === "following" ? "关注" : "粉丝"}</Text>
+              onPress={() => onConnections?.(author, kind)} style={{ minHeight: 36, justifyContent: "center" }}>
+              <Text style={{ fontSize: 13, color: colors.ink3 }}><Text style={{ fontSize: 15, fontWeight: "800", color: colors.ink1 }}>{loaded ? (kind === "following" ? profile.followingCount ?? 0 : profile.followerCount ?? 0) : "—"}</Text> {kind === "following" ? "关注" : "粉丝"}</Text>
             </Pressable>)}
           </View>
           <CompactTabs
@@ -383,7 +385,7 @@ function AuthorProfileContent({
                     const item = row.app;
                     return (
                       <View
-                        style={{ paddingHorizontal: 16, paddingVertical: 0 }}
+                        style={{ paddingHorizontal: 12 }}
                       >
                         <WorkCard
                           application={item}
@@ -403,13 +405,13 @@ function AuthorProfileContent({
                   return (
                     <View
                       style={{
-                        borderBottomWidth: 0.5,
-                        borderBottomColor: colors.line,
+                        paddingHorizontal: 12,
+                        paddingBottom: 10,
                       }}
                     >
                       <UserPostCard
                         post={{ ...item, author }}
-                        time={new Date(item.createdAt).toLocaleDateString()}
+                        time={formatWhen(item.createdAt)}
                         own={user?.id === item.author.id}
                         onOpen={() => onPost(item)}
                         onApplication={onApplication}

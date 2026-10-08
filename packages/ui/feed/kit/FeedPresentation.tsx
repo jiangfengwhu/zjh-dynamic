@@ -28,6 +28,6 @@ export function useCompactFeed() {
 export function useFeedFrameInset() {
   const presentation = useContext(FeedPresentationContext);
   return (
-    presentation.frameInset ?? (presentation.compact ? COMPACT_FEED_INSET : 14)
+    presentation.frameInset ?? (presentation.compact ? COMPACT_FEED_INSET : 16)
   );
 }

@@ -45,6 +45,7 @@ import {
 
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
+import { formatWhen } from "../formatTime";
 
 import PagerView, {
   type PagerViewOnPageScrollEvent,
@@ -140,13 +141,13 @@ function NotificationsPage(props: Props) {
   }
   return (
     <Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <ScreenBar style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, gap: 12 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          {props.onBack ? <Pressy accessibilityLabel="返回" onPress={props.onBack} style={{ width: 44, height: 44 }}><SymbolIcon name="back" size={21} color={colors.ink1} /></Pressy> : null}
-          <Text accessibilityRole="header" style={{ flex: 1, fontSize: 28, lineHeight: 36, fontWeight: "700" }}>通知</Text>
-          {category !== "messages" ? <Pressy accessibilityLabel="将所有通知标记为已读" disabled={marking || !count} onPress={() => void markAll()} style={{ width: 44, height: 44, alignItems: "center", backgroundColor: colors.surfaceRaised, borderRadius: 22 }}>{marking ? <ActivityIndicator color={colors.accentText} /> : <SymbolIcon name="check" size={21} color={count ? colors.accentText : colors.ink3} />}</Pressy> : null}
+      <ScreenBar style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingLeft: props.onBack ? 0 : 4 }}>
+          {props.onBack ? <Pressy accessibilityLabel="返回" onPress={props.onBack} style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", backgroundColor: colors.surface, borderWidth: colors.components.surfaceBorder, borderColor: colors.line }}><SymbolIcon name="back" size={20} strokeWidth={2.2} color={colors.ink1} /></Pressy> : null}
+          <Text accessibilityRole="header" style={{ flex: 1, fontSize: 30, lineHeight: 38, fontWeight: "800", letterSpacing: -0.6 }}>通知</Text>
+          {category !== "messages" ? <Pressy accessibilityLabel="将所有通知标记为已读" disabled={marking || !count} onPress={() => void markAll()} style={{ width: 44, height: 44, alignItems: "center", backgroundColor: colors.surface, borderWidth: colors.components.surfaceBorder, borderColor: colors.line, borderRadius: 22 }}>{marking ? <ActivityIndicator color={colors.accent} /> : <SymbolIcon name="check" size={20} strokeWidth={2.2} color={count ? colors.accentText : colors.ink3} />}</Pressy> : null}
         </View>
-        <CompactTabs value={category} position={position} tone="mint" options={[{ id: "creation", label: tabLabel("制作", counts.creation) }, { id: "interaction", label: tabLabel("互动", counts.interaction) }, { id: "messages", label: tabLabel("私信", messageCount) }]} onChange={value => pager.current?.setPage(value === "creation" ? 0 : value === "interaction" ? 1 : 2)} />
+        <CompactTabs value={category} position={position} options={[{ id: "creation", label: tabLabel("制作", counts.creation) }, { id: "interaction", label: tabLabel("互动", counts.interaction) }, { id: "messages", label: tabLabel("私信", messageCount) }]} onChange={value => pager.current?.setPage(value === "creation" ? 0 : value === "interaction" ? 1 : 2)} />
       </ScreenBar>
       <GestureDetector gesture={native}>
         <AnimatedPager
@@ -405,35 +406,36 @@ function NotificationsContent({
                     }`}
                     onPress={() => void act(item)}
                     style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
+                      marginHorizontal: 12,
+                      marginBottom: 6,
+                      paddingHorizontal: 14,
+                      paddingVertical: 14,
+                      borderRadius: colors.radius.lg,
                       flexDirection: "row",
-                      gap: 10,
-                      borderBottomWidth: 0.5,
-                      borderBottomColor: colors.line,
+                      gap: 12,
                       backgroundColor: item.read
-                        ? colors.canvas
-                        : colors.accentTint,
+                        ? "transparent"
+                        : colors.surface,
                     }}
                   >
                     {item.kind.startsWith("work-") ? (
-                      <JollyPortrait size={40} />
+                      <JollyPortrait size={42} />
                     ) : (
-                      <UserAvatar uri={item.actor.avatarUrl} authorId={item.actor.id} size={40} />
+                      <UserAvatar uri={item.actor.avatarUrl} authorId={item.actor.id} size={42} />
                     )}
-                    <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                    <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <Text numberOfLines={2} style={{ flex: 1, color: colors.ink1, fontSize: 14 }}>
+                        <Text numberOfLines={2} style={{ flex: 1, color: colors.ink1, fontSize: 14, lineHeight: 20, fontWeight: item.read ? "500" : "700" }}>
                           {noticeHeading(item)}
                         </Text>
-                        <Text style={{ color: colors.ink3, fontSize: 11, fontFamily: colors.mono }}>
-                          {new Date(item.createdAt).toLocaleString()}
+                        <Text style={{ color: colors.ink3, fontSize: 12 }}>
+                          {formatWhen(item.createdAt)}
                         </Text>
                       </View>
                       <Text
                         numberOfLines={2}
                         style={{
-                          color: colors.ink1,
+                          color: colors.ink2,
                           fontSize: 14,
                           lineHeight: 21,
                         }}
@@ -442,7 +444,7 @@ function NotificationsContent({
                       </Text>
                       <Text
                         numberOfLines={1}
-                        style={{ color: colors.ink3, fontSize: 12 }}
+                        style={{ color: colors.ink3, fontSize: 12, lineHeight: 17 }}
                       >
                         {item.postPreview}
                       </Text>

@@ -33,9 +33,10 @@ export function FeedItemHeading({
       style={{
         flexShrink: 1,
         fontSize: 15,
-        lineHeight: 22,
+        lineHeight: 21,
         fontWeight: "700",
         color: colors.ink1,
+        letterSpacing: -0.1,
       }}
     >
       {name}
@@ -44,49 +45,50 @@ export function FeedItemHeading({
   return (
     <View
       style={{
-        minHeight: 20,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 3,
+        flex: 1,
+        minWidth: 0,
+        minHeight: 40,
+        justifyContent: "center",
         paddingRight: menu ? 36 : 0,
       }}
     >
-      {onIdentity ? (
-        <Pressy
-          accessibilityLabel={`查看${name}的主页`}
-          onPress={onIdentity}
-          hitSlop={{ top: 12, bottom: 12 }}
-          style={{ flexShrink: 1, minWidth: 0, minHeight: 20 }}
-        >
-          {title}
-        </Pressy>
-      ) : (
-        title
-      )}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        {onIdentity ? (
+          <Pressy
+            accessibilityLabel={`查看${name}的主页`}
+            onPress={onIdentity}
+            hitSlop={{ top: 10, bottom: 4 }}
+            style={{ flexShrink: 1, minWidth: 0, minHeight: 21 }}
+          >
+            {title}
+          </Pressy>
+        ) : (
+          title
+        )}
+        {unread ? (
+          <View
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: 3.5,
+              backgroundColor: accent ?? colors.accent,
+            }}
+          />
+        ) : null}
+      </View>
       <FeedText
         numberOfLines={1}
         style={{
-          flexShrink: 1,
           fontSize: 12,
-          lineHeight: 18,
+          lineHeight: 17,
           fontFamily: colors.sans,
           color: colors.ink3,
         }}
       >
-        · {time}
+        {time}
       </FeedText>
-      {unread ? (
-        <View
-          style={{
-            width: 5,
-            height: 5,
-            borderRadius: 2.5,
-            backgroundColor: accent ?? colors.accent,
-          }}
-        />
-      ) : null}
       {menu ? (
-        <View style={{ position: "absolute", right: -4, top: -12 }}>
+        <View style={{ position: "absolute", right: -10, top: -2 }}>
           {menu}
         </View>
       ) : null}
@@ -120,30 +122,39 @@ export function FeedItemFrame({
   style?: StyleProp<ViewStyle>;
   detail?: boolean;
 }) {
+  const { colors } = useTheme();
   const compact = useCompactFeed();
   const frameInset = useFeedFrameInset();
   const rowWidth = useFeedRowWidth();
-  const contentWidth = rowWidth === undefined ? undefined : Math.max(1, rowWidth - frameInset * 2 - (detail ? 0 : 44 + (compact ? 10 : 12)));
+  const border = detail ? 0 : colors.components.surfaceBorder;
+  const contentWidth = rowWidth === undefined ? undefined : Math.max(1, Math.floor(rowWidth - frameInset * 2 - border * 2));
+  const avatarSize = detail ? 44 : 40;
   const avatarSlot = (
-    <View style={{ width: detail ? 36 : 44, height: 44, alignItems: "center" }}>
+    <View style={{ width: avatarSize, height: avatarSize, alignItems: "center", justifyContent: "center" }}>
       {avatar}
     </View>
   );
   return (
     <FeedContentWidthContext.Provider value={contentWidth}><View
       style={[
-        {
-          paddingHorizontal: frameInset,
-          paddingTop: detail ? 6 : 14,
-          paddingBottom: detail ? 8 : 12,
-        },
+        detail
+          ? { paddingHorizontal: frameInset, paddingTop: 8, paddingBottom: 6 }
+          : {
+              paddingHorizontal: frameInset,
+              paddingTop: 14,
+              paddingBottom: 4,
+              backgroundColor: colors.surface,
+              borderRadius: colors.radius.xl,
+              borderWidth: border,
+              borderColor: colors.line,
+            },
         style,
       ]}
     >
       <View
         style={{
           flexDirection: "row",
-          alignItems: "flex-start",
+          alignItems: "center",
           gap: compact ? 10 : 12,
         }}
       >
@@ -152,26 +163,27 @@ export function FeedItemFrame({
             accessibilityLabel={`查看${name}的主页`}
             onPress={onIdentity}
             scale={0.92}
-            style={{ width: detail ? 36 : 44, height: 44, justifyContent: "flex-start" }}
+            hitSlop={4}
+            style={{ width: avatarSize, height: avatarSize, minWidth: avatarSize, minHeight: avatarSize }}
           >
             {avatarSlot}
           </Pressy>
         ) : (
           avatarSlot
         )}
-        <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
-          <FeedItemHeading
-            name={name}
-            time={time}
-            unread={unread}
-            accent={accent}
-            onIdentity={onIdentity}
-            menu={menu}
-          />
-          {!detail ? <><View style={{ gap: 8 }}>{content}</View>{actions}</> : null}
-        </View>
+        <FeedItemHeading
+          name={name}
+          time={time}
+          unread={unread}
+          accent={accent}
+          onIdentity={onIdentity}
+          menu={menu}
+        />
       </View>
-      {detail ? <View style={{ gap: 6, paddingTop: 6 }}><View style={{ gap: 3 }}>{content}</View>{actions}</View> : null}
+      <View style={{ paddingTop: detail ? 14 : 12, gap: detail ? 12 : 10 }}>
+        <View style={{ gap: detail ? 12 : 10 }}>{content}</View>
+        {actions}
+      </View>
     </View></FeedContentWidthContext.Provider>
   );
 }

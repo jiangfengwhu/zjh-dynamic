@@ -121,7 +121,7 @@ export function UserPostCard({
     Clipboard.setString(post.body || url);
     Toast.show({ type: "success", text1: "已复制" });
   }
-  const avatar = <UserAvatar uri={post.author.avatarUrl} authorId={post.author.id} size={36} style={styles.avatar} />;
+  const avatar = <UserAvatar uri={post.author.avatarUrl} authorId={post.author.id} size={detail ? 44 : 40} style={detail ? styles.detailAvatar : styles.avatar} />;
   return (
     <>
       <Pressable
@@ -244,33 +244,37 @@ const makeStyles = (t: Theme) =>
   StyleSheet.create({
     openArea: { alignSelf: "stretch", minHeight: 44 },
     avatar: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       borderWidth: 0,
       borderColor: t.line,
     },
-    body: { fontSize: 16, lineHeight: 25, color: t.ink1 },
-    detailBody: { fontSize: 16, lineHeight: 24 },
-    images: { flexDirection: "row", flexWrap: "wrap", gap: 2, marginTop: 2 },
+    detailAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 0 },
+    body: { fontSize: 16, lineHeight: 25, color: t.ink1, letterSpacing: 0.1 },
+    detailBody: { fontSize: 17, lineHeight: 27 },
+    images: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
     imageCell: {
       width: "49%",
+      flexGrow: 1,
       aspectRatio: 1,
-      borderRadius: 12,
+      borderRadius: 14,
       overflow: "hidden",
-      backgroundColor: t.surface,
+      backgroundColor: t.surfaceRaised,
     },
-    singleImage: { width: "100%", aspectRatio: 1.35 },
-    image: { width: "100%", height: "100%", borderRadius: 12 },
+    singleImage: { width: "100%", aspectRatio: 1.35, borderRadius: 16 },
+    image: { width: "100%", height: "100%" },
     previewImage: { flex: 1, width: "100%" },
-    preview: { flex: 1, backgroundColor: "#141517" },
+    preview: { flex: 1, backgroundColor: "#0B0B0D" },
     close: {
       position: "absolute",
       top: 54,
-      right: 20,
-      padding: 7,
-      borderRadius: 24,
-      backgroundColor: "#333333",
+      right: 16,
+      minHeight: 40,
+      paddingHorizontal: 18,
+      justifyContent: "center",
+      borderRadius: 20,
+      backgroundColor: "rgba(255,255,255,0.14)",
     },
-    closeText: { color: "#F3F4F0", fontSize: 15 },
+    closeText: { color: "#F3F3F5", fontSize: 15, fontWeight: "600" },
   });

@@ -17,6 +17,7 @@ import { PullRefreshSurface } from "../feed/PullRefreshSurface";
 import { useSocialPage } from "./useSocialPage";
 import { markMessagesRead, readMessages, reconnectMessages, sendMessage, useInboxVersion, type Message, type MessagePage } from "./api";
 import { SocialEmpty, SocialError, SocialFrame } from "./SocialLayout";
+import { formatWhen } from "../formatTime";
 
 export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () => void }) {
   const { colors } = useTheme();
@@ -89,19 +90,19 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
         return <View style={{ flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-start", gap: 8 }}>
           <UserAvatar uri={mine ? query.user?.avatarUrl : query.data.peer.avatarUrl} authorId={item.senderId} size={32} />
           <View style={{ maxWidth: "80%", gap: 4, alignItems: mine ? "flex-end" : "flex-start" }}>
-            <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: colors.components.controlRadius, padding: 12 }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 15, lineHeight: 22 }}>{item.body}</Text></View>
-            <Text style={{ color: colors.ink3, fontSize: 10 }}>{new Date(item.createdAt).toLocaleString()}</Text>
+            <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: 20, borderTopRightRadius: mine ? 6 : 20, borderTopLeftRadius: mine ? 20 : 6, paddingHorizontal: 14, paddingVertical: 10 }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 15, lineHeight: 22 }}>{item.body}</Text></View>
+            <Text style={{ color: colors.ink3, fontSize: 11, paddingHorizontal: 4 }}>{formatWhen(item.createdAt)}</Text>
           </View>
         </View>;
       }}
     /></PullRefreshSurface>
-    {query.user ? <View style={{ padding: 12, gap: 6, borderTopWidth: 0.5, borderTopColor: colors.line }}>
-      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10 }}>
+    {query.user ? <View style={{ paddingHorizontal: 12, paddingVertical: 10, gap: 6, borderTopWidth: colors.components.surfaceBorder, borderTopColor: colors.line }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
         <FormField accessibilityLabel="私信内容" value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={4000} placeholder="写一条私信…" placeholderTextColor={colors.ink3}
-          style={{ flex: 1, minHeight: 44, maxHeight: 140, padding: 10, color: colors.ink1, backgroundColor: colors.surface, borderRadius: colors.components.controlRadius }} />
+          style={{ flex: 1, minHeight: 44, maxHeight: 140, paddingHorizontal: 16, paddingVertical: 11, color: colors.ink1, fontSize: 15, backgroundColor: colors.surface, borderWidth: colors.components.surfaceBorder, borderColor: colors.line, borderRadius: 22 }} />
         <Pressy accessibilityRole="button" accessibilityLabel="发送私信" disabled={sending || !draftReady || !text.trim() || count > 2000} onPress={() => { void send(); }}
-          style={{ minHeight: 44, minWidth: 60, alignItems: "center", justifyContent: "center", backgroundColor: colors.orchid, borderRadius: colors.components.controlRadius, opacity: !text.trim() || count > 2000 ? 0.45 : 1 }}>
-          {sending ? <ActivityIndicator color={colors.onOrchid} /> : <Text style={{ color: colors.onOrchid }}>发送</Text>}
+          style={{ minHeight: 44, minWidth: 64, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent, borderRadius: 22, opacity: !text.trim() || count > 2000 ? 0.45 : 1 }}>
+          {sending ? <ActivityIndicator color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontWeight: "700" }}>发送</Text>}
         </Pressy>
       </View>{count > 1600 ? <Text style={{ color: count > 2000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 11 }}>{count}/2000</Text> : null}
     </View> : <Pressy accessibilityRole="button" onPress={() => { void requireAccount(); }} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.accentText }}>登录后发送私信</Text></Pressy>}

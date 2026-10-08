@@ -13,6 +13,7 @@ import { useSocialPage } from "./useSocialPage";
 import { markMessagesRead, readInbox, reconnectMessages, useInboxVersion, type InboxPage, type Conversation } from "./api";
 import { cachedAccountId } from "../account";
 import { SocialEmpty, SocialError } from "./SocialLayout";
+import { formatWhen } from "../formatTime";
 export function InboxContent({ active, onMessage, drawerGesture }: { active: boolean; onMessage: (peer: PublicAuthor) => void; drawerGesture?: ReturnType<typeof Gesture.Pan> }) {
   const { colors } = useTheme();
   const version = useInboxVersion();
@@ -53,13 +54,13 @@ export function InboxContent({ active, onMessage, drawerGesture }: { active: boo
     ListHeaderComponent={<SocialError error={query.error} retry={() => { reconnectMessages(); void query.load(); }} />}
     ListEmptyComponent={<SocialEmpty loading={query.loading} loaded={query.loaded} text="还没有私信，去作者主页聊聊吧" login={!query.user} />}
     renderItem={({ item }) => <Pressy accessibilityRole="button" accessibilityLabel={`与${item.peer.name}聊天${item.unreadCount ? `，${item.unreadCount}条未读` : ""}`} onPress={() => onMessage(item.peer)}
-      style={{ flexDirection: "row", paddingHorizontal: 16, paddingVertical: 14, gap: 12, borderBottomWidth: 0.5, borderBottomColor: colors.line, backgroundColor: item.unreadCount ? colors.orchidTint : colors.canvas }}>
-      <UserAvatar uri={item.peer.avatarUrl} authorId={item.peer.id} size={44} />
-      <View style={{ flex: 1, gap: 5 }}><View style={{ flexDirection: "row", gap: 8 }}>
-        <Text numberOfLines={1} style={{ flex: 1, fontSize: 16, color: colors.ink1 }}>{item.peer.name}</Text>
-        <Text style={{ fontSize: 11, color: colors.ink3 }}>{new Date(item.lastMessage.createdAt).toLocaleDateString()}</Text>
-      </View><Text numberOfLines={2} style={{ color: colors.ink3, lineHeight: 20 }}>{item.lastMessage.senderId === query.user?.id ? "你：" : ""}{item.lastMessage.body}</Text></View>
-      {item.unreadCount > 0 ? <View style={{ alignSelf: "center", minWidth: 22, padding: 4, borderRadius: 12, backgroundColor: colors.orchid }}><Text style={{ textAlign: "center", color: colors.onOrchid, fontSize: 11 }}>{item.unreadCount > 99 ? "99+" : item.unreadCount}</Text></View> : null}
+      style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 12, marginBottom: 6, paddingHorizontal: 14, paddingVertical: 14, gap: 12, borderRadius: colors.radius.lg, backgroundColor: item.unreadCount ? colors.surface : "transparent" }}>
+      <UserAvatar uri={item.peer.avatarUrl} authorId={item.peer.id} size={48} />
+      <View style={{ flex: 1, minWidth: 0, gap: 3 }}><View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Text numberOfLines={1} style={{ flex: 1, fontSize: 16, lineHeight: 22, fontWeight: item.unreadCount ? "700" : "600", color: colors.ink1 }}>{item.peer.name}</Text>
+        <Text style={{ fontSize: 12, color: colors.ink3 }}>{formatWhen(item.lastMessage.createdAt)}</Text>
+      </View><Text numberOfLines={2} style={{ color: item.unreadCount ? colors.ink2 : colors.ink3, fontSize: 14, lineHeight: 20 }}>{item.lastMessage.senderId === query.user?.id ? "你：" : ""}{item.lastMessage.body}</Text></View>
+      {item.unreadCount > 0 ? <View style={{ alignSelf: "center", minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, justifyContent: "center", backgroundColor: colors.accent }}><Text style={{ textAlign: "center", color: colors.onAccent, fontSize: 11, lineHeight: 14, fontWeight: "700" }}>{item.unreadCount > 99 ? "99+" : item.unreadCount}</Text></View> : null}
     </Pressy>}
     ListFooterComponent={query.data.nextCursor ? <Pressy accessibilityRole="button" onPress={() => { void query.load(true); }} disabled={query.loading} style={{ minHeight: 44, justifyContent: "center", alignItems: "center" }}>
       {query.loading ? <ActivityIndicator color={colors.accent} /> : <Text style={{ color: colors.accentText }}>加载更多会话</Text>}

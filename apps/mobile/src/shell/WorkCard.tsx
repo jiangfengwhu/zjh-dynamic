@@ -64,15 +64,15 @@ export const WorkCard = memo(function WorkCard({
     <View
       style={{
         backgroundColor: colors.surface,
-        borderRadius: 12,
-        borderWidth: 0.5,
+        borderRadius: colors.radius.lg,
+        borderWidth: colors.components.surfaceBorder,
         borderColor: colors.line,
         overflow: "hidden",
-        marginBottom: 6,
+        marginBottom: 10,
       }}
     >
       <Pressy
-        scale={1}
+        scale={0.99}
         accessibilityRole="button"
         accessibilityLabel={`查看作品 ${title}，${
           visibility === "public" ? "公开作品" : "仅自己可见"
@@ -84,22 +84,22 @@ export const WorkCard = memo(function WorkCard({
           style={{
             flexDirection: "row",
             alignItems: "center",
-            paddingHorizontal: 12,
-            paddingTop: 12,
-            paddingBottom: 4,
-            gap: 10,
+            paddingHorizontal: 14,
+            paddingTop: 14,
+            paddingBottom: 6,
+            gap: 12,
           }}
         >
           <View
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
+              width: 52,
+              height: 52,
+              borderRadius: 14,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            {application ? <ApplicationIcon application={application} size={48} /> : <SymbolIcon name="box" size={26} color={accent} />}
+            {application ? <ApplicationIcon application={application} size={52} /> : <SymbolIcon name="box" size={26} color={accent} />}
             {busy ? (
               <ActivityIndicator
                 color={accent}
@@ -122,7 +122,7 @@ export const WorkCard = memo(function WorkCard({
             {summary ? (
               <Text
                 numberOfLines={1}
-                style={{ color: colors.ink2, fontSize: 12, lineHeight: 18 }}
+                style={{ color: colors.ink3, fontSize: 13, lineHeight: 18 }}
               >
                 {summary}
               </Text>
@@ -132,7 +132,7 @@ export const WorkCard = memo(function WorkCard({
       </Pressy>
       <View
         style={{
-          paddingLeft: 12,
+          paddingLeft: 14,
           paddingRight: 6,
           paddingBottom: 4,
           flexDirection: "row",
@@ -157,12 +157,12 @@ export const WorkCard = memo(function WorkCard({
           <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Text
               numberOfLines={1}
-              style={{ color: colors.ink3, fontSize: 11, flexShrink: 1 }}
+              style={{ color: colors.ink3, fontSize: 12, flexShrink: 1 }}
             >
               {authorName || "创作者"}
             </Text>
             {status ? (
-              <Text numberOfLines={1} style={{ color: accent, fontSize: 10, flexShrink: 0 }}>
+              <Text numberOfLines={1} style={{ color: colors.ink2, fontSize: 11, fontWeight: "600", flexShrink: 0, paddingHorizontal: 8, paddingVertical: 1, borderRadius: 8, backgroundColor: colors.surfaceRaised, overflow: "hidden" }}>
                 {status}
               </Text>
             ) : null}

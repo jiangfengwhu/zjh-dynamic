@@ -62,16 +62,16 @@ function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAut
     showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never" contentContainerStyle={!query.data.authors.length ? { flexGrow: 1 } : undefined}
     ListHeaderComponent={<SocialError error={query.error} retry={() => { void query.load(); }} />}
     ListEmptyComponent={<SocialEmpty loading={query.loading} loaded={query.loaded} text={kind === "following" ? "还没有关注的人" : "还没有粉丝"} />}
-    renderItem={({ item }) => <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: colors.line }}>
-      <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)} style={{ flex: 1, paddingVertical: 14, flexDirection: "row", gap: 12, alignItems: "center" }}>
-        <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={44} />
-        <View style={{ flex: 1, gap: 4 }}><Text numberOfLines={1} style={{ color: colors.ink1, fontSize: 16 }}>{item.author.name}</Text>
-          {item.followsYou ? <Text style={{ color: colors.greenText, fontSize: 12 }}>{item.following ? "互相关注" : "关注了你"}</Text> : null}
+    renderItem={({ item }) => <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16 }}>
+      <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)} style={{ flex: 1, minWidth: 0, paddingVertical: 12, flexDirection: "row", gap: 12, alignItems: "center" }}>
+        <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={48} />
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}><Text numberOfLines={1} style={{ color: colors.ink1, fontSize: 16, lineHeight: 22, fontWeight: "600" }}>{item.author.name}</Text>
+          {item.followsYou ? <Text style={{ color: colors.ink3, fontSize: 12, lineHeight: 17 }}>{item.following ? "互相关注" : "关注了你"}</Text> : null}
         </View>
       </Pressy>
       {query.user?.id !== item.author.id ? <Pressy accessibilityRole="button" accessibilityLabel={item.following ? "取消关注" : "关注"} disabled={acting === item.author.id}
-        onPress={() => { void follow(item.author.id, !item.following); }} style={{ minHeight: 44, minWidth: 72, alignItems: "center", justifyContent: "center", paddingHorizontal: 10, backgroundColor: item.following ? colors.surface : colors.accent, borderRadius: colors.components.controlRadius }}>
-        <Text style={{ color: item.following ? colors.ink3 : colors.onAccent }}>{acting === item.author.id ? "处理中" : item.following ? "已关注" : "+ 关注"}</Text>
+        onPress={() => { void follow(item.author.id, !item.following); }} style={{ minHeight: 36, height: 36, minWidth: 76, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 0, backgroundColor: item.following ? colors.surfaceRaised : colors.accent, borderRadius: 18 }}>
+        <Text style={{ color: item.following ? colors.ink2 : colors.onAccent, fontSize: 14, fontWeight: "700" }}>{acting === item.author.id ? "处理中" : item.following ? "已关注" : "关注"}</Text>
       </Pressy> : null}
     </View>}
     ListFooterComponent={query.data.nextCursor ? <Pressy accessibilityRole="button" onPress={() => { void query.load(true); }} disabled={query.loading} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>

@@ -10,7 +10,7 @@ export function Dialog({ open, onClose, title, children, footer, dismissible = t
   const { colors } = useTheme();
   return <DialogFrame open={open} onClose={onClose} dismissible={dismissible}>
     <View style={{ gap: colors.spacing.item }}>
-      <Text variant="title" accessibilityRole="header">{title}</Text>
+      <Text variant="title" accessibilityRole="header" style={{ fontSize: 20, lineHeight: 28, fontWeight: "700", letterSpacing: -0.2 }}>{title}</Text>
       {children}
     </View>
     {footer ? <View style={{ paddingTop: colors.spacing.item }}>{footer}</View> : null}
@@ -37,11 +37,11 @@ function Confirmation({ description, confirmLabel, cancelLabel = "取消", inten
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
   return <Dialog {...props} dismissible={!busy} onClose={() => { if (!pending.current) props.onClose(); }}
-    footer={<View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-      <Button label={cancelLabel} variant="outline" intent="neutral" disabled={busy} onPress={props.onClose} />
-      <Button label={confirmLabel} intent={intent} busy={busy} onPress={() => void confirm()} />
+    footer={<View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+      <Button label={cancelLabel} intent="neutral" disabled={busy} onPress={props.onClose} style={{ flexGrow: 1 }} />
+      <Button label={confirmLabel} intent={intent} busy={busy} onPress={() => void confirm()} style={{ flexGrow: 1 }} />
     </View>}>
-    <Text>{description}</Text>
+    <Text style={{ color: colors.ink2 }}>{description}</Text>
     {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: colors.redText }}>{error}</Text> : null}
   </Dialog>;
 }

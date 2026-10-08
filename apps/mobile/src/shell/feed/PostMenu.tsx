@@ -73,18 +73,20 @@ export function PostMenu({
         disabled={busy}
         onPress={() => action(callback)}
         style={({ pressed }) => ({
-          minHeight: 48,
+          minHeight: 56,
           flexDirection: "row",
           alignItems: "center",
-          gap: 10,
+          gap: 12,
           paddingHorizontal: 12,
-          borderRadius: colors.components.controlRadius,
-          backgroundColor: tint,
-          opacity: pressed || busy ? 0.7 : 1,
+          borderRadius: colors.radius.lg,
+          backgroundColor: pressed ? colors.hover : colors.surface,
+          opacity: busy ? 0.6 : 1,
         })}
       >
-        <SymbolIcon name={icon} size={18} color={tone} />
-        <Text style={{ color: tone, fontSize: 14 }}>{label}</Text>
+        <View style={{ width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: tint }}>
+          <SymbolIcon name={icon} size={18} color={tone} />
+        </View>
+        <Text style={{ color: tone === colors.redText ? colors.redText : colors.ink1, fontSize: 15, fontWeight: "600" }}>{label}</Text>
       </Pressable>
     );
   }
@@ -102,7 +104,7 @@ export function PostMenu({
           justifyContent: "center",
         }}
       >
-        <SymbolIcon name="more" size={21} color={colors.ink3} />
+        <SymbolIcon name="more" size={20} color={colors.ink3} />
       </Pressable>
       <BottomSheetModal
         ref={modal}
@@ -115,41 +117,32 @@ export function PostMenu({
           backgroundColor: colors.canvas,
           borderTopLeftRadius: colors.components.dialogRadius,
           borderTopRightRadius: colors.components.dialogRadius,
-          borderWidth: 0.5,
-          borderColor: colors.lineStrong,
+          borderWidth: colors.components.surfaceBorder,
+          borderColor: colors.line,
         }}
         handleIndicatorStyle={{
-          width: 32,
-          height: 4,
-          borderRadius: colors.radius.sm,
-          backgroundColor: colors.accent,
+          width: 36,
+          height: 5,
+          borderRadius: 3,
+          backgroundColor: colors.lineStrong,
         }}
       >
         <BottomSheetView
           style={{
             paddingHorizontal: 16,
+            paddingTop: 4,
             paddingBottom: 12 + insets.bottom,
-            gap: 6,
+            gap: 8,
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              paddingBottom: 6,
-            }}
-          >
-            <SymbolIcon name="feed" size={18} color={colors.orchidText} />
-            <Text style={{ color: colors.ink1, fontSize: 16 }}>动态操作</Text>
-          </View>
+          <Text style={{ color: colors.ink1, fontSize: 17, lineHeight: 24, fontWeight: "800", paddingHorizontal: 4, paddingBottom: 4 }}>动态操作</Text>
           {row("复制文字", "layers", colors.cyanText, colors.cyanTint, onCopy)}
           {onShare
             ? row(
                 "分享动态",
                 "share",
-                colors.orchidText,
-                colors.orchidTint,
+                colors.accentText,
+                colors.accentTint,
                 onShare
               )
             : null}
@@ -159,13 +152,16 @@ export function PostMenu({
           <Pressable
             accessibilityRole="button"
             onPress={() => modal.current?.dismiss()}
-            style={{
-              minHeight: 44,
+            style={({ pressed }) => ({
+              minHeight: 52,
+              marginTop: 4,
+              borderRadius: 26,
               alignItems: "center",
               justifyContent: "center",
-            }}
+              backgroundColor: pressed ? colors.hover2 : colors.surfaceRaised,
+            })}
           >
-            <Text style={{ color: colors.ink3, fontSize: 13 }}>取消</Text>
+            <Text style={{ color: colors.ink1, fontSize: 15, fontWeight: "700" }}>取消</Text>
           </Pressable>
         </BottomSheetView>
       </BottomSheetModal>

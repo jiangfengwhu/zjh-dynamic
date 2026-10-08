@@ -17,7 +17,6 @@ export function CompactTabs<T extends string>({
   value,
   options,
   onChange,
-  tone = "sun",
   position,
 }: {
   value: T;
@@ -47,25 +46,17 @@ export function CompactTabs<T extends string>({
       translateX: Math.max(0, Math.min(options.length - 1, progress.value)) * slot,
     }],
   }));
-  const fill =
-    tone === "mint"
-      ? colors.green
-      : tone === "berry"
-        ? colors.red
-        : tone === "violet"
-          ? colors.orchid
-          : colors.accent;
   return (
     <View
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width - 8)}
       style={{
         flexDirection: "row",
-        alignSelf: "flex-start",
-        width: Math.min(options.length * 112, 336),
-        maxWidth: "100%",
+        alignSelf: "stretch",
+        maxWidth: 480,
         height: 44,
+        padding: 4,
         backgroundColor: colors.surfaceRaised,
-        borderRadius: colors.radius.pill,
+        borderRadius: 22,
       }}
     >
       {slot > 0 ? (
@@ -74,7 +65,7 @@ export function CompactTabs<T extends string>({
           style={[
             {
               position: "absolute",
-              left: 0,
+              left: 4,
               top: 4,
               bottom: 4,
               width: slot,
@@ -82,7 +73,7 @@ export function CompactTabs<T extends string>({
             motion,
           ]}
         >
-          <View style={{ flex: 1, marginHorizontal: 4, borderRadius: colors.radius.pill, backgroundColor: fill }} />
+          <View style={{ flex: 1, borderRadius: 18, backgroundColor: colors.mode === "dark" ? colors.hover2 : colors.surface, boxShadow: `0 1px 4px ${colors.shade}` }} />
         </Animated.View>
       ) : null}
       {options.map((item, itemIndex) => (
@@ -96,7 +87,7 @@ export function CompactTabs<T extends string>({
           style={{
             flex: 1,
             minWidth: 0,
-            minHeight: 44,
+            minHeight: 36,
             paddingHorizontal: 8,
             alignItems: "center",
             justifyContent: "center",
@@ -109,8 +100,9 @@ export function CompactTabs<T extends string>({
             icon={item.icon}
             index={itemIndex}
             position={progress}
-            activeColor={colors.onAccent}
+            activeColor={colors.ink1}
             inactiveColor={colors.ink3}
+            labelStyle={{ fontSize: 14, lineHeight: 20, fontWeight: "700" }}
           />
         </Pressy>
       ))}

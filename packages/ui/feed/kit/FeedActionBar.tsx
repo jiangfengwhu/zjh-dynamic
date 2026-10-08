@@ -38,73 +38,69 @@ export function FeedActionBar({
 }) {
   const { colors } = useTheme();
   const action = {
-    minHeight: 32,
+    minHeight: 40,
     minWidth: 44,
+    paddingHorizontal: 10,
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    gap: 3,
+    gap: 6,
   };
+  const count = { fontSize: 13, lineHeight: 18, fontWeight: "600" as const, color: colors.ink2 };
   return (
     <View
       style={{
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
-        marginTop: 1,
+        marginHorizontal: -10,
       }}
     >
-      <Pressy
-        accessibilityRole="button"
-        accessibilityLabel={`评论 ${comments ?? 0} 条`}
-        onPress={onComment}
-        hitSlop={{ top: 6, bottom: 6 }}
-        style={action}
-      >
-        <SymbolIcon name="chat" size={18} color={colors.ink3} />
-        {comments ? (
-          <FeedText style={{ fontSize: 12, color: colors.ink3 }}>
-            {comments}
-          </FeedText>
-        ) : null}
-      </Pressy>
       <Pressy
         accessibilityRole="button"
         accessibilityLabel={liked ? "取消点赞" : "点赞"}
         accessibilityState={{ selected: liked, disabled: !!busy }}
         disabled={busy}
         onPress={onLike}
-        hitSlop={{ top: 6, bottom: 6 }}
+        scale={0.94}
+        hitSlop={{ top: 4, bottom: 4 }}
         style={action}
       >
         <LikeGlyph identity={identity} liked={liked} busy={!!busy} />
         {likes ? (
-          <FeedText
-            style={{
-              fontSize: 12,
-              color: liked ? colors.redText : colors.ink3,
-            }}
-          >
+          <FeedText style={[count, liked && { color: colors.redText }]}>
             {likes}
           </FeedText>
         ) : null}
       </Pressy>
-      {views !== undefined ? <View accessible accessibilityLabel={`曝光 ${views} 人`} style={action}>
-        <View accessible={false} style={{ width: 18, height: 16, flexDirection: "row", alignItems: "flex-end", gap: 2 }}>
-          {[6, 14, 10].map((height, index) => <View key={index} style={{ width: 3, height, borderRadius: 1, backgroundColor: colors.ink3 }} />)}
-        </View>
-        <FeedText numberOfLines={1} style={{ fontSize: 12, color: colors.ink3 }}>
-          {views >= 10000 ? `${Math.floor(views / 1000) / 10}万` : views >= 1000 ? `${Math.floor(views / 100) / 10}k` : views}
-        </FeedText>
-      </View> : null}
+      <Pressy
+        accessibilityRole="button"
+        accessibilityLabel={`评论 ${comments ?? 0} 条`}
+        onPress={onComment}
+        scale={0.94}
+        hitSlop={{ top: 4, bottom: 4 }}
+        style={action}
+      >
+        <SymbolIcon name="chat" size={19} color={colors.ink2} />
+        {comments ? <FeedText style={count}>{comments}</FeedText> : null}
+      </Pressy>
       <Pressy
         accessibilityRole="button"
         accessibilityLabel="分享动态"
         onPress={onShare}
-        hitSlop={{ top: 6, bottom: 6 }}
+        scale={0.94}
+        hitSlop={{ top: 4, bottom: 4 }}
         style={action}
       >
-        <SymbolIcon name="share" size={18} color={colors.ink3} />
+        <SymbolIcon name="share" size={19} color={colors.ink2} />
       </Pressy>
+      <View style={{ flex: 1 }} />
+      {views !== undefined ? <View accessible accessibilityLabel={`曝光 ${views} 人`} style={action}>
+        <View accessible={false} style={{ width: 14, height: 13, flexDirection: "row", alignItems: "flex-end", gap: 2 }}>
+          {[5, 12, 8].map((height, index) => <View key={index} style={{ width: 3, height, borderRadius: 1.5, backgroundColor: colors.ink3 }} />)}
+        </View>
+        <FeedText numberOfLines={1} style={{ fontSize: 12, lineHeight: 17, color: colors.ink3 }}>
+          {views >= 10000 ? `${Math.floor(views / 1000) / 10}万` : views >= 1000 ? `${Math.floor(views / 100) / 10}k` : views}
+        </FeedText>
+      </View> : null}
     </View>
   );
 }
@@ -164,8 +160,8 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
   return (
     <View
       style={{
-        width: 18,
-        height: 18,
+        width: 20,
+        height: 20,
         alignItems: "center",
         justifyContent: "center",
       }}
@@ -199,8 +195,8 @@ function LikeGlyph({ identity, liked, busy }: { identity?: string; liked: boolea
       <Animated.View style={[heart, busy && { opacity: 0.35 }]}>
         <SymbolIcon
           name={liked ? "heart" : "heartOutline"}
-          size={18}
-          color={liked ? colors.redText : colors.ink3}
+          size={19}
+          color={liked ? colors.red : colors.ink2}
         />
       </Animated.View>
       {busy ? (

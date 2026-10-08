@@ -568,7 +568,7 @@ export function ComposePostScreen({
         <View
           style={{
             flex: 1,
-            backgroundColor: "rgba(25,21,44,0.46)",
+            backgroundColor: colors.mode === "dark" ? "rgba(0,0,0,0.62)" : "rgba(12,12,16,0.38)",
             justifyContent: "flex-end",
           }}
         >
@@ -582,17 +582,17 @@ export function ComposePostScreen({
               backgroundColor: colors.canvas,
               borderTopLeftRadius: colors.components.dialogRadius,
               borderTopRightRadius: colors.components.dialogRadius,
-              borderTopWidth: 0.5,
-              borderColor: colors.lineStrong,
-              padding: 16,
+              borderTopWidth: colors.components.surfaceBorder,
+              borderColor: colors.line,
+              padding: 18,
               paddingBottom: 12 + insets.bottom,
               maxHeight: "75%",
               gap: 8,
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.orchidTint, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="box" size={18} color={colors.orchidText} /></View>
-              <Text style={{ flex: 1, color: colors.ink1, fontSize: 16 }}>我的已上架应用</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="box" size={18} color={colors.accentText} /></View>
+              <Text style={{ flex: 1, color: colors.ink1, fontSize: 17, fontWeight: "800" }}>我的已上架应用</Text>
               <Pressy scale={1} accessibilityLabel="关闭应用选择" onPress={() => setPicking(false)} style={{ width: 44, height: 44, alignItems: "center" }}><SymbolIcon name="close" size={16} color={colors.ink3} /></Pressy>
             </View>
             <Text style={styles.counter}>仅分享应用市场里的公开版本</Text>
@@ -655,32 +655,32 @@ const useStyles = createThemedStyles((base) => {
   return {
     screen: { flex: 1, backgroundColor: t.canvas },
     fill: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 8, gap: 16, paddingBottom: 10 },
-    previewText: { color: t.ink1, fontSize: 15, lineHeight: 22 },
+    content: { paddingHorizontal: 16, paddingTop: 8, gap: 16, paddingBottom: 10 },
+    previewText: { color: t.ink1, fontSize: 15, lineHeight: 23 },
     htmlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
     htmlAction: { minHeight: 44, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
-    publishDock: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: t.canvas },
-    author: { flexDirection: "row", gap: 12, alignItems: "center" },
-    avatar: { width: 36, height: 36, borderRadius: 18 },
-    name: { color: t.ink1, fontSize: 16, fontWeight: "600" },
+    publishDock: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: t.canvas },
+    author: { flexDirection: "row", gap: 12, alignItems: "center", paddingHorizontal: 4 },
+    avatar: { width: 40, height: 40, borderRadius: 20 },
+    name: { color: t.ink1, fontSize: 16, fontWeight: "700" },
     input: {
-      minHeight: 144,
+      minHeight: 160,
       color: t.ink1,
-      fontSize: 16,
-      lineHeight: 25,
-      padding: 16,
-      borderRadius: t.radius.md,
-      borderWidth: 1,
-      borderColor: t.lineStrong,
-      backgroundColor: t.field,
+      fontSize: 17,
+      lineHeight: 26,
+      padding: 18,
+      borderRadius: t.radius.xl,
+      borderWidth: t.components.surfaceBorder,
+      borderColor: t.line,
+      backgroundColor: t.surface,
     },
     photos: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
     photo: {
       width: "48%",
       aspectRatio: 1,
-      borderRadius: t.radius.md,
+      borderRadius: t.radius.lg,
       overflow: "hidden",
-      backgroundColor: t.surface,
+      backgroundColor: t.surfaceRaised,
     },
     image: { width: "100%", height: "100%" },
     remove: {
@@ -700,9 +700,11 @@ const useStyles = createThemedStyles((base) => {
       flexDirection: "row",
       gap: 6,
       alignItems: "center",
-      backgroundColor: t.inset,
-      borderRadius: t.radius.sm,
-      paddingHorizontal: 12,
+      backgroundColor: t.surface,
+      borderWidth: t.components.surfaceBorder,
+      borderColor: t.line,
+      borderRadius: 22,
+      paddingHorizontal: 16,
     },
     draftStatus: {
       flexDirection: "row",
@@ -719,15 +721,15 @@ const useStyles = createThemedStyles((base) => {
     },
     publish: {
       backgroundColor: t.accent,
-      paddingHorizontal: 14,
+      paddingHorizontal: 20,
       paddingVertical: 10,
-      borderRadius: t.radius.sm,
-      minHeight: 48,
-      minWidth: 68,
+      borderRadius: 26,
+      minHeight: 52,
+      minWidth: 76,
       justifyContent: "center",
       alignItems: "center",
     },
-    publishText: { color: t.onAccent, fontWeight: "600", fontSize: 14 },
+    publishText: { color: t.onAccent, fontWeight: "700", fontSize: 16 },
     disabled: { opacity: 0.4 },
     status: { flexDirection: "row", gap: 10, alignItems: "center" },
   };

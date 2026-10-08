@@ -428,7 +428,7 @@ function CreateApplicationPage({
             ) : (
               <SymbolIcon name="spark" size={16} color={colors.orchidText} />
             )}
-            <Text style={{ color: colors.orchidText, fontSize: 13 }}>
+            <Text style={{ color: colors.orchidText, fontSize: 13, fontWeight: "700" }}>
               {polishing ? "取消润色" : "AI 润色"}
             </Text>
           </Pressy>
@@ -450,8 +450,8 @@ function CreateApplicationPage({
                 gap: 4,
               }}
             >
-              <SymbolIcon name="back" size={14} color={colors.cyanText} />
-              <Text style={{ color: colors.cyanText, fontSize: 12 }}>
+              <SymbolIcon name="back" size={14} color={colors.ink2} />
+              <Text style={{ color: colors.ink2, fontSize: 13, fontWeight: "600" }}>
                 回退原文
               </Text>
             </Pressy>
@@ -475,11 +475,11 @@ function CreateApplicationPage({
         placeholderTextColor={colors.ink3}
         style={{
           height: CREATION_INPUT_HEIGHT,
-          padding: 14,
-          borderRadius: colors.components.controlRadius,
-          borderWidth: 0.5,
+          padding: 16,
+          borderRadius: colors.radius.lg,
+          borderWidth: colors.components.surfaceBorder,
           borderColor: colors.line,
-          backgroundColor: colors.field,
+          backgroundColor: colors.surface,
           color: colors.ink1,
           fontSize: 15,
           lineHeight: 23,
@@ -542,8 +542,8 @@ function CreateApplicationPage({
         }
         onPress={() => void create()}
         style={{
-          minHeight: 48,
-          borderRadius: colors.components.controlRadius,
+          minHeight: 52,
+          borderRadius: 26,
           backgroundColor: colors.accent,
           flexDirection: "row",
           alignItems: "center",

@@ -33,7 +33,7 @@ export function Surface({
           overflow: "hidden",
         },
         lifted && {
-          boxShadow: `0 8px 24px ${colors.shade}`,
+          boxShadow: `0 12px 32px ${colors.shade}`,
         },
         style,
       ]}

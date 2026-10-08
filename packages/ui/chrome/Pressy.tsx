@@ -6,7 +6,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export type PressyProps = Omit<PressableProps, "style"> & { style?: StyleProp<ViewStyle>; scale?: number };
 
 /** Tactile feedback without overriding the caller's size, radius or surface. */
-export function Pressy({ style, scale = 0.98, onPressIn, onPressOut, children, disabled, accessibilityState, ...rest }: PressyProps) {
+export function Pressy({ style, scale = 0.97, onPressIn, onPressOut, children, disabled, accessibilityState, ...rest }: PressyProps) {
   const { colors } = useTheme();
   const flat = StyleSheet.flatten(style);
   // Explicit caller spacing and radius always win, including shorthand padding.

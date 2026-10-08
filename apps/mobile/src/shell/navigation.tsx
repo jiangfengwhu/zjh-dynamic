@@ -347,11 +347,14 @@ function ShellTabBar({ state, jumpTo }: MaterialTopTabBarProps) {
       style={[
         {
           backgroundColor: colors.canvas,
+          paddingTop: 8,
           paddingBottom: keyboard
             ? 0
             : Math.max(SHELL_BOTTOM_PADDING, insets.bottom),
         },
         active === "feed" && {
+          backgroundColor: "transparent",
+          experimental_backgroundImage: `linear-gradient(180deg, ${colors.canvas}00 0%, ${colors.canvas}E6 55%, ${colors.canvas} 100%)`,
           position: "absolute",
           bottom: 0,
           left: 0,

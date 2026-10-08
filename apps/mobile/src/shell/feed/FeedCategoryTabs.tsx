@@ -9,6 +9,7 @@ import { useTheme } from "../../../../../packages/ui/theme";
 import type { FeedCategory } from "./useFeedPager";
 
 const categories = ["installed", "recommended", "following"] as const;
+const labelStyle = { fontSize: 16, lineHeight: 22, fontWeight: "700" as const, letterSpacing: -0.1 };
 export function FeedCategoryTabs({
   selected,
   position,
@@ -28,7 +29,7 @@ export function FeedCategoryTabs({
   return (
     <View
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      style={{ flex: 1, height: 44, flexDirection: "row" }}
+      style={{ flex: 1, maxWidth: 300, height: 44, flexDirection: "row" }}
     >
       {categories.map((category, index) => (
         <Pressable
@@ -51,6 +52,7 @@ export function FeedCategoryTabs({
             position={position}
             activeColor={colors.ink1}
             inactiveColor={colors.ink3}
+            labelStyle={labelStyle}
           />
         </Pressable>
       ))}
@@ -59,7 +61,7 @@ export function FeedCategoryTabs({
         style={[
           {
             position: "absolute",
-            bottom: 0,
+            bottom: 2,
             left: 0,
             width: width / 3,
             alignItems: "center",
@@ -69,7 +71,7 @@ export function FeedCategoryTabs({
       >
         <View
           style={{
-            width: 32,
+            width: 18,
             height: 4,
             borderRadius: 2,
             backgroundColor: colors.accent,

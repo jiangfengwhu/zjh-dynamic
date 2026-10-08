@@ -119,7 +119,7 @@ function MyProfileContent({
     transform: [
       {
         translateX:
-          (((headerWidth.value - titleWidth.value) / 2 - 46) *
+          (((headerWidth.value - titleWidth.value) / 2 - 34) *
             collapsed.value) /
           PROFILE_RANGE,
       },
@@ -198,7 +198,8 @@ function MyProfileContent({
         <View
           style={{
             height: 52,
-            paddingHorizontal: 16,
+            paddingLeft: 20,
+            paddingRight: 16,
             flexDirection: "row",
             alignItems: "center",
             zIndex: 10,
@@ -208,7 +209,7 @@ function MyProfileContent({
           <AnimatedThemeText
             accessibilityRole="header"
             style={[
-              { color: colors.ink1, fontSize: 28, lineHeight: 36, fontWeight: "700" },
+              { color: colors.ink1, fontSize: 30, lineHeight: 38, fontWeight: "800", letterSpacing: -0.6 },
               expandedTitle,
             ]}
           >
@@ -258,8 +259,12 @@ function MyProfileContent({
               width: 44,
               height: 44,
               marginLeft: "auto",
+              borderRadius: 22,
               alignItems: "center",
               justifyContent: "center",
+              backgroundColor: colors.surface,
+              borderWidth: colors.components.surfaceBorder,
+              borderColor: colors.line,
             }}
           >
             <SymbolIcon name="more" size={20} color={colors.ink1} />
@@ -291,7 +296,7 @@ function MyProfileContent({
                 {
                   position: "absolute",
                   top: 0,
-                  left: 16,
+                  left: 20,
                   right: 16,
                   height: 108,
                   zIndex: 12,
@@ -304,10 +309,7 @@ function MyProfileContent({
                 style={{
                   height: 84,
                   marginTop: 8,
-                  paddingLeft: 84,
-                  paddingRight: 14,
-                  backgroundColor: colors.amberTint,
-                  borderRadius: 20,
+                  paddingLeft: 72,
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 12,
@@ -320,19 +322,20 @@ function MyProfileContent({
                       color: colors.ink1,
                       fontSize: 22,
                       lineHeight: 28,
-                      fontWeight: "700",
+                      fontWeight: "800",
+                      letterSpacing: -0.4,
                     }}
                   >
                     {user?.name ?? "登录账号"}
                   </Text>
-                  {author ? <View style={{ flexDirection: "row", gap: 12 }}>
-                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的关注" hitSlop={{ top: 10, bottom: 10 }} onPress={() => onConnections(author, "following")} style={{ minHeight: 24, justifyContent: "center" }}>
-                      <Text style={{ color: colors.greenText, fontSize: 12 }}>{stats?.id === user?.id ? stats?.following ?? "—" : "—"} 关注</Text>
+                  {author ? <View style={{ flexDirection: "row", gap: 16 }}>
+                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的关注" hitSlop={{ top: 10, bottom: 10 }} onPress={() => onConnections(author, "following")} style={{ minHeight: 24, minWidth: 0, justifyContent: "center" }}>
+                      <Text style={{ color: colors.ink3, fontSize: 13 }}><Text style={{ color: colors.ink1, fontSize: 14, fontWeight: "800" }}>{stats?.id === user?.id ? stats?.following ?? "—" : "—"}</Text> 关注</Text>
                     </Pressy>
-                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的粉丝" hitSlop={{ top: 10, bottom: 10 }} onPress={() => onConnections(author, "followers")} style={{ minHeight: 24, justifyContent: "center" }}>
-                      <Text style={{ color: colors.orchidText, fontSize: 12 }}>{stats?.id === user?.id ? stats?.followers ?? "—" : "—"} 粉丝</Text>
+                    <Pressy accessibilityRole="button" accessibilityLabel="查看我的粉丝" hitSlop={{ top: 10, bottom: 10 }} onPress={() => onConnections(author, "followers")} style={{ minHeight: 24, minWidth: 0, justifyContent: "center" }}>
+                      <Text style={{ color: colors.ink3, fontSize: 13 }}><Text style={{ color: colors.ink1, fontSize: 14, fontWeight: "800" }}>{stats?.id === user?.id ? stats?.followers ?? "—" : "—"}</Text> 粉丝</Text>
                     </Pressy>
-                  </View> : <Text style={{ color: colors.ink3, fontSize: 12 }}>记录创造，收藏自己的作品</Text>}
+                  </View> : <Text style={{ color: colors.ink3, fontSize: 13 }}>记录创造，收藏自己的作品</Text>}
 
                 </View>
               </View>
@@ -425,14 +428,14 @@ function MyProfileContent({
                     void requireAccount();
                   }}
                   style={{
-                    minHeight: 44,
-                    paddingHorizontal: 24,
-                    borderRadius: 22,
+                    minHeight: 48,
+                    paddingHorizontal: 28,
+                    borderRadius: 24,
                     backgroundColor: colors.accent,
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ color: colors.onAccent }}>登录</Text>
+                  <Text style={{ color: colors.onAccent, fontWeight: "700" }}>登录</Text>
                 </Pressy>
               </View>
             )}
@@ -443,7 +446,7 @@ function MyProfileContent({
             {
               position: "absolute",
               top: 74,
-              left: 32,
+              left: 20,
               width: 56,
               height: 56,
               zIndex: 30,

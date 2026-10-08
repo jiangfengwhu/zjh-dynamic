@@ -3,7 +3,6 @@ import { ActivityIndicator } from "react-native";
 import { HostText as Text } from "./HostText";
 import { useRef, useState } from "react";
 import { View } from "react-native";
-import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { useTheme } from "../../../../../packages/ui/theme";
@@ -46,12 +45,10 @@ export function ApplicationPostCard({
       disabled={preview || busy}
       onPress={() => void open()}
       style={{
-        marginTop: 8,
-        paddingHorizontal: 16,
+        paddingLeft: 12,
+        paddingRight: 12,
         paddingVertical: 12,
-        borderRadius: 12,
-        borderWidth: 0.5,
-        borderColor: colors.line,
+        borderRadius: 18,
         backgroundColor: colors.surfaceRaised,
         flexDirection: "row",
         alignItems: "center",
@@ -60,36 +57,48 @@ export function ApplicationPostCard({
     >
       <View
         style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
+          width: 48,
+          height: 48,
+          borderRadius: 14,
           backgroundColor: "transparent",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <ApplicationIcon application={{ manifest: application, iconUrl: application.iconUrl }} size={44} />
+        <ApplicationIcon application={{ manifest: application, iconUrl: application.iconUrl }} size={48} />
       </View>
-      <View style={{ flex: 1, minWidth: 0, gap: 1.5 }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
         <Text
           numberOfLines={1}
-          style={{ fontSize: 14, fontWeight: "700", color: colors.ink1 }}
+          style={{ fontSize: 15, lineHeight: 21, fontWeight: "700", color: colors.ink1 }}
         >
           {application.title}
         </Text>
         {application.summary ? <Text
           numberOfLines={1}
-          style={{ fontSize: 12, lineHeight: 18, color: colors.ink3 }}
+          style={{ fontSize: 13, lineHeight: 18, color: colors.ink3 }}
         >
           {application.summary}
         </Text> : null}
       </View>
       {!preview ? (
-        busy ? (
-          <ActivityIndicator size="small" color={colors.accent} />
-        ) : (
-          <SymbolIcon name="arrow" size={18} color={colors.ink3} />
-        )
+        <View
+          style={{
+            minWidth: 56,
+            height: 32,
+            paddingHorizontal: 14,
+            borderRadius: 16,
+            backgroundColor: colors.surface,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {busy ? (
+            <ActivityIndicator size="small" color={colors.accent} />
+          ) : (
+            <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: "700", color: colors.accentText }}>打开</Text>
+          )}
+        </View>
       ) : null}
     </Pressy>
   );

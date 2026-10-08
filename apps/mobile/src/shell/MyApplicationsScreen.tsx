@@ -465,11 +465,13 @@ export function MyApplicationsScreen({
                   onChangeText={setQuery}
                   style={{
                     minHeight: 44,
-                    paddingHorizontal: 12,
-                    backgroundColor: colors.surfaceRaised,
+                    paddingHorizontal: 16,
+                    backgroundColor: colors.surface,
+                    borderWidth: colors.components.surfaceBorder,
+                    borderColor: colors.line,
                     color: colors.ink1,
-                    borderRadius: 4,
-                    fontSize: 13,
+                    borderRadius: 22,
+                    fontSize: 14,
                   }}
                 />
               ) : null}
@@ -519,7 +521,7 @@ export function MyApplicationsScreen({
                           <SymbolIcon
                             name="send"
                             size={18}
-                            color={colors.cyanText}
+                            color={colors.ink2}
                           />
                         </Pressy>
                       ) : null}
@@ -548,7 +550,7 @@ export function MyApplicationsScreen({
                         <SymbolIcon
                           name="edit"
                           size={18}
-                          color={colors.orchidText}
+                          color={colors.ink2}
                         />
                       </Pressy>
                       {published && onSharePost ? (
@@ -564,7 +566,7 @@ export function MyApplicationsScreen({
                           <SymbolIcon
                             name="share"
                             size={18}
-                            color={colors.redText}
+                            color={colors.ink2}
                           />
                         </Pressy>
                       ) : null}
@@ -581,7 +583,7 @@ export function MyApplicationsScreen({
                           <SymbolIcon
                             name="box"
                             size={18}
-                            color={colors.greenText}
+                            color={colors.accentText}
                           />
                         </Pressy>
                       ) : null}
@@ -596,8 +598,8 @@ export function MyApplicationsScreen({
                       return (
               <View
                 style={{
-                  paddingVertical: 10,
-                  borderBottomWidth: 0.5,
+                  paddingVertical: 12,
+                  borderBottomWidth: colors.components.surfaceBorder,
                   borderBottomColor: colors.line,
                   gap: 6,
                 }}
@@ -617,7 +619,7 @@ export function MyApplicationsScreen({
                       flex: 1,
                       minWidth: 0,
                       flexDirection: "row",
-                      gap: 10,
+                      gap: 14,
                       alignItems: "center",
                       justifyContent: "flex-start",
                     }}
@@ -626,7 +628,7 @@ export function MyApplicationsScreen({
                       style={{
                         width: 64,
                         height: 64,
-                        borderRadius: 13,
+                        borderRadius: 18,
                         alignItems: "center",
                         justifyContent: "center",
                         overflow: "hidden",
@@ -640,7 +642,8 @@ export function MyApplicationsScreen({
                         style={{
                           color: colors.ink1,
                           fontSize: 16,
-                          lineHeight: 21,
+                          lineHeight: 22,
+                          fontWeight: "700",
                         }}
                       >
                         {app.manifest.appName}
@@ -660,10 +663,10 @@ export function MyApplicationsScreen({
                         style={{
                           color:
                             updateState?.status === "update"
-                              ? colors.greenText
+                              ? colors.accentText
                               : colors.ink3,
-                          fontSize: 10,
-                          lineHeight: 14,
+                          fontSize: 11,
+                          lineHeight: 15,
                         }}
                       >
                         {applicationNeedsReload(app.manifest)
@@ -693,14 +696,16 @@ export function MyApplicationsScreen({
                       onPress={() => void update(app)}
                       style={{
                         minWidth: 76,
-                        height: 44,
+                        minHeight: 36,
+                        height: 36,
                         alignItems: "center",
                         justifyContent: "center",
                         flexDirection: "row",
                         gap: 5,
-                        paddingHorizontal: 10,
-                        borderRadius: 10,
-                        backgroundColor: colors.green,
+                        paddingHorizontal: 14,
+                        paddingVertical: 0,
+                        borderRadius: 18,
+                        backgroundColor: colors.accent,
                       }}
                     >
                       {updating === app.manifest.appId ? (
@@ -716,7 +721,7 @@ export function MyApplicationsScreen({
                             color={colors.onAccent}
                           />
                           <Text
-                            style={{ color: colors.onAccent, fontSize: 12 }}
+                            style={{ color: colors.onAccent, fontSize: 13, fontWeight: "700" }}
                           >
                             {applicationNeedsReload(app.manifest)
                               ? "重新加载"
@@ -740,7 +745,7 @@ export function MyApplicationsScreen({
           ListEmptyComponent={
             loaded || (!busy && !error) ? (
               <EmptyState>
-                <SymbolIcon name="box" size={32} color={colors.orchidText} />
+                <SymbolIcon name="box" size={32} color={colors.accentText} />
                 <Text style={{ color: colors.ink3, fontSize: 13 }}>
                   {term
                     ? "没有找到匹配的内容"

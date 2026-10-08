@@ -54,41 +54,38 @@ function FeedbackToast({
     : error
     ? colors.redText
     : warning
-    ? colors.accentText
-    : colors.cyanText;
+    ? colors.orangeText
+    : colors.accentText;
   const tint = success
     ? colors.greenTint
     : error
     ? colors.redTint
     : warning
-    ? colors.accentTint
-    : colors.cyanTint;
+    ? colors.orangeTint
+    : colors.accentTint;
   return (
     <View
       accessibilityLiveRegion={error ? "assertive" : "polite"}
       style={{
         width: Math.min(width - 32, 420),
-        borderRadius: colors.components.dialogRadius,
+        borderRadius: colors.radius.xl,
         backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.lineStrong,
+        borderWidth: colors.components.surfaceBorder,
+        borderColor: colors.line,
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 14,
-        paddingVertical: 12,
+        paddingLeft: 12,
+        paddingRight: 4,
+        paddingVertical: 8,
         gap: 12,
-        shadowColor: colors.ink1,
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 4,
+        boxShadow: `0 14px 36px ${colors.shade}`,
       }}
     >
       <View
         style={{
-          width: 34,
-          height: 34,
-          borderRadius: colors.components.controlRadius,
+          width: 36,
+          height: 36,
+          borderRadius: 18,
           backgroundColor: tint,
           alignItems: "center",
           justifyContent: "center",
@@ -118,7 +115,7 @@ function FeedbackToast({
         {text1 ? (
           <Text
             numberOfLines={2}
-            style={{ color: colors.ink1, fontSize: 15, lineHeight: 22 }}
+            style={{ color: colors.ink1, fontSize: 15, lineHeight: 21, fontWeight: "600" }}
           >
             {text1}
           </Text>
@@ -205,8 +202,8 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
   const danger = request.buttons.some(
     (button) => button.style === "destructive"
   );
-  const tone = danger ? colors.redText : colors.orchidText;
-  const tint = danger ? colors.redTint : colors.orchidTint;
+  const tone = danger ? colors.redText : colors.accentText;
+  const tint = danger ? colors.redTint : colors.accentTint;
   const canDismiss =
     request.options?.cancelable !== false &&
     (request.options?.cancelable === true ||
@@ -279,7 +276,7 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
                 right: 0,
                 bottom: 0,
                 left: 0,
-                backgroundColor: "rgba(25,21,44,0.46)",
+                backgroundColor: colors.mode === "dark" ? "rgba(0,0,0,0.62)" : "rgba(12,12,16,0.38)",
               },
               backdrop,
             ]}
@@ -308,40 +305,31 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
                   180,
                   height - insets.top - insets.bottom - 48
                 ),
-                backgroundColor: colors.canvas,
+                backgroundColor: colors.surface,
                 borderRadius: colors.components.dialogRadius,
-                borderWidth: 0.5,
-                borderColor: colors.lineStrong,
+                borderWidth: colors.components.surfaceBorder,
+                borderColor: colors.line,
                 overflow: "hidden",
-                shadowColor: colors.ink1,
-                shadowOpacity: 0.2,
-                shadowRadius: 16,
-                shadowOffset: { width: 0, height: 6 },
-                elevation: 8,
+                boxShadow: `0 20px 48px ${colors.shade}`,
               },
               motion,
             ]}
           >
             <View
               style={{
-                height: 4,
-                backgroundColor: danger ? colors.red : colors.accent,
-              }}
-            />
-            <View
-              style={{
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 10,
-                padding: 16,
+                gap: 12,
+                paddingHorizontal: 22,
+                paddingTop: 22,
                 paddingBottom: 10,
               }}
             >
               <View
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: colors.components.controlRadius,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
                   backgroundColor: tint,
                   alignItems: "center",
                   justifyContent: "center",
@@ -358,8 +346,10 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
                 style={{
                   flex: 1,
                   color: colors.ink1,
-                  fontSize: 18,
-                  lineHeight: 25,
+                  fontSize: 19,
+                  lineHeight: 26,
+                  fontWeight: "700",
+                  letterSpacing: -0.2,
                 }}
               >
                 {request.title}
@@ -369,13 +359,13 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
               <ScrollView
                 style={{ flexShrink: 1 }}
                 contentContainerStyle={{
-                  paddingHorizontal: 16,
-                  paddingBottom: 14,
+                  paddingHorizontal: 22,
+                  paddingBottom: 16,
                 }}
                 showsVerticalScrollIndicator={false}
               >
                 <Text
-                  style={{ color: colors.ink2, fontSize: 13, lineHeight: 21 }}
+                  style={{ color: colors.ink2, fontSize: 14, lineHeight: 22 }}
                 >
                   {request.message}
                 </Text>
@@ -383,10 +373,11 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
             ) : null}
             <View
               style={{
-                padding: 12,
-                paddingTop: 4,
+                paddingHorizontal: 18,
+                paddingBottom: 18,
+                paddingTop: 6,
                 flexDirection: buttons.length > 2 ? "column" : "row",
-                gap: 8,
+                gap: 10,
               }}
             >
               {buttons.map((button, index) => (
@@ -397,30 +388,31 @@ function Confirmation({ request }: { request: HostAlertRequest }) {
                   onPress={() => close(button)}
                   style={({ pressed }) => ({
                     flex: buttons.length <= 2 ? 1 : undefined,
-                    minHeight: 44,
-                    paddingHorizontal: 12,
+                    minHeight: 48,
+                    paddingHorizontal: 16,
                     paddingVertical: 10,
-                    borderRadius: colors.components.controlRadius,
+                    borderRadius: colors.radius.pill,
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor:
                       button.style === "cancel"
-                        ? colors.inset
+                        ? colors.surfaceRaised
                         : button.style === "destructive"
-                        ? colors.redTint
+                        ? colors.red
                         : colors.accent,
                     opacity: pressed ? 0.78 : 1,
                   })}
                 >
                   <Text
                     style={{
-                      fontSize: 13,
-                      lineHeight: 19,
+                      fontSize: 15,
+                      lineHeight: 21,
+                      fontWeight: "700",
                       color:
                         button.style === "cancel"
-                          ? colors.ink2
+                          ? colors.ink1
                           : button.style === "destructive"
-                          ? colors.redText
+                          ? colors.onDanger
                           : colors.onAccent,
                     }}
                   >

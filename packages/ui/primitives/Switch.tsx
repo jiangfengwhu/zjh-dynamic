@@ -6,6 +6,6 @@ export function Switch({ checked, onCheckedChange, label, style, ...props }: Swi
   const { colors } = useTheme();
   return <View style={[{ minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 }, style]}>
     {label ? <Text>{label}</Text> : null}
-    <NativeSwitch trackColor={{ false: colors.lineStrong, true: colors.accent }} thumbColor={checked ? colors.onAccent : colors.ink3} ios_backgroundColor={colors.lineStrong} accessibilityLabel={label} {...props} value={checked} onValueChange={onCheckedChange} />
+    <NativeSwitch trackColor={{ false: colors.lineStrong, true: colors.accent }} thumbColor={checked ? colors.onAccent : colors.mode === "dark" ? colors.ink2 : colors.surface} ios_backgroundColor={colors.lineStrong} accessibilityLabel={label} {...props} value={checked} onValueChange={onCheckedChange} />
   </View>;
 }

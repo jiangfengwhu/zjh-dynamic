@@ -571,15 +571,17 @@ const useStyles = createThemedStyles((theme) => ({
   recoveryActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   retry: {
     backgroundColor: theme.accent,
-    borderRadius: theme.radius.sm,
-    paddingHorizontal: 20,
+    borderRadius: theme.radius.pill,
+    minHeight: 48,
+    paddingHorizontal: 24,
     alignItems: "center",
   },
-  retryText: { color: theme.onAccent, fontSize: 14, fontWeight: "700" },
+  retryText: { color: theme.onAccent, fontSize: 15, fontWeight: "700" },
   backAction: {
-    backgroundColor: theme.inset,
-    borderRadius: theme.radius.sm,
-    paddingHorizontal: 20,
+    backgroundColor: theme.surfaceRaised,
+    borderRadius: theme.radius.pill,
+    minHeight: 48,
+    paddingHorizontal: 24,
   },
   error: {
     color: theme.danger,

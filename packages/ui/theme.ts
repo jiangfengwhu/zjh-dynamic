@@ -3,7 +3,7 @@ import { StyleSheet, useColorScheme } from "react-native";
 
 export type ThemeMode = "dark" | "light";
 export type ThemePreference = ThemeMode | "system";
-const radius = { xs: 6, sm: 12, md: 16, lg: 20, xl: 24, xxl: 28, window: 24, pill: 999 } as const;
+const radius = { xs: 6, sm: 10, md: 14, lg: 20, xl: 24, xxl: 32, window: 28, pill: 999 } as const;
 
 type BaseTheme = {
   // Semantic colors shared by the host and application UI.
@@ -80,31 +80,31 @@ type BaseTheme = {
 
 // A single visual language: warm paper, ink, coral, and small optimistic accents.
 const light = {
-  canvas: "#FAF7F0", surface: "#FFFEFA", surfaceRaised: "#F0ECE2", inset: "#EDE9DF", field: "#FFFEFA",
-  line: "#E4DFD4", lineStrong: "#A9A294", sheen: "rgba(255,255,255,0.8)", shade: "rgba(43,43,37,0.08)",
-  ink1: "#292C27", ink2: "#50564D", ink3: "#6A7065",
-  accent: "#F16A45", accentText: "#AD3A1E", accentTint: "#FCE8DD", accentSoft: "#F5B49C", onAccent: "#292C27",
-  orchid: "#D9CBF3", orchidText: "#655084", orchidTint: "#EEE7F7",
-  cyan: "#B0DADC", cyanText: "#27646A", cyanTint: "#E4F0ED",
-  green: "#B8D784", greenText: "#405C2A", greenTint: "#EBF1DF",
-  red: "#E65B66", redText: "#A92738", redTint: "#FBE5E6",
-  orange: "#F16A45", orangeText: "#AD3A1E", orangeTint: "#FCE8DD",
-  amber: "#F5CC55", amberText: "#755719", amberTint: "#FBF0CA",
-  hover: "#FCE8DD", hover2: "#F8D4C3",
+  canvas: "#F4F3EF", surface: "#FFFFFF", surfaceRaised: "#ECEBE6", inset: "#E8E7E1", field: "#FFFFFF",
+  line: "#E3E2DC", lineStrong: "#C4C3BB", sheen: "rgba(255,255,255,0.8)", shade: "rgba(17,17,20,0.08)",
+  ink1: "#121214", ink2: "#45454B", ink3: "#6B6B73",
+  accent: "#3B4BFF", accentText: "#2B39E0", accentTint: "#E8EAFF", accentSoft: "#B8BFFF", onAccent: "#FFFFFF",
+  orchid: "#F4BFE4", orchidText: "#A1207C", orchidTint: "#FCEBF6",
+  cyan: "#BDE5F4", cyanText: "#0A6283", cyanTint: "#E5F4FA",
+  green: "#C9EE62", greenText: "#3A6200", greenTint: "#EFF8D5",
+  red: "#DC3E42", redText: "#BF2329", redTint: "#FDE8E7",
+  orange: "#FF9A52", orangeText: "#AD4700", orangeTint: "#FFEEDF",
+  amber: "#FFD447", amberText: "#765300", amberTint: "#FFF5CF",
+  hover: "#ECEBE6", hover2: "#E2E1DA",
   jollyFur: "#EFDDB0", jollyFace: "#FFF3CF", jollyBlush: "#EEA18F", jollyOrb: "#F5CC55",
 };
 const dark = {
-  canvas: "#1C211D", surface: "#252C26", surfaceRaised: "#313A31", inset: "#18201A", field: "#252C26",
-  line: "#3B443B", lineStrong: "#778273", sheen: "rgba(255,255,255,0.05)", shade: "rgba(0,0,0,0.2)",
-  ink1: "#F7F1E4", ink2: "#D1D5C8", ink3: "#ADB7A5",
-  accent: "#F59570", accentText: "#FFA582", accentTint: "#49352A", accentSoft: "#8D5A43", onAccent: "#27291F",
-  orchid: "#C8B2EC", orchidText: "#D5C2F3", orchidTint: "#383244",
-  cyan: "#A0D3D5", cyanText: "#B0E1DF", cyanTint: "#263E3C",
-  green: "#C1DC95", greenText: "#C1DC95", greenTint: "#33412A",
-  red: "#F38B94", redText: "#FFA7AF", redTint: "#482C32",
-  orange: "#F59570", orangeText: "#FFA582", orangeTint: "#49352A",
-  amber: "#F5D473", amberText: "#F5D473", amberTint: "#443F28",
-  hover: "#49352A", hover2: "#604536",
+  canvas: "#0D0D10", surface: "#17171C", surfaceRaised: "#222228", inset: "#09090B", field: "#17171C",
+  line: "#2A2A31", lineStrong: "#4A4A54", sheen: "rgba(255,255,255,0.05)", shade: "rgba(0,0,0,0.45)",
+  ink1: "#F3F3F5", ink2: "#C2C2CB", ink3: "#8F8F9A",
+  accent: "#5B6CFF", accentText: "#A3ADFF", accentTint: "#1D2152", accentSoft: "#3B47B8", onAccent: "#FFFFFF",
+  orchid: "#E9A8D8", orchidText: "#F4BCE5", orchidTint: "#38192F",
+  cyan: "#8ED4EC", cyanText: "#A8E1F4", cyanTint: "#102E3A",
+  green: "#C3EC55", greenText: "#CDEF70", greenTint: "#232E0E",
+  red: "#FF6B6E", redText: "#FF9396", redTint: "#3B1719",
+  orange: "#FFA061", orangeText: "#FFB886", orangeTint: "#3A2212",
+  amber: "#FFD450", amberText: "#FFDD75", amberTint: "#362C0E",
+  hover: "#222228", hover2: "#2C2C34",
   jollyFur: "#E8DECE", jollyFace: "#FEECE0", jollyBlush: "#FDA4AF", jollyOrb: "#F5D473",
 };
 export type Theme = BaseTheme & {
@@ -126,10 +126,10 @@ export function getTheme(mode: ThemeMode): Theme {
   const colors: Theme = freeze({ ...palette, mode, sans: "sans-serif", mono: "monospace", serif: "sans-serif", radius,
     ink: palette.canvas, inkRaised: palette.surfaceRaised, text: palette.ink1, muted: palette.ink3,
     gold: palette.amber, goldDim: palette.amberText, danger: palette.red,
-    onDanger: "#292C27", onOrchid: "#292C27",
-    typography: { body: "sans-serif", mono: "monospace", size: { body: 15, title: 24, caption: 13 }, lineHeight: { body: 23, title: 31, caption: 19 } },
+    onDanger: mode === "dark" ? "#1A0B0C" : "#FFFFFF", onOrchid: "#141416",
+    typography: { body: "sans-serif", mono: "monospace", size: { body: 15, title: 22, caption: 13 }, lineHeight: { body: 23, title: 30, caption: 18 } },
     spacing: { page: 20, control: 14, item: 8, section: 24 }, motion: { press: 100, transition: 180 },
-    components: { controlRadius: 16, dialogRadius: 24, surfaceBorder: StyleSheet.hairlineWidth, controlHeight: 48 },
+    components: { controlRadius: 14, dialogRadius: 28, surfaceBorder: StyleSheet.hairlineWidth, controlHeight: 48 },
   });
   cache.set(mode, colors);
   return colors;

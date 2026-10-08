@@ -56,10 +56,12 @@ import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import { requireAccount } from "../account";
 import { useInstalledShortcuts } from "./useInstalledShortcuts";
 import { type MarketApplication } from "../market";
+import { formatWhen } from "../formatTime";
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as typeof FlashList;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
-const FEED_PAGE_INSET = 20;
+const FEED_PAGE_INSET = 12;
+const FEED_HEADER_INSET = 12;
 function timelineItemType({ post }: { post: UserPost }) {
   return post.content?.format === "html" ? "html" : post.images.length ? "images" : post.application ? "application" : "text";
 }
@@ -283,13 +285,16 @@ export const FeedScreen = memo(function FeedScreen({
                       scale={0.92}
                       style={styles.profileControl}
                     >
-                      <UserAvatar uri={user?.avatarUrl} size={36} style={styles.profileAvatar} />
+                      <UserAvatar uri={user?.avatarUrl} size={34} style={styles.profileAvatar} />
                     </Pressy>
-                    <FeedCategoryTabs
-                      selected={kind}
-                      position={pager.pagePosition}
-                      onSelect={selectCategory}
-                    />
+                    <View style={styles.headerTabs}>
+                      <FeedCategoryTabs
+                        selected={kind}
+                        position={pager.pagePosition}
+                        onSelect={selectCategory}
+                      />
+                    </View>
+                    <View style={styles.headerBalance} />
                   </View>
                 </View>
               </Animated.View>
@@ -329,8 +334,8 @@ export const FeedScreen = memo(function FeedScreen({
                             bottomTravel={bottomTravel}
                             scrollY={scrollY}
                             data={shortcuts.items}
-                            numColumns={3}
-                            columnWrapperStyle={{ gap: 8 }}
+                            numColumns={4}
+                            columnWrapperStyle={{ gap: 4 }}
                             keyExtractor={(item) => item.manifest.appId}
                             initialNumToRender={12}
                             maxToRenderPerBatch={9}
@@ -382,7 +387,7 @@ export const FeedScreen = memo(function FeedScreen({
                                 <SymbolIcon
                                   name="box"
                                   size={32}
-                                  color={colors.orchidText}
+                                  color={colors.accentText}
                                 />
                                 <Text
                                   style={{ color: colors.ink3, fontSize: 13 }}
@@ -503,7 +508,8 @@ export const FeedScreen = memo(function FeedScreen({
                                         >
                                           <SymbolIcon
                                             name={pageKind === "following" ? "search" : "plus"}
-                                            size={14}
+                                            size={16}
+                                            strokeWidth={2.4}
                                             color={colors.onAccent}
                                           />
                                           <Text
@@ -631,7 +637,6 @@ const UserTimelineItem = memo(function UserTimelineItem({
 });
 const InstalledAppShortcut = memo(function InstalledAppShortcut({
   app,
-  tone,
   onOpen,
 }: {
   app: MarketApplication;
@@ -650,44 +655,44 @@ const InstalledAppShortcut = memo(function InstalledAppShortcut({
   };
   return (
     <Pressy
-      scale={1}
+      scale={0.94}
       accessibilityLabel={`打开${app.manifest.appName}`}
       onPress={open}
       style={{
         flex: 1,
-        maxWidth: "33.333%",
+        maxWidth: "25%",
         minWidth: 0,
         alignItems: "center",
-        paddingVertical: 14,
-        gap: 7,
+        paddingTop: 12,
+        paddingBottom: 8,
+        gap: 8,
       }}
     >
       <View
         style={{
-          width: 56,
-          height: 56,
-          borderRadius: 16,
+          width: 60,
+          height: 60,
+          borderRadius: 18,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: [
-            colors.orchidTint,
-            colors.greenTint,
-            colors.redTint,
-            colors.cyanTint,
-          ][tone % 4],
+          backgroundColor: colors.surface,
+          borderWidth: colors.components.surfaceBorder,
+          borderColor: colors.line,
           overflow: "hidden",
         }}
       >
-        <ApplicationIcon application={app} size={48} />
+        <ApplicationIcon application={app} size={52} />
       </View>
       <Text
         numberOfLines={2}
         style={{
           color: colors.ink1,
-          fontSize: 13,
-          lineHeight: 18,
+          fontSize: 12,
+          lineHeight: 16,
+          fontWeight: "500",
           textAlign: "center",
-          minHeight: 36,
+          minHeight: 32,
+          paddingHorizontal: 2,
         }}
       >
         {app.manifest.appName}
@@ -876,17 +881,7 @@ function FeedSeparator() {
   return <View style={styles.separator} />;
 }
 
-const feedPresentation = { Text: HostText, compact: true, frameInset: 0 };
-
-function formatWhen(ms: number): string {
-  const delta = Date.now() - ms;
-  if (delta < 60_000) return "刚刚";
-  if (delta < 3_600_000) return `${Math.floor(delta / 60_000)} 分钟前`;
-  if (delta < 86_400_000) return `${Math.floor(delta / 3_600_000)} 小时前`;
-  if (delta < 7 * 86_400_000) return `${Math.floor(delta / 86_400_000)} 天前`;
-  const date = new Date(ms);
-  return `${date.getMonth() + 1}月${date.getDate()}日`;
-}
+const feedPresentation = { Text: HostText, compact: true, frameInset: 16 };
 
 const useStyles = createThemedStyles((base) => {
   const t = base;
@@ -902,13 +897,14 @@ const useStyles = createThemedStyles((base) => {
     },
     viewport: { flex: 1, overflow: "hidden" },
     compose: {
-      minHeight: 44,
+      minHeight: 48,
       flexDirection: "row",
-      gap: 6,
-      paddingHorizontal: 12,
+      gap: 8,
+      marginTop: 6,
+      paddingHorizontal: 22,
       alignItems: "center",
       backgroundColor: t.accent,
-      borderRadius: t.components.controlRadius,
+      borderRadius: t.radius.pill,
       borderWidth: 0,
     },
     profileControl: {
@@ -921,51 +917,53 @@ const useStyles = createThemedStyles((base) => {
       borderRadius: 22,
       overflow: "hidden",
     },
-    profileAvatar: { width: 36, height: 36, borderRadius: 18 },
+    profileAvatar: { width: 34, height: 34, borderRadius: 17 },
     header: {
       backgroundColor: t.canvas,
-      paddingLeft: FEED_PAGE_INSET,
-      paddingRight: FEED_PAGE_INSET,
+      paddingLeft: FEED_HEADER_INSET,
+      paddingRight: FEED_HEADER_INSET,
       paddingBottom: 0,
     },
     headerRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingTop: 8,
-      paddingBottom: 10,
+      gap: 4,
+      paddingTop: 6,
+      paddingBottom: 8,
     },
+    headerTabs: { flex: 1, minWidth: 0, alignItems: "center" },
+    headerBalance: { width: 44, height: 44 },
     scroll: { flex: 1 },
     pullHost: { flex: 1, overflow: "hidden" },
     content: { paddingBottom: 16, paddingHorizontal: FEED_PAGE_INSET },
     post: {
-      paddingVertical: 3,
       width: "100%",
       minWidth: 0,
       overflow: "visible",
     },
     separator: {
-      height: 0.5,
-      backgroundColor: t.line,
+      height: 10,
     },
     empty: {
-      marginHorizontal: 16,
-      padding: 24,
-      borderWidth: 2,
-      borderColor: t.line,
+      marginHorizontal: 4,
+      marginTop: 8,
+      paddingHorizontal: 24,
+      paddingVertical: 36,
+      borderRadius: t.radius.window,
       backgroundColor: t.surface,
       alignItems: "center",
-      gap: 10,
+      gap: 8,
     },
     emptyTitle: {
-      marginTop: 6,
-      fontSize: 18,
-      fontWeight: "700",
+      fontSize: 20,
+      lineHeight: 28,
+      fontWeight: "800",
+      letterSpacing: -0.3,
       color: t.ink1,
     },
     emptyBody: {
-      fontSize: 13,
-      lineHeight: 20,
+      fontSize: 14,
+      lineHeight: 21,
       textAlign: "center",
       color: t.ink3,
     },
@@ -974,9 +972,9 @@ const useStyles = createThemedStyles((base) => {
       alignItems: "center",
       justifyContent: "center",
       gap: 8,
-      paddingTop: 8,
+      paddingTop: 20,
       paddingBottom: 12,
     },
-    endText: { fontSize: 11, color: t.ink3, fontFamily: t.mono },
+    endText: { fontSize: 12, color: t.ink3 },
   };
 });
