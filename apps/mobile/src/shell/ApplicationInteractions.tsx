@@ -12,8 +12,8 @@ import { LikeGlyph } from "../../../../packages/ui/feed/kit/FeedActionBar";
 import { afterInteractions } from "./interactionWork";
 
 const cache = new Map<string, UserPost>();
-export function ApplicationInteractions({ item, active, onComment, onShare, onDetail }: {
-  item: MarketApplication; active: boolean; onComment: (post: UserPost) => void; onShare: () => void; onDetail: () => void;
+export function ApplicationInteractions({ item, active, onComment, onOpen, onShare, onDetail }: {
+  item: MarketApplication; active: boolean; onComment: (post: UserPost) => void; onOpen: () => void; onShare: () => void; onDetail: () => void;
 }) {
   const { colors: t } = useTheme();
   const owner = cachedAccountId() ?? "guest";
@@ -95,6 +95,7 @@ export function ApplicationInteractions({ item, active, onComment, onShare, onDe
     {action("chat", "评论", () => void comment())}
     {action("bookmark", post?.saved ? "从常用移除" : "添加到常用", () => void bookmark(), !!post?.saved, saving)}
     <View style={{ flex: 1 }} />
+    {action("open", "打开应用", onOpen, false, !active)}
     {action("share", "分享", onShare)}
     {action("info", "详情", onDetail)}
   </View>;
