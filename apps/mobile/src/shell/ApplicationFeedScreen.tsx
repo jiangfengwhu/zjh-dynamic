@@ -313,14 +313,22 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
   const { colors: t } = useTheme();
   const showing = foreground && visible;
   const [retainedVisible, setRetainedVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
     if (!ready || !showing) { setRetainedVisible(false); return; }
+    if (selected) { setMounted(true); return; }
     // Only activating a neighbour may wait for idle. The `showing` gate below
     // suspends departed pages immediately, even during uninterrupted swiping.
-    return afterInteractions(() => startTransition(() => setRetainedVisible(true)));
-  }, [ready, showing]);
+    return afterInteractions(() => startTransition(() => { setMounted(true); setRetainedVisible(true); }));
+  }, [ready, showing, selected]);
   const content = useMemo(() => render(appId, onPause), [render, appId, onPause]);
-  if (ready) return <Activity mode={showing && (selected || retainedVisible) ? "visible" : "hidden"}><View style={{ flex: 1 }}>{content}</View></Activity>;
+  if (ready) {
+    // Activity hides effects, but still renders an initially hidden tree. Do not
+    // create distant, unvisited pages every time the forward window advances.
+    // Once previewed, keep the tree and its state until the cache evicts it.
+    if (!mounted && !selected) return null;
+    return <Activity mode={showing && (selected || retainedVisible) ? "visible" : "hidden"}><View style={{ flex: 1 }}>{content}</View></Activity>;
+  }
   // Resources warm independently; only the current page needs a loading animation.
   if (!selected || !visible) return null;
   return <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 16 }}>
