@@ -1,7 +1,7 @@
 import { assertApplicationSdkCompatible, ApplicationSdkError } from "./applicationCompatibility";
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "../shell/evolveHost";
-import { readShellValue, writeShellValue } from "../shell/shellStorage";
+import { readShellValue, readShellValueSync, writeShellValue } from "../shell/shellStorage";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../shell/account";
 import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt } from "../../../../packages/app-sdk/src/runtime";
 import { restoreWorks } from "../shell/workRecovery";
@@ -63,16 +63,36 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   const appId = manifest.appId;
   assertCompatible(manifest, appId);
   signal.throwIfAborted();
-  const assertPublicRuntime = () => {
+  const acceptPublicRuntime = async () => {
     const running = active.get(appId);
     const access = activeAccess.get(appId);
-    if (running?.releaseId !== manifest.releaseId || access?.ownerId || !access?.public)
+    if (!running || !sameApplicationRelease(running, manifest))
       throw new Error("本机正在使用其他版本，请从作品详情管理版本后再体验");
+    // Publishing does not change a candidate's identity. Verify its public
+    // availability before upgrading the author's old private access record.
+    if (!access?.public || access.ownerId) {
+      await verifyPublicPointer(manifest);
+      await verifyAccess(manifest, null);
+    }
+    signal.throwIfAborted();
+    if (active.get(appId) !== running || quarantined.has(appId))
+      throw new Error("本机应用状态已改变，请重试");
+    const publicAccess: Access = { releaseId: manifest.releaseId, ownerId: null, public: true };
+    activeAccess.set(appId, publicAccess);
+    for (const slot of ["install", "pending"]) {
+      const raw = readShellValueSync(`application.${slot}.${appId}`);
+      if (!raw) continue;
+      let local: ApplicationManifest;
+      try { local = JSON.parse(raw); } catch { continue; }
+      if (!sameApplicationRelease(local, manifest)) continue;
+      // Leave a different/newer workshop candidate and its access untouched.
+      writeShellValue(`application.${slot === "pending" ? "pending.access" : "access"}.${appId}`, JSON.stringify(publicAccess));
+    }
   };
   if (loading.has(appId)) {
     await loadApplication(appId);
     signal.throwIfAborted();
-    assertPublicRuntime();
+    await acceptPublicRuntime();
     return;
   }
   await verifyPublicPointer(manifest);
@@ -80,12 +100,10 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   const checkLocal = async () => {
     const pending = await readShellValue(`application.pending.${appId}`);
     const saved = pending || await readShellValue(`application.install.${appId}`);
-    const rawAccess = await readShellValue(pending ? `application.pending.access.${appId}` : `application.access.${appId}`);
     if (saved) {
       const local = JSON.parse(saved) as ApplicationManifest;
-      const access = rawAccess ? JSON.parse(rawAccess) as Access : undefined;
-      if (local.releaseId !== manifest.releaseId || access?.ownerId || !access?.public)
-        throw new Error("本机有其他版本或制作中的作品，请从作品详情管理版本后再体验");
+      if (!sameApplicationRelease(local, manifest))
+        throw new Error("本机保存的版本与当前公开版本不同，请从作品详情管理版本后再体验");
     }
   };
   await checkLocal();
@@ -103,7 +121,12 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
     await loadApplication(appId);
   }
   signal.throwIfAborted();
-  assertPublicRuntime();
+  await acceptPublicRuntime();
+}
+
+function sameApplicationRelease(local: ApplicationManifest, published: ApplicationManifest) {
+  return local.appId === published.appId && local.releaseId === published.releaseId
+    && local.bundle?.sha256 === published.bundle.sha256 && local.source?.commit === published.source.commit;
 }
 async function verifyPublicPointer(manifest: ApplicationManifest) {
   const published = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${manifest.appId}/public`);
