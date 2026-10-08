@@ -138,9 +138,13 @@ export type RootParamList = {
 };
 
 export { shellNavigationRef } from "./navigationRef";
+const AUTHOR_NAVIGATION_INTENT = "author-navigation-intent";
 function openAuthor(author: PublicAuthor) {
-  if (shellNavigationRef.isReady())
+  if (shellNavigationRef.isReady()) {
+    // Stop queued preheating as soon as the user taps, before native events arrive.
+    beginRouteTransition(AUTHOR_NAVIGATION_INTENT);
     shellNavigationRef.navigate("authorProfile", { author });
+  }
 }
 
 function openConnections(author: PublicAuthor, kind: RelationKind) {
@@ -542,7 +546,13 @@ export function ShellNavigator(props: ShellNavigatorProps) {
         }}
       >
         <Stack.Navigator
-          screenListeners={({ route }) => ({ transitionStart: () => beginRouteTransition(route.key), transitionEnd: () => endRouteTransition(route.key) })}
+          screenListeners={({ route }) => ({
+            transitionStart: () => {
+              beginRouteTransition(route.key);
+              if (route.name === "authorProfile") endRouteTransition(AUTHOR_NAVIGATION_INTENT);
+            },
+            transitionEnd: () => endRouteTransition(route.key),
+          })}
           screenOptions={{
             headerShown: false,
             animation: reduceMotion ? "none" : "slide_from_right",

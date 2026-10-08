@@ -7,6 +7,7 @@ import { EmptyState } from "../EmptyState";
 import { ActivityIndicator } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { useRouteContentReady, useRouteRequestReady } from "../useRouteContentReady";
+import { afterInteractions } from "../interactionWork";
 import { useIsFocused } from "@react-navigation/native";
 import { Pressable, View } from "react-native";
 import Animated, {
@@ -212,8 +213,7 @@ function AuthorProfileContent({
       setLoaded(!!cachedAuthorProfile(initialAuthor.id));
     }
     if (!focused) return;
-    const pending = requestIdleCallback(() => { void load(false); });
-    return () => cancelIdleCallback(pending);
+    return afterInteractions(() => { void load(false); });
   }, [focused, user?.id]);
   function updated(post: UserPost) {
     revision.current++;
@@ -471,7 +471,7 @@ function AuthorProfileContent({
         <PageHeader title="作者主页" onBack={onBack} />
       ) : null}
       {header}
-      {embedded ? renderPage("posts") : (
+      {!contentReady ? <View style={{ flex: 1 }} /> : embedded ? renderPage("posts") : (
         <AnimatedPagerView ref={pager} style={{ flex: 1 }} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected}>
           <View key="posts" collapsable={false} style={{ flex: 1 }}>{visited.has(0) ? renderPage("posts") : null}</View>
           <View key="apps" collapsable={false} style={{ flex: 1 }}>{visited.has(1) ? renderPage("apps") : null}</View>

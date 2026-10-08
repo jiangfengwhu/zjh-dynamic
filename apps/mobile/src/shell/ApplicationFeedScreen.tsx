@@ -263,6 +263,8 @@ function InlineExperience({ item, enabled, foreground, visible, render, onReady,
     return () => controller.abort();
   }, [item.manifest.appId, item.manifest.releaseId, attempt, onReady, enabled, ready]);
   if (ready) return <Activity mode={foreground && visible ? "visible" : "hidden"}><View style={{ flex: 1 }}>{render(item.manifest.appId, onPause)}</View></Activity>;
+  // Preload data above, but only animate the skeleton the user can see.
+  if (!visible) return null;
   return <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 16 }}>
     {error ? <><SymbolIcon name="alert" size={28} color={t.orange} /><Text style={{ color: t.ink1, fontSize: 17, fontWeight: "700" }}>暂时无法体验</Text><Text style={{ color: t.ink3, lineHeight: 21, textAlign: "center" }}>{error}</Text><View style={{ flexDirection: "row", gap: 20 }}><Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>重试</Text></Pressy><Pressy accessibilityRole="button" onPress={onDetail} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>查看详情</Text></Pressy></View></> : <><ExperienceSkeleton /><Text accessibilityLiveRegion="polite" style={{ color: t.ink3, fontSize: 13 }}>正在准备真实应用…</Text></>}
   </View>;
