@@ -1,9 +1,20 @@
-import { CloudError, type AppAuth, type AppCloud, type CloudCollection, type CloudRequestOptions, type CloudWriteOptions } from "./cloud-types";
+import { CloudError, type AppAuth, type AppCloud, type CloudCollection, type CloudRequestOptions, type CloudWriteOptions, type CloudFiles, type CloudRooms } from "./cloud-types";
 
-export type CloudTransport = (appId: string, scope: "private" | "public", collection: string, body: Record<string, unknown>, options?: CloudRequestOptions) => Promise<unknown>;
+export type CloudTransport = (appId: string, scope: "private" | "public" | "room", collection: string, body: Record<string, unknown>, options?: CloudRequestOptions, roomId?: string) => Promise<unknown>;
 let transport: CloudTransport = async () => { throw new CloudError("UNAVAILABLE", "云服务尚未就绪"); };
 let auth: AppAuth = { getUser: () => null, subscribe: () => () => {}, requireLogin: async () => null };
-export function setApplicationCloudHandlers(handlers: { auth: AppAuth; request: CloudTransport }) { auth = handlers.auth; transport = handlers.request; }
+let cloudFiles: (appId: string) => CloudFiles;
+let cloudRooms: (appId: string) => CloudRooms;
+let activity: (appId: string, active: boolean) => void = () => {};
+const visible = new Map<string, number>();
+export function setApplicationCloudActive(appId: string, active: boolean) {
+  const count = Math.max(0, (visible.get(appId) ?? 0) + (active ? 1 : -1));
+  if (count) visible.set(appId, count); else visible.delete(appId);
+  activity(appId, count > 0);
+}
+export function setApplicationCloudHandlers(handlers: { auth: AppAuth; request: CloudTransport; files: typeof cloudFiles; rooms: typeof cloudRooms; activity: typeof activity }) {
+  auth = handlers.auth; transport = handlers.request; cloudFiles = handlers.files; cloudRooms = handlers.rooms; activity = handlers.activity;
+}
 const copyUser = () => { const user = auth.getUser(); return user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : null; };
 export const applicationAuth: AppAuth = {
   getUser: copyUser,
@@ -19,11 +30,11 @@ function validateData(data: unknown, depth = 0): void {
   if (data && typeof data === "object" && [Object.prototype, null].includes(Object.getPrototypeOf(data))) { Object.values(data).forEach(value => validateData(value, depth + 1)); return; }
   throw new CloudError("INVALID_ARGUMENT", "数据必须是 JSON 对象，不能包含 undefined、日期实例或函数");
 }
-export function applicationCloud(appId: string): AppCloud {
-  const database = (scope: "private" | "public") => ({
+export function cloudDatabase(appId: string, scope: "private" | "public" | "room", roomId?: string) {
+  return ({
     collection<T extends object>(name: string): CloudCollection<T> {
       if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name)) throw new CloudError("INVALID_ARGUMENT", "集合名称无效");
-      const read = <R>(body: Record<string, unknown>, options?: CloudRequestOptions) => transport(appId, scope, name, body, options) as Promise<R>;
+      const read = <R>(body: Record<string, unknown>, options?: CloudRequestOptions) => transport(appId, scope, name, body, options, roomId) as Promise<R>;
       const write = async <R>(body: Record<string, unknown>, options?: CloudWriteOptions & { expectedVersion?: number }) => {
         if (body.operation !== "remove") {
           if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) throw new CloudError("INVALID_ARGUMENT", "数据必须是 JSON 对象");
@@ -38,9 +49,13 @@ export function applicationCloud(appId: string): AppCloud {
         get: (id, options) => read({ operation: "get", id }, options),
         list: (query, options) => read({ operation: "list", query }, options),
         update: (id, patch, options) => write({ operation: "update", id, data: patch }, options),
+        increment: (id, amounts, options) => write({ operation: "increment", id, data: amounts }, options),
         remove: async (id, options) => { await write({ operation: "remove", id }, options); },
       };
     },
   });
-  return { private: database("private"), public: database("public") };
+}
+export function applicationCloud(appId: string): AppCloud {
+  return { private: cloudDatabase(appId, "private"), public: cloudDatabase(appId, "public"),
+    get files() { return cloudFiles(appId); }, get rooms() { return cloudRooms(appId); } };
 }

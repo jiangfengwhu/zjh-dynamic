@@ -203,8 +203,40 @@ export async function accountFetch(url: string, options: RequestInit, prompt = t
 }
 
 /** Native socket authorization stays in the host; credentials never enter URLs. */
-export async function accountSocket(path: "/v1/messages/live"): Promise<WebSocket> {
+export async function accountSocket(path: "/v1/messages/live" | `/v1/app-rooms/${string}/${string}/live`): Promise<WebSocket> {
+  if (path !== "/v1/messages/live" && !/^\/v1\/app-rooms\/[a-z][a-z0-9-]{0,63}\/[A-Za-z][A-Za-z0-9_-]{0,63}\/live$/.test(path)) throw new Error("实时连接地址无效");
   if (!await requireAccount(false)) throw new Error("请先登录后再查看私信");
   const Socket = WebSocket as unknown as new (url: string, protocols: string[], options: { headers: Record<string, string> }) => WebSocket;
   return new Socket(edgeUrl.replace(/^http/, "ws") + path, [], { headers: { Authorization: `Bearer ${credential!.token}` } });
+}
+
+/** Authenticated native file IO; account credentials stay inside the host. */
+export async function accountCloudFile(path: string, localPath: string, upload: boolean, options: { mime?: string; visibility?: string; signal?: AbortSignal }) {
+  if (!/^\/v1\/app-files\/[a-z][a-z0-9-]{0,63}\/[a-f0-9-]{36}(\/content)?$/.test(path)) throw new Error("云文件地址无效");
+  if (options.signal?.aborted) throw new Error("CANCELLED");
+  if (!await requireAccount(false) || !credential) throw new Error("UNAUTHENTICATED");
+  const token = credential.token;
+  const task = BlobUtil.config({ timeout: 60000, followRedirect: false, ...(upload ? {} : { path: localPath }) }).fetch(upload ? "PUT" : "GET", edgeUrl + path,
+    { Authorization: `Bearer ${token}`, ...(upload ? { "Content-Type": options.mime!, "X-File-Visibility": options.visibility! } : {}) }, upload ? BlobUtil.wrap(localPath.replace(/^file:\/\//, "")) : undefined);
+  let changed = false;
+  const cancel = () => { void task.cancel(() => {}); };
+  const stop = subscribeAccountIdentity(() => { changed = true; cancel(); });
+  options.signal?.addEventListener("abort", cancel);
+  if (options.signal?.aborted) cancel();
+  try {
+    const result = await task;
+    if (changed || credential?.token !== token) throw new Error("ACCOUNT_CHANGED");
+    if (options.signal?.aborted) throw new Error("CANCELLED");
+    const status = result.info().status;
+    if (status === 401) { await clearAccount(); throw new Error("UNAUTHENTICATED"); }
+    if (status < 200 || status >= 300) {
+      if (!upload) throw new Error(status === 404 ? "NOT_FOUND" : "UNAVAILABLE");
+      const error = result.json(); throw new Error(error.code || "UNAVAILABLE");
+    }
+    return upload ? result.json().result : undefined;
+  } catch (error) {
+    if (changed || credential?.token !== token) throw new Error("ACCOUNT_CHANGED");
+    if (options.signal?.aborted) throw new Error("CANCELLED");
+    throw error;
+  } finally { stop(); options.signal?.removeEventListener("abort", cancel); }
 }

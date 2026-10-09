@@ -1,3 +1,4 @@
+import { aiMessages } from "./ai-input";
 import { DeviceEventEmitter } from "react-native";
 import type { AiCompletionRequest, AiCompletionResult, AiProvider, AiService, AiRequestOptions, AiStreamOptions } from "./ai-types";
 import { shell } from "../../platform/src/phone";
@@ -7,7 +8,9 @@ const cancelled = (): AiCompletionResult => ({ ok: false, code: "CANCELLED", err
 export function applicationAi(openSettings: () => void): AiService {
   let applicationInFlight = 0;
   async function generate(request: AiCompletionRequest, options?: AiRequestOptions, onText?: (text: string) => void): Promise<AiCompletionResult> {
-    if (!request || !Array.isArray(request.messages) || !request.messages.length || request.messages.length > 128 || request.messages.some(message => !message || !["system", "user", "assistant"].includes(message.role) || typeof message.content !== "string") || request.messages.reduce((count, message) => count + message.content.length, 0) > 128000 || request.providerId !== undefined && (typeof request.providerId !== "string" || !request.providerId.trim() || request.providerId.length > 100) || request.temperature !== undefined && (!Number.isFinite(request.temperature) || request.temperature < 0 || request.temperature > 2) || request.maxTokens !== undefined && (!Number.isInteger(request.maxTokens) || request.maxTokens < 1 || request.maxTokens > 8192)) return { ok: false, code: "INVALID_REQUEST", error: "AI 请求参数无效" };
+    let messages: ReturnType<typeof aiMessages>;
+    try { messages = aiMessages(request?.messages); } catch { return { ok: false, code: "INVALID_REQUEST", error: "AI 消息或附件无效" }; }
+    if (request.providerId !== undefined && (typeof request.providerId !== "string" || !request.providerId.trim() || request.providerId.length > 100) || request.temperature !== undefined && (!Number.isFinite(request.temperature) || request.temperature < 0 || request.temperature > 2) || request.maxTokens !== undefined && (!Number.isInteger(request.maxTokens) || request.maxTokens < 1 || request.maxTokens > 8192)) return { ok: false, code: "INVALID_REQUEST", error: "AI 请求参数无效" };
     if (options?.signal?.aborted) return cancelled();
     if (applicationInFlight >= 2 || inFlight >= 4) return { ok: false, code: "BUSY", error: "AI 正在处理其他请求，请稍后重试" };
     const requestId = `ai-${Date.now()}-${++sequence}-${Math.random().toString(36).slice(2)}`;
@@ -26,7 +29,7 @@ export function applicationAi(openSettings: () => void): AiService {
     const native = (async (): Promise<AiCompletionResult> => {
       try {
         const result = await shell<AiCompletionResult>("complete", {
-          requestId, stream: Boolean(onText), messages: request.messages.map(({ role, content }) => ({ role, content })),
+          requestId, stream: Boolean(onText), messages,
           ...(request.providerId ? { providerId: request.providerId } : {}),
           ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
           ...(request.maxTokens !== undefined ? { maxTokens: request.maxTokens } : {}),

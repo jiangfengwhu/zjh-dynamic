@@ -2,10 +2,11 @@ import type { ComponentType } from "react";
 import type { AiService } from "./ai-types";
 import type { AppAuth, AppCloud } from "./cloud-types";
 export { CloudError } from "./cloud-types";
-export type { AppUser, AppAuth, AppCloud, CloudDatabase, CloudCollection, CloudRecord, CloudPage, CloudQuery, CloudRequestOptions, CloudWriteOptions, CloudErrorCode } from "./cloud-types";
+export type { AppUser, AppAuth, AppCloud, CloudDatabase, CloudCollection, CloudRecord, CloudPage, CloudQuery, CloudRequestOptions, CloudWriteOptions, CloudErrorCode, CloudFile, CloudFiles, CloudRoom, CloudRooms, CloudRoomStatus, CloudRoomEvent, CloudRoomMember } from "./cloud-types";
 export type {
   AiProvider,
   AiMessage,
+  AiAttachment,
   AiCompletionRequest,
   AiErrorCode,
   AiCompletionResult,

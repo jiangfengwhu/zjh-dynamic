@@ -1,3 +1,4 @@
+import { ApplicationCloudActivity } from "../../../../packages/app-sdk/src/cloud-activity";
 import { Activity, memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "react-native";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
@@ -332,7 +333,7 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
     // create distant, unvisited pages every time the forward window advances.
     // Once previewed, keep the tree and its state until the cache evicts it.
     if (!mounted && !selected) return null;
-    return <Activity mode={showing && (selected || retainedVisible) ? "visible" : "hidden"}><View style={{ flex: 1 }}>{content}</View></Activity>;
+    return <Activity mode={showing && (selected || retainedVisible) ? "visible" : "hidden"}><ApplicationCloudActivity.Provider value={showing && selected}><View style={{ flex: 1 }}>{content}</View></ApplicationCloudActivity.Provider></Activity>;
   }
   // Resources warm independently; only the current page needs a loading animation.
   if (!selected || !visible) return null;

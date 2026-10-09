@@ -1,6 +1,6 @@
 const bootstrap = require("../../../tools/applications/bootstrap.json");
 import type { AppContext, AppDefinition, AppData, DataScope } from "./index";
-import { createElement, useEffect } from "react";
+import { createElement, useEffect, useContext } from "react";
 import { requestNotifications, RESULTS } from "react-native-permissions";
 import { writePackageValue } from "../../ui/packageLink";
 import { applicationCapabilities } from "./capabilities";
@@ -12,6 +12,9 @@ import { applicationAi } from "./ai";
 import { KeyboardViewport } from "../../ui/keyboard";
 import { ApplicationQueries, changeQueryAccount } from "./query-runtime";
 import { applicationAuth, applicationCloud } from "./cloud";
+import { useIsFocused } from "@react-navigation/native";
+import { ApplicationCloudActivity } from "./cloud-activity";
+import { setApplicationCloudActive } from "./cloud";
 import { CloudError } from "./cloud-types";
 
 const definitions = new Map<string, AppDefinition>();
@@ -162,6 +165,13 @@ export function registerApplication(appId: string, definition: AppDefinition) {
   // Main stays lazy; importing a card never executes its page module.
   let Page: ReturnType<AppDefinition["main"]> | undefined;
   function ApplicationPage() {
+    const active = useContext(ApplicationCloudActivity);
+    const focused = useIsFocused();
+    useEffect(() => {
+      if (!active || !focused) return;
+      setApplicationCloudActive(appId, true);
+      return () => setApplicationCloudActive(appId, false);
+    }, [active, focused]);
     useEffect(() => {
       pageReady(appId);
     }, []);
