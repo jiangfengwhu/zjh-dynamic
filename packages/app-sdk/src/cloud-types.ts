@@ -56,8 +56,9 @@ export interface CloudRoom extends CloudDatabase {
   /** Live events are transient. Persist recoverable state in room collections. */
   send(event: string, data: Record<string, unknown>): Promise<void>;
   on(event: string, listener: (event: CloudRoomEvent) => void): () => void;
+  /** Observes status, members and collection changes; reread persisted state after reconnect. */
   subscribe(listener: () => void): () => void;
-  /** Call after reconnect to reread persisted state. */
+  /** Closes this connection; persisted room records remain. */
   leave(): void;
 }
 export interface CloudRooms {
