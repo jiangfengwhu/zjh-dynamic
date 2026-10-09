@@ -64,9 +64,10 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   await mkdir(outDir, { recursive: true });
   const dependencyLock = JSON.parse(await readFile(path.join(mobileDir, "package-lock.json"), "utf8"));
   const publicModules = JSON.parse(await readFile(path.join(repoRoot, "tools/applications/public-modules.json"), "utf8"));
+  const sdkPlatform = JSON.parse(await readFile(path.join(repoRoot, "packages/app-sdk/platform.json"), "utf8"));
   const publicNames: string[] = publicModules.shared;
   const shared = Object.fromEntries(publicNames.map(name => [name, dependencyLock.packages[`node_modules/${(name.startsWith("@") ? name.split("/").slice(0, 2).join("/") : name.split("/")[0])}`].version]));
-  const applicationContract = { engineAbi: `rn-${shared["react-native"]}-hermes-${dependencyLock.packages["node_modules/hermes-compiler"].version}`, sdk: publicModules.sdk, shared };
+  const applicationContract = { engineAbi: `rn-${shared["react-native"]}-hermes-${dependencyLock.packages["node_modules/hermes-compiler"].version}`, sdk: sdkPlatform.sdk, shared };
   if (!contract.applications || contract.applications.engineAbi !== applicationContract.engineAbi || Object.entries(shared).some(([name, version]) => contract.applications?.shared[name] !== version)) throw new Error("宿主公共依赖与目标 APK 契约不匹配，需要维护者协调发布");
   await writeFile(path.join(mobileDir, "src/runtime/application-contract.json"), JSON.stringify(applicationContract));
 
