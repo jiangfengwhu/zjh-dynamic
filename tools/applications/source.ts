@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 const run = promisify(execFile);
 
 /** Capture the files Jules will commit without changing its index or history. */
-export async function applicationSource(repo: string) {
+export async function applicationSource(repo: string, appId: string) {
   const git = async (args: string[], env = process.env) =>
     (await run("git", args, { cwd: repo, env, windowsHide: true })).stdout.trim();
   const commit = await git(["rev-parse", "HEAD"]);
@@ -21,8 +21,9 @@ export async function applicationSource(repo: string) {
     await git(["read-tree", commit], env);
     await git(["add", "--all", "--", "."], env);
     const tree = await git(["write-tree"], env);
+    const applicationTree = await git(["rev-parse", `${tree}:apps/${appId}`], env);
     const dirty = Boolean(await git(["status", "--porcelain", "--untracked-files=normal"]));
-    return { repository: match[1], commit, tree, dirty };
+    return { repository: match[1], commit, tree, applicationTree, dirty };
   } finally {
     await rm(index, { force: true });
     await rm(`${index}.lock`, { force: true });

@@ -12,7 +12,7 @@ const run = promisify(execFile);
 
 export async function buildApplication(repo: string, appId: string) {
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("应用 ID 无效");
-  const source = await applicationSource(repo);
+  const source = await applicationSource(repo, appId);
   const root = path.join(repo, "apps", appId);
   const mobile = repo;
   const output = path.join(repo, "dist/applications", appId);
@@ -82,12 +82,11 @@ export async function buildApplication(repo: string, appId: string) {
     }
   }
   await collectAssets(path.join(root, "assets"));
-  if ((await applicationSource(repo)).tree !== source.tree) throw new Error("构建期间源码发生变化，请重新发布");
-  const { appName, description, version, releaseNotes, accent, originalAppId, originalReleaseId, originalCommit } = config;
+  if ((await applicationSource(repo, appId)).applicationTree !== source.applicationTree) throw new Error("构建期间应用源码发生变化，请重新发布");
+  const { appName, description, version, releaseNotes, accent } = config;
   const body = {
     appId, appName, description, version, releaseNotes, accent,
     ...(assets.find(asset => asset.name === "icon.svg") ? { icon: { ...assets.find(asset => asset.name === "icon.svg")!, format: "svg" as const } } : {}),
-    ...(originalAppId ? { originalAppId, originalReleaseId, originalCommit } : {}),
     dataSchemaVersion: 1, format: 1, requires: { sdk: publicModules.sdk },
     modules: { base, size: platform.moduleRangeSize },
     bundle: { sha256: sha256Hex(bytes), bytes: bytes.length }, assets: assets.sort((a, b) => a.name.localeCompare(b.name)), source,

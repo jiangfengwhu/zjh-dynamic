@@ -47,7 +47,7 @@ else if (command === "init") {
     const prior = JSON.parse(execFileSync("git", ["show", `${originalCommit}:${prefix}application.json`], { cwd: root, encoding: "utf8", windowsHide: true }));
     const priorPackage = JSON.parse(execFileSync("git", ["show", `${originalCommit}:${prefix}package.json`], { cwd: root, encoding: "utf8", windowsHide: true }));
     dependencies = priorPackage.dependencies;
-    original = { appName: prior.appName, description: prior.description, accent: prior.accent, originalAppId, originalReleaseId, originalCommit };
+    original = { appName: prior.appName, description: prior.description, accent: prior.accent };
   }
   await writeFile(path.join(directory, "application.json"), JSON.stringify({ appName: "", description: "", accent: "#7A5BD0", ...original, appId, version: "1.0.0", releaseNotes: "", moduleBase: base }, null, 2));
   await writeFile(path.join(directory, "package.json"), JSON.stringify({ name: `@zjh-plugin/${appId}`, private: true, ...(dependencies ? { dependencies } : {}) }, null, 2));

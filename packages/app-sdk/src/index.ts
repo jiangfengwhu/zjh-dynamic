@@ -76,7 +76,7 @@ export type ApplicationManifest = {
   modules: { base: number; size: number };
   bundle: { sha256: string; bytes: number };
   assets: Array<{ name: string; sha256: string; bytes: number }>;
-  source: { repository?: string; commit: string; tree?: string; dirty: boolean };
+  source: { repository?: string; commit: string; tree?: string; applicationTree?: string; dirty: boolean };
 };
 
 export type AppDefinition = {
