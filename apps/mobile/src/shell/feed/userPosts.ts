@@ -92,6 +92,9 @@ export function fetchAuthorProfile(id: string, view: "summary" | "posts" | "apps
     if (profileKey(id) === key) {
       if (authorFollows.get(key) !== priorFollow) profile = { ...profile, following: authorFollows.get(key) };
       else if (profile.following !== undefined) authorFollows.set(key, profile.following);
+      const prior = cachedAuthorProfile(id);
+      if (cursor && view === "posts") profile = {...profile, posts: [...(prior?.posts || []), ...profile.posts.filter(post => !prior?.posts.some(old => old.id === post.id))]};
+      if (cursor && view === "apps") profile = {...profile, applications: [...(prior?.applications || []), ...profile.applications.filter(app => !prior?.applications.some(old => old.manifest.appId === app.manifest.appId))]};
       authorProfiles.delete(key);
       profile = { ...cachedAuthorProfile(id), ...profile, nextCursor: view === "posts" ? profile.nextCursor : cachedAuthorProfile(id)?.nextCursor ?? null, applicationsNextCursor: view === "apps" ? profile.applicationsNextCursor : cachedAuthorProfile(id)?.applicationsNextCursor, posts: view === "posts" ? profile.posts : cachedAuthorProfile(id)?.posts ?? [], applications: view === "apps" ? profile.applications : cachedAuthorProfile(id)?.applications ?? [] };
       authorProfiles.set(key, profile);

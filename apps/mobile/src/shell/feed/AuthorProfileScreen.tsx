@@ -97,6 +97,7 @@ function AuthorProfileContent({
   const [tab, setTab] = useState<"posts" | "apps">("posts");
   const loadedTabs = useRef(new Set<string>());
   const selectedTab = useRef(tab); selectedTab.current = tab;
+  const previousTab = useRef(tab);
   const pager = useRef<PagerView>(null);
   const position = useSharedValue(0);
   const appY = useSharedValue(0);
@@ -208,7 +209,14 @@ function AuthorProfileContent({
     }
     if (!focused) return;
     return afterInteractions(() => { void load(false); });
-  }, [focused, user?.id, tab]);
+  }, [focused, user?.id]);
+  useEffect(() => {
+    if (previousTab.current === tab) return;
+    previousTab.current = tab;
+    revision.current++;
+    if (!focused || loadedTabs.current.has(tab)) return;
+    return afterInteractions(() => { void load(false); });
+  }, [tab, focused]);
   function updated(post: UserPost) {
     revision.current++;
     if (reading.current) rerun.current = true;
