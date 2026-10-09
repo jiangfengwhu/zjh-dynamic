@@ -2,6 +2,7 @@ import { AnimatedFlashList, type FlashListRef } from "./AnimatedFlashList";
 import { waitForInteractions, afterInteractions } from "./interactionWork";
 import { lazyScreen } from "./lazyScreen";
 import { useVisitedPager } from "./useVisitedPager";
+import { useRouteContentReady } from "./useRouteContentReady";
 import { ApplicationIcon } from "./ApplicationIcon";
 import { TextInput } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
@@ -70,6 +71,7 @@ export function MarketScreen(props: MarketProps) {
 }
 function MarketContent(props: MarketProps) {
   const styles = useStyles();
+  const contentReady = useRouteContentReady();
 
   const { colors } = useTheme();
   const [discoveryQuery, setDiscoveryQuery] = useState("");
@@ -166,7 +168,7 @@ function MarketContent(props: MarketProps) {
           }
         />
       </View>
-      <GestureDetector gesture={native}>
+      {contentReady ? <GestureDetector gesture={native}>
         <AnimatedPagerView
           ref={pager}
           style={{ flex: 1 }}
@@ -196,7 +198,7 @@ function MarketContent(props: MarketProps) {
             />) : null}
           </View>
         </AnimatedPagerView>
-      </GestureDetector>
+      </GestureDetector> : <View style={{ flex: 1, paddingHorizontal: 16 }}><PageSkeleton shape="application" rows={3} animated={false} /></View>}
     </Screen>
   );
 }

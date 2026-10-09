@@ -139,6 +139,12 @@ export type RootParamList = {
 
 export { shellNavigationRef } from "./navigationRef";
 const AUTHOR_NAVIGATION_INTENT = "author-navigation-intent";
+const SEARCH_NAVIGATION_INTENT = "search-navigation-intent";
+function openSearch() {
+  if (!shellNavigationRef.isReady()) return;
+  beginRouteTransition(SEARCH_NAVIGATION_INTENT);
+  shellNavigationRef.navigate("discovery");
+}
 function openAuthor(author: PublicAuthor) {
   if (shellNavigationRef.isReady()) {
     // Stop queued preheating as soon as the user taps, before native events arrive.
@@ -550,6 +556,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             transitionStart: () => {
               beginRouteTransition(route.key);
               if (route.name === "authorProfile") endRouteTransition(AUTHOR_NAVIGATION_INTENT);
+              if (route.name === "discovery") endRouteTransition(SEARCH_NAVIGATION_INTENT);
             },
             transitionEnd: () => endRouteTransition(route.key),
           })}
@@ -614,7 +621,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                           <ApplicationHomeScreen
                             renderApplication={props.renderBundle}
                             onProfile={showProfileDrawer}
-                            onSearch={() => shellNavigationRef.navigate("discovery")}
+                            onSearch={openSearch}
                             onOpen={props.onOpenBundle}
                             onAuthor={openAuthor}
                             onDetail={item => shellNavigationRef.navigate("marketDetail", { item })}
