@@ -16,7 +16,9 @@ import { useAccount } from "./account";
 import { useProfileDrawer } from "./ProfileDrawer";
 import { bindApplicationExperienceBack, bindNextApplication } from "./applicationExperienceNavigation";
 import { EXPERIENCE_AHEAD, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
-import { ApplicationInteractions } from "./ApplicationInteractions";
+import { ApplicationInteractions, readApplicationComments } from "./ApplicationInteractions";
+import { AuthorFollowButton } from "./AuthorFollowButton";
+import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import type { UserPost } from "./feed/userPosts";
 import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
 import { fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
@@ -66,6 +68,19 @@ export function ApplicationFeedScreen(props: Props) {
   currentOwner.current = identity;
   const items = page.owner === identity ? page.applications : [];
   const item = items[index];
+  const commentTarget = useRef(item?.manifest.appId);
+  commentTarget.current = item?.manifest.appId;
+  async function openComments() {
+    if (!item) return;
+    const before = generation.current;
+    const appId = item.manifest.appId;
+    try {
+      const post = await readApplicationComments(appId);
+      if (generation.current === before && currentOwner.current === identity && commentTarget.current === appId) setCommentPost(post);
+    } catch (cause) {
+      if (generation.current === before) Toast.show({ type: "error", text1: "评论加载失败", text2: cause instanceof Error ? cause.message : "请重试" });
+    }
+  }
   const previous = items[index - 1];
   const next = items[index + 1];
   const active = focused && foreground && !drawerOpen;
@@ -224,19 +239,22 @@ export function ApplicationFeedScreen(props: Props) {
           {!item && (page.owner !== identity || (!page.loaded && !error)) ? <DiscoveryFooterSkeleton animated={active} /> : null}
           {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={setCommentPost} onOpen={() => { void props.onOpen(item.manifest.appId); }} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Pressy accessibilityRole="button" accessibilityLabel={`查看作者${item.authorName}`} disabled={!item.authorId} onPress={() => item.authorId && props.onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial })} style={{ flex: 1, minWidth: 0, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <UserAvatar uri={item.authorAvatarUrl} size={32} />
-              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <View style={{ width: 44, height: 48, alignItems: "center", justifyContent: "center" }}>
+              <Pressy accessibilityRole="button" accessibilityLabel={`查看作者${item.authorName}`} disabled={!item.authorId} onPress={() => item.authorId && props.onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial })} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
+                <UserAvatar uri={item.authorAvatarUrl} authorId={item.authorId} size={36} />
+              </Pressy>
+              {item.authorId ? <AuthorFollowButton key={`${identity}:${item.authorId}`} authorId={item.authorId} compact active={active && !switching} /> : null}
+            </View>
+            <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.title || item.manifest.appName}的介绍和评论`} onPress={() => void openComments()} style={{ flex: 1, minWidth: 0, minHeight: 44, justifyContent: "center", gap: 2 }}>
                 <Text numberOfLines={1} style={{ color: t.ink1, fontSize: 13, lineHeight: 18 }}><Text style={{ fontWeight: "700" }}>{item.authorName || "创作者"}</Text> · {item.title || item.manifest.appName}</Text>
                 {item.summary || item.manifest.description ? <Text numberOfLines={1} ellipsizeMode="tail" style={{ color: t.ink3, fontSize: 11, lineHeight: 16 }}>{(item.summary || item.manifest.description).replace(/\s+/g, " ").trim()}</Text> : null}
-              </View>
             </Pressy>
             <Pressy accessibilityRole="button" accessibilityLabel="改编这个作品" hitSlop={6} onPress={() => props.onRemix(item)} style={{ minHeight: 32, paddingHorizontal: 10, borderRadius: t.radius.pill, backgroundColor: t.surfaceRaised, flexDirection: "row", alignItems: "center", gap: 4 }}><SymbolIcon name="layers" size={14} color={t.ink1} /><Text style={{ color: t.ink1, fontSize: 12, fontWeight: "700" }}>改编</Text></Pressy>
           </View> : null}
 
         </View>
       </GestureDetector>
-      {commentPost ? <ApplicationCommentsSheet key={`${identity}:${commentPost.id}`} post={commentPost} active={active} onDismiss={() => setCommentPost(null)} /> : null}
+      {commentPost && item ? <ApplicationCommentsSheet key={`${identity}:${commentPost.id}`} post={commentPost} application={item} active={active} onDismiss={() => setCommentPost(null)} /> : null}
     </View>
   </ThemeContext.Provider>;
 }

@@ -12,15 +12,23 @@ import { cachedAccountId, useAccount, requireAccount } from "./account";
 import { HostAlert } from "./HostAlert";
 import { PageSkeleton } from "./LoadingSkeleton";
 import { UserAvatar } from "./UserAvatar";
+import { ApplicationIcon } from "./ApplicationIcon";
+import { AuthorFollowButton } from "./AuthorFollowButton";
+import { marketCategories, type MarketApplication } from "./market";
 import { HostText as Text } from "./feed/HostText";
 import { cachedPostDetail, deletePostComment, fetchPostDetail, publishPostComment, type UserComment, type UserPost } from "./feed/userPosts";
 import { formatWhen } from "./formatTime";
 import { readShellValue, writeShellValue, removeShellValue } from "./shellStorage";
 
 /** Work discussion stays over the playable stage; no timeline card or route change. */
-export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: UserPost; active: boolean; onDismiss: () => void }) {
+export function ApplicationCommentsSheet({ post, application, active, onDismiss }: { post: UserPost; application: MarketApplication; active: boolean; onDismiss: () => void }) {
   const { colors: t } = useTheme();
   const { user } = useAccount();
+  const { bottom } = useSafeAreaInsets();
+  const [listHeight, setListHeight] = useState(0);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [footerHeight, setFooterHeight] = useState(64);
+  const category = marketCategories.find(category => category.id && category.id === application.category)?.label;
   const initial = cachedPostDetail(post.id);
   const [comments, setComments] = useState<UserComment[]>(initial?.comments ?? []);
   const [count, setCount] = useState(initial?.post.commentCount ?? post.commentCount ?? 0);
@@ -119,7 +127,7 @@ export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: Us
     })(); } }]);
   }
   const Footer = useCommentFooter(
-      <View style={{ backgroundColor: t.canvas, borderTopWidth: t.components.surfaceBorder, borderTopColor: t.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8, gap: 6 }}>
+      <View onLayout={event => setFooterHeight(event.nativeEvent.layout.height)} style={{ backgroundColor: t.canvas, borderTopWidth: t.components.surfaceBorder, borderTopColor: t.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8, gap: 6 }}>
         {reply ? <Pressy disabled={sending} onPress={() => setReply(null)}><Text numberOfLines={1} style={{ color: t.orchidText, fontSize: 12 }}>回复 {reply.author.name} · 取消</Text></Pressy> : null}
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
           <BottomSheetTextInput ref={input} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="留下你的想法…" placeholderTextColor={t.ink3} style={{ flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 14, paddingVertical: 10, color: t.ink1, fontSize: 14, backgroundColor: t.surfaceRaised, borderRadius: t.radius.lg }} />
@@ -136,9 +144,24 @@ export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: Us
         <Text accessibilityRole="header" style={{ flex: 1, textAlign: "center", color: t.ink1, fontSize: 14, fontWeight: "700" }}>{count} 条评论</Text>
         <Pressy accessibilityRole="button" accessibilityLabel="关闭作品评论" onPress={close} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="close" color={t.ink2} /></Pressy>
       </View>
+      <View style={{ flex: 1 }} onLayout={event => setListHeight(event.nativeEvent.layout.height)}>
       <AnimatedFlashList ref={list} renderScrollComponent={Scrollable} data={comments} keyExtractor={item => item.id} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onEndReached={() => { if (cursor && !error) void load(true); }} onEndReachedThreshold={0.2}
-        contentContainerStyle={!comments.length ? { flexGrow: 1 } : undefined}
-        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" animated={active} /></View> : !error ? <View style={{ flex: 1, minHeight: 160, alignItems: "center", justifyContent: "center", padding: 24 }}><Text style={{ color: t.ink3 }}>还没有评论，来说点什么吧</Text></View> : null}
+        ListHeaderComponent={<View onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)} style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12, gap: 10, borderBottomWidth: t.components.surfaceBorder, borderBottomColor: t.line }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+          <ApplicationIcon application={application} size={44} />
+          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+            <Text selectable style={{ color: t.ink1, fontSize: 16, fontWeight: "700", lineHeight: 22 }}>{application.title || application.manifest.appName}</Text>
+            {category || application.manifest.version ? <Text style={{ color: t.ink3, fontSize: 11 }}>{[category, application.manifest.version ? `v${application.manifest.version}` : null].filter(Boolean).join(" · ")}</Text> : null}
+          </View>
+        </View>
+        {application.summary || application.manifest.description ? <Text selectable style={{ color: t.ink2, fontSize: 13, lineHeight: 20 }}>{application.summary || application.manifest.description}</Text> : null}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <UserAvatar uri={post.author.avatarUrl} authorId={post.author.id} size={28} />
+          <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={{ color: t.ink2, fontSize: 12 }}>{post.author.name || "创作者"}</Text><Text style={{ color: t.ink3, fontSize: 10 }}>作品作者</Text></View>
+          <AuthorFollowButton authorId={post.author.id} active={active} />
+        </View>
+      </View>}
+        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" animated={active} /></View> : !error ? <View style={{ height: Math.max(96, listHeight - headerHeight - footerHeight - bottom), alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}><Text style={{ color: t.ink3, textAlign: "center" }}>还没有评论，来说点什么吧</Text></View> : null}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
           <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} />
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -152,7 +175,8 @@ export function ApplicationCommentsSheet({ post, active, onDismiss }: { post: Us
             </View>
           </View>
         </View>}
-        ListFooterComponent={<View style={{ padding: 12 }}>{error ? <Pressy onPress={() => void load()} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ color: t.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressy> : loading && comments.length ? <ActivityIndicator color={t.ink3} /> : null}</View>} />
+        ListFooterComponent={error || loading && comments.length ? <View style={{ padding: 12 }}>{error ? <Pressy onPress={() => void load()} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ color: t.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressy> : <ActivityIndicator color={t.ink3} />}</View> : null} />
+      </View>
 
     </View>
   </BottomSheetModal>;

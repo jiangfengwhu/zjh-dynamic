@@ -62,18 +62,26 @@ export type AuthorProfile = {
 };
 const authorProfiles = new Map<string, AuthorProfile>();
 const authorFlights = new Map<string, Promise<AuthorProfile>>();
+const followListeners = new Set<() => void>();
+const authorFollows = new Map<string, boolean>();
+export function subscribeAuthorFollow(listener: () => void) { followListeners.add(listener); return () => { followListeners.delete(listener); }; }
+export function cachedAuthorFollowing(id: string) { return authorFollows.get(profileKey(id)) ?? cachedAuthorProfile(id)?.following; }
 function profileKey(id: string) { return `${cachedAccountId() ?? "guest"}:${id}`; }
 export function cachedAuthorProfile(id: string) { return authorProfiles.get(profileKey(id)) ?? cachedPage<AuthorProfile>(pageCacheKey(`author:${id}`)); }
 export function fetchAuthorProfile(id: string) {
   const key = profileKey(id);
+  const priorFollow = authorFollows.get(key);
   const existing = authorFlights.get(key);
   if (existing) return existing;
   const promise = readSocial<AuthorProfile>(`/v1/profiles/${id}`).then(profile => {
     if (profileKey(id) === key) {
+      if (authorFollows.get(key) !== priorFollow) profile = { ...profile, following: authorFollows.get(key) };
+      else if (profile.following !== undefined) authorFollows.set(key, profile.following);
       authorProfiles.delete(key);
       authorProfiles.set(key, profile);
       rememberPage(pageCacheKey(`author:${id}`), profile);
       if (authorProfiles.size > 12) authorProfiles.delete(authorProfiles.keys().next().value!);
+      followListeners.forEach(listener => listener());
     }
     return profile;
   }).finally(() => { if (authorFlights.get(key) === promise) authorFlights.delete(key); });
@@ -164,11 +172,22 @@ function refreshedPage(current: Page, page: Page, silent: boolean): Page {
   return { ...next, posts: current.posts.map(post => incoming.get(post.id) ?? post) };
 }
 export async function setAuthorFollow(id: string, following: boolean) {
+  const owner = cachedAccountId();
+  const key = profileKey(id);
   const result = await readSocial<{
     following: boolean;
     followerCount: number;
     followingCount: number;
   }>(`/v1/profiles/${id}/follow`, { method: following ? "POST" : "DELETE" });
+  if (cachedAccountId() !== owner) return result;
+  authorFollows.set(key, result.following);
+  const profile = cachedAuthorProfile(id);
+  if (profile) {
+    const next = { ...profile, ...result };
+    authorProfiles.set(key, next);
+    rememberPage(pageCacheKey(`author:${id}`), next);
+  }
+  followListeners.forEach(listener => listener());
   followingRevision++;
   if (!following)
     saveFollowing({
@@ -531,6 +550,8 @@ export async function deletePostComment(id: string, commentId: string) {
   return result;
 }
 subscribeAccountIdentity(() => {
+  authorFollows.clear();
+  followListeners.forEach(listener => listener());
   authorProfiles.clear();
   authorFlights.clear();
   pendingLikes.clear();

@@ -12,6 +12,18 @@ import { LikeGlyph } from "../../../../packages/ui/feed/kit/FeedActionBar";
 import { afterInteractions } from "./interactionWork";
 
 const cache = new Map<string, UserPost>();
+export async function readApplicationComments(appId: string) {
+  const owner = cachedAccountId() ?? "guest";
+  const key = `${owner}:${appId}`;
+  const existing = cache.get(key);
+  if (existing) return existing;
+  const post = await fetchApplicationDiscussion(appId);
+  if ((cachedAccountId() ?? "guest") === owner) {
+    cache.set(key, post);
+    if (cache.size > 64) cache.delete(cache.keys().next().value!);
+  }
+  return post;
+}
 export function ApplicationInteractions({ item, active, onComment, onOpen, onShare, onDetail }: {
   item: MarketApplication; active: boolean; onComment: (post: UserPost) => void; onOpen: () => void; onShare: () => void; onDetail: () => void;
 }) {
