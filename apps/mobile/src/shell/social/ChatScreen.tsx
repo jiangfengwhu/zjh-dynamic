@@ -1,8 +1,8 @@
 import { DraftInputScope, useDraftText, useDraftPersistence } from "../DraftInputScope";
 import { mergeChronological } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
-import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, View, type LayoutChangeEvent } from "react-native";
 import { usePreventRemove } from "@react-navigation/native";
 import { useAnimatedScrollHandler, useSharedValue, runOnJS } from "react-native-reanimated";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
@@ -45,10 +45,42 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
   const scrollY = useSharedValue(0);
   const recordBottom = (bottom: boolean) => { atBottom.current = bottom; };
   const bottomUI = useSharedValue(true);
-  const scroll = useAnimatedScrollHandler(e => {
-    scrollY.value = e.contentOffset.y;
-    const bottom = e.contentSize.height - e.layoutMeasurement.height - e.contentOffset.y < 80;
-    if (bottom !== bottomUI.value) { bottomUI.value = bottom; runOnJS(recordBottom)(bottom); }
+  const userScrolling = useSharedValue(false);
+  const viewportHeight = useRef(0), bottomFrame = useRef<number | undefined>(undefined);
+  const followBottom = useCallback(() => {
+    if (!atBottom.current) return;
+    if (bottomFrame.current !== undefined) cancelAnimationFrame(bottomFrame.current);
+    bottomFrame.current = requestAnimationFrame(() => {
+      bottomFrame.current = undefined;
+      if (alive.current && atBottom.current) list.current?.scrollToEnd({ animated: false });
+    });
+  }, []);
+  const layout = useCallback((event: LayoutChangeEvent) => {
+    const height = event.nativeEvent.layout.height;
+    if (height === viewportHeight.current) return;
+    viewportHeight.current = height;
+    followBottom();
+  }, [followBottom]);
+  useEffect(() => () => {
+    if (bottomFrame.current !== undefined) cancelAnimationFrame(bottomFrame.current);
+  }, []);
+  const scroll = useAnimatedScrollHandler({
+    onBeginDrag: e => {
+      userScrolling.value = true;
+      const bottom = e.contentSize.height - e.layoutMeasurement.height - e.contentOffset.y < 80;
+      bottomUI.value = bottom;
+      runOnJS(recordBottom)(bottom);
+    },
+    onScroll: e => {
+      scrollY.value = e.contentOffset.y;
+      // Resizing for the keyboard or composer must not change the user's intent.
+      if (!userScrolling.value) return;
+      const bottom = e.contentSize.height - e.layoutMeasurement.height - e.contentOffset.y < 80;
+      if (bottom !== bottomUI.value) { bottomUI.value = bottom; runOnJS(recordBottom)(bottom); }
+    },
+    onEndDrag: () => { userScrolling.value = false; },
+    onMomentumBegin: () => { userScrolling.value = true; },
+    onMomentumEnd: () => { userScrolling.value = false; },
   });
   const refresh = usePullToRefresh({ scrollY, onRefresh: () => { reconnectMessages(); return query.load(); } });
   usePreventRemove(sending, () => Toast.show({ type: "info", text1: "正在发送，请稍候" }));
@@ -86,7 +118,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
 
   return <SocialFrame title={query.data.peer.name || peer.name} onBack={onBack}><KeyboardViewport>
     <PullRefreshSurface refresh={refresh}><AnimatedFlashList<Message>
-      ref={list} data={query.data.messages} keyExtractor={item => item.id} onScroll={scroll} scrollEventThrottle={16}
+      ref={list} onLayout={layout} data={query.data.messages} keyExtractor={item => item.id} onScroll={scroll} scrollEventThrottle={16}
       viewabilityConfig={{itemVisiblePercentThreshold: 60, minimumViewTime: 200}}
       onViewableItemsChanged={({viewableItems}) => {
         let visible: Message | undefined;
@@ -97,7 +129,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
       maintainVisibleContentPosition={{ startRenderingFromBottom: true }}
       contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, ...(!query.data.messages.length ? { flexGrow: 1 } : {}) }}
       ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-      onContentSizeChange={() => { if (atBottom.current) requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false })); }}
+      onContentSizeChange={followBottom}
       ListHeaderComponent={<View><SocialError error={query.error} retry={() => { reconnectMessages(); void query.load(); }} />
         {query.data.nextCursor ? <Pressy accessibilityRole="button" disabled={query.loading} onPress={() => { atBottom.current = false; void query.load(true); }} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>
           {query.loading ? <ActivityIndicator color={colors.ink2} /> : <Text style={{ color: colors.ink3, fontSize: 13, fontWeight: "600" }}>查看更早的消息</Text>}
