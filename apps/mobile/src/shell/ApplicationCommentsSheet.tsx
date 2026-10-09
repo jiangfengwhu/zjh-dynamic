@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { ActivityIndicator, BackHandler, Keyboard, View, type TextInput } from "react-native";
+import { ActivityIndicator, BackHandler, Keyboard, View, useWindowDimensions, type TextInput } from "react-native";
 import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetTextInput, useBottomSheetScrollableCreator, useBottomSheetTimingConfigs, type BottomSheetBackdropProps, type BottomSheetFooterProps } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ReduceMotion } from "react-native-reanimated";
@@ -25,9 +25,11 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
   const { colors: t } = useTheme();
   const { user } = useAccount();
   const { bottom } = useSafeAreaInsets();
-  const [listHeight, setListHeight] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
+  const [collapsedListHeight, setCollapsedListHeight] = useState(windowHeight * 0.68 - 64);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [footerHeight, setFooterHeight] = useState(64);
+  useEffect(() => { setCollapsedListHeight(windowHeight * 0.68 - 64); }, [windowHeight]);
   const category = marketCategories.find(category => category.id && category.id === application.category)?.label;
   const initial = cachedPostDetail(post.id);
   const [comments, setComments] = useState<UserComment[]>(initial?.comments ?? []);
@@ -138,30 +140,26 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
         {characters > 800 ? <Text style={{ color: characters > 1000 ? t.danger : t.ink3, textAlign: "right", fontSize: 11 }}>{characters}/1000</Text> : null}
       </View>
   );
-  return <BottomSheetModal ref={modal} footerComponent={Footer} index={0} snapPoints={["68%", "92%"]} enableDynamicSizing={false} enablePanDownToClose enableBlurKeyboardOnGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan" onDismiss={() => { onDismiss(); if (loginAfterClose.current) void requireAccount(); }} backdropComponent={backdrop} animationConfigs={animation} overrideReduceMotion={ReduceMotion.System} backgroundStyle={{ backgroundColor: t.canvas, borderTopLeftRadius: t.radius.xxl, borderTopRightRadius: t.radius.xxl }} handleIndicatorStyle={{ backgroundColor: t.lineStrong, width: 36 }}>
+  return <BottomSheetModal ref={modal} footerComponent={Footer} index={0} snapPoints={["68%", "92%"]} onChange={(index, position) => { if (index === 0 && position > 0 && !Keyboard.isVisible()) setCollapsedListHeight(position * 0.68 / 0.32 - 64); }} enableDynamicSizing={false} enablePanDownToClose enableBlurKeyboardOnGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan" onDismiss={() => { onDismiss(); if (loginAfterClose.current) void requireAccount(); }} backdropComponent={backdrop} animationConfigs={animation} overrideReduceMotion={ReduceMotion.System} backgroundStyle={{ backgroundColor: t.canvas, borderTopLeftRadius: t.radius.xxl, borderTopRightRadius: t.radius.xxl }} handleIndicatorStyle={{ backgroundColor: t.lineStrong, width: 36 }}>
     <View style={{ flex: 1 }}>
       <View style={{ height: 40, paddingLeft: 48, paddingRight: 8, flexDirection: "row", alignItems: "center" }}>
         <Text accessibilityRole="header" style={{ flex: 1, textAlign: "center", color: t.ink1, fontSize: 14, fontWeight: "700" }}>{count} 条评论</Text>
         <Pressy accessibilityRole="button" accessibilityLabel="关闭作品评论" onPress={close} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="close" color={t.ink2} /></Pressy>
       </View>
-      <View style={{ flex: 1 }} onLayout={event => setListHeight(event.nativeEvent.layout.height)}>
+      <View style={{ flex: 1 }}>
       <AnimatedFlashList ref={list} renderScrollComponent={Scrollable} data={comments} keyExtractor={item => item.id} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onEndReached={() => { if (cursor && !error) void load(true); }} onEndReachedThreshold={0.2}
         ListHeaderComponent={<View onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)} style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12, gap: 10, borderBottomWidth: t.components.surfaceBorder, borderBottomColor: t.line }}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <ApplicationIcon application={application} size={44} />
           <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
             <Text selectable style={{ color: t.ink1, fontSize: 16, fontWeight: "700", lineHeight: 22 }}>{application.title || application.manifest.appName}</Text>
             {category || application.manifest.version ? <Text style={{ color: t.ink3, fontSize: 11 }}>{[category, application.manifest.version ? `v${application.manifest.version}` : null].filter(Boolean).join(" · ")}</Text> : null}
           </View>
-        </View>
-        {application.summary || application.manifest.description ? <Text selectable style={{ color: t.ink2, fontSize: 13, lineHeight: 20 }}>{application.summary || application.manifest.description}</Text> : null}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <UserAvatar uri={post.author.avatarUrl} authorId={post.author.id} size={28} />
-          <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={{ color: t.ink2, fontSize: 12 }}>{post.author.name || "创作者"}</Text><Text style={{ color: t.ink3, fontSize: 10 }}>作品作者</Text></View>
           <AuthorFollowButton authorId={post.author.id} active={active} />
         </View>
+        {application.summary || application.manifest.description ? <Text selectable style={{ color: t.ink2, fontSize: 13, lineHeight: 20 }}>{application.summary || application.manifest.description}</Text> : null}
       </View>}
-        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" animated={active} /></View> : !error ? <View style={{ height: Math.max(96, listHeight - headerHeight - footerHeight - bottom), alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}><Text style={{ color: t.ink3, textAlign: "center" }}>还没有评论，来说点什么吧</Text></View> : null}
+        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" animated={active} /></View> : !error ? <View style={{ height: Math.max(96, collapsedListHeight - headerHeight - footerHeight - bottom), alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}><Text style={{ color: t.ink3, textAlign: "center" }}>还没有评论，来说点什么吧</Text></View> : null}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
           <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} />
           <View style={{ flex: 1, minWidth: 0 }}>
