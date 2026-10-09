@@ -1,4 +1,5 @@
 import { assertApplicationSdkCompatible, ApplicationSdkError } from "./applicationCompatibility";
+import { sdkCompatibility } from "../../../../packages/app-sdk/src/compatibility";
 import NativePluginHost from "../NativePluginHost";
 import { downloadApplicationResources, type DownloadPriority } from "./applicationDownloads";
 import { waitForInteractions, waitForRouteTransitions } from "../shell/interactionWork";
@@ -339,8 +340,7 @@ async function load(appId: string) {
   if (staged) manifest = JSON.parse(staged) as ApplicationManifest;
   else if (saved) manifest = JSON.parse(saved) as ApplicationManifest;
   else manifest = await firstManifest(appId);
-  // The default companion is shipped alongside the host SDK API.
-  if (!staged && appId === bootstrap.defaultApplication && manifest.requires.sdk !== contract.sdk) manifest = await firstManifest(appId);
+  if (!staged && appId === bootstrap.defaultApplication && sdkCompatibility(manifest.requires.sdk, contract.sdk) !== "compatible") manifest = await firstManifest(appId);
   try { assertCompatible(manifest, appId); } catch (error) {
     if (!saved || staged) throw error;
     // A platform major upgrade can require an application update; retain data and pick a compatible seed/release.
@@ -454,7 +454,7 @@ async function commitHealthy(appId: string) {
 
 async function firstManifest(appId: string): Promise<ApplicationManifest> {
   const seed = JSON.parse(await NativePluginHost.call("shell", "applicationSeed", JSON.stringify({ appId }))) as { manifest?: ApplicationManifest };
-  if (seed.manifest && (appId !== bootstrap.defaultApplication || seed.manifest.requires.sdk === contract.sdk)) {
+  if (seed.manifest) {
     try { assertCompatible(seed.manifest, appId); writeShellValue(`application.access.${appId}`, JSON.stringify({ releaseId: seed.manifest.releaseId, ownerId: null, public: true })); return seed.manifest; } catch { /* Need a newer compatible release. */ }
   }
   const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/public`);
