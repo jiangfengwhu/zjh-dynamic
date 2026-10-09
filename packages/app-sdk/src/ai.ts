@@ -16,13 +16,20 @@ export function applicationAi(openSettings: () => void): AiService {
     if (applicationInFlight >= 2 || inFlight >= 4) return { ok: false, code: "BUSY", error: "AI 正在处理其他请求，请稍后重试" };
     const requestId = `ai-${Date.now()}-${++sequence}-${Math.random().toString(36).slice(2)}`;
     let aborted = false, text = "", callbackFailed = false;
+    let displayed = "", frame: number | undefined;
+    const cancelFrame = () => { if (frame !== undefined) cancelAnimationFrame(frame); frame = undefined; };
     let resolveAbort: (result: AiCompletionResult) => void = () => {};
     const cancellation = new Promise<AiCompletionResult>(resolve => { resolveAbort = resolve; });
-    const abort = () => { if (aborted) return; aborted = true; resolveAbort(cancelled()); void shell("completeCancel", { requestId }).catch(() => {}); };
+    const abort = () => { if (aborted) return; aborted = true; cancelFrame(); resolveAbort(cancelled()); void shell("completeCancel", { requestId }).catch(() => {}); };
+    const flush = () => {
+      cancelFrame();
+      if (!onText || aborted || displayed === text) return;
+      try { onText(text); displayed = text; } catch { callbackFailed = true; abort(); }
+    };
     const subscription = onText ? DeviceEventEmitter.addListener("zijinhua.ai.text", (event: { requestId: string; delta: string }) => {
       if (event.requestId !== requestId || aborted || typeof event.delta !== "string") return;
       text += event.delta;
-      try { onText(text); } catch { callbackFailed = true; abort(); }
+      if (frame === undefined) frame = requestAnimationFrame(flush);
     }) : undefined;
     options?.signal?.addEventListener("abort", abort);
     if (options?.signal?.aborted) abort();
@@ -39,12 +46,12 @@ export function applicationAi(openSettings: () => void): AiService {
         if (aborted) return cancelled();
         if (result.ok) {
           if (typeof result.text !== "string" || !result.text.trim() || !result.providerId || !result.model) return { ok: false, code: "INVALID_RESPONSE", error: "模型未返回可用文本，请重试" };
-          if (onText && text !== result.text) { text = result.text; try { onText(text); } catch { return { ok: false, code: "INVALID_REQUEST", error: "流式文本处理失败" }; } }
+          text = result.text; flush();
           return { ok: true, text: result.text, providerId: result.providerId, model: result.model };
         }
         return result.code ? { ok: false, code: result.code, error: result.error } : { ok: false, code: "PROVIDER_ERROR", error: "模型调用失败，请检查 AI 配置" };
       } catch { return aborted ? cancelled() : { ok: false, code: "NETWORK_ERROR", error: "暂时无法调用 AI，请稍后重试" }; }
-      finally { applicationInFlight--; inFlight--; subscription?.remove(); options?.signal?.removeEventListener("abort", abort); }
+      finally { flush(); cancelFrame(); applicationInFlight--; inFlight--; subscription?.remove(); options?.signal?.removeEventListener("abort", abort); }
     })();
     const result = await Promise.race([native, cancellation]);
     if (aborted) { subscription?.remove(); options?.signal?.removeEventListener("abort", abort); }

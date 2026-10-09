@@ -18,6 +18,7 @@ type Download = {
 };
 const flights = new Map<string, Download>();
 const prepared = new Set<string>();
+const identities = new WeakMap<ApplicationManifest, string>();
 const queue: Download[] = [];
 const activeApps = new Set<string>();
 let active = 0;
@@ -60,8 +61,11 @@ function drain() {
 /** Bounded native downloads, independent of gestures and JS evaluation. */
 export function downloadApplicationResources(manifest: ApplicationManifest, signal?: AbortSignal, priority: DownloadPriority = "visible"): Promise<void> {
   signal?.throwIfAborted();
-  const key = JSON.stringify([manifest.appId, manifest.releaseId, manifest.source.commit,
-    manifest.bundle, manifest.assets]);
+  let key = identities.get(manifest);
+  if (!key) {
+    key = JSON.stringify([manifest.appId, manifest.releaseId, manifest.source.commit, manifest.bundle, manifest.assets]);
+    identities.set(manifest, key);
+  }
   if (prepared.has(key)) return Promise.resolve();
   let task = flights.get(key);
   if (!task) {

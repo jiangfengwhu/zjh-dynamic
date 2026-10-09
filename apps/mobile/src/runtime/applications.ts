@@ -33,6 +33,16 @@ onApplicationPageAttempt(appId => { const manifest = active.get(appId); if (mani
 onApplicationPageReady(appId => { void commitHealthy(appId); });
 const offered = new Map<string, { manifest: ApplicationManifest; ownerId: string | null }>();
 const activeAccess = new Map<string, Access>();
+const manifestTexts = new WeakMap<ApplicationManifest, string>();
+const marketTexts = new WeakMap<MarketApplication, string>();
+function manifestText(manifest: ApplicationManifest) {
+  let text = manifestTexts.get(manifest);
+  if (!text) { text = JSON.stringify(manifest); manifestTexts.set(manifest, text); }
+  return text;
+}
+function persistChanged(key: string, value: string) {
+  if (readShellValueSync(key) !== value) writeShellValue(key, value);
+}
 subscribeAccountIdentity(id => {
   offered.clear();
   if (id) void restoreWorks(false, true).catch(() => {});
@@ -61,7 +71,7 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   const initialEntry = loadCatalogSync().find(entry => entry.id === appId);
   const checkLocal = () => {
     const saved = readShellValueSync(`application.pending.${appId}`) || readShellValueSync(`application.install.${appId}`);
-    if (saved && !sameApplicationRelease(JSON.parse(saved) as ApplicationManifest, manifest))
+    if (saved && saved !== manifestText(manifest) && !sameApplicationRelease(JSON.parse(saved) as ApplicationManifest, manifest))
       throw new Error("本机保存的版本与当前公开版本不同，请从作品详情管理版本后再体验");
   };
   const persistDownload = async () => {
@@ -78,11 +88,12 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
     // existing health check, just like an explicit install.
     if (!saved && !pending) {
       writeShellValue(`application.pending.access.${appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
-      writeShellValue(`application.pending.${appId}`, JSON.stringify(manifest));
+      persistChanged(`application.pending.${appId}`, manifestText(manifest));
     }
     if (item) {
-      const metadata = JSON.stringify(item);
-      if (readShellValueSync(`application.market.${appId}`) !== metadata) writeShellValue(`application.market.${appId}`, metadata);
+      let metadata = marketTexts.get(item);
+      if (!metadata) { metadata = JSON.stringify(item); marketTexts.set(item, metadata); }
+      persistChanged(`application.market.${appId}`, metadata);
     }
     const registry = require("../../../../packages/features/src/registry") as typeof import("../../../../packages/features/src/registry");
     if (!registry.bundles.some(entry => entry.id === appId)) registry.registerApplicationMetadata(manifest);
@@ -146,8 +157,8 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   if (loading.has(appId)) {
     await loadApplication(appId);
   } else {
-    writeShellValue(`application.pending.access.${appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
-    writeShellValue(`application.pending.${appId}`, JSON.stringify(manifest));
+    persistChanged(`application.pending.access.${appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
+    persistChanged(`application.pending.${appId}`, manifestText(manifest));
     await loadApplication(appId);
   }
   signal.throwIfAborted();
@@ -270,16 +281,28 @@ export async function stageApplicationUpdates(appId?: string): Promise<number> {
     (appId ? item.manifest.appId === appId : !item.ownerId && installed.has(item.manifest.appId)) &&
     (active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId || !!appId && !installed.has(item.manifest.appId))
   );
-  for (const { manifest, ownerId } of pending) {
+  const installerId = cachedAccountId();
+  const initialStates = new Map(pending.map(({ manifest }) => {
+    const entry = catalog.find(entry => entry.id === manifest.appId);
+    return [manifest.appId, entry ? { trashedAt: entry.trashedAt, purged: entry.purged } : undefined] as const;
+  }));
+  const results = await Promise.allSettled(pending.map(async ({ manifest, ownerId }) => {
     if (ownerId) await verifyCandidateAccess(manifest, ownerId);
     await downloadApplicationResources(manifest, undefined, "update");
-  }
+    if (ownerId) await verifyCandidateAccess(manifest, ownerId);
+  }));
+  if (installerId !== cachedAccountId()) throw new Error("账号已改变，请重新检查更新");
   const currentCatalog = await loadCatalog();
   let stagedCount = 0;
-  for (const { manifest, ownerId } of pending) {
+  for (const [index, { manifest, ownerId }] of pending.entries()) {
+    if (results[index].status !== "fulfilled") continue;
     const entry = currentCatalog.find(entry => entry.id === manifest.appId);
+    const initial = initialStates.get(manifest.appId);
+    if ((initial && !entry) || (entry?.trashedAt && entry.trashedAt !== initial?.trashedAt) || (entry?.purged && !initial?.purged)) continue;
     if (!appId && (!entry || entry.trashedAt || entry.purged)) continue;
-    if (ownerId) await verifyCandidateAccess(manifest, ownerId);
+    // A newer offer arriving during download supersedes this snapshot.
+    const currentOffer = offered.get(manifest.appId);
+    if (currentOffer?.manifest.releaseId !== manifest.releaseId || currentOffer.ownerId !== ownerId) continue;
     writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId, public: !ownerId }));
     writeShellValue(`application.pending.${manifest.appId}`, JSON.stringify(manifest));
     if (!entry) currentCatalog.push({ id: manifest.appId, hidden: false, pinned: true });
@@ -292,6 +315,8 @@ export async function stageApplicationUpdates(appId?: string): Promise<number> {
     stagedCount++;
   }
   if (stagedCount) await saveCatalog(currentCatalog);
+  const failures = results.filter(result => result.status === "rejected");
+  if (failures.length) throw new Error(`${stagedCount ? `已准备 ${stagedCount} 个更新；` : ""}${failures.length} 个作品更新失败，请重试`);
   return stagedCount;
 }
 

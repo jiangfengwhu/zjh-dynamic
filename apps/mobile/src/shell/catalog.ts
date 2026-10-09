@@ -2,6 +2,8 @@ import { readShellValueSync, writeShellValue } from "./shellStorage";
 
 const CATALOG_KEY = "shell.bundles.v1";
 const listeners = new Set<(entries: CatalogEntry[]) => void>();
+let cachedRaw: string | undefined;
+let cachedEntries: CatalogEntry[] = [];
 export function subscribeCatalog(listener: (entries: CatalogEntry[]) => void) {
   listeners.add(listener);
   return () => {
@@ -41,10 +43,13 @@ export function loadCatalogSync(): CatalogEntry[] {
   try {
     const raw = readShellValueSync(CATALOG_KEY);
     if (!raw) return [];
-    const file = JSON.parse(raw) as CatalogFile;
-    return Array.isArray(file.entries)
-      ? file.entries.filter((entry) => entry.id !== "jolly")
-      : [];
+    if (raw !== cachedRaw) {
+      const file = JSON.parse(raw) as CatalogFile;
+      cachedEntries = Array.isArray(file.entries) ? file.entries.filter(entry => entry.id !== "jolly") : [];
+      cachedRaw = raw;
+    }
+    // Callers may mutate their snapshot; never expose the cached objects.
+    return cachedEntries.map(entry => ({ ...entry }));
   } catch (error) {
     console.log(
       "bundle catalog unreadable",
