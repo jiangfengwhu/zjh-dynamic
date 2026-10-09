@@ -1,3 +1,4 @@
+import { applicationSharing } from "../../../../packages/app-sdk/src/sharing";
 import { appendUnique } from "./listData";
 import { fetchWorksGallery, projectGallery } from "./worksGallery";
 import { AnimatedFlashList } from "./AnimatedFlashList";
@@ -56,7 +57,6 @@ export function MyApplicationsScreen({
   onDetail,
   onManagePublication,
   onOpen,
-  onSharePost,
   embedded = false,
   active = true,
   drawerGesture,
@@ -68,7 +68,6 @@ export function MyApplicationsScreen({
   onDetail: (item: MarketApplication) => void;
   onManagePublication?: (item: MarketApplication) => void;
   onOpen: (id: string) => void;
-  onSharePost?: (item: MarketApplication) => void;
   embedded?: boolean;
   active?: boolean;
   drawerGesture?: ReturnType<typeof Gesture.Pan>;
@@ -534,10 +533,10 @@ export function MyApplicationsScreen({
                           color={colors.ink2}
                         />
                       </Pressy>
-                      {published && onSharePost ? (
+                      {published ? (
                         <Pressy
-                          accessibilityLabel="分享作品到动态"
-                          onPress={() => onSharePost(published)}
+                          accessibilityLabel="分享作品"
+                          onPress={() => { void applicationSharing(published.manifest.appId).open({ title: published.title || published.manifest.appName }).catch(error => Toast.show({ type: "error", text1: "分享未完成", text2: error.message })); }}
                           style={{
                             width: 44,
                             height: 44,

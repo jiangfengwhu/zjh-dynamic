@@ -1,8 +1,8 @@
+import { showApplicationOpening } from "./applicationOpening";
 import { applicationSharing } from "../../../../packages/app-sdk/src/sharing";
 import { receiveApplicationShare } from "../../../../packages/app-sdk/src/sharing";
 import type { ShareParams } from "../../../../packages/app-sdk/src";
 import { afterInteractions, beginRouteTransition, endRouteTransition } from "./interactionWork";
-import { isApplicationInstalledSync } from "./market";
 import { markStartup } from "../runtime/startupTiming";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -108,7 +108,6 @@ const JollyProgressScreen = lazyScreen(() => (require("./jolly/ProgressScreen") 
 
 export type RootParamList = {
   sharedApplication: { appId: string };
-  applicationLink: { appId: string };
   commonApplication: { appId: string };
   noticePost: { postId: string; commentId?: string };
   workshopProgress: { appId?: string; title?: string; ownerId: string };
@@ -226,7 +225,30 @@ export async function openPublicMarketApplication(appId: string, params?: ShareP
     shellNavigationRef.navigate("bundle", { id: appId });
     return;
   }
-  shellNavigationRef.navigate("applicationLink", { appId });
+  await showApplicationOpening(async signal => {
+    if (await isApplicationInstalled(appId)) await openFeature(appId);
+    else {
+      const application = await fetchMarketDetail(appId, { signal, immediate: true });
+      const { loadPublicApplicationExperience } = require("../runtime/applications") as typeof import("../runtime/applications");
+      await loadPublicApplicationExperience(application.manifest, signal, application);
+    }
+    signal.throwIfAborted();
+    shellNavigationRef.navigate("bundle", { id: appId });
+  });
+}
+
+export async function openCommonApplication(appId: string) {
+  if (!shellNavigationRef.isReady()) return;
+  receiveApplicationShare(appId);
+  await showApplicationOpening(async signal => {
+    const { fetchPublicMarketApplication } = require("./market") as typeof import("./market");
+    const { loadPublicApplicationExperience } = require("../runtime/applications") as typeof import("../runtime/applications");
+    const application = await fetchPublicMarketApplication(appId);
+    signal.throwIfAborted();
+    await loadPublicApplicationExperience(application.manifest, signal, application);
+    signal.throwIfAborted();
+    shellNavigationRef.navigate("commonApplication", { appId });
+  });
 }
 
 export async function openShellBundle(id: string) {
@@ -238,7 +260,12 @@ export async function openShellBundle(id: string) {
     const appId = applicationContext(id).storage.get("workshopTarget") || undefined;
     shellNavigationRef.navigate("workshopProgress", { appId, ownerId });
   } else {
-    shellNavigationRef.navigate("bundle", { id });
+    if (cachedFeature(id)) shellNavigationRef.navigate("bundle", { id });
+    else await showApplicationOpening(async signal => {
+      await openFeature(id);
+      signal.throwIfAborted();
+      shellNavigationRef.navigate("bundle", { id });
+    });
   }
   return true;
 }
@@ -676,11 +703,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             }
                             onOpen={props.onOpenBundle}
                             onCreate={() => openPublication("create")}
-                            onSharePost={(application) =>
-                              shellNavigationRef.navigate("composePost", {
-                                application,
-                              })
-                            }
                           />}
                         </ShellTabScene>
                       )}
@@ -694,32 +716,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             {() => <MarketScreen onBack={goBack} onOpen={props.onOpenBundle} onAuthor={openAuthor} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => openCreationComposer()} />}
           </Stack.Screen>
           <Stack.Screen name="commonApplication">
-            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack} renderErrorAction={error => <ApplicationRecovery error={error} onCheckUpdates={props.onCheckUpdates} />}
-              load={async signal => {
-                const { fetchPublicMarketApplication } = require("./market") as typeof import("./market");
-                const { loadPublicApplicationExperience } = require("../runtime/applications") as typeof import("../runtime/applications");
-                const application = await fetchPublicMarketApplication(route.params.appId);
-                signal.throwIfAborted();
-                await loadPublicApplicationExperience(application.manifest, signal, application);
-                return route.params.appId;
-              }}>
-              {id => <CommonBundlePage id={id} render={props.renderBundle} onCheckUpdates={props.onCheckUpdates} onOpened={props.onRememberBundleOpen} />}
-            </AsyncRouteScreen>}
-          </Stack.Screen>
-          <Stack.Screen name="applicationLink">
-            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack} renderErrorAction={error => <ApplicationRecovery error={error} onCheckUpdates={props.onCheckUpdates} />} cacheKey={`link:${route.params.appId}:${isApplicationInstalledSync(route.params.appId) ? "installed" : "public"}`}
-              load={async signal => {
-                if (await isApplicationInstalled(route.params.appId)) {
-                  await openFeature(route.params.appId);
-                  return null;
-                }
-                const application = await fetchMarketDetail(route.params.appId, { signal, immediate: true });
-                const { loadPublicApplicationExperience } = require("../runtime/applications") as typeof import("../runtime/applications");
-                await loadPublicApplicationExperience(application.manifest, signal, application);
-                return null;
-              }}>
-              {() => <BundlePage id={route.params.appId} render={props.renderBundle} onCheckUpdates={props.onCheckUpdates} />}
-            </AsyncRouteScreen>}
+            {({ route }) => <CommonBundlePage id={route.params.appId} render={props.renderBundle} onCheckUpdates={props.onCheckUpdates} onOpened={props.onRememberBundleOpen} />}
           </Stack.Screen>
           <Stack.Screen name="noticePost">
             {({ route }) => <AsyncRouteScreen key={`${route.params.postId}:${route.params.commentId ?? ""}`} title="动态" onBack={goBack} cacheKey={`post:${route.params.postId}:${route.params.commentId ?? ""}`}
@@ -891,4 +888,8 @@ export function composeApplicationShare(draft: import("../../../../packages/app-
 
 export function openPublicApplicationDetail(appId: string) {
   if (shellNavigationRef.isReady()) shellNavigationRef.navigate("sharedApplication", { appId });
+}
+
+export function openSharedPost(postId: string) {
+  if (shellNavigationRef.isReady()) shellNavigationRef.navigate("noticePost", { postId });
 }

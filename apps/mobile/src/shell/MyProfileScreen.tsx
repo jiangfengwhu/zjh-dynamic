@@ -64,7 +64,6 @@ function MyProfileContent({
   onManagePublication,
   onOpen,
   onCreate,
-  onSharePost,
 }: {
   onAccount: () => void;
   onConnections: (author: PublicAuthor, kind: RelationKind) => void;
@@ -74,7 +73,6 @@ function MyProfileContent({
   onManagePublication: (item: MarketApplication) => void;
   onOpen: (id: string) => void;
   onCreate: () => void;
-  onSharePost: (item: MarketApplication) => void;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -410,7 +408,6 @@ function MyProfileContent({
                         onOpen={onOpen}
                         onDetail={onDetail}
                         onManagePublication={onManagePublication}
-                        onSharePost={onSharePost}
                       />
                       ) : null}
                     </View>

@@ -9,7 +9,8 @@ import type { PublicAuthor } from "../feed/userPosts";
 export type RelationKind = "following" | "followers";
 export type Relation = { author: PublicAuthor; following: boolean; followsYou: boolean };
 export type RelationPage = { authors: Relation[]; nextCursor: string | null };
-export type Message = { application?: import("../feed/userPosts").ApplicationLink; id: string; senderId: string; body: string; createdAt: number };
+export type SharedPost = { id: string; body: string; author: PublicAuthor; imageUrl?: string };
+export type Message = { post?: SharedPost; application?: import("../feed/userPosts").ApplicationLink; id: string; senderId: string; body: string; createdAt: number };
 export type Conversation = { peer: PublicAuthor; lastMessage: Message; unreadCount: number };
 export type InboxPage = { conversations: Conversation[]; nextCursor: string | null; unreadCount: number };
 export type MessagePage = { hasMoreNew?: boolean; peer: PublicAuthor; messages: Message[]; nextCursor: string | null };
@@ -41,7 +42,7 @@ export async function readMessages(id: string, cursor?: string, after?: string) 
   } while (true);
   return result!;
 }
-export const sendMessage = (id: string, body: string, requestId: string, application?: { appId: string; releaseId: string; params?: import("../../../../../packages/app-sdk/src").ShareParams }) => request<{ message: Message }>(`/v1/messages/${id}`, { body, requestId, application });
+export const sendMessage = (id: string, body: string, requestId: string, application?: { appId: string; releaseId: string; params?: import("../../../../../packages/app-sdk/src").ShareParams }, postId?: string) => request<{ message: Message }>(`/v1/messages/${id}`, { body, requestId, application, postId });
 export const markMessagesRead = (id: string, through: string) => {
   const before = ++countRevision;
   return request<{ unreadCount: number }>(`/v1/messages/${id}/read`, { through }).then(result => { if (before === countRevision) emitCount(result.unreadCount); return result; });

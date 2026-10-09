@@ -15,7 +15,7 @@ import { cachedAccountId, requireAccount, useAccount } from "./account";
 import { cachedPage, pageCacheKey, rememberPage } from "./pageCache";
 import { afterInteractions } from "./interactionWork";
 import { fetchCommonApplications, saveApplicationDiscussion, type CommonApplication } from "./feed/userPosts";
-import { shellNavigationRef } from "./navigationRef";
+import { openCommonApplication } from "./navigation";
 import { usePullToRefresh } from "./feed/pullToRefresh";
 import { PullRefreshSurface } from "./feed/PullRefreshSurface";
 
@@ -65,7 +65,7 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
     return () => { cancel(); generation.current++; };
   }, [owner, focused]);
   function open(item: CommonApplication) {
-    if (shellNavigationRef.isReady()) shellNavigationRef.navigate("commonApplication", { appId: item.appId });
+    void openCommonApplication(item.appId).catch(error => Toast.show({ type: "error", text1: "打开失败", text2: error.message }));
   }
   function remove(item: CommonApplication) {
     HostAlert.alert("从常用移除？", item.title, [{ text: "取消", style: "cancel" }, { text: "移除", style: "destructive", onPress: () => { void (async () => {

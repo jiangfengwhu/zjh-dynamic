@@ -105,7 +105,7 @@ export function ComposePostScreen({
   const [applications, setApplications] = useState<MarketApplication[]>([]);
   const [caption, setCaption] = useState(initialDraft?.html ? initialDraft.body ?? "" : "");
   const [htmlMode, setHtmlMode] = useState(!!initialDraft?.html);
-  const [previewing, setPreviewing] = useState(!!initialDraft);
+  const [previewing, setPreviewing] = useState(false);
   const [polishing, setPolishing] = useState(false);
   const [polishError, setPolishError] = useState("");
   const [beforePolish, setBeforePolish] = useState<string>();

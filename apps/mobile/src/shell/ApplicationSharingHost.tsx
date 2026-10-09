@@ -1,3 +1,5 @@
+import { setPostSharingHandler } from "./sharePanel";
+import type { UserPost } from "./feed/userPosts";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ActivityIndicator, BackHandler, Keyboard, Share, View } from "react-native";
 import Clipboard from "@react-native-clipboard/clipboard";
@@ -21,7 +23,7 @@ import type { PublicAuthor } from "./feed/userPosts";
 import { AnimatedFlashList } from "./AnimatedFlashList";
 import { PageSkeleton } from "./LoadingSkeleton";
 
-type ShareRequest = { appId: string; input: ApplicationShareInput; id: number };
+type ShareRequest = { appId: string; input: ApplicationShareInput; post?: UserPost; id: number };
 type Recipient = PublicAuthor & { recent?: boolean };
 type Selection = { appId: string; releaseId: string; params?: ApplicationShareInput["params"] };
 export function ApplicationSharingHost() {
@@ -48,13 +50,15 @@ export function ApplicationSharingHost() {
   const listRevision = useRef(0);
   const Scrollable = useBottomSheetScrollableCreator();
   useEffect(() => {
-    setApplicationSharingHandler(async (appId, input) => {
-      const next = { appId, input, id: ++sequence.current };
+    const open = async (appId: string, input: ApplicationShareInput, post?: UserPost) => {
+      const next = { appId, input, post, id: ++sequence.current };
       current.current = next; ++listRevision.current;
       setRequest(next); setPeople([]); cursors.current = {}; setMore(false); setQuery(""); setError("");
       setSelected(new Set()); setSent(new Set()); setLoading(false); loadingRef.current = false; sendIds.current.clear(); selections.current.clear();
-    });
-    return () => { current.current = undefined; ++listRevision.current; setApplicationSharingHandler(async () => { throw new Error("分享入口尚未就绪"); }); };
+    };
+    setApplicationSharingHandler(open);
+    setPostSharingHandler(post => open(post.id, { title: `${post.author.name}的动态`, description: post.body || "分享动态" }, post));
+    return () => { setPostSharingHandler(async () => { throw new Error("分享入口尚未就绪"); }); current.current = undefined; ++listRevision.current; setApplicationSharingHandler(async () => { throw new Error("分享入口尚未就绪"); }); };
   }, []);
   useLayoutEffect(() => { if (request) sheet.current?.present(); }, [request]);
   useEffect(() => { if (request && cachedAccountId()) void loadPeople(); }, [request]);
@@ -106,12 +110,12 @@ export function ApplicationSharingHost() {
         if (!id) { id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`; sendIds.current.set(peerId, id); }
         try {
           let selection = selections.current.get(peerId);
-          if (!selection) {
+          if (!selection && !active.post) {
             if (!fresh) { const application = await fetchMarketDetail(active.appId, { immediate: true }); fresh = { appId: active.appId, releaseId: application.manifest.releaseId, params: active.input.params }; }
             if (owner !== cachedAccountId() || active !== current.current) return;
             selection = fresh; selections.current.set(peerId, selection);
           }
-          await sendMessage(peerId, "", id, selection);
+          await sendMessage(peerId, "", id, selection, active.post?.id);
           if (active !== current.current || owner !== cachedAccountId()) return;
           success++; setSent(previous => new Set([...previous, peerId]));
           setSelected(previous => { const next = new Set(previous); next.delete(peerId); return next; });
@@ -126,13 +130,14 @@ export function ApplicationSharingHost() {
     Keyboard.dismiss();
     try {
       if (channel === "community") {
+        if (active.post) return;
         if (!cachedAccountId() && !await requireAccount() || active !== current.current) return;
         sheet.current?.dismiss();
         composeApplicationShare({ body: "", application: { appId: active.appId, params: active.input.params } });
         return;
       }
       const manifest = runningApplication(active.appId);
-      const message = createShareText({ kind: "application", id: active.appId, params: active.input.params }, [active.input.title || manifest?.appName || "生花应用", active.input.description].filter(Boolean).join("\n"));
+      const message = createShareText(active.post ? { kind: "post", id: active.post.id } : { kind: "application", id: active.appId, params: active.input.params }, [active.input.title || manifest?.appName || "生花应用", active.input.description].filter(Boolean).join("\n"));
       if (channel === "copy") { Clipboard.setString(message); Toast.show({ type: "success", text1: "链接已复制" }); sheet.current?.dismiss(); }
       else await Share.share({ message, title: active.input.title || manifest?.appName });
     } catch (cause) { Toast.show({ type: "error", text1: "分享未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
@@ -160,7 +165,7 @@ export function ApplicationSharingHost() {
         ListFooterComponent={more || error ? <Pressy disabled={loading} onPress={() => void loadPeople(true)} style={{ padding: 14, alignItems: "center" }}>{loading ? <ActivityIndicator color={colors.ink3} /> : <Text style={{ color: error ? colors.danger : colors.ink3 }}>{error ? "加载未完成 · 重试" : "加载更多好友"}</Text>}</Pressy> : null} />
       <View style={{ borderTopWidth: colors.components.surfaceBorder, borderTopColor: colors.line, paddingTop: 18, paddingBottom: Math.max(bottom, 12), paddingHorizontal: 18, gap: 14 }}>
         {selected.size ? <Pressy accessibilityLabel={`发送给 ${selected.size} 位好友`} disabled={sending} onPress={() => void sendSelected()} style={{ minHeight: 44, borderRadius: colors.radius.pill, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}>{sending ? <ActivityIndicator color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontSize: 15, fontWeight: "600" }}>发送给 {selected.size} 位好友</Text>}</Pressy> : null}
-        <View style={{ flexDirection: "row" }}>{(["system", "copy", "community"] as const).map((channel, index) => <Pressy key={channel} accessibilityRole="button" accessibilityLabel={(["系统分享", "复制链接", "社区动态"] as const)[index]} disabled={sending} onPress={() => void action(channel)} style={{ flex: 1, alignItems: "center", gap: 9, opacity: sending ? 0.45 : 1 }}>
+        <View style={{ flexDirection: "row" }}>{(request?.post ? ["system", "copy"] as const : ["system", "copy", "community"] as const).map((channel, index) => <Pressy key={channel} accessibilityRole="button" accessibilityLabel={(["系统分享", "复制链接", "社区动态"] as const)[index]} disabled={sending} onPress={() => void action(channel)} style={{ flex: 1, alignItems: "center", gap: 9, opacity: sending ? 0.45 : 1 }}>
           <View style={{ width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: index === 2 ? colors.accent : colors.ink1 }}><SymbolIcon name={(["share", "layers", "feed"] as const)[index]} size={24} strokeWidth={1.8} color={index === 2 ? colors.onAccent : colors.surface} /></View>
           <Text style={{ color: colors.ink1, fontSize: 12 }}>{(["分享…", "复制链接", "社区动态"] as const)[index]}</Text>
         </Pressy>)}</View>

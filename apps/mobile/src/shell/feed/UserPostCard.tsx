@@ -1,3 +1,4 @@
+import { openPostSharing } from "../sharePanel";
 import { useRecyclingState, useMappingHelper } from "@shopify/flash-list";
 import { lazyScreen } from "../lazyScreen";
 import { UserAvatar } from "../UserAvatar";
@@ -6,7 +7,7 @@ import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
 import { HostText as Text } from "./HostText";
 import { useEffect, useMemo, useRef } from "react";
-import { Pressable, Share, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { EdgeModal } from "../../../../../packages/ui/edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";
@@ -20,7 +21,6 @@ import { PostMenu } from "./PostMenu";
 import { edgeUrl } from "../evolveHost";
 const HtmlPostContent = lazyScreen(() => (require("./HtmlPostContent") as typeof import("./HtmlPostContent")).HtmlPostContent);
 import { ApplicationPostCard } from "./ApplicationPostCard";
-import { createShareText } from "../clipboardShares";
 
 export function UserPostCard({
   post,
@@ -101,21 +101,7 @@ export function UserPostCard({
     });
   }
   function share() {
-    const message = shareText();
-    void Share.share({
-      message,
-      title: "分享动态",
-    }).catch(() => Toast.show({ type: "error", text1: "分享未完成，请重试" }));
-  }
-  function shareText() {
-    return createShareText({ kind: "post", id: post.id }, `${post.author.name}：${
-        post.body ||
-        (post.application
-          ? `分享了应用《${post.application.title}》`
-          : post.content
-          ? "分享了动态"
-          : "分享了图片")
-      }`);
+    void openPostSharing(post).catch(error => Toast.show({ type: "error", text1: "分享未完成", text2: error.message }));
   }
   function copy() {
     Clipboard.setString(post.body || url);
