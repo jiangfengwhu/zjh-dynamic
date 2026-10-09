@@ -2,6 +2,7 @@ import { aiMessages } from "./ai-input";
 import { DeviceEventEmitter } from "react-native";
 import type { AiCompletionRequest, AiCompletionResult, AiProvider, AiService, AiRequestOptions, AiStreamOptions } from "./ai-types";
 import { shell } from "../../platform/src/phone";
+import { prepareAiRequest } from "../../platform/src/aiRequest";
 let inFlight = 0;
 let sequence = 0;
 const cancelled = (): AiCompletionResult => ({ ok: false, code: "CANCELLED", error: "已取消生成" });
@@ -28,11 +29,12 @@ export function applicationAi(openSettings: () => void): AiService {
     applicationInFlight++; inFlight++;
     const native = (async (): Promise<AiCompletionResult> => {
       try {
+        const prepared = await prepareAiRequest({ ...request, messages }, Boolean(onText));
+        if (aborted) return cancelled();
+        if (!prepared.ok) return prepared;
         const result = await shell<AiCompletionResult>("complete", {
-          requestId, stream: Boolean(onText), messages,
-          ...(request.providerId ? { providerId: request.providerId } : {}),
-          ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
-          ...(request.maxTokens !== undefined ? { maxTokens: request.maxTokens } : {}),
+          requestId, providerId: prepared.providerId, path: prepared.path,
+          stream: prepared.stream, body: prepared.body,
         });
         if (aborted) return cancelled();
         if (result.ok) {

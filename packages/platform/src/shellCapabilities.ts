@@ -1,4 +1,6 @@
 import { pluginCall } from "./pluginHost";
+import { prepareAiRequest } from "./aiRequest";
+import { aiMessages } from "../../app-sdk/src/ai-input";
 
 export type AiProvider = {
   id: string;
@@ -21,14 +23,16 @@ export function shellDeleteProvider(id: string) {
   return pluginCall("shell", "deleteProvider", { id });
 }
 
-export function shellComplete(input: {
+export async function shellComplete(input: {
   providerId?: string;
   model?: string;
   messages: { role: "system" | "user" | "assistant"; content: string }[];
 }) {
+  const prepared = await prepareAiRequest({ ...input, messages: aiMessages(input.messages) }, false);
+  if (!prepared.ok) return prepared;
   return pluginCall<{ ok: boolean; text?: string; providerId?: string; model?: string; error?: string }>(
     "shell",
     "complete",
-    input,
+    { providerId: prepared.providerId, path: prepared.path, body: prepared.body, stream: false },
   );
 }
