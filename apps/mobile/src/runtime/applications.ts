@@ -45,9 +45,10 @@ async function verifyCandidateAccess(manifest: ApplicationManifest, ownerId: str
   if (!response.ok) throw new Error("暂时无法核对制作权限，请联网重试");
 }
 /** Public manifests come from the platform's market/release responses. */
-export async function preparePublicApplication(manifest: ApplicationManifest, rememberAccess = true) {
+export async function preparePublicApplication(manifest: ApplicationManifest, rememberAccess = true, signal?: AbortSignal) {
   assertCompatible(manifest, manifest.appId);
-  await downloadApplicationResources(manifest);
+  await downloadApplicationResources(manifest, signal);
+  signal?.throwIfAborted();
   if (rememberAccess) writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
 }
 
@@ -191,7 +192,7 @@ export function applicationLoaded(appId: string) {
   return loaded.has(appId) && !quarantined.has(appId) && !!access && (!access.ownerId || access.ownerId === cachedAccountId());
 }
 export function applicationNeedsReload(manifest: ApplicationManifest) {
-  return loading.has(manifest.appId) && active.get(manifest.appId)?.releaseId !== manifest.releaseId;
+  return quarantined.has(manifest.appId) || evaluating.has(manifest.appId) && !loaded.has(manifest.appId) || loading.has(manifest.appId) && active.get(manifest.appId)?.releaseId !== manifest.releaseId;
 }
 export function runningApplicationReleases() { return Object.fromEntries([...active].filter(([id]) => healthy.has(id)).map(([id, manifest]) => [id, manifest.releaseId])); }
 export function offerApplication(manifest: ApplicationManifest, ownerId: string | null = null) { assertCompatible(manifest, manifest.appId); offered.set(manifest.appId, { manifest, ownerId }); }

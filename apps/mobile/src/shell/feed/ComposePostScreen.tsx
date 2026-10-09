@@ -403,7 +403,7 @@ export function ComposePostScreen({
   }
   const Root = embedded ? View : Screen;
   return (
-    <ScreenEdge bottom={false}><Root style={styles.screen}>
+    <ScreenEdge bottom={false}><Root style={[styles.screen, embedded && { backgroundColor: "transparent" }]}>
       {!embedded ? (
         <PageHeader
           title={modeTabs ? "发布" : "发动态"}

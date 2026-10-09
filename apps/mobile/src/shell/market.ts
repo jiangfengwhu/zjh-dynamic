@@ -1,5 +1,5 @@
 import { authorFollowRevision, rememberAuthorFollowing, type UserPost } from "./feed/userPosts";
-import { afterInteractions } from "./interactionWork";
+import { afterInteractions, waitForRouteTransitions } from "./interactionWork";
 import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
 import { accountFetch, currentAccountId, cachedAccountId } from "./account";
 import {
@@ -157,13 +157,14 @@ export async function fetchPublicMarketApplication(
   return next;
 }
 /** Account-aware detail BFF; no workshop token is needed for a read. */
-export async function fetchMarketDetail(appId: string): Promise<MarketApplication> {
+export async function fetchMarketDetail(appId: string, options?: { signal?: AbortSignal; immediate?: boolean }): Promise<MarketApplication> {
   const owner = await currentAccountId();
-  const response = await accountFetch(`${edgeUrl}/v1/market?appId=${encodeURIComponent(appId)}&detail=1`, { signal: AbortSignal.timeout(15000) }, false);
+  const response = await accountFetch(`${edgeUrl}/v1/market?appId=${encodeURIComponent(appId)}&detail=1`, { signal: options?.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) }, false);
   const result = await response.json() as { item?: MarketApplication; message?: string };
   if (!response.ok || !result.item) throw new Error(result.message || "作品详情暂时不可用");
   if (await currentAccountId() !== owner) throw new Error("账号已改变，请重试");
-  await new Promise<void>(resolve => afterInteractions(resolve));
+  if (!options?.immediate) await new Promise<void>(resolve => afterInteractions(resolve));
+  options?.signal?.throwIfAborted();
   if (await currentAccountId() !== owner) throw new Error("账号已改变，请重试");
   return rememberPage(pageCacheKey(`market-detail:${appId}`), { ...result.item, latest: true, detailAt: Date.now(), detailOwner: owner ?? "guest" });
 }
@@ -286,13 +287,15 @@ export async function installedMarket(): Promise<MarketApplication[]> {
 }
 export async function installMarketApplication(
   item: MarketApplication,
-  options?: { reloadLoaded?: boolean }
+  options?: { reloadLoaded?: boolean; signal?: AbortSignal }
 ) {
   const manifest = item.manifest;
   const installerId = cachedAccountId();
   // Compatibility is checked before downloading or changing the installed catalog.
   validateApplication(manifest);
-  await preparePublicApplication(manifest);
+  await preparePublicApplication(manifest, false, options?.signal);
+  if (installerId !== cachedAccountId()) throw new Error("账号已改变，请重试");
+  writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
   writeShellValue(`application.market.${manifest.appId}`, JSON.stringify(item));
   writeShellValue(
     `application.pending.${manifest.appId}`,
@@ -335,6 +338,7 @@ export async function installMarketApplication(
   }
   if (current?.releaseId === manifest.releaseId)
     writeShellValue(`application.pending.${manifest.appId}`, "");
+  await waitForRouteTransitions(options?.signal);
   await loadApplication(manifest.appId);
   // Refresh the avatar after activation, without changing application business code.
   await saveCatalog(await loadCatalog());

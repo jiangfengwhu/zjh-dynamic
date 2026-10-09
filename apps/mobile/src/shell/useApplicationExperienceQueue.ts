@@ -1,11 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadPublicApplicationExperience } from "../runtime/applications";
 import type { MarketApplication } from "./market";
+import { fetchMarketDetail, installMarketApplication } from "./market";
+import { cachedAccountId } from "./account";
+import { readShellValueSync, writeShellValue } from "./shellStorage";
+import NativePluginHost from "../NativePluginHost";
 
 export const EXPERIENCE_AHEAD = 3;
 const HISTORY_SIZE = 3;
 export const EXPERIENCE_CACHE_SIZE = 1 + EXPERIENCE_AHEAD + HISTORY_SIZE;
 export const experienceId = (item: MarketApplication) => `${item.manifest.appId}:${item.manifest.releaseId}`;
+const RETRY_RESUME = "application.discovery.retry";
+export function readDiscoveryRetry(owner: string): MarketApplication | undefined {
+  const raw = readShellValueSync(RETRY_RESUME);
+  if (!raw) return;
+  try { const saved = JSON.parse(raw); if (saved.owner === owner && saved.item?.manifest?.appId) return saved.item; } catch {}
+}
+export function clearDiscoveryRetry() { writeShellValue(RETRY_RESUME, ""); }
 type Preparation = { ready: boolean; downloaded?: boolean; error: string };
 
 /** At most seven identities: current, three ahead and three recently visited. */
@@ -15,7 +26,9 @@ export function experienceWindow(items: readonly MarketApplication[], index: num
   let retained = 0;
   // Always include the preceding feed page, even after reversing beyond history.
   const previous = items.slice(Math.max(0, index - 1), index);
+  const available = new Set(items.map(experienceId));
   for (const item of [...previous, ...history]) {
+    if (!available.has(experienceId(item))) continue;
     if (!keys.has(experienceId(item))) { wanted.push(item); keys.add(experienceId(item)); retained++; }
     if (retained >= HISTORY_SIZE) break;
   }
@@ -23,7 +36,7 @@ export function experienceWindow(items: readonly MarketApplication[], index: num
 }
 
 /** Resource warming is independent of FlashList's mounted cells. */
-export function useApplicationExperienceQueue(items: readonly MarketApplication[], index: number, enabled: boolean, executeEnabled = enabled) {
+export function useApplicationExperienceQueue(items: readonly MarketApplication[], index: number, enabled: boolean, executeEnabled = enabled, onRefresh?: (item: MarketApplication) => void) {
   const current = items[index];
   const key = current && experienceId(current);
   const [visits, setVisits] = useState<{ key: string | undefined; history: MarketApplication[] }>(() => ({ key, history: current ? [current] : [] }));
@@ -38,6 +51,8 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
   }, [entries]);
   const latest = useRef(preparations); latest.current = preparations;
   const [retryVersion, setRetryVersion] = useState(0);
+  const retries = useRef(new Map<string, AbortController>());
+  useEffect(() => () => { for (const controller of retries.current.values()) controller.abort(); retries.current.clear(); }, [enabled, key]);
   // Downloads start immediately, including during a swipe. The native resource
   // scheduler merges identities and limits actual transfers to three.
   useEffect(() => {
@@ -71,8 +86,30 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     return () => controller.abort();
   }, [executeEnabled, key, nextKey]);
   const retry = useCallback((id: string) => {
-    setPreparations(prior => { const next = new Map(prior); next.delete(id); return next; });
-    setRetryVersion(value => value + 1);
-  }, []);
+    const item = entries.find(candidate => experienceId(candidate) === id);
+    if (!item || retries.current.has(id)) return;
+    const controller = new AbortController(); retries.current.set(id, controller);
+    const owner = cachedAccountId() ?? "guest";
+    setPreparations(prior => new Map(prior).set(id, { ready: false, error: "" }));
+    void (async () => {
+      const latest = await fetchMarketDetail(item.manifest.appId, { signal: controller.signal, immediate: true });
+      controller.signal.throwIfAborted();
+      const status = await installMarketApplication(latest, { reloadLoaded: false, signal: controller.signal });
+      controller.signal.throwIfAborted();
+      if (status === "pending") {
+        writeShellValue(RETRY_RESUME, JSON.stringify({ owner, item: latest }));
+        try {
+          const result = JSON.parse(await NativePluginHost.call("shell", "reloadApplications", "{}"));
+          if (!result.ok) throw new Error("作品已更新，重载未完成，请重试");
+        } catch (cause) { writeShellValue(RETRY_RESUME, ""); throw cause; }
+        return;
+      }
+      onRefresh?.(latest);
+      setPreparations(prior => { const next = new Map(prior); next.delete(id); next.set(experienceId(latest), { ready: true, downloaded: true, error: "" }); return next; });
+      setRetryVersion(value => value + 1);
+    })().catch(cause => {
+      if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(id, { ready: false, error: cause instanceof Error ? cause.message : "作品更新失败，请重试" }));
+    }).finally(() => { if (retries.current.get(id) === controller) retries.current.delete(id); });
+  }, [entries, onRefresh]);
   return { entries, preparations, retry };
 }

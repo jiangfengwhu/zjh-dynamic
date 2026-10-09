@@ -16,7 +16,7 @@ import { HostText as Text } from "./feed/HostText";
 import { useAccount } from "./account";
 import { useProfileDrawer } from "./ProfileDrawer";
 import { bindApplicationExperienceBack, bindNextApplication } from "./applicationExperienceNavigation";
-import { EXPERIENCE_AHEAD, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
+import { EXPERIENCE_AHEAD, clearDiscoveryRetry, readDiscoveryRetry, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
 import { ApplicationInteractions, cachedApplicationDiscussion } from "./ApplicationInteractions";
 import { AuthorFollowButton } from "./AuthorFollowButton";
 import type { UserPost } from "./feed/userPosts";
@@ -47,6 +47,7 @@ export function ApplicationFeedScreen(props: Props) {
   const focused = useIsFocused() && (props.active ?? true);
   const { user } = useAccount();
   const identity = user?.id ?? "guest";
+  const resumedRetry = useMemo(() => readDiscoveryRetry(identity), [identity]);
   const { progress } = useProfileDrawer();
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -119,7 +120,7 @@ export function ApplicationFeedScreen(props: Props) {
     try {
       const result = await fetchMarketPage("", "", cursor, true);
       if (generation.current !== token || currentOwner.current !== owner) return;
-      setPage(prior => ({ owner, loaded: true, applications: unique(more && prior.owner === owner ? [...prior.applications, ...result.applications] : result.applications), nextCursor: result.nextCursor === cursor ? undefined : result.nextCursor }));
+      setPage(prior => ({ owner, loaded: true, applications: unique(more && prior.owner === owner ? [...prior.applications, ...result.applications] : resumedRetry ? [resumedRetry, ...result.applications] : result.applications), nextCursor: result.nextCursor === cursor ? undefined : result.nextCursor }));
       if (!more) { setIndex(0); setPause(false); setRevision(value => value + 1); }
       return result.applications.length > 0;
     } catch (cause) {
@@ -127,17 +128,21 @@ export function ApplicationFeedScreen(props: Props) {
     } finally {
       if (generation.current === token) { request.current = false; setBusy(false); }
     }
-  }, [identity, page.nextCursor, setPause]);
+  }, [identity, page.nextCursor, setPause, resumedRetry]);
   useEffect(() => {
     generation.current++;
     request.current = false;
-    setPage({ owner: identity, applications: [], loaded: false });
+    setPage({ owner: identity, applications: resumedRetry ? [resumedRetry] : [], loaded: false });
+    if (resumedRetry) clearDiscoveryRetry();
     setIndex(0);
     setPause(false);
     setError("");
     setBusy(false);
     return () => { generation.current++; };
-  }, [identity, setPause]);
+  }, [identity, setPause, resumedRetry]);
+  const refreshExperience = useCallback((fresh: MarketApplication) => {
+    setPage(prior => prior.owner !== identity ? prior : { ...prior, applications: prior.applications.map(item => item.manifest.appId === fresh.manifest.appId ? fresh : item) });
+  }, [identity]);
   useEffect(() => {
     if (active && page.owner === identity && !page.loaded && !request.current && !error) void load();
   }, [active, page.owner, page.loaded, identity, error, load]);
@@ -220,7 +225,7 @@ export function ApplicationFeedScreen(props: Props) {
   return <ThemeContext.Provider value={theme}>
     <View style={{ flex: 1, backgroundColor: "transparent" }}>
       <Animated.View ref={props.stageRef} collapsable={false} style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
-        {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} spacing={spacing.height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
+        {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} spacing={spacing.height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} onRefresh={refreshExperience} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
@@ -256,9 +261,10 @@ type QueueProps = {
   items: MarketApplication[]; index: number; active: boolean; foreground: boolean; switching: boolean; paused: boolean;
   width: number; height: number; spacing: number; drag: ReturnType<typeof useSharedValue<number>>;
   render: Props["renderApplication"]; onPause: () => void; onResume: () => void; onDetail: Props["onDetail"];
+  onRefresh: (item: MarketApplication) => void;
 };
 function ExperienceQueue(props: QueueProps) {
-  const { entries, preparations, retry } = useApplicationExperienceQueue(props.items, props.index, props.active, props.active && !props.switching);
+  const { entries, preparations, retry } = useApplicationExperienceQueue(props.items, props.index, props.active, props.active && !props.switching, props.onRefresh);
   const current = props.items[props.index];
   const positions = useMemo(() => new Map(props.items.map((item, index) => [experienceId(item), index])), [props.items]);
   const { height, drag } = props;

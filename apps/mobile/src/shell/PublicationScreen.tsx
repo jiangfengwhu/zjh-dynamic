@@ -35,6 +35,7 @@ import type { MarketApplication } from "./market";
 import { CreationImages, useCreationImages } from "./CreationImages";
 import type { CreationInput, CreationIntent } from "./creationComposer";
 import { usePreventRemove } from "@react-navigation/native";
+import { afterInteractions } from "./interactionWork";
 
 const CREATION_INPUT_HEIGHT = 224;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
@@ -253,6 +254,7 @@ function CreateApplicationPage({
   }`;
   const loadedKey = useRef("");
   const latestDraft = useRef({ key: draftKey, text: prompt, loaded: false });
+  const savedDraft = useRef<{ key: string; text: string } | undefined>(undefined);
   latestDraft.current = {
     key: draftKey,
     text: prompt,
@@ -260,7 +262,10 @@ function CreateApplicationPage({
   };
   function persistDraft() {
     const draft = latestDraft.current;
-    if (draft.loaded) writeShellValue(draft.key, draft.text);
+    if (draft.loaded && (savedDraft.current?.key !== draft.key || savedDraft.current.text !== draft.text)) {
+      writeShellValue(draft.key, draft.text);
+      savedDraft.current = { key: draft.key, text: draft.text };
+    }
   }
   useEffect(
     () => () => {
@@ -301,7 +306,7 @@ function CreateApplicationPage({
   useEffect(() => {
     if (!ready || loadedKey.current !== draftKey) return;
     const timer = setTimeout(() => {
-      if (loadedKey.current === draftKey) writeShellValue(draftKey, prompt);
+      if (loadedKey.current === draftKey) persistDraft();
     }, 180);
     return () => clearTimeout(timer);
   }, [ready, draftKey, prompt]);
@@ -333,15 +338,18 @@ function CreateApplicationPage({
       if ((await currentAccountId()) !== owner)
         throw new Error("账号已改变，请重新打开制作页");
       setSubmitStatus("正在提交需求…");
-      const submission = onCreate({
-        prompt: submittedText,
-        images: uploaded,
+      const submission = new Promise<string>((resolve, reject) => {
+        requestAnimationFrame(() => {
+          if (alive.current) onSubmitting?.();
+          afterInteractions(() => {
+            void Promise.resolve().then(() => onCreate({ prompt: submittedText, images: uploaded })).then(resolve, reject);
+          });
+        });
       });
       // The request owns its promise after the composer leaves. Do not make the
       // user wait for Jules to create/continue a session or for notification sync.
       setBusy(false);
       Toast.show({ type: "info", text1: "正在后台提交制作需求", text2: "提交结果会提示你，失败时草稿保留" });
-      requestAnimationFrame(() => { if (alive.current) onSubmitting?.(); });
       const createdAppId = await submission;
       if (!createdAppId) throw new Error("需求未能提交，草稿已保留");
       if ((await currentAccountId()) !== owner) {

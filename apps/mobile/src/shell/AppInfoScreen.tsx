@@ -8,7 +8,7 @@ import { ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
-import { PageHeader, Pressy, SectionTitle, Surface } from "../../../../packages/ui/chrome";
+import { PageHeader, Pressy, Surface } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { createThemedStyles, useTheme } from "../../../../packages/ui/theme";
 import { formatBytes, loadInstalledPackages, type InstalledPackage, type PackageKind } from "./packages";
@@ -65,22 +65,20 @@ export function AppInfoScreen({ onBack }: Props) {
     };
   }, [focused, attempt]);
 
-  const packages = items.filter((item) => item.kind !== "plugin");
-  const dexes = items.filter((item) => item.kind === "plugin");
   const total = items.reduce((sum, item) => sum + (item.present ? item.bytes : 0), 0);
 
   return (
     <Screen style={styles.screen}>
       <PageHeader title="应用信息" caption="本机正在使用的包" onBack={onBack} />
-      <AnimatedFlashList<InstalledPackage | "extensions"> data={details ? [...packages, "extensions", ...dexes] : []} keyExtractor={item => typeof item === "string" ? item : item.kind + ":" + item.id} getItemType={item => typeof item === "string" ? "heading" : "package"} maintainVisibleContentPosition={{ disabled: true }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
-        ListHeaderComponent={<View style={{ gap: 12 }}>
+      <AnimatedFlashList<InstalledPackage> data={details ? items : []} keyExtractor={item => item.kind + ":" + item.id} maintainVisibleContentPosition={{ disabled: true }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+        ListHeaderComponent={<View style={{ gap: 12, marginBottom: 12 }}>
         <Surface style={styles.version}><View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}><Image accessible={false} fadeDuration={0} source={{ uri: `data:image/webp;base64,${brandAssets.logo.base64}` }} style={{ width: 48, height: 48, borderRadius: 14 }} /><Text accessibilityRole="header" style={styles.brand}>生花</Text></View><View style={styles.metrics}><View style={styles.metric}><Text style={styles.empty}>APK 版本</Text><Text style={styles.metricValue}>{apk?.versionName ?? sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>SDK 版本</Text><Text selectable style={styles.metricValue}>{sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>界面版本</Text><Text selectable style={styles.metricValue}>{buildId.slice(0, 8)}</Text></View></View><View style={styles.storage}><Text style={styles.empty}>本机安装文件</Text><View style={styles.storageValue}><View style={styles.loadingSlot}>{loading ? <ActivityIndicator size="small" color={colors.ink2} /> : null}</View><Text style={styles.metricValue}>{cachedPackages !== undefined ? formatBytes(total) : error ? "未读取" : "读取中"}</Text></View></View></Surface>
         {error ? <Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)}><Text style={styles.error}>{error} · 重试</Text></Pressy> : null}
         <Text style={styles.empty}>页面运行包负责界面，原生扩展提供手机能力。下方体积为本机安装文件大小。</Text>
         <Pressy accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(value => !value)}><Text style={styles.total}>{details ? "收起技术详情" : "查看技术详情"}</Text></Pressy>
         </View>}
-        renderItem={({ item }) => typeof item === "string" ? <SectionTitle>原生扩展（技术详情）</SectionTitle> : <Surface style={styles.group}><PackageRow item={item} last /></Surface>}
-        ListFooterComponent={details && !loading && !error && !dexes.length ? <EmptyState style={{ minHeight: 120, flexGrow: 0 }}><Text style={styles.empty}>还没有安装原生扩展</Text></EmptyState> : null}
+        renderItem={({ item, index }) => <View style={[styles.group, index === 0 && styles.groupFirst, index === items.length - 1 && styles.groupLast]}><PackageRow item={item} last={index === items.length - 1} /></View>}
+        ListFooterComponent={details && !loading && !error && !items.length ? <EmptyState style={{ minHeight: 120, flexGrow: 0 }}><Text style={styles.empty}>还没有读取到安装包</Text></EmptyState> : null}
       />
     </Screen>
   );
@@ -123,7 +121,6 @@ const useStyles = createThemedStyles((t) => ({
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 20,
-    gap: 10,
   },
   version: { padding: 16, gap: 14, borderRadius: t.radius.xl },
   brand: { color: t.ink1, ...t.type.title2 },
@@ -134,8 +131,10 @@ const useStyles = createThemedStyles((t) => ({
   storageValue: { flexDirection: "row", alignItems: "center", gap: 6 },
   loadingSlot: { width: 20, height: 20, alignItems: "center", justifyContent: "center" },
   group: {
-    borderRadius: t.radius.xl,
+    backgroundColor: t.surface,
   },
+  groupFirst: { borderTopLeftRadius: t.radius.xl, borderTopRightRadius: t.radius.xl },
+  groupLast: { borderBottomLeftRadius: t.radius.xl, borderBottomRightRadius: t.radius.xl },
   row: {
     flexDirection: "row",
     alignItems: "center",
