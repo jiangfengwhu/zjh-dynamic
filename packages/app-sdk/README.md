@@ -1,6 +1,6 @@
 # 云端应用 Agent SDK 指引
 
-本文供云端应用 Agent 开发应用使用；参数以已安装 SDK 的公共类型为准，下表按功能查阅。作品与宿主只按 SDK 大版本判断兼容，不按次版本或补丁版本要求升级；构建工具自动记录 SDK 版本，不手动修改平台版本。
+本文供云端应用 Agent 开发应用使用；参数以已安装 SDK 的公共类型为准，下表按功能查阅。平台要求 SDK 大版本相同，且宿主 API 版本不低于应用要求；构建工具按所用 SDK 的平台契约记录所需版本，不手动修改平台版本。
 
 入口 `src/index.ts` 默认导出 `defineApp({ main: () => require("./app").default })`。API 从 `@zijinhua/app-sdk` 导入，UI 从其 `/ui` 导入；宿主能力通过 `const app = getAppContext()` 使用。
 
@@ -27,7 +27,7 @@
 
 ## 云文件与实时协作（SDK 2.2）
 
-云能力随 appId 和宿主登录账号隔离，凭证由宿主保管。使用当前 SDK 提供的接口，不引入 APK 未提供的原生能力；不要手动修改构建生成的 requires.sdk。
+云能力随 appId 和宿主登录账号隔离，凭证由宿主保管。使用这些新增接口的应用需 SDK API 2.2.0 及支持多模态的 APK；不要手动降低构建生成的 requires.sdk。
 
 - 云文件：app.cloud.files.upload(path, { mime, visibility?, localScope?, signal?, requestId? }) 上传已存在的应用相对路径，默认 private、device 文件作用域。上传取消或失败保留本机文件；重试同一文件沿用 requestId（UUID 格式），不能用于其他文件。单文件 ≤10 MB，每账号每应用 ≤100 MB、1000 个文件；支持 JPEG/PNG/WebP/GIF、MP3/WAV/M4A、MP4、PDF、二进制。get(id) 读取自己的元数据，不存在返回 null；download(id, path, { localScope?, signal? }) 下载自己的文件；remove(id) 删除自己的云文件。private 没有公开 URL，只有当前账号能下载；public 返回可公开读取的 url，需共享时把 url 存入公共或房间记录。公开文件一旦分享，删除无法收回接收方已保存的副本。
 - 实时房间：app.cloud.rooms.join(id, { signal? })，id 为字母开头的 1–64 位字母、数字、下划线或连字符。拥有同一应用和房间编号的登录用户均可参与，并改删 room.collection(name) 中的记录；房间编号是分享入口，不是角色权限。公共集合仍只有创建者可改删。需要私有群组或管理员角色时，不能用可分享房间冒充此类权限。

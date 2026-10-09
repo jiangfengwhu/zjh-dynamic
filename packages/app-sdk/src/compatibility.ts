@@ -8,7 +8,7 @@ export function sdkCompatibility(required: string, available: string): "compatib
   const a = sdkVersion(required), b = sdkVersion(available);
   if (!a || !b) return "invalid";
   if (a[0] < b[0]) return "update-application";
-  if (a[0] > b[0]) return "update-platform";
+  if (a[0] > b[0] || a[1] > b[1] || (a[1] === b[1] && a[2] > b[2])) return "update-platform";
   return "compatible";
 }
 export function assertSdkCompatible(required: string, available: string) {
