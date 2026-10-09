@@ -559,8 +559,8 @@ function MarketDetailContent({
     try {
       if (owner && user) {
         offerApplication(sharing?.application ?? app, user.id);
-        const changed = await applyApplicationUpdate(app.appId);
-        if (!changed) onOpen(app.appId);
+        await applyApplicationUpdate(app.appId);
+        onOpen(app.appId);
       } else {
         await installMarketApplication(item);
         setInstalled(true);

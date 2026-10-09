@@ -4,6 +4,8 @@
 
 入口 `src/index.ts` 默认导出 `defineApp({ main: () => require("./app").default })`。API 从 `@zijinhua/app-sdk` 导入，UI 从其 `/ui` 导入；宿主能力通过 `const app = getAppContext()` 使用。
 
+应用更新只重载该应用，页面局部状态和模块变量重新创建，本地与云端数据保留，共享依赖仍由宿主提供。定时器、请求、监听器和连接可自由使用；页面 effect 应返回 cleanup，页面外资源可在可选的 `onDispose(context)` 中自行释放。该回调在替换或卸载应用时执行，应尽快结束；宿主不自动接管应用创建的资源，也不会自动删除 `globalThis` 上的应用字段。
+
 共享库直接导入，入口与版本查安装包 `dist/libraries.md`；不引用私有路径，不重复安装共享库或使用 overrides。额外纯 JS 依赖写应用 `package.json`，根目录 `npm install` 更新锁文件。不引入 APK 未提供的原生能力。
 
 权限检查与请求统一用 `react-native-permissions`；仅在用户操作后请求，按 `RESULTS` 处理结果，永久拒绝时由用户点击 `openSettings()`。通知用 `app.phone.requestNotifications()`。

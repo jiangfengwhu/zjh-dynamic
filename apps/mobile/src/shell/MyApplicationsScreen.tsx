@@ -9,7 +9,6 @@ import { ActivityIndicator } from "react-native";
 import { PageSkeleton } from "./LoadingSkeleton";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HostAlert } from "./HostAlert";
-import NativePluginHost from "../NativePluginHost";
 import { AppState, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { usePullToRefresh } from "./feed/pullToRefresh";
@@ -24,7 +23,6 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { FormField } from "./FormField";
 import { useAccount, currentAccountId } from "./account";
-import { writeShellValue, removeShellValue } from "./shellStorage";
 import { subscribeCatalog } from "./catalog";
 import {
   installedMarket,
@@ -39,6 +37,7 @@ import {
   checkApplicationUpdates,
   stageApplicationUpdates,
   loadApplication,
+  reloadApplication,
   type PublicApplicationUpdate,
 } from "../runtime/applications";
 import { openApplicationWorkshop } from "./workshopNavigation";
@@ -309,50 +308,8 @@ export function MyApplicationsScreen({
             reloadLoaded: false,
           })) || "ready";
       }
-      Toast.show({
-        type: "success",
-        text1:
-          status === "pending"
-            ? "新版已下载，下次启动生效"
-            : "应用已更新，本机数据保留",
-      });
-      if (status === "pending")
-        HostAlert.alert(
-          "应用已更新，重新加载？",
-          "新版已下载，本机数据保留。当前加载器需要重新加载整个 App 才能替换已运行的版本，其他页面会退出。",
-          [
-            { text: "稍后", style: "cancel" },
-            {
-              text: "重新加载",
-              onPress: async () => {
-                try {
-                  writeShellValue(
-                    "application.openAfterReload",
-                    JSON.stringify({
-                      appId: manifest.appId,
-                      ownerId: await currentAccountId(),
-                    })
-                  );
-                  const result = JSON.parse(
-                    await NativePluginHost.call(
-                      "shell",
-                      "reloadApplications",
-                      "{}"
-                    )
-                  ) as { ok?: boolean };
-                  if (result.ok !== true) throw new Error("重新加载未完成");
-                } catch {
-                  removeShellValue("application.openAfterReload");
-                  Toast.show({
-                    type: "error",
-                    text1: "重新加载失败，新版已保留",
-                  });
-                }
-              },
-            },
-          ],
-          { cancelable: true }
-        );
+      if (status === "pending") await reloadApplication(manifest.appId);
+      Toast.show({ type: "success", text1: "应用已更新，本机数据保留" });
       requestIdleCallback(() => void refresh(false));
     } catch (cause) {
       Toast.show({

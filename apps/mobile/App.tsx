@@ -8,13 +8,15 @@ import type { ApkProgress } from "./src/shell/apkUpdates";
 import { ActivityIndicator } from "react-native";
 import { markStartup } from "./src/runtime/startupTiming";
 import { openCreationComposer } from "./src/shell/creationComposer";
-import { reportApplicationFailure, restoreDownloadedApplications } from "./src/runtime/applications";
+import { reportApplicationFailure, restoreDownloadedApplications, runningApplication } from "./src/runtime/applications";
+import { subscribeApplicationRuntime, applicationRuntimeSnapshot } from "../../packages/app-sdk/src/runtime";
 import {
   Component,
   useEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { StatusBar, View } from "react-native";
@@ -67,7 +69,7 @@ type ShellItem = (typeof bundles)[number] & {
 
 type BoundaryProps = {
   children: ReactNode;
-  resetKey: number;
+  resetKey: number | string;
   onError?: (message: string) => void;
   onRetry: () => void;
   onBack: () => void;
@@ -103,6 +105,15 @@ class FeatureBoundary extends Component<BoundaryProps, BoundaryState> {
     }
     return this.props.children;
   }
+}
+
+function ApplicationBoundary({ id, ...props }: BoundaryProps & { id: string }) {
+  const record = useSyncExternalStore(listener => subscribeApplicationRuntime(id, listener), () => applicationRuntimeSnapshot(id));
+  const releaseId = runningApplication(id)?.releaseId;
+  return <FeatureBoundary {...props} resetKey={`${props.resetKey}:${record?.generation ?? 0}`} onError={message => {
+    props.onError?.(message);
+    void reportApplicationFailure(id, releaseId).catch(() => {});
+  }} />;
 }
 
 function FeatureFailure(props: BoundaryProps) {
@@ -398,13 +409,12 @@ function ShellApp() {
           }}
           onMode={setMode}
           renderBundle={(id, onBack) => (
-            <FeatureBoundary
+            <ApplicationBoundary id={id}
               resetKey={featureKey}
               onRetry={() => setFeatureKey((value) => value + 1)}
               onBack={onBack}
               onError={(message) => {
                 noteError(`feature:${id}`, message);
-                void reportApplicationFailure(id);
               }}
             >
               <FeatureHost
@@ -412,7 +422,7 @@ function ShellApp() {
                 onBack={onBack}
                 onError={(message) => noteError(`feature:${id}`, message)}
               />
-            </FeatureBoundary>
+            </ApplicationBoundary>
           )}
         />
         {updates.length > 0 ? (

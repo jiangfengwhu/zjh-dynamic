@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 let owner = "guest";
 const clients = new Map<string, QueryClient>();
 const listeners = new Set<() => void>();
+export function clearApplicationQueries(appId: string) {
+  for (const [key, client] of clients) if (key.startsWith(`${appId}:`)) { void client.cancelQueries(); client.clear(); clients.delete(key); }
+}
 export function changeQueryAccount(next: string) {
   if (owner === next) return;
   owner = next;

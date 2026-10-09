@@ -1,22 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { loadPublicApplicationExperience } from "../runtime/applications";
+import { loadPublicApplicationExperience, reloadApplication } from "../runtime/applications";
 import type { MarketApplication } from "./market";
 import { fetchMarketDetail, installMarketApplication } from "./market";
-import { cachedAccountId } from "./account";
-import { readShellValueSync, writeShellValue } from "./shellStorage";
-import NativePluginHost from "../NativePluginHost";
 
 export const EXPERIENCE_AHEAD = 3;
 const HISTORY_SIZE = 3;
 export const EXPERIENCE_CACHE_SIZE = 1 + EXPERIENCE_AHEAD + HISTORY_SIZE;
 export const experienceId = (item: MarketApplication) => `${item.manifest.appId}:${item.manifest.releaseId}`;
-const RETRY_RESUME = "application.discovery.retry";
-export function readDiscoveryRetry(owner: string): MarketApplication | undefined {
-  const raw = readShellValueSync(RETRY_RESUME);
-  if (!raw) return;
-  try { const saved = JSON.parse(raw); if (saved.owner === owner && saved.item?.manifest?.appId) return saved.item; } catch {}
-}
-export function clearDiscoveryRetry() { writeShellValue(RETRY_RESUME, ""); }
 type Preparation = { ready: boolean; downloaded?: boolean; error: string };
 
 /** At most seven identities: current, three ahead and three recently visited. */
@@ -89,7 +79,6 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     const item = entries.find(candidate => experienceId(candidate) === id);
     if (!item || retries.current.has(id)) return;
     const controller = new AbortController(); retries.current.set(id, controller);
-    const owner = cachedAccountId() ?? "guest";
     setPreparations(prior => new Map(prior).set(id, { ready: false, error: "" }));
     void (async () => {
       const latest = await fetchMarketDetail(item.manifest.appId, { signal: controller.signal, immediate: true });
@@ -97,12 +86,7 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
       const status = await installMarketApplication(latest, { reloadLoaded: false, signal: controller.signal });
       controller.signal.throwIfAborted();
       if (status === "pending") {
-        writeShellValue(RETRY_RESUME, JSON.stringify({ owner, item: latest }));
-        try {
-          const result = JSON.parse(await NativePluginHost.call("shell", "reloadApplications", "{}"));
-          if (!result.ok) throw new Error("作品已更新，重载未完成，请重试");
-        } catch (cause) { writeShellValue(RETRY_RESUME, ""); throw cause; }
-        return;
+        await reloadApplication(latest.manifest.appId);
       }
       onRefresh?.(latest);
       setPreparations(prior => { const next = new Map(prior); next.delete(id); next.set(experienceId(latest), { ready: true, downloaded: true, error: "" }); return next; });

@@ -87,6 +87,8 @@ export type AppDefinition = {
   main: () => ComponentType<Record<string, never>>;
   avatar?: ComponentType<AppAvatarProps>;
   onInstall?: (context: AppContext) => void | Promise<void>;
+  /** Optional cleanup before this application's code is unloaded or replaced. */
+  onDispose?: (context: AppContext) => void | Promise<void>;
 };
 export type AppContext = AppData & {
   appId: string;

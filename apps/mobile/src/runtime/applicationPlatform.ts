@@ -4,6 +4,7 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { runningApplication } from "./applications";
 import { applicationNativeModule, applicationReanimatedModule, applicationCalendarsModule } from "./applicationTypography";
 import { installApplicationCloud } from "./applicationCloud";
+import { installApplicationModuleLoader } from "./applicationModules";
 
 const modules: Record<string, () => unknown> = {
   "react-hook-form": () => require("react-hook-form"),
@@ -54,6 +55,7 @@ const modules: Record<string, () => unknown> = {
 export function installApplicationPlatform() {
   const target = globalThis as typeof globalThis & { __zijinhuaApplications?: unknown };
   if (target.__zijinhuaApplications) return;
+  installApplicationModuleLoader();
   installApplicationCloud();
   setApplicationCreationNavigation((appId, prompt) => {
     if (appId === "jolly") {

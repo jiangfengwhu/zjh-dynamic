@@ -1,6 +1,6 @@
 const bootstrap = require("../../../tools/applications/bootstrap.json");
 import type { AppContext, AppDefinition, AppData, DataScope } from "./index";
-import { createElement, useEffect, useContext } from "react";
+import { createElement, useEffect, useContext, useSyncExternalStore } from "react";
 import { requestNotifications, RESULTS } from "react-native-permissions";
 import { writePackageValue } from "../../ui/packageLink";
 import { applicationCapabilities } from "./capabilities";
@@ -10,7 +10,7 @@ import { registerFeature } from "../../features/src/featureHost";
 import { phone } from "../../platform/src/phone";
 import { applicationAi } from "./ai";
 import { KeyboardViewport } from "../../ui/keyboard";
-import { ApplicationQueries, changeQueryAccount } from "./query-runtime";
+import { ApplicationQueries, changeQueryAccount, clearApplicationQueries } from "./query-runtime";
 import { applicationAuth, applicationCloud } from "./cloud";
 import { useIsFocused } from "@react-navigation/native";
 import { ApplicationCloudActivity } from "./cloud-activity";
@@ -18,6 +18,19 @@ import { setApplicationCloudActive } from "./cloud";
 import { CloudError } from "./cloud-types";
 
 const definitions = new Map<string, AppDefinition>();
+type PageRecord = { definition: AppDefinition; generation: number; Page?: ReturnType<AppDefinition["main"]> };
+let pageGeneration = 0;
+const pages = new Map<string, PageRecord>();
+const pageListeners = new Map<string, Set<() => void>>();
+const registeredPages = new Set<string>();
+function emitPage(appId: string) { pageListeners.get(appId)?.forEach(listener => listener()); }
+export function subscribeApplicationRuntime(appId: string, listener: () => void) {
+  let listeners = pageListeners.get(appId);
+  if (!listeners) { listeners = new Set(); pageListeners.set(appId, listeners); }
+  listeners.add(listener);
+  return () => { listeners!.delete(listener); if (!listeners!.size) pageListeners.delete(appId); };
+}
+export function applicationRuntimeSnapshot(appId: string) { return activated.has(appId) ? pages.get(appId) : undefined; }
 const activated = new Set<string>();
 const contexts = new Map<string, AppContext>();
 const assets = new Map<string, Record<string, string>>();
@@ -161,10 +174,12 @@ export function registerApplication(appId: string, definition: AppDefinition) {
   if (!definition || typeof definition.main !== "function")
     throw new Error(`应用入口无效：${appId}`);
   definitions.set(appId, definition);
+  pages.set(appId, { definition, generation: ++pageGeneration });
+  if (registeredPages.has(appId)) return;
+  registeredPages.add(appId);
 
   // Main stays lazy; importing a card never executes its page module.
-  let Page: ReturnType<AppDefinition["main"]> | undefined;
-  function ApplicationPage() {
+  function ApplicationContent({ record }: { record: PageRecord }) {
     const active = useContext(ApplicationCloudActivity);
     const focused = useIsFocused();
     useEffect(() => {
@@ -176,11 +191,29 @@ export function registerApplication(appId: string, definition: AppDefinition) {
       pageReady(appId);
     }, []);
     pageAttempt(appId);
-    Page ??= definition.main();
-    if (!Page) throw new Error(`应用页面无效：${appId}`);
-    return createElement(ApplicationQueries, { appId, children: createElement(KeyboardViewport, { reserveBottom: false, children: createElement(Page) }) });
+    record.Page ??= record.definition.main();
+    if (!record.Page) throw new Error(`应用页面无效：${appId}`);
+    return createElement(ApplicationQueries, { appId, children: createElement(KeyboardViewport, { reserveBottom: false, children: createElement(record.Page) }) });
+  }
+  function ApplicationPage() {
+    const record = useSyncExternalStore(listener => subscribeApplicationRuntime(appId, listener), () => applicationRuntimeSnapshot(appId));
+    return record ? createElement(ApplicationContent, { key: record.generation, record }) : null;
   }
   registerFeature(appId, ApplicationPage);
+}
+
+export async function disposeApplication(appId: string) {
+  const definition = definitions.get(appId);
+  activated.delete(appId);
+  pages.delete(appId);
+  emitPage(appId);
+  // Give mounted pages a chance to run effect cleanup before onDispose.
+  await new Promise<void>(resolve => {
+    const timer = setTimeout(resolve, 100);
+    requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(timer); resolve(); }));
+  });
+  try { await definition?.onDispose?.(applicationContext(appId)); }
+  finally { definitions.delete(appId); activated.delete(appId); assets.delete(appId); contexts.delete(appId); clearApplicationQueries(appId); }
 }
 
 export function peekRegisteredApplication(appId: string) {
@@ -193,4 +226,5 @@ export function activateApplication(appId: string) {
   const definition = definitions.get(appId);
   if (!definition || activated.has(appId)) return;
   activated.add(appId);
+  emitPage(appId);
 }

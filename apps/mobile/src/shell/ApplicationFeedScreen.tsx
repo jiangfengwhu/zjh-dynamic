@@ -16,7 +16,7 @@ import { HostText as Text } from "./feed/HostText";
 import { useAccount } from "./account";
 import { useProfileDrawer } from "./ProfileDrawer";
 import { bindApplicationExperienceBack, bindNextApplication } from "./applicationExperienceNavigation";
-import { EXPERIENCE_AHEAD, clearDiscoveryRetry, readDiscoveryRetry, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
+import { EXPERIENCE_AHEAD, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
 import { ApplicationInteractions, cachedApplicationDiscussion } from "./ApplicationInteractions";
 import { AuthorFollowButton } from "./AuthorFollowButton";
 import type { UserPost } from "./feed/userPosts";
@@ -47,7 +47,6 @@ export function ApplicationFeedScreen(props: Props) {
   const focused = useIsFocused() && (props.active ?? true);
   const { user } = useAccount();
   const identity = user?.id ?? "guest";
-  const resumedRetry = useMemo(() => readDiscoveryRetry(identity), [identity]);
   const { progress } = useProfileDrawer();
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -120,7 +119,7 @@ export function ApplicationFeedScreen(props: Props) {
     try {
       const result = await fetchMarketPage("", "", cursor, true);
       if (generation.current !== token || currentOwner.current !== owner) return;
-      setPage(prior => ({ owner, loaded: true, applications: unique(more && prior.owner === owner ? [...prior.applications, ...result.applications] : resumedRetry ? [resumedRetry, ...result.applications] : result.applications), nextCursor: result.nextCursor === cursor ? undefined : result.nextCursor }));
+      setPage(prior => ({ owner, loaded: true, applications: unique(more && prior.owner === owner ? [...prior.applications, ...result.applications] : result.applications), nextCursor: result.nextCursor === cursor ? undefined : result.nextCursor }));
       if (!more) { setIndex(0); setPause(false); setRevision(value => value + 1); }
       return result.applications.length > 0;
     } catch (cause) {
@@ -128,18 +127,17 @@ export function ApplicationFeedScreen(props: Props) {
     } finally {
       if (generation.current === token) { request.current = false; setBusy(false); }
     }
-  }, [identity, page.nextCursor, setPause, resumedRetry]);
+  }, [identity, page.nextCursor, setPause]);
   useEffect(() => {
     generation.current++;
     request.current = false;
-    setPage({ owner: identity, applications: resumedRetry ? [resumedRetry] : [], loaded: false });
-    if (resumedRetry) clearDiscoveryRetry();
+    setPage({ owner: identity, applications: [], loaded: false });
     setIndex(0);
     setPause(false);
     setError("");
     setBusy(false);
     return () => { generation.current++; };
-  }, [identity, setPause, resumedRetry]);
+  }, [identity, setPause]);
   const refreshExperience = useCallback((fresh: MarketApplication) => {
     setPage(prior => prior.owner !== identity ? prior : { ...prior, applications: prior.applications.map(item => item.manifest.appId === fresh.manifest.appId ? fresh : item) });
   }, [identity]);

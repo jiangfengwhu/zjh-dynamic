@@ -9,6 +9,8 @@ import {
   preparePublicApplication,
   validateApplication,
   applicationNeedsReload,
+  reloadApplication,
+  unloadApplication,
   type ApplicationManifest,
 } from "../runtime/applications";
 import { edgeUrl } from "./evolveHost";
@@ -23,7 +25,6 @@ import {
 import {
   registerApplicationMetadata,
 } from "../../../../packages/features/src/registry";
-import NativePluginHost from "../NativePluginHost";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { confirmCreation } from "./creationConsent";
@@ -321,20 +322,9 @@ export async function installMarketApplication(
   const current = runningApplication(manifest.appId);
   if (applicationNeedsReload(manifest)) {
     if (options?.reloadLoaded === false) return "pending" as const;
-    writeShellValue(
-      "application.openAfterReload",
-      JSON.stringify({
-        appId: manifest.appId,
-        ownerId: await currentAccountId(),
-      })
-    );
-    try {
-      await NativePluginHost.call("shell", "reloadApplications", "{}");
-    } catch (error) {
-      writeShellValue("application.openAfterReload", "");
-      throw error;
-    }
-    return;
+    await reloadApplication(manifest.appId);
+    await saveCatalog(await loadCatalog());
+    return "ready" as const;
   }
   if (current?.releaseId === manifest.releaseId)
     writeShellValue(`application.pending.${manifest.appId}`, "");
@@ -355,8 +345,7 @@ export async function uninstallMarketApplication(appId: string) {
   entry.pinned = false;
   await saveCatalog(catalog);
   writeShellValue(`application.pending.${appId}`, "");
-  // Retain storage and cached media; reload to release evaluated JS and timers.
-  await NativePluginHost.call("shell", "reloadApplications", "{}");
+  await unloadApplication(appId);
 }
 export type SharingState = {
   iconUrl?: string;

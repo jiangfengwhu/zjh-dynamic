@@ -542,19 +542,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 /* Ignore an incomplete handoff. */
               }
             }
-            const raw = await readShellValue("application.openAfterReload");
-            removeShellValue("application.openAfterReload");
-            if (!raw || linkOpened.current) return;
-            try {
-              const request = JSON.parse(raw);
-              if (
-                request.ownerId === (await currentAccountId()) && !linkOpened.current &&
-                /^[a-z][a-z0-9-]{0,63}$/.test(request.appId)
-              )
-                openShellBundle(request.appId);
-            } catch {
-              /* Ignore an incomplete navigation request. */
-            }
           })();
         }}
       >

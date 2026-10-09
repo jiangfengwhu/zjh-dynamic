@@ -5,7 +5,8 @@ import { waitForInteractions, waitForRouteTransitions } from "../shell/interacti
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, readShellValueSync, shellKeys, writeShellValue } from "../shell/shellStorage";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../shell/account";
-import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt } from "../../../../packages/app-sdk/src/runtime";
+import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt, disposeApplication } from "../../../../packages/app-sdk/src/runtime";
+import { createApplicationModuleScope, releaseApplicationModuleScope } from "./applicationModules";
 import { restoreWorks } from "../shell/workRecovery";
 import { loadCatalog, loadCatalogSync, saveCatalog } from "../shell/catalog";
 import type { PendingPackage } from "../shell/packageUpdates";
@@ -25,6 +26,8 @@ const loading = new Map<string, Promise<void>>();
 const loaded = new Set<string>();
 const evaluating = new Set<string>();
 const quarantined = new Set<string>();
+const reloading = new Map<string, Promise<void>>();
+const replacementModes = new Map<string, boolean | "failure">();
 const active = new Map<string, ApplicationManifest>();
 type Access = { releaseId: string; ownerId: string | null; public?: boolean };
 class AccessDenied extends Error {}
@@ -46,7 +49,7 @@ function persistChanged(key: string, value: string) {
 subscribeAccountIdentity(id => {
   offered.clear();
   if (id) void restoreWorks(false, true).catch(() => {});
-  if ([...activeAccess.values()].some(access => access.ownerId && access.ownerId !== id)) void NativePluginHost.call("shell", "reloadApplications", "{}").catch(() => {});
+  for (const [appId, access] of activeAccess) if (access.ownerId && access.ownerId !== id) void unloadApplication(appId).catch(() => {});
 });
 async function verifyCandidateAccess(manifest: ApplicationManifest, ownerId: string): Promise<void> {
   if (await currentAccountId() !== ownerId) throw new AccessDenied("请登录作品所属账号后再体验候选版本");
@@ -128,7 +131,7 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
       if (readShellValueSync(accessKey) !== value) writeShellValue(accessKey, value);
     }
   };
-  if (loading.has(appId)) {
+  if (loading.has(appId) || loaded.has(appId)) {
     await loadApplication(appId);
     signal.throwIfAborted();
     await acceptPublicRuntime();
@@ -203,7 +206,7 @@ export function applicationLoaded(appId: string) {
   return loaded.has(appId) && !quarantined.has(appId) && !!access && (!access.ownerId || access.ownerId === cachedAccountId());
 }
 export function applicationNeedsReload(manifest: ApplicationManifest) {
-  return quarantined.has(manifest.appId) || evaluating.has(manifest.appId) && !loaded.has(manifest.appId) || loading.has(manifest.appId) && active.get(manifest.appId)?.releaseId !== manifest.releaseId;
+  return quarantined.has(manifest.appId) || evaluating.has(manifest.appId) && !loaded.has(manifest.appId) || !!active.get(manifest.appId) && active.get(manifest.appId)?.releaseId !== manifest.releaseId;
 }
 export function runningApplicationReleases() { return Object.fromEntries([...active].filter(([id]) => healthy.has(id)).map(([id, manifest]) => [id, manifest.releaseId])); }
 export function offerApplication(manifest: ApplicationManifest, ownerId: string | null = null) { assertCompatible(manifest, manifest.appId); offered.set(manifest.appId, { manifest, ownerId }); }
@@ -322,29 +325,61 @@ export async function stageApplicationUpdates(appId?: string): Promise<number> {
 
 export async function applyApplicationUpdate(appId: string): Promise<number> {
   const count = await stageApplicationUpdates(appId);
-  if (count) {
-    writeShellValue("application.openAfterReload", JSON.stringify({ appId, ownerId: await currentAccountId() }));
-    try { await NativePluginHost.call("shell", "reloadApplications", "{}"); }
-    catch (error) { writeShellValue("application.openAfterReload", ""); throw error; }
-  }
+  if (count) await reloadApplication(appId);
   return count;
 }
 
+async function releaseRuntime(appId: string) {
+  loaded.delete(appId); healthy.delete(appId); evaluating.delete(appId); quarantined.delete(appId);
+  active.delete(appId); activeAccess.delete(appId);
+  writeShellValue(`application.attempt.${appId}`, "");
+  writeShellValue(`application.evaluation.${appId}`, "");
+  try { await disposeApplication(appId); }
+  catch { console.warn("应用卸载回调失败", appId); }
+  finally { releaseApplicationModuleScope(appId); }
+}
+function replaceRuntime(appId: string, reopen: boolean): Promise<void> {
+  const existing = reloading.get(appId);
+  if (existing && replacementModes.get(appId) === reopen) return existing;
+  const task = (async () => {
+    await existing?.catch(() => {});
+    await loading.get(appId)?.catch(() => {});
+    await releaseRuntime(appId);
+    if (reopen) await startApplicationLoad(appId);
+  })().finally(() => { if (reloading.get(appId) === task) { reloading.delete(appId); replacementModes.delete(appId); } });
+  reloading.set(appId, task);
+  replacementModes.set(appId, reopen);
+  return task;
+}
+export function reloadApplication(appId: string) { return replaceRuntime(appId, true); }
+export function unloadApplication(appId: string) { return replaceRuntime(appId, false); }
+export async function applyStagedApplicationUpdates() {
+  const ids = [...offered.keys()].filter(id => !!readShellValueSync(`application.pending.${id}`));
+  const results = await Promise.allSettled(ids.map(reloadApplication));
+  if (results.some(result => result.status === "rejected")) throw new Error("部分应用更新未能加载，请在应用详情重试");
+}
+
 export async function loadApplication(appId: string): Promise<void> {
+  const replacement = reloading.get(appId);
+  if (replacement) return replacement;
+  return startApplicationLoad(appId);
+}
+function startApplicationLoad(appId: string): Promise<void> {
   if (quarantined.has(appId)) throw new Error("这个版本加载失败，请等待新版本或重载后安装其他版本");
   const existing = loading.get(appId);
-  if (existing) {
+  if (existing || loaded.has(appId)) {
     const access = activeAccess.get(appId);
-    if (access?.ownerId && await currentAccountId() !== access.ownerId) throw new AccessDenied("请登录作品所属账号后再体验候选版本");
-    return existing;
+    if (access?.ownerId && cachedAccountId() !== access.ownerId) return Promise.reject(new AccessDenied("请登录作品所属账号后再体验候选版本"));
+    return existing ?? Promise.resolve();
   }
-  const pending = load(appId).then(() => { loaded.add(appId); }).catch(async error => {
-    if (evaluating.has(appId) && await readShellValue(`application.pending.${appId}`) && await readShellValue(`application.previous.${appId}`)) await reportApplicationFailure(appId);
-    if (!evaluating.has(appId)) loading.delete(appId);
+  const pending = load(appId).then(() => { loaded.add(appId); activateApplication(appId); }).catch(async error => {
+    if (evaluating.has(appId)) await recoverApplicationFailure(appId);
     throw error;
+  }).finally(() => {
+    evaluating.delete(appId);
+    if (loading.get(appId) === pending) loading.delete(appId);
   });
   loading.set(appId, pending);
-  // A failed evaluation may have registered modules. Retry requires a fresh JS environment.
   return pending;
 }
 
@@ -411,6 +446,7 @@ async function load(appId: string) {
   writeShellValue(`application.evaluation.${appId}`, manifest.releaseId);
   writeShellValue(`application.evaluation.host.${appId}`, hostBuildId);
   evaluating.add(appId);
+  createApplicationModuleScope(appId, manifest.modules.base, manifest.modules.size);
   const raw = await NativePluginHost.call("shell", "loadApplication", JSON.stringify(manifest));
   const result = JSON.parse(raw) as { assets: Record<string, string> };
   installApplicationAssets(appId, result.assets);
@@ -418,7 +454,6 @@ async function load(appId: string) {
   if (!definition) throw new Error(`应用没有登记入口：${appId}`);
 
   active.set(appId, manifest);
-  activateApplication(appId);
   if (!saved && definition.onInstall) await definition.onInstall(applicationContext(appId));
   writeShellValue(`application.evaluation.${appId}`, "");
   if (saved && JSON.parse(saved).releaseId === manifest.releaseId) { healthy.add(appId); }
@@ -440,7 +475,20 @@ function assertCompatible(manifest: ApplicationManifest, appId: string) {
   }
 }
 
-export async function reportApplicationFailure(appId: string) {
+export function reportApplicationFailure(appId: string, releaseId?: string): Promise<void> {
+  const current = active.get(appId);
+  if (releaseId && current?.releaseId !== releaseId) return Promise.resolve();
+  const existing = reloading.get(appId);
+  if (existing && replacementModes.get(appId) === "failure") return existing;
+  const task = (async () => {
+    await existing?.catch(() => {});
+    await loading.get(appId)?.catch(() => {});
+    if (active.get(appId) === current) await recoverApplicationFailure(appId);
+  })().finally(() => { if (reloading.get(appId) === task) { reloading.delete(appId); replacementModes.delete(appId); } });
+  reloading.set(appId, task); replacementModes.set(appId, "failure");
+  return task;
+}
+async function recoverApplicationFailure(appId: string) {
   const current = active.get(appId);
   if (!current) return;
   quarantined.add(appId); active.delete(appId); activeAccess.delete(appId);
@@ -456,11 +504,14 @@ export async function reportApplicationFailure(appId: string) {
     writeShellValue(`application.install.${appId}`, previous);
     writeShellValue(`application.access.${appId}`, await readShellValue(`application.previous.access.${appId}`) || "");
     writeShellValue(`application.previous.${appId}`, "");
-    await NativePluginHost.call("shell", "reloadApplications", "{}");
+    await releaseRuntime(appId);
+    try { await load(appId); loaded.add(appId); activateApplication(appId); }
+    catch { await releaseRuntime(appId); quarantined.add(appId); }
+    finally { evaluating.delete(appId); }
   } else {
     writeShellValue(`application.install.${appId}`, "");
     writeShellValue(`application.access.${appId}`, "");
-    await NativePluginHost.call("shell", "reloadApplications", "{}");
+    await releaseRuntime(appId);
   }
 }
 

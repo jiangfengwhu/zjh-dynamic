@@ -1,7 +1,7 @@
 import { installApkUpdate, type ApkProgress } from "./apkUpdates";
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "./evolveHost";
-import { checkApplicationUpdates, stageApplicationUpdates } from "../runtime/applications";
+import { checkApplicationUpdates, stageApplicationUpdates, applyStagedApplicationUpdates } from "../runtime/applications";
 
 export type PendingPackage = {
   id: string;
@@ -60,8 +60,7 @@ export async function applyPackageUpdates(items: PendingPackage[] = [], onApkPro
   if (parsed.ok === false || !Number.isSafeInteger(parsed.applied) || parsed.applied! < 0) throw new Error(parsed.message || parsed.error || "更新未能应用，请重试");
   console.log("package updates apply", parsed.applied ?? 0);
   if (applicationCount && !parsed.applied) {
-    const result = JSON.parse(await NativePluginHost.call("shell", "reloadApplications", "{}")) as { ok?: boolean };
-    if (!result.ok) throw new Error("应用已下载，但刷新未完成，请重新打开 App");
+    await applyStagedApplicationUpdates();
   }
   return (parsed.applied ?? 0) + applicationCount;
 }
