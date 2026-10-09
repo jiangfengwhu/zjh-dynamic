@@ -148,6 +148,10 @@ function openSearch() {
   beginRouteTransition(SEARCH_NAVIGATION_INTENT);
   shellNavigationRef.navigate("discovery");
 }
+function openPost(post: UserPost) {
+  if (shellNavigationRef.isReady()) shellNavigationRef.navigate("postDetail", { post });
+}
+function openPostComposer() { openPublication("post"); }
 function openAuthor(author: PublicAuthor) {
   if (shellNavigationRef.isReady()) {
     // Stop queued preheating as soon as the user taps, before native events arrive.
@@ -664,8 +668,8 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                           {() => <FeedScreen
                             onAuthor={openAuthor}
                             onApplication={openPublicMarketApplication}
-                            onPost={post => shellNavigationRef.navigate("postDetail", { post })}
-                            onCompose={() => openPublication("post")}
+                            onPost={openPost}
+                            onCompose={openPostComposer}
                           />}
                         </ShellTabScene>
                       )}

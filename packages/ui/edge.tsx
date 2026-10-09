@@ -1,7 +1,7 @@
 import { Children, createContext, isValidElement, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Keyboard, Modal, StyleSheet, View, type ModalProps, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { KeyboardViewport } from "./keyboard";
+import { KeyboardViewport, useKeyboardOverlayActive } from "./keyboard";
 import { Ambient } from "./chrome/Ambient";
 
 const EdgeContext = createContext({ bottom: true });
@@ -69,9 +69,11 @@ export function EdgeModal(props: ModalProps) {
 }
 
 export function useKeyboardOpen() {
+  const overlay = useKeyboardOverlayActive();
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardDidShow", () => setOpen(true));
+    setOpen(!overlay && Keyboard.isVisible());
+    const show = Keyboard.addListener("keyboardDidShow", () => setOpen(!overlay));
     const hide = Keyboard.addListener("keyboardDidHide", () => setOpen(false));
     return () => {
       show.remove();

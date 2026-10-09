@@ -1,3 +1,4 @@
+import { useKeyboardMode } from "../../../../packages/ui/keyboard";
 import { setPostSharingHandler } from "./sharePanel";
 import type { UserPost } from "./feed/userPosts";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -32,6 +33,7 @@ export function ApplicationSharingHost() {
   const { user } = useAccount();
   const sheet = useRef<BottomSheetModal>(null);
   const [request, setRequest] = useState<ShareRequest>();
+  useKeyboardMode("resize", !!request);
   const current = useRef<ShareRequest>();
   const sequence = useRef(0);
   const [people, setPeople] = useState<Recipient[]>([]);

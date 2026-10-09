@@ -1,3 +1,4 @@
+import { useKeyboardMode } from "../../../../packages/ui/keyboard";
 import { ApplicationCloudActivity } from "../../../../packages/app-sdk/src/cloud-activity";
 import { Activity, memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "react-native";
@@ -75,6 +76,7 @@ export function ApplicationFeedScreen(props: Props) {
   const previous = items[index - 1];
   const next = items[index + 1];
   const active = focused && foreground && !drawerOpen;
+  useKeyboardMode("overlay", active && !commentPost && !paused);
   const drag = useSharedValue(0);
   const moving = useSharedValue(false);
   const dragging = useSharedValue(false);

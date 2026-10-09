@@ -87,11 +87,14 @@ function MyProfileContent({
   }>();
   const onProfileLoaded = useCallback(
     (profile: import("./feed/userPosts").AuthorProfile) =>
-      setStats({
+      setStats(previous => {
+        const next = {
         id: profile.author.id,
         publicCount: profile.applicationCount ?? profile.applications.length,
         followers: profile.followerCount ?? 0,
         following: profile.followingCount ?? 0,
+        };
+        return previous && previous.id === next.id && previous.publicCount === next.publicCount && previous.followers === next.followers && previous.following === next.following ? previous : next;
       }),
     []
   );
