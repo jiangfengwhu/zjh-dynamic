@@ -22,7 +22,7 @@ export function AuthorFollowButton({ authorId, compact = false, active = true }:
     if (!active || !owner || owner === authorId || cachedAuthorFollowing(authorId) !== undefined) return;
     return afterInteractions(() => { void fetchAuthorProfile(authorId).catch(() => {}); });
   }, [authorId, owner, active]);
-  if (!authorId || owner === authorId) return null;
+  if (!authorId || owner === authorId || compact && following) return null;
   async function follow() {
     if (pending.current) return;
     pending.current = true;
