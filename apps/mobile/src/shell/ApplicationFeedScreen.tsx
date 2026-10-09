@@ -240,10 +240,12 @@ export function ApplicationFeedScreen(props: Props) {
           {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={setCommentPost} onOpen={() => { void props.onOpen(item.manifest.appId); }} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <View style={{ width: 44, height: 48, alignItems: "center", justifyContent: "center" }}>
-              <Pressy accessibilityRole="button" accessibilityLabel={`查看作者${item.authorName}`} disabled={!item.authorId} onPress={() => item.authorId && props.onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial })} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: 36, height: 36 }}>
+              <Pressy accessibilityRole="button" accessibilityLabel={`查看作者${item.authorName}`} disabled={!item.authorId} onPress={() => item.authorId && props.onAuthor({ id: item.authorId, name: item.authorName, avatarUrl: item.authorAvatarUrl ?? null, official: item.authorOfficial })} style={{ position: "absolute", top: -4, left: -4, width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
                 <UserAvatar uri={item.authorAvatarUrl} authorId={item.authorId} size={36} />
               </Pressy>
               {item.authorId ? <AuthorFollowButton key={`${identity}:${item.authorId}`} authorId={item.authorId} compact active={active && !switching} /> : null}
+              </View>
             </View>
             <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.title || item.manifest.appName}的介绍和评论`} onPress={() => void openComments()} style={{ flex: 1, minWidth: 0, minHeight: 44, justifyContent: "center", gap: 2 }}>
                 <Text numberOfLines={1} style={{ color: t.ink1, fontSize: 13, lineHeight: 18 }}><Text style={{ fontWeight: "700" }}>{item.authorName || "创作者"}</Text> · {item.title || item.manifest.appName}</Text>

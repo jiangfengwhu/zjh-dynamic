@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { ActivityIndicator, BackHandler, Keyboard, View, useWindowDimensions, type TextInput } from "react-native";
+import { ActivityIndicator, BackHandler, Keyboard, View, type TextInput } from "react-native";
 import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetTextInput, useBottomSheetScrollableCreator, useBottomSheetTimingConfigs, type BottomSheetBackdropProps, type BottomSheetFooterProps } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ReduceMotion } from "react-native-reanimated";
@@ -25,11 +25,15 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
   const { colors: t } = useTheme();
   const { user } = useAccount();
   const { bottom } = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
-  const [collapsedListHeight, setCollapsedListHeight] = useState(windowHeight * 0.68 - 64);
+  const [collapsedListHeight, setCollapsedListHeight] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
-  const [footerHeight, setFooterHeight] = useState(64);
-  useEffect(() => { setCollapsedListHeight(windowHeight * 0.68 - 64); }, [windowHeight]);
+  const [footerHeight, setFooterHeight] = useState(0);
+  const [emptyHeight, setEmptyHeight] = useState(0);
+  // Reveal the empty message only after the opening snap and both layouts settle.
+  // Keep its slot stable when the sheet expands or the input footer changes.
+  useLayoutEffect(() => {
+    if (!emptyHeight && collapsedListHeight > 0 && headerHeight > 0 && footerHeight > 0) setEmptyHeight(Math.max(96, collapsedListHeight - headerHeight - footerHeight - bottom));
+  }, [emptyHeight, collapsedListHeight, headerHeight, footerHeight, bottom]);
   const category = marketCategories.find(category => category.id && category.id === application.category)?.label;
   const initial = cachedPostDetail(post.id);
   const [comments, setComments] = useState<UserComment[]>(initial?.comments ?? []);
@@ -159,7 +163,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
         </View>
         {application.summary || application.manifest.description ? <Text selectable style={{ color: t.ink2, fontSize: 13, lineHeight: 20 }}>{application.summary || application.manifest.description}</Text> : null}
       </View>}
-        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" animated={active} /></View> : !error ? <View style={{ height: Math.max(96, collapsedListHeight - headerHeight - footerHeight - bottom), alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}><Text style={{ color: t.ink3, textAlign: "center" }}>还没有评论，来说点什么吧</Text></View> : null}
+        ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" animated={active} /></View> : !error && emptyHeight > 0 ? <View style={{ height: emptyHeight, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}><Text style={{ color: t.ink3, textAlign: "center" }}>还没有评论，来说点什么吧</Text></View> : null}
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
           <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} />
           <View style={{ flex: 1, minWidth: 0 }}>

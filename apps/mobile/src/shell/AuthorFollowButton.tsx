@@ -34,10 +34,10 @@ export function AuthorFollowButton({ authorId, compact = false, active = true }:
       if (alive.current && cachedAccountId() === owner) Toast.show({ type: "error", text1: "关注未完成", text2: cause instanceof Error ? cause.message : "请重试" });
     } finally { pending.current = false; if (alive.current) setBusy(false); }
   }
-  return <Pressy accessibilityRole="button" accessibilityLabel={following ? "已关注作者" : "关注作者"} accessibilityState={{ disabled: busy || following === true }} disabled={busy || following === true} hitSlop={compact ? 13 : 4} onPress={() => void follow()} style={compact
-    ? { position: "absolute", right: -3, bottom: -8, width: 18, height: 18, borderRadius: t.radius.pill, borderWidth: 1.5, borderColor: t.canvas, backgroundColor: following ? t.surfaceRaised : t.accent, alignItems: "center", justifyContent: "center" }
+  return <Pressy accessibilityRole="button" accessibilityLabel={following ? "已关注作者" : "关注作者"} accessibilityState={{ disabled: busy || following === true }} disabled={busy || following === true} hitSlop={compact ? { top: 3, left: 3, bottom: 27, right: 27 } : 4} onPress={() => void follow()} style={compact
+    ? { position: "absolute", right: -1, bottom: -1, width: 14, height: 14, minWidth: 14, minHeight: 14, padding: 0, borderRadius: t.radius.pill, borderWidth: 1, borderColor: t.canvas, backgroundColor: following ? t.surfaceRaised : t.accent, alignItems: "center", justifyContent: "center" }
     : { minHeight: 36, paddingHorizontal: 12, borderRadius: t.radius.pill, backgroundColor: following ? t.surfaceRaised : t.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 }}>
-    {busy && !compact ? <ActivityIndicator size="small" color={t.onAccent} /> : <SymbolIcon name={following ? "check" : "plus"} size={compact ? 11 : 15} color={following ? t.ink3 : t.onAccent} />}
+    {busy && !compact ? <ActivityIndicator size="small" color={t.onAccent} /> : <SymbolIcon name={following ? "check" : "plus"} size={compact ? 10 : 15} color={following ? t.ink3 : t.onAccent} />}
     {!compact ? <Text style={{ color: following ? t.ink3 : t.onAccent, fontSize: 12, fontWeight: "700" }}>{following ? "已关注" : "关注"}</Text> : null}
   </Pressy>;
 }
