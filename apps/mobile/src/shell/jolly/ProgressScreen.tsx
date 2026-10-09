@@ -1,6 +1,6 @@
 import { FlashList } from "@shopify/flash-list";
 import { EmptyState } from "../EmptyState";
-import { PageSkeleton } from "../LoadingSkeleton";
+import { Skeleton } from "../../../../../packages/ui/feedback/Skeleton";
 import { useEffect, useRef, useState } from "react";
 import { cachedAccountId, subscribeAccountIdentity } from "../account";
 import { Animated, Easing, Pressable, View } from "react-native";
@@ -279,7 +279,7 @@ function ProgressContent({
                 </Text>
               </View>
             ) : (
-              <LoadingPanel failed={!!query.error} />
+              <LoadingPanel failed={!!query.error} active={query.active} />
             )}
             {state ? (
               <View style={{ flexDirection: "row", gap: 8 }}>
@@ -459,29 +459,28 @@ function RefreshButton({
     </Pressable>
   );
 }
-function LoadingPanel({ failed }: { failed: boolean }) {
+function LoadingPanel({ failed, active }: { failed: boolean; active: boolean }) {
   const { colors } = useTheme();
-  return (
-    <View
-      accessibilityLiveRegion="polite"
-      style={{
-        minHeight: 166,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
-      }}
-    >
-      {failed ? (
-        <SymbolIcon name="alert" size={24} color={colors.redText} />
-      ) : (
-        <PageSkeleton rows={2} />
-      )}
-      {failed ? (
-        <Text style={{ fontSize: 14, color: colors.ink2 }}>
-          加载失败，请重试
-        </Text>
-      ) : null}
+  if (failed) return <View accessibilityLiveRegion="polite" style={{ minHeight: 166, alignItems: "center", justifyContent: "center", gap: 12 }}>
+    <SymbolIcon name="alert" size={24} color={colors.redText} />
+    <Text style={{ fontSize: 14, color: colors.ink2 }}>加载失败，请重试</Text>
+  </View>;
+  const block = (width: number | `${number}%`, height: number, radius = 6) => <Skeleton width={width} height={height} borderRadius={radius} animated={active} style={{ backgroundColor: colors.lineStrong }} />;
+  return <View accessibilityLabel="正在加载制作进度" accessibilityState={{ busy: true }} style={{ gap: 12 }}>
+    <View style={{ overflow: "hidden", borderRadius: colors.radius.xl, borderWidth: colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line, backgroundColor: colors.surface, boxShadow: colors.shadow.card }}>
+      <View style={{ marginHorizontal: 20 }}>{block("100%", 3, 2)}</View>
+      <View style={{ flexDirection: "row", gap: 12, padding: 16, alignItems: "center" }}>
+        {block(64, 64, 32)}
+        <View style={{ flex: 1, gap: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>{block(16, 16, 8)}{block(66, 11)}</View>
+          <View style={{ minHeight: colors.type.title2.lineHeight, justifyContent: "center" }}>{block("55%", 20)}</View>
+        </View>
+      </View>
+      <View style={{ paddingHorizontal: 16, paddingBottom: 16, height: 36, justifyContent: "flex-start" }}>{block("80%", 13)}</View>
     </View>
-  );
+    <View style={{ flexDirection: "row", gap: 8 }}>
+      {[0, 1, 2].map(index => <View key={index} style={{ flex: 1, minHeight: 64, alignItems: "center", justifyContent: "center", gap: 5, borderRadius: colors.radius.lg, backgroundColor: colors.surfaceRaised }}>{block(18, 18, 9)}{block(26, 13)}</View>)}
+    </View>
+    <View style={{ minHeight: 18, justifyContent: "center" }}>{block("85%", 11)}</View>
+  </View>;
 }
-

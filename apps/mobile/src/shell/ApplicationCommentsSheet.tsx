@@ -12,6 +12,7 @@ import { cachedAccountId, useAccount, requireAccount } from "./account";
 import { HostAlert } from "./HostAlert";
 import { PageSkeleton } from "./LoadingSkeleton";
 import { UserAvatar } from "./UserAvatar";
+import { readApplicationComments } from "./ApplicationInteractions";
 import { ApplicationIcon } from "./ApplicationIcon";
 import { AuthorFollowButton } from "./AuthorFollowButton";
 import { marketCategories, type MarketApplication } from "./market";
@@ -21,7 +22,7 @@ import { formatWhen } from "./formatTime";
 import { readShellValue, writeShellValue, removeShellValue } from "./shellStorage";
 
 /** Work discussion stays over the playable stage; no timeline card or route change. */
-export function ApplicationCommentsSheet({ post, application, active, onDismiss }: { post: UserPost; application: MarketApplication; active: boolean; onDismiss: () => void }) {
+export function ApplicationCommentsSheet({ post, application, active, onDismiss }: { post?: UserPost; application: MarketApplication; active: boolean; onDismiss: () => void }) {
   const { colors: t } = useTheme();
   const { user } = useAccount();
   const { bottom } = useSafeAreaInsets();
@@ -35,9 +36,12 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
     if (!emptyHeight && collapsedListHeight > 0 && headerHeight > 0 && footerHeight > 0) setEmptyHeight(Math.max(96, collapsedListHeight - headerHeight - footerHeight - bottom));
   }, [emptyHeight, collapsedListHeight, headerHeight, footerHeight, bottom]);
   const category = marketCategories.find(category => category.id && category.id === application.category)?.label;
-  const initial = cachedPostDetail(post.id);
+  const [initial] = useState(() => post ? cachedPostDetail(post.id) : undefined);
+  const [discussion, setDiscussion] = useState(initial?.post ?? post);
+  const [opened, setOpened] = useState(false);
+  const authorId = discussion?.author.id ?? application.authorId;
   const [comments, setComments] = useState<UserComment[]>(initial?.comments ?? []);
-  const [count, setCount] = useState(initial?.post.commentCount ?? post.commentCount ?? 0);
+  const [count, setCount] = useState(initial?.post.commentCount ?? post?.commentCount ?? 0);
   const [cursor, setCursor] = useState<string | null>(initial?.nextCursor ?? null);
   const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState("");
@@ -56,7 +60,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
   const version = useRef(0);
   const loaded = useRef(!!initial);
   const request = useRef<{ signature: string; id: string } | null>(null);
-  const draftKey = `social.comment-draft.${user?.id ?? "guest"}.${post.id}`;
+  const draftKey = discussion ? `social.comment-draft.${user?.id ?? "guest"}.${discussion.id}` : undefined;
   const characters = Array.from(text).length;
   const Scrollable = useBottomSheetScrollableCreator({ enableFooterMarginAdjustment: true });
   const animation = useBottomSheetTimingConfigs({ duration: 220 });
@@ -71,11 +75,12 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
   }, [close]);
   useEffect(() => { if (!active) close(); }, [active, close]);
   useEffect(() => {
+    if (!draftKey || !opened) return;
     let live = true;
     setDraftReady(false);
     void (async () => {
       const value = await readShellValue(draftKey);
-      const guestKey = `social.comment-draft.guest.${post.id}`;
+      const guestKey = `social.comment-draft.guest.${discussion!.id}`;
       const guestDraft = !value && user ? await readShellValue(guestKey) : null;
       if (!live) return;
       if (guestDraft) { writeShellValue(draftKey, guestDraft); removeShellValue(guestKey); }
@@ -84,32 +89,33 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
       if (live) Toast.show({ type: "error", text1: "评论草稿读取失败，请重新打开评论" });
     });
     return () => { live = false; };
-  }, [draftKey]);
-  useEffect(() => { if (draftReady) { if (text) writeShellValue(draftKey, text); else removeShellValue(draftKey); } }, [draftReady, draftKey, text]);
+  }, [draftKey, opened]);
+  useEffect(() => { if (draftReady && draftKey) { if (text) writeShellValue(draftKey, text); else removeShellValue(draftKey); } }, [draftReady, draftKey, text]);
 
   async function load(more = false) {
-    if (reading.current || writing.current || (more && !cursor)) return;
+    if (reading.current || writing.current || (more && (!cursor || !discussion))) return;
     reading.current = true; setLoading(true);
     const before = version.current;
     try {
-      const result = await fetchPostDetail(post.id, more ? cursor! : undefined);
+      const result = more ? await fetchPostDetail(discussion!.id, cursor!) : await readApplicationComments(application.manifest.appId);
       if (!alive.current || before !== version.current) return;
+      setDiscussion(result.post);
       loaded.current = true; setError(""); setCount(result.post.commentCount ?? 0); setCursor(result.nextCursor);
       setComments(prior => (more ? [...prior, ...result.comments.filter(item => !prior.some(old => old.id === item.id))] : result.comments).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)));
     } catch (cause) { if (alive.current && before === version.current) setError(cause instanceof Error ? cause.message : "评论加载失败，请重试"); }
     finally { reading.current = false; if (alive.current) { setLoading(false); if (before !== version.current && !writing.current) void load(); } }
   }
-  useEffect(() => { if (!initial?.readAt || Date.now() - initial.readAt > 4000) void load(); }, []);
+  useEffect(() => { if (opened && (!initial?.readAt || Date.now() - initial.readAt > 4000)) void load(); }, [opened]);
 
   async function send() {
-    if (!draftReady || writing.current || !text.trim() || characters > 1000) return;
+    if (!discussion || !draftKey || !draftReady || writing.current || !text.trim() || characters > 1000) return;
     writing.current = true; setSending(true); version.current++;
     try {
       if (!cachedAccountId()) { loginAfterClose.current = true; close(); return; }
       if (!await requireAccount() || !alive.current) return;
       const signature = JSON.stringify([text.trim(), reply?.id]);
       if (request.current?.signature !== signature) request.current = { signature, id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}` };
-      const result = await publishPostComment(post.id, text.trim(), request.current.id, reply?.id);
+      const result = await publishPostComment(discussion.id, text.trim(), request.current.id, reply?.id);
       if (!alive.current) {
         if (await readShellValue(draftKey) === text) removeShellValue(draftKey);
         return;
@@ -122,11 +128,12 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
     finally { writing.current = false; if (alive.current) { setSending(false); if (!loaded.current && !reading.current) void load(); } }
   }
   function remove(comment: UserComment) {
+    if (!discussion) return;
     HostAlert.alert("删除评论？", "删除后无法恢复。", [{ text: "取消", style: "cancel" }, { text: "删除", style: "destructive", onPress: () => { void (async () => {
       if (writing.current || !alive.current) return;
       writing.current = true; version.current++; setDeleting(comment.id);
       try {
-        const result = await deletePostComment(post.id, comment.id);
+        const result = await deletePostComment(discussion.id, comment.id);
         if (alive.current) { setCount(result.post.commentCount ?? 0); setComments(prior => prior.filter(item => item.id !== comment.id)); if (reply?.id === comment.id) setReply(null); }
       } catch (cause) { if (alive.current) Toast.show({ type: "error", text1: "删除未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
       finally { writing.current = false; if (alive.current) setDeleting(null); }
@@ -144,10 +151,10 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
         {characters > 800 ? <Text style={{ color: characters > 1000 ? t.danger : t.ink3, textAlign: "right", fontSize: 11 }}>{characters}/1000</Text> : null}
       </View>
   );
-  return <BottomSheetModal ref={modal} footerComponent={Footer} index={0} snapPoints={["68%", "92%"]} onChange={(index, position) => { if (index === 0 && position > 0 && !Keyboard.isVisible()) setCollapsedListHeight(position * 0.68 / 0.32 - 64); }} enableDynamicSizing={false} enablePanDownToClose enableBlurKeyboardOnGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan" onDismiss={() => { onDismiss(); if (loginAfterClose.current) void requireAccount(); }} backdropComponent={backdrop} animationConfigs={animation} overrideReduceMotion={ReduceMotion.System} backgroundStyle={{ backgroundColor: t.canvas, borderTopLeftRadius: t.radius.xxl, borderTopRightRadius: t.radius.xxl }} handleIndicatorStyle={{ backgroundColor: t.lineStrong, width: 36 }}>
+  return <BottomSheetModal ref={modal} footerComponent={Footer} index={0} snapPoints={["68%", "92%"]} onChange={(index, position) => { if (index >= 0) setOpened(true); if (index === 0 && position > 0 && !Keyboard.isVisible()) setCollapsedListHeight(position * 0.68 / 0.32 - 64); }} enableDynamicSizing={false} enablePanDownToClose enableBlurKeyboardOnGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan" onDismiss={() => { onDismiss(); if (loginAfterClose.current) void requireAccount(); }} backdropComponent={backdrop} animationConfigs={animation} overrideReduceMotion={ReduceMotion.System} backgroundStyle={{ backgroundColor: t.canvas, borderTopLeftRadius: t.radius.xxl, borderTopRightRadius: t.radius.xxl }} handleIndicatorStyle={{ backgroundColor: t.lineStrong, width: 36 }}>
     <View style={{ flex: 1 }}>
       <View style={{ height: 40, paddingLeft: 48, paddingRight: 8, flexDirection: "row", alignItems: "center" }}>
-        <Text accessibilityRole="header" style={{ flex: 1, textAlign: "center", color: t.ink1, fontSize: 14, fontWeight: "700" }}>{count} 条评论</Text>
+        <Text accessibilityRole="header" style={{ flex: 1, textAlign: "center", color: t.ink1, fontSize: 14, fontWeight: "700" }}>{discussion ? `${count} 条评论` : "评论"}</Text>
         <Pressy accessibilityRole="button" accessibilityLabel="关闭作品评论" onPress={close} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="close" color={t.ink2} /></Pressy>
       </View>
       <View style={{ flex: 1 }}>
@@ -159,7 +166,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
             <Text selectable style={{ color: t.ink1, fontSize: 16, fontWeight: "700", lineHeight: 22 }}>{application.title || application.manifest.appName}</Text>
             {category || application.manifest.version ? <Text style={{ color: t.ink3, fontSize: 11 }}>{[category, application.manifest.version ? `v${application.manifest.version}` : null].filter(Boolean).join(" · ")}</Text> : null}
           </View>
-          <AuthorFollowButton authorId={post.author.id} active={active} />
+          {authorId ? <AuthorFollowButton authorId={authorId} active={active && opened} /> : null}
         </View>
         {application.summary || application.manifest.description ? <Text selectable style={{ color: t.ink2, fontSize: 13, lineHeight: 20 }}>{application.summary || application.manifest.description}</Text> : null}
       </View>}
@@ -167,7 +174,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
         renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
           <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text numberOfLines={1} style={{ color: t.ink3, fontSize: 12, lineHeight: 18 }}>{item.author.name}{item.author.id === post.author.id ? " · 作者" : ""}</Text>
+            <Text numberOfLines={1} style={{ color: t.ink3, fontSize: 12, lineHeight: 18 }}>{item.author.name}{item.author.id === authorId ? " · 作者" : ""}</Text>
             {item.replyTo ? <Text style={{ color: t.orchidText, fontSize: 12, lineHeight: 18 }}>回复 {item.replyTo.name}</Text> : null}
             <Text selectable style={{ color: t.ink1, fontSize: 14, lineHeight: 21 }}>{item.body}</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>

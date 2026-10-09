@@ -16,9 +16,8 @@ import { useAccount } from "./account";
 import { useProfileDrawer } from "./ProfileDrawer";
 import { bindApplicationExperienceBack, bindNextApplication } from "./applicationExperienceNavigation";
 import { EXPERIENCE_AHEAD, experienceId, useApplicationExperienceQueue } from "./useApplicationExperienceQueue";
-import { ApplicationInteractions, readApplicationComments } from "./ApplicationInteractions";
+import { ApplicationInteractions, cachedApplicationDiscussion } from "./ApplicationInteractions";
 import { AuthorFollowButton } from "./AuthorFollowButton";
-import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import type { UserPost } from "./feed/userPosts";
 import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
 import { fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
@@ -53,7 +52,7 @@ export function ApplicationFeedScreen(props: Props) {
   const [page, setPage] = useState<MarketPage & { owner: string; loaded: boolean }>({ owner: identity, applications: [], loaded: false });
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [commentPost, setCommentPost] = useState<UserPost | null>(null);
+  const [commentPost, setCommentPost] = useState<{ owner: string; appId: string; post?: UserPost } | null>(null);
   const [switching, setSwitching] = useState(false);
   const pausedRef = useRef(false);
   const [error, setError] = useState("");
@@ -68,18 +67,9 @@ export function ApplicationFeedScreen(props: Props) {
   currentOwner.current = identity;
   const items = page.owner === identity ? page.applications : [];
   const item = items[index];
-  const commentTarget = useRef(item?.manifest.appId);
-  commentTarget.current = item?.manifest.appId;
-  async function openComments() {
-    if (!item) return;
-    const before = generation.current;
-    const appId = item.manifest.appId;
-    try {
-      const post = await readApplicationComments(appId);
-      if (generation.current === before && currentOwner.current === identity && commentTarget.current === appId) setCommentPost(post);
-    } catch (cause) {
-      if (generation.current === before) Toast.show({ type: "error", text1: "评论加载失败", text2: cause instanceof Error ? cause.message : "请重试" });
-    }
+  useEffect(() => { setCommentPost(null); }, [identity, item?.manifest.appId]);
+  function openComments(post?: UserPost) {
+    if (item) setCommentPost({ owner: identity, appId: item.manifest.appId, post: post ?? cachedApplicationDiscussion(item) });
   }
   const previous = items[index - 1];
   const next = items[index + 1];
@@ -237,7 +227,7 @@ export function ApplicationFeedScreen(props: Props) {
       <GestureDetector gesture={swipe}>
         <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
           {!item && (page.owner !== identity || (!page.loaded && !error)) ? <DiscoveryFooterSkeleton animated={active} /> : null}
-          {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={setCommentPost} onOpen={() => { void props.onOpen(item.manifest.appId); }} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
+          {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={openComments} onOpen={() => { void props.onOpen(item.manifest.appId); }} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <View style={{ width: 44, height: 48, alignItems: "center", justifyContent: "center" }}>
               <View style={{ width: 36, height: 36 }}>
@@ -256,7 +246,7 @@ export function ApplicationFeedScreen(props: Props) {
 
         </View>
       </GestureDetector>
-      {commentPost && item ? <ApplicationCommentsSheet key={`${identity}:${commentPost.id}`} post={commentPost} application={item} active={active} onDismiss={() => setCommentPost(null)} /> : null}
+      {commentPost?.owner === identity && commentPost.appId === item?.manifest.appId && item ? <ApplicationCommentsSheet key={`${identity}:${commentPost.appId}`} post={commentPost.post} application={item} active={active} onDismiss={() => setCommentPost(null)} /> : null}
     </View>
   </ThemeContext.Provider>;
 }

@@ -16,20 +16,26 @@ const cacheAt = new Map<string, number>();
 export async function readApplicationComments(appId: string) {
   const owner = cachedAccountId() ?? "guest";
   const key = `${owner}:${appId}`;
-  const post = await fetchApplicationComments(appId);
+  const result = await fetchApplicationComments(appId);
+  const post = result.post;
   if ((cachedAccountId() ?? "guest") === owner) {
     cache.set(key, post); cacheAt.set(key, Date.now());
     if (cache.size > 64) { const first = cache.keys().next().value!; cache.delete(first); cacheAt.delete(first); }
   }
-  return post;
+  return result;
+}
+export function cachedApplicationDiscussion(item: MarketApplication) {
+  const owner = cachedAccountId() ?? "guest";
+  const key = `${owner}:${item.manifest.appId}`;
+  return item.interactionOwner === owner && (item.interactionAt || 0) > (cacheAt.get(key) || 0) ? item.discussion : cache.get(key);
 }
 export function ApplicationInteractions({ item, active, onComment, onOpen, onShare, onDetail }: {
-  item: MarketApplication; active: boolean; onComment: (post: UserPost) => void; onOpen: () => void; onShare: () => void; onDetail: () => void;
+  item: MarketApplication; active: boolean; onComment: (post?: UserPost) => void; onOpen: () => void; onShare: () => void; onDetail: () => void;
 }) {
   const { colors: t } = useTheme();
   const owner = cachedAccountId() ?? "guest";
   const key = `${owner}:${item.manifest.appId}`;
-  const [post, setPost] = useState(() => item.interactionOwner === owner && (item.interactionAt || 0) > (cacheAt.get(key) || 0) ? item.discussion : cache.get(key));
+  const [post, setPost] = useState(() => cachedApplicationDiscussion(item));
   const [saving, setSaving] = useState(false);
   const current = useRef(post);
   const alive = useRef(true);
@@ -92,12 +98,7 @@ export function ApplicationInteractions({ item, active, onComment, onOpen, onSha
     } catch (cause) { fail(cause); }
     finally { writing.current = false; if (alive.current) setSaving(false); }
   }
-  async function comment() {
-    try {
-      const value = await readApplicationComments(item.manifest.appId);
-      if (alive.current) { remember(value); onComment(value); }
-    } catch (cause) { fail(cause); }
-  }
+  function comment() { onComment(current.current); }
   const action = (icon: IconSymbol, label: string, onPress: () => void, selected = false, disabled = false) =>
     <Pressy accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress} style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", opacity: disabled ? 0.5 : 1 }}>
       {icon === "heart" || icon === "heartOutline" ? <LikeGlyph identity={`${key}:${post?.id ?? "pending"}`} liked={selected} size={23} inactiveColor={t.ink1} />

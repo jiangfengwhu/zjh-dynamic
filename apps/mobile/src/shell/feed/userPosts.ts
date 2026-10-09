@@ -536,7 +536,7 @@ export async function fetchApplicationComments(appId: string) {
   result.readAt = Date.now();
   rememberPage(pageCacheKey(`post:${result.post.id}:`), result);
   rememberAuthorFollowing(result.post.author.id, result.following, revision);
-  return result.post;
+  return result;
 }
 export async function fetchApplicationDiscussion(appId: string) {
   return (await readSocial<{ post: UserPost }>(`/v1/application-discussions/${appId}`)).post;

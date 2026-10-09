@@ -635,8 +635,8 @@ function MarketDetailContent({
   const latest = sharing?.application ?? app;
   const displayed = ownsSurface ? latest : app;
   const bytes =
-    displayed.bundle.bytes +
-    displayed.assets.reduce((total, asset) => total + asset.bytes, 0);
+    displayed.bundle && displayed.assets ? displayed.bundle.bytes +
+    displayed.assets.reduce((total, asset) => total + asset.bytes, 0) : undefined;
   function continueCreation() {
     openCreationComposer({
       appId: app.appId,
@@ -1106,7 +1106,7 @@ function MarketDetailContent({
                   <View style={styles.fact}>
                     <Text style={styles.caption}>应用大小</Text>
                     <Text style={styles.factValue}>
-                      {bytes >= 1048576
+                      {bytes === undefined ? "加载中…" : bytes >= 1048576
                         ? `${(bytes / 1048576).toFixed(1)} MB`
                         : `${Math.ceil(bytes / 1024)} KB`}
                     </Text>

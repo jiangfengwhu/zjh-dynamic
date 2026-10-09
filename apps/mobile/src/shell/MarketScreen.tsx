@@ -533,10 +533,11 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
 
   const { colors } = useTheme();
   const app = item.manifest;
-  const bytes = app.bundle.bytes + app.assets.reduce((total, asset) => total + asset.bytes, 0);
+  // Search receives display-only manifests; package metadata arrives in detail.
+  const bytes = app.bundle && app.assets ? app.bundle.bytes + app.assets.reduce((total, asset) => total + asset.bytes, 0) : undefined;
   const downloads = item.downloadCount ?? 0;
   const downloadLabel = downloads >= 10000 ? `${(downloads / 10000).toFixed(1)}万` : downloads >= 1000 ? `${(downloads / 1000).toFixed(1)}k` : String(downloads);
-  const sizeLabel = bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
+  const sizeLabel = bytes === undefined ? undefined : bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
   const category = marketCategories.find(
     (category) => category.id === (item.category || "other")
   )?.label;
@@ -600,7 +601,7 @@ const MarketApplicationRow = memo(function MarketApplicationRow({
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 0, gap: 5 }}>
           <Text style={styles.category} accessibilityLabel={`${downloads} 次下载`}>{downloadLabel} 下载</Text>
-          <Text style={styles.category} accessibilityLabel={`应用大小 ${sizeLabel}`}>{sizeLabel}</Text>
+          {sizeLabel ? <Text style={styles.category} accessibilityLabel={`应用大小 ${sizeLabel}`}>{sizeLabel}</Text> : null}
           </View>
         </View>
       </View>
