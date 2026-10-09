@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,6 +29,7 @@ export function ApplicationHomeScreen(props: Props) {
   const { user } = useAccount();
   const { applicationActive, gesture: drawerGesture } = useProfileDrawer();
   const [tab, setTab] = useState<Tab>("discovery");
+  const selectedPage = useRef(0);
   const pager = useAnimatedRef<PagerView>();
   const stage = useAnimatedRef<View>();
   const position = useSharedValue(0);
@@ -57,6 +58,9 @@ export function ApplicationHomeScreen(props: Props) {
     pager.current?.setPage(value === "common" ? 1 : 0);
   }, [visit]);
   const selected = useCallback((index: number) => {
+    // Native pagers can report the same page again when the IME resizes them.
+    if (selectedPage.current === index) return;
+    selectedPage.current = index;
     Keyboard.dismiss();
     setTab(index === 1 ? "common" : "discovery");
   }, []);

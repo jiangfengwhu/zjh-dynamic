@@ -23,6 +23,7 @@ export type CloudTrace = {
   title: string;
   detail?: string;
   state: "running" | "done" | "error";
+  createdAt?: string;
 };
 
 type JulesActivity = {
@@ -31,6 +32,7 @@ type JulesActivity = {
   description?: string;
   createTime?: string;
   agentMessaged?: { agentMessage?: string };
+  userMessaged?: { userMessage?: string };
   planGenerated?: {
     plan?: {
       steps?: { title?: string; description?: string; index?: number }[];
@@ -42,6 +44,8 @@ type JulesActivity = {
   sessionFailed?: { reason?: string };
   artifacts?: {
     bashOutput?: { command?: string; output?: string; exitCode?: number };
+    changeSet?: { source?: string; gitPatch?: { unidiffPatch?: string; baseCommitId?: string; suggestedCommitMessage?: string } };
+    media?: { mimeType?: string };
   }[];
 };
 
@@ -206,8 +210,10 @@ function createService(appId: string, originalAppId?: string) {
     })) as { activities?: JulesActivity[]; nextPageToken?: string };
     if ((await detailKey(session)) !== key)
       throw new Error("账号或制作轮次已改变，请重试");
+    const run = await loadJulesRun();
     return {
       traces: (page.activities || [])
+        .filter(activity => !run?.startedAt || !activity.createTime || Date.parse(activity.createTime) >= run.startedAt)
         .sort((a, b) => (a.createTime || "").localeCompare(b.createTime || ""))
         .flatMap(activityTrace),
       nextCursor: page.nextPageToken,
@@ -572,98 +578,47 @@ function createService(appId: string, originalAppId?: string) {
   }
 
   function activityTrace(activity: JulesActivity): CloudTrace[] {
-    const id =
-      activity.id || activity.name || activity.createTime || "activity";
-    if (activity.progressUpdated) {
-      const described =
-        activity.progressUpdated.description?.trim() ||
-        activity.description?.trim() ||
-        "";
-      const title = activity.progressUpdated.title?.trim() || described;
-      if (!title) return [];
-      const bash = (activity.artifacts ?? [])
-        .map((item) => item.bashOutput)
-        .filter(
-          (
-            item
-          ): item is { command?: string; output?: string; exitCode?: number } =>
-            Boolean(item)
-        )
-        .map((item) =>
-          `$ ${(item.command ?? "").trim()}\n${item.output ?? ""}`.trim()
-        )
-        .join("\n\n");
-      const detail = [described, bash].filter(Boolean).join("\n\n");
-      return [
-        {
-          id,
-          kind: "tool",
-          title: clip(title, 120),
-          detail: clip(detail, 1200),
-          state: "done",
-        },
-      ];
-    }
+    const id = activity.id || activity.name || activity.createTime || "activity";
+    const traces: CloudTrace[] = [];
+    const add = (kind: CloudTrace["kind"], title: string, detail?: string, state: CloudTrace["state"] = "done") => {
+      traces.push({ id, kind, title, detail, state, createdAt: activity.createTime });
+    };
     const steps = activity.planGenerated?.plan?.steps ?? [];
-    if (steps.length > 0) {
-      const detail = [...steps]
-        .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
-        .map(
-          (step, index) =>
-            `${index + 1}. ${step.title?.trim() || "步骤"}${
-              step.description?.trim() ? `：${step.description.trim()}` : ""
-            }`
-        )
-        .join("\n");
-      return [
-        {
-          id,
-          kind: "status",
-          title: "计划",
-          detail: clip(detail, 1200),
-          state: "done",
-        },
-      ];
+    if (activity.progressUpdated) {
+      add("tool", activity.progressUpdated.title?.trim() || "进度更新",
+        activity.progressUpdated.description || activity.description);
+    } else if (activity.planGenerated) {
+      add("status", "制作计划", [...steps].sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+        .map((step, index) => `${index + 1}. ${step.title || "步骤"}\n${step.description || ""}`).join("\n\n"));
+    } else if (activity.planApproved) {
+      add("status", "计划已确认", activity.description);
+    } else if (activity.sessionFailed) {
+      add("status", "制作失败", activity.sessionFailed.reason || activity.description, "error");
+    } else if (activity.sessionCompleted) {
+      add("status", "Jules 制作结束", activity.description);
+    } else if (activity.agentMessaged) {
+      add("text", "Jules", activity.agentMessaged.agentMessage || activity.description);
+    } else if (activity.userMessaged) {
+      add("text", "你的需求", activity.userMessaged.userMessage || activity.description);
+    } else if (activity.description) {
+      add("status", "制作记录", activity.description);
     }
-    if (activity.planApproved) {
-      return [{ id, kind: "status", title: "计划已确认", state: "done" }];
+    for (const [index, artifact] of (activity.artifacts || []).entries()) {
+      if (artifact.bashOutput) {
+        const output = artifact.bashOutput;
+        traces.push({ id: `${id}:artifact:${index}`, kind: "tool", title: "命令输出",
+          detail: [output.command ? `$ ${output.command}` : "", output.output,
+            output.exitCode !== undefined ? `退出码：${output.exitCode}` : ""].filter(value => value !== undefined && value !== "").join("\n"),
+          state: output.exitCode ? "error" : "done" });
+      } else if (artifact.changeSet) {
+        const patch = artifact.changeSet.gitPatch;
+        traces.push({ id: `${id}:artifact:${index}`, kind: "tool", title: "代码变更",
+          detail: [artifact.changeSet.source, patch?.suggestedCommitMessage, patch?.baseCommitId, patch?.unidiffPatch].filter(Boolean).join("\n\n"), state: "done" });
+      } else if (artifact.media) {
+        traces.push({ id: `${id}:artifact:${index}`, kind: "status", title: "生成媒体", detail: artifact.media.mimeType, state: "done" });
+      }
     }
-    if (activity.sessionFailed) {
-      return [
-        {
-          id,
-          kind: "status",
-          title: "失败",
-          detail: clip(activity.sessionFailed.reason?.trim() || "", 400),
-          state: "error",
-        },
-      ];
-    }
-    if (activity.sessionCompleted) return [];
-    const message = activity.agentMessaged?.agentMessage?.trim();
-    if (message) {
-      const line =
-        message
-          .split("\n")
-          .map((item) => item.trim())
-          .find(Boolean) || "Jules";
-      return [
-        {
-          id,
-          kind: "text",
-          title: clip(line, 80),
-          detail: clip(message, 2000),
-          state: "done",
-        },
-      ];
-    }
-    return [];
-  }
-
-  function clip(text: string, max: number): string {
-    const flat = text.replace(/\r\n/g, "\n").trim();
-    if (flat.length <= max) return flat;
-    return `${flat.slice(0, max)}…`;
+    return traces.map(trace => ({ ...trace, createdAt: activity.createTime }));
   }
 
   function stateLabel(state: string): string {

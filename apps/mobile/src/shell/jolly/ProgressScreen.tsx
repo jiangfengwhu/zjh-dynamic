@@ -1,8 +1,10 @@
+import { FlashList } from "@shopify/flash-list";
+import type { CloudTrace } from "../cloudEvolve";
 import { EmptyState } from "../EmptyState";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { useEffect, useRef, useState } from "react";
 import { cachedAccountId, subscribeAccountIdentity } from "../account";
-import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
+import { Animated, Easing, Pressable, View } from "react-native";
 import {
   ThemeContext,
   useTheme,
@@ -70,7 +72,6 @@ function ProgressContent({
 }: Props) {
   const { colors } = useTheme();
   const query = useProgress(appId, originalAppId, scope);
-  const [expanded, setExpanded] = useState(false);
   const state = query.snapshot
     ? progressState(query.snapshot.detail)
     : undefined;
@@ -98,23 +99,6 @@ function ProgressContent({
     : waiting
     ? colors.amber
     : colors.orchid;
-  const latest = query.snapshot?.detail.traces
-    .filter(
-      (trace) => trace.kind === "text" && (trace.detail || trace.title).trim()
-    )
-    .at(-1);
-  const message = (
-    danger || waiting
-      ? query.snapshot?.detail.status.message ||
-        latest?.detail ||
-        latest?.title ||
-        ""
-      : latest?.detail || latest?.title || ""
-  )
-    .replace(/https?:\/\/\S+/g, "")
-    .replace(/[`#*]/g, "")
-    .trim()
-    .slice(0, 1600);
   const step = ready ? 2 : state === "packing" || state === "blocked" ? 1 : 0;
   const workTitle =
     query.snapshot?.detail.status.application?.appName || title || "这次制作";
@@ -163,7 +147,15 @@ function ProgressContent({
           active={query.active}
         />
       </ScreenBar>
-      <ScrollView
+      <FlashList
+        data={query.snapshot?.detail.traces || []}
+        keyExtractor={trace => trace.id}
+        renderItem={({ item }) => <LogRow trace={item} />}
+        maintainVisibleContentPosition={{ disabled: true }}
+        ListFooterComponent={<View style={{ gap: 8, paddingVertical: 16 }}>
+          {query.historyError ? <Text style={{ color: colors.redText }}>{query.historyError}</Text> : null}
+          {query.snapshot?.detail.historyCursor ? <Pressable accessibilityRole="button" disabled={query.loadingHistory || query.checking} onPress={() => void query.loadMore()} style={{ minHeight: 44, justifyContent: "center", alignItems: "center", backgroundColor: colors.surfaceRaised, borderRadius: colors.radius.pill }}><Text style={{ color: colors.accentText }}>{query.loadingHistory ? "正在加载日志…" : query.historyError ? "重试加载日志" : "加载更多日志"}</Text></Pressable> : query.snapshot ? <Text style={{ color: colors.ink3, textAlign: "center", fontSize: 12 }}>{query.snapshot.detail.stale ? "日志尚未同步完整，请刷新" : "已显示本次制作的全部日志"}</Text> : null}
+        </View>}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
@@ -173,7 +165,8 @@ function ProgressContent({
           paddingBottom: 24,
           gap: 12,
         }}
-      >
+        ListHeaderComponentStyle={empty ? { flex: 1 } : undefined}
+        ListHeaderComponent={<View style={{ gap: 12, flex: empty ? 1 : undefined }}>
         {empty ? (
           <EmptyState style={{ gap: 16 }}>
             <JollyPortrait size={88} animated={false} />
@@ -392,35 +385,7 @@ function ProgressContent({
                 ) : null}
               </View>
             ) : null}
-            {state && message ? (
-              <View style={{ gap: 8, paddingTop: 2 }}>
-                <Text style={{ ...colors.type.overline, color: colors.ink3 }}>
-                  近期进展
-                </Text>
-                <Text
-                  numberOfLines={expanded ? undefined : 3}
-                  style={{ fontSize: 14, lineHeight: 23, color: colors.ink2 }}
-                >
-                  {message}
-                </Text>
-                {message.length > 90 ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded }}
-                    onPress={() => setExpanded((value) => !value)}
-                    style={{
-                      minHeight: 44,
-                      alignSelf: "flex-start",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text style={{ color: colors.orchidText, fontSize: 12 }}>
-                      {expanded ? "收起" : "展开进展"}
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : null}
+            {query.snapshot ? <Text style={{ ...colors.type.overline, color: colors.ink3 }}>Jules 日志 · {query.snapshot.detail.traces.length} 条</Text> : null}
             {state && ["queued", "making", "packing"].includes(state) ? (
               <Text
                 style={{ fontSize: 11, lineHeight: 18, color: colors.ink3 }}
@@ -430,7 +395,8 @@ function ProgressContent({
             ) : null}
           </>
         )}
-      </ScrollView>
+        </View>}
+      />
     </Screen>
   );
 }
@@ -522,4 +488,21 @@ function LoadingPanel({ failed }: { failed: boolean }) {
       ) : null}
     </View>
   );
+}
+
+function LogRow({ trace }: { trace: CloudTrace }) {
+  const { colors } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => setExpanded(false), [trace.id]);
+  const detail = trace.detail || "";
+  const long = detail.length > 360 || detail.split("\n").length > 6;
+  return <View style={{ paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: colors.line, gap: 8 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <SymbolIcon name={trace.state === "error" ? "alert" : trace.kind === "tool" ? "box" : trace.kind === "text" ? "spark" : "check"} size={15} color={trace.state === "error" ? colors.redText : colors.orchidText} />
+      <Text selectable style={{ flex: 1, color: colors.ink1, fontSize: 13, fontWeight: "700" }}>{trace.title}</Text>
+      {trace.createdAt ? <Text style={{ color: colors.ink3, fontSize: 10 }}>{new Date(trace.createdAt).toLocaleString()}</Text> : null}
+    </View>
+    {detail ? <Text selectable numberOfLines={long && !expanded ? 6 : undefined} style={{ color: colors.ink2, fontSize: 12, lineHeight: 20 }}>{detail}</Text> : null}
+    {long ? <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)} style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start", paddingHorizontal: 8 }}><Text style={{ color: colors.accentText, fontSize: 12 }}>{expanded ? "收起日志" : "展开完整日志"}</Text></Pressable> : null}
+  </View>;
 }

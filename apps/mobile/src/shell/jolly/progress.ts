@@ -8,6 +8,7 @@ import { applicationContext } from "../../../../../packages/app-sdk/src/runtime"
 const getAppContext = () => applicationContext("jolly");
 import { type WorkshopDetail } from "../../../../../packages/app-sdk/src/creation";
 import { creationService as getCreationService } from "../cloudEvolve";
+import type { CloudTrace } from "../cloudEvolve";
 import { noteJollyRun, readJollyRun, type WorkshopStage } from "./run";
 
 export type ProgressState =
@@ -77,6 +78,11 @@ export function useProgress(
   const [loaded, setLoaded] = useState(!!initial);
   const initialRead = useRef(false);
   const [error, setError] = useState("");
+  const [historyError, setHistoryError] = useState("");
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const historyFlight = useRef(false);
+  const snapshotRef = useRef(snapshot);
+  snapshotRef.current = snapshot;
   const [service] = useState(() =>
     appId ? getCreationService(appId, originalAppId) : undefined
   );
@@ -104,6 +110,7 @@ export function useProgress(
     if (flight.current) return flight.current;
     if (!valid() || !service || !appId) return Promise.resolve();
     setChecking(true);
+    setHistoryError("");
     const operation = (async () => {
       try {
         let run = await service.loadJulesRun();
@@ -125,7 +132,7 @@ export function useProgress(
           setError("");
           return;
         }
-        const detail = await service.readWorkshopDetail(currentSession, false, true);
+        const detail = await service.readWorkshopDetail(currentSession);
         if (!valid()) return;
         const latest = await service.loadJulesRun();
         if (!valid()) return;
@@ -162,6 +169,30 @@ export function useProgress(
       if (flight.current === operation) flight.current = undefined;
     });
     return operation;
+  }, [service, appId, scope]);
+
+  const loadMore = useCallback(async () => {
+    const before = snapshotRef.current;
+    const cursor = before?.detail.historyCursor;
+    if (!valid() || !service || !before || !cursor || flight.current || historyFlight.current) return;
+    historyFlight.current = true;
+    setLoadingHistory(true);
+    setHistoryError("");
+    try {
+      const page = await service.readWorkshopHistory(before.session, cursor);
+      const run = await service.loadJulesRun();
+      if (!valid() || snapshotRef.current !== before || run?.submissionId !== before.submissionId || run?.startedAt !== before.startedAt) return;
+      const traces = [...new Map([...before.detail.traces, ...page.traces].map(trace => [trace.id, trace as CloudTrace])).values()]
+        .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+      const next = { ...before, detail: { ...before.detail, traces, historyCursor: page.nextCursor === cursor ? undefined : page.nextCursor } };
+      setSnapshot(next);
+      rememberPage(pageCacheKey(`progress:${appId}:${before.session}:${before.submissionId ?? ""}:${before.startedAt ?? ""}`), next);
+    } catch (cause) {
+      if (valid() && snapshotRef.current === before) setHistoryError(cause instanceof Error ? cause.message : "日志加载失败，请重试");
+    } finally {
+      historyFlight.current = false;
+      if (alive.current) setLoadingHistory(false);
+    }
   }, [service, appId, scope]);
 
   useEffect(() => {
@@ -226,5 +257,8 @@ export function useProgress(
     loaded,
     active,
     refresh,
+    loadMore,
+    loadingHistory,
+    historyError,
   };
 }

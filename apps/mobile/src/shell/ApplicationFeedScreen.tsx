@@ -59,6 +59,7 @@ export function ApplicationFeedScreen(props: Props) {
   const [revision, setRevision] = useState(0);
   const [height, setHeight] = useState(1);
   const [width, setWidth] = useState(1);
+  const [spacing, setSpacing] = useState({ width: 1, height: 1 });
   const generation = useRef(0);
   const request = useRef(false);
   const currentOwner = useRef(identity);
@@ -163,11 +164,11 @@ export function ApplicationFeedScreen(props: Props) {
     if (direction > 0 ? !next : !previous) return;
     moving.value = true;
     runOnJS(startSwitch)();
-    drag.value = withTiming(-direction * height, timing, done => {
+    drag.value = withTiming(-direction * spacing.height, timing, done => {
       if (done) runOnJS(commit)(direction);
       else { moving.value = false; runOnJS(setSwitching)(false); }
     });
-  }, [next, previous, height, commit, drag, moving, startSwitch]);
+  }, [next, previous, spacing.height, commit, drag, moving, startSwitch]);
   const swipe = useMemo(() => Gesture.Pan()
     .enabled(active && !commentPost && Boolean(item))
     .maxPointers(1)
@@ -202,12 +203,18 @@ export function ApplicationFeedScreen(props: Props) {
     } else if (!busy) void load();
   }, [next, finish, busy, load, page.nextCursor, identity, index, setPause]);
   useFocusEffect(useCallback(() => focused ? bindNextApplication(advance) : undefined, [focused, advance]));
-  const layout = (event: LayoutChangeEvent) => { setHeight(Math.max(1, event.nativeEvent.layout.height)); setWidth(Math.max(1, event.nativeEvent.layout.width)); };
+  const layout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setHeight(Math.max(1, height));
+    setWidth(Math.max(1, width));
+    // IME animation resizes app content, never the absolute page coordinates.
+    setSpacing(prior => prior.width === width && prior.height >= height ? prior : { width, height: Math.max(1, height) });
+  };
 
   return <ThemeContext.Provider value={theme}>
     <View style={{ flex: 1, backgroundColor: "transparent" }}>
       <Animated.View ref={props.stageRef} collapsable={false} style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
-        {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
+        {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} spacing={spacing.height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
@@ -236,7 +243,7 @@ export function ApplicationFeedScreen(props: Props) {
 
 type QueueProps = {
   items: MarketApplication[]; index: number; active: boolean; foreground: boolean; switching: boolean; paused: boolean;
-  width: number; height: number; drag: ReturnType<typeof useSharedValue<number>>;
+  width: number; height: number; spacing: number; drag: ReturnType<typeof useSharedValue<number>>;
   render: Props["renderApplication"]; onPause: () => void; onResume: () => void; onDetail: Props["onDetail"];
 };
 function ExperienceQueue(props: QueueProps) {
@@ -254,20 +261,20 @@ function ExperienceQueue(props: QueueProps) {
       cancelAnimation(drag);
       origin.value = offset;
       drag.value = 0;
-    })(Math.max(0, props.index * height));
-  }, [height, props.index, drag, origin]);
+    })(Math.max(0, props.index * props.spacing));
+  }, [props.spacing, props.index, drag, origin]);
   useLayoutEffect(syncPosition, [syncPosition]);
   // This is a bounded seven-page stage, rather than an independently scrolling
   // list. Stable absolute positions preserve app instances and native hit testing.
   // Native SafeAreaView descendants need a provider, but it must stay outside
   // the moving list: providers emit frame/inset events on every translated frame.
-  return <SafeAreaProvider style={{ flex: 1 }} initialMetrics={metrics}><Animated.View pointerEvents="box-none" style={[{ position: "absolute", top: 0, left: 0, width: props.width, height: props.items.length * height }, motion]}>
+  return <SafeAreaProvider style={{ flex: 1 }} initialMetrics={metrics}><Animated.View pointerEvents="box-none" style={[{ position: "absolute", top: 0, left: 0, width: props.width, height: props.items.length * props.spacing }, motion]}>
     {entries.map(item => {
       const index = positions.get(experienceId(item))!;
       const offset = index - props.index;
       const selected = experienceId(item) === experienceId(current);
       const nearby = Math.abs(offset) <= 1;
-      return <View key={experienceId(item)} pointerEvents="box-none" style={{ position: "absolute", top: index * height, left: 0, width: props.width, height }}><CachedExperience item={item} selected={selected}
+      return <View key={experienceId(item)} pointerEvents="box-none" style={{ position: "absolute", top: index * props.spacing, left: 0, width: props.width, height }}><CachedExperience item={item} selected={selected}
         ready={preparations.get(experienceId(item))?.ready ?? false} error={preparations.get(experienceId(item))?.error ?? ""} onRetry={retry}
         interactive={selected && props.active && !props.switching}
         accessible={selected && props.active}
@@ -277,7 +284,7 @@ function ExperienceQueue(props: QueueProps) {
         onPause={props.onPause} onResume={props.onResume} onDetail={props.onDetail} /></View>;
     })}</Animated.View></SafeAreaProvider>;
 }
-type CachedExperienceProps = Omit<QueueProps, "items" | "index" | "active" | "switching" | "drag"> & {
+type CachedExperienceProps = Omit<QueueProps, "items" | "index" | "active" | "switching" | "drag" | "spacing"> & {
   item: MarketApplication; selected: boolean; ready: boolean; error: string; onRetry: (key: string) => void;
   interactive: boolean; accessible: boolean; visible: boolean;
 };
