@@ -46,7 +46,7 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     for (const candidate of entries) {
       const id = experienceId(candidate);
       if (latest.current.get(id)?.downloaded || latest.current.get(id)?.error) continue;
-      void loadPublicApplicationExperience(candidate.manifest, controller.signal, candidate, true).then(() => {
+      void loadPublicApplicationExperience(candidate.manifest, controller.signal, candidate, true, id === key ? "visible" : "preload").then(() => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(id, { ...prior.get(id), ready: prior.get(id)?.ready ?? false, downloaded: true, error: "" }));
       }, cause => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(id, { ready: false, error: cause instanceof Error ? cause.message : "作品下载失败" }));
@@ -54,23 +54,22 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     }
     return () => controller.abort();
   }, [enabled, key, entries, retryVersion]);
-  // Only evaluation uses idle scheduling. Completed downloads free their slot
-  // immediately, so waiting for JS never blocks the next transfer.
+  const next = entries.find(item => {
+    const state = preparations.get(experienceId(item));
+    return state?.downloaded && !state.ready && !state.error;
+  });
+  const nextKey = next && experienceId(next);
+  // Unrelated download completions must not abort the current evaluation.
   useEffect(() => {
-    if (!executeEnabled || !current) return;
-    const next = entries.find(item => {
-      const state = preparations.get(experienceId(item));
-      return state?.downloaded && !state.ready && !state.error;
-    });
-    if (!next) return;
+    if (!executeEnabled || !current || !next) return;
     const controller = new AbortController();
-    void loadPublicApplicationExperience(next.manifest, controller.signal, next).then(() => {
+    void loadPublicApplicationExperience(next.manifest, controller.signal, next, false, nextKey === key ? "visible" : "preload").then(() => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(experienceId(next), { ready: true, downloaded: true, error: "" }));
       }, cause => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(experienceId(next), { ready: false, downloaded: true, error: cause instanceof Error ? cause.message : "暂时无法体验这个作品" }));
     });
     return () => controller.abort();
-  }, [executeEnabled, key, entries, preparations]);
+  }, [executeEnabled, key, nextKey]);
   const retry = useCallback((id: string) => {
     setPreparations(prior => { const next = new Map(prior); next.delete(id); return next; });
     setRetryVersion(value => value + 1);

@@ -2,12 +2,16 @@ import NativePluginHost from "../NativePluginHost";
 import type { ApplicationManifest } from "../../../../packages/app-sdk/src/index";
 
 const LIMIT = 3;
+const TIMEOUT = 100000;
+export type DownloadPriority = "visible" | "preload" | "update";
+const rank = { visible: 0, preload: 1, update: 2 };
 type Download = {
   key: string;
   manifest: ApplicationManifest;
   signals: Set<AbortSignal>;
   uncancellable: boolean;
   started: boolean;
+  priority: DownloadPriority;
   promise: Promise<void>;
   resolve: () => void;
   reject: (error: unknown) => void;
@@ -19,6 +23,7 @@ const activeApps = new Set<string>();
 let active = 0;
 
 function drain() {
+  queue.sort((a, b) => rank[a.priority] - rank[b.priority]);
   for (let index = 0; index < queue.length;) {
     const task = queue[index];
     if (!task.uncancellable && [...task.signals].every(signal => signal.aborted)) {
@@ -28,17 +33,23 @@ function drain() {
       task.reject(error);
       continue;
     }
-    if (active >= LIMIT || activeApps.has(task.manifest.appId)) { index++; continue; }
+    // Background work leaves one slot available for a newly visible work.
+    if (active >= (task.priority === "visible" ? LIMIT : LIMIT - 1) || activeApps.has(task.manifest.appId)) { index++; continue; }
     queue.splice(index, 1);
     task.started = true;
     active++; activeApps.add(task.manifest.appId);
     // The native loader downloads bytes on its worker pool.
     // Once started, let it finish even if its feed page moves out of view.
+    const timer = setTimeout(() => {
+      task.reject(new Error("作品下载超时，请检查网络后重试"));
+      void NativePluginHost.call("shell", "cancelApplicationPreparation", JSON.stringify({ appId: task.manifest.appId, releaseId: task.manifest.releaseId })).catch(() => {});
+    }, TIMEOUT);
     void NativePluginHost.call("shell", "prepareApplication", JSON.stringify(task.manifest)).then(() => {
       prepared.add(task.key);
       while (prepared.size > 16) prepared.delete(prepared.values().next().value!);
       task.resolve();
     }, task.reject).finally(() => {
+      clearTimeout(timer);
       flights.delete(task.key);
       active--; activeApps.delete(task.manifest.appId);
       drain();
@@ -47,7 +58,7 @@ function drain() {
 }
 
 /** Bounded native downloads, independent of gestures and JS evaluation. */
-export function downloadApplicationResources(manifest: ApplicationManifest, signal?: AbortSignal): Promise<void> {
+export function downloadApplicationResources(manifest: ApplicationManifest, signal?: AbortSignal, priority: DownloadPriority = "visible"): Promise<void> {
   signal?.throwIfAborted();
   const key = JSON.stringify([manifest.appId, manifest.releaseId, manifest.source.commit,
     manifest.bundle, manifest.assets]);
@@ -57,9 +68,10 @@ export function downloadApplicationResources(manifest: ApplicationManifest, sign
     let resolve!: () => void;
     let reject!: (error: unknown) => void;
     const promise = new Promise<void>((done, fail) => { resolve = done; reject = fail; });
-    task = { key, manifest, signals: new Set(), uncancellable: false, started: false, promise, resolve, reject };
+    task = { key, manifest, signals: new Set(), uncancellable: false, started: false, priority, promise, resolve, reject };
     flights.set(key, task); queue.push(task);
   }
+  if (rank[priority] < rank[task.priority]) task.priority = priority;
   if (signal) task.signals.add(signal);
   else task.uncancellable = true;
   const flight = task;

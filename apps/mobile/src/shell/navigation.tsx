@@ -566,6 +566,8 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               if (route.name === "discovery") endRouteTransition(SEARCH_NAVIGATION_INTENT);
             },
             transitionEnd: () => endRouteTransition(route.key),
+            blur: () => endRouteTransition(route.key),
+            beforeRemove: () => endRouteTransition(route.key),
           })}
           screenOptions={{
             headerShown: false,

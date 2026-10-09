@@ -1,7 +1,7 @@
 import { assertApplicationSdkCompatible, ApplicationSdkError } from "./applicationCompatibility";
 import NativePluginHost from "../NativePluginHost";
-import { downloadApplicationResources } from "./applicationDownloads";
-import { waitForInteractions } from "../shell/interactionWork";
+import { downloadApplicationResources, type DownloadPriority } from "./applicationDownloads";
+import { waitForInteractions, waitForRouteTransitions } from "../shell/interactionWork";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, readShellValueSync, shellKeys, writeShellValue } from "../shell/shellStorage";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../shell/account";
@@ -52,7 +52,7 @@ export async function preparePublicApplication(manifest: ApplicationManifest, re
 }
 
 /** Load a public work for the current stage or its bounded warm queue. */
-export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal, item?: MarketApplication, downloadOnly = false) {
+export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal, item?: MarketApplication, downloadOnly = false, priority: DownloadPriority = "visible") {
   const appId = manifest.appId;
   assertCompatible(manifest, appId);
   signal.throwIfAborted();
@@ -125,7 +125,7 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   }
   checkLocal();
   signal.throwIfAborted();
-  await downloadApplicationResources(manifest, signal);
+  await downloadApplicationResources(manifest, signal, priority);
   // Native downloads finish even if the feed moved away. Keep completed,
   // complete packages installed; cancellation only stops runtime warming.
   await persistDownload();
@@ -133,7 +133,8 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   signal.throwIfAborted();
   // Downloads may finish during a gesture. Yield again before staging/evaluating
   // code, and re-check cancellation and local selection after that wait.
-  await waitForInteractions(signal);
+  if (priority === "visible") await waitForRouteTransitions(signal);
+  else await waitForInteractions(signal);
   signal.throwIfAborted();
   // A workshop/install may have changed the local selection while downloading.
   checkLocal();
@@ -270,7 +271,7 @@ export async function stageApplicationUpdates(appId?: string): Promise<number> {
   );
   for (const { manifest, ownerId } of pending) {
     if (ownerId) await verifyCandidateAccess(manifest, ownerId);
-    await NativePluginHost.call("shell", "prepareApplication", JSON.stringify(manifest));
+    await downloadApplicationResources(manifest, undefined, "update");
   }
   const currentCatalog = await loadCatalog();
   let stagedCount = 0;
