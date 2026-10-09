@@ -138,7 +138,7 @@ export function ApplicationSharingHost() {
     } catch (cause) { Toast.show({ type: "error", text1: "分享未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
   }
   const rows = people.filter(person => person.name.toLowerCase().includes(query.trim().toLowerCase()));
-  return <BottomSheetModal ref={sheet} snapPoints={["76%", "92%"]} enableDynamicSizing={false} keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan"
+  return <BottomSheetModal ref={sheet} snapPoints={["60%"]} enableDynamicSizing={false} enableOverDrag={false} keyboardBehavior="extend" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan"
     onDismiss={() => { current.current = undefined; ++listRevision.current; setRequest(undefined); }}
     backdropComponent={props => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.32} pressBehavior="close" />}
     backgroundStyle={{ backgroundColor: colors.surface, borderRadius: colors.radius.xxl }} handleIndicatorStyle={{ width: 36, height: 4, backgroundColor: colors.lineStrong }}>

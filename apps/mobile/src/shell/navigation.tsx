@@ -888,3 +888,7 @@ export function composeApplicationShare(draft: import("../../../../packages/app-
   if (!shellNavigationRef.isReady()) throw new Error("导航尚未就绪");
   shellNavigationRef.navigate("composePost", { mode: "post", draft });
 }
+
+export function openPublicApplicationDetail(appId: string) {
+  if (shellNavigationRef.isReady()) shellNavigationRef.navigate("sharedApplication", { appId });
+}
