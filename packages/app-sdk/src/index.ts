@@ -47,6 +47,8 @@ export type AppData = {
   files: {
     uri: (path: string) => string;
     readText: (path: string) => Promise<string>;
+    /** Reads up to 6 MiB of an application file, for image/audio AI attachments. */
+    readBase64: (path: string) => Promise<string>;
     writeText: (path: string, text: string) => Promise<void>;
     remove: (path: string) => Promise<void>;
     /** Lists direct children of the given relative directory. */

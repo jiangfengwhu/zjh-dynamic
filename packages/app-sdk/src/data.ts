@@ -55,6 +55,14 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
     files: {
       uri: path => `file://${pathFor(path)}`,
       readText: async path => { const ns = namespace(); const result = await blob().fs.readFile(pathFor(path, ns), "utf8"); guard(ns); return result; },
+      readBase64: async path => {
+        const ns = namespace(), target = pathFor(path, ns);
+        const stat = await blob().fs.stat(target); guard(ns);
+        if (Number(stat.size) > 6 * 1024 * 1024) throw new Error("读取文件不能超过 6 MB");
+        const result: string = await blob().fs.readFile(target, "base64"); guard(ns);
+        if (result.length > 8 * 1024 * 1024) throw new Error("读取文件不能超过 6 MB");
+        return result;
+      },
       writeText: async (path, data) => { const ns = namespace(); const target = pathFor(path, ns); await parent(target); guard(ns); await blob().fs.writeFile(target, data, "utf8"); guard(ns); },
       remove: async path => { const ns = namespace(); const target = pathFor(path, ns); if (await blob().fs.exists(target)) { guard(ns); await blob().fs.unlink(target); } guard(ns); },
       list: async (directory = "") => { const ns = namespace(); const target = directory ? pathFor(directory, ns) : root(ns); const result: string[] = await blob().fs.exists(target) ? await blob().fs.ls(target) : []; guard(ns); return scope === "device" && !directory ? result.filter(name => name !== "accounts") : result; },

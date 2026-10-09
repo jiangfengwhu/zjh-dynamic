@@ -37,6 +37,8 @@
 
 多模态仍使用原接口，例如：
 
+本机文件可用 `app.files.readBase64(path)` 读取（最大 6 MB，账号作用域用 `app.scope("account").files`）；图片加对应 MIME 的 data URL 前缀，音频直接作为 data。无需为了让 AI 读取私有图片而公开上传。
+
 ```ts
 const result = await app.ai.complete({
   messages: [{ role: "user", content: "看看这是什么？",
