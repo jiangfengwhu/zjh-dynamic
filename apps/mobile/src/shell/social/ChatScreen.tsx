@@ -22,13 +22,17 @@ import { formatWhen } from "../formatTime";
 
 export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () => void }) {
   const { colors } = useTheme();
-  const version = useInboxVersion(true);
+  const version = useInboxVersion(true, peer.id);
+  const latestMessage = useRef<string | undefined>(undefined);
+  const threadOwner = useRef(cachedAccountId());
+  if (threadOwner.current !== cachedAccountId()) {threadOwner.current = cachedAccountId(); latestMessage.current = undefined;}
   const query = useSocialPage<MessagePage>({ name: `messages:thread:${peer.id}`, authenticated: true, version,
-    empty: { peer, messages: [], nextCursor: null }, read: cursor => readMessages(peer.id, cursor),
+    empty: { peer, messages: [], nextCursor: null }, read: cursor => readMessages(peer.id, cursor, cursor ? undefined : latestMessage.current),
     merge: (previous, next, more) => {
       const messages = [...new Map([...previous.messages, ...next.messages].map(message => [message.id, message])).values()].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
       return { ...next, messages, nextCursor: more ? next.nextCursor : messages.length > next.messages.length ? previous.nextCursor : next.nextCursor };
     } });
+  latestMessage.current = query.data.messages.at(-1)?.id;
   const [text, setText] = useState(""), [sending, setSending] = useState(false), [draftReady, setDraftReady] = useState(false);
   const draftKey = `social.message-draft.${query.user?.id ?? "guest"}.${peer.id}`;
   const sendingRef = useRef(false), alive = useRef(true), list = useRef<FlashListRef<Message>>(null), atBottom = useRef(true);
@@ -54,10 +58,15 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
     if (!draftReady || loadedDraftKey.current !== draftKey) return;
     if (text) writeShellValue(draftKey, text); else removeShellValue(draftKey);
   }, [draftKey, draftReady, text]);
+  const [visibleThrough, setVisibleThrough] = useState<string>();
+  const acknowledged = useRef<string | undefined>(undefined);
+  useEffect(() => { acknowledged.current = undefined; setVisibleThrough(undefined); }, [query.user?.id, peer.id]);
   useEffect(() => {
-    const last = query.data.messages.at(-1);
-    if (query.focused && last && query.user) void markMessagesRead(peer.id, last.id).catch(() => {});
-  }, [query.focused, query.data, query.user?.id, peer.id]);
+    if (!query.focused || !query.user || !visibleThrough || acknowledged.current === visibleThrough) return;
+    const owner = query.user.id;
+    acknowledged.current = visibleThrough;
+    void markMessagesRead(peer.id, visibleThrough).catch(() => { if (cachedAccountId() === owner && acknowledged.current === visibleThrough) acknowledged.current = undefined; });
+  }, [query.focused, visibleThrough, query.user?.id, peer.id]);
   async function send() {
     const body = text.trim(), owner = query.user?.id;
     if (sendingRef.current || !draftReady || !body || Array.from(body).length > 2000 || !owner) return;
@@ -76,6 +85,11 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
   return <SocialFrame title={query.data.peer.name || peer.name} onBack={onBack}><KeyboardViewport>
     <PullRefreshSurface refresh={refresh}><AnimatedFlashList<Message>
       ref={list} data={query.data.messages} keyExtractor={item => item.id} onScroll={scroll} scrollEventThrottle={16}
+      viewabilityConfig={{itemVisiblePercentThreshold: 60, minimumViewTime: 200}}
+      onViewableItemsChanged={({viewableItems}) => {
+        const visible = viewableItems.filter(token => token.isViewable && token.item.senderId !== query.user?.id).map(token => token.item).sort((a,b) => b.createdAt - a.createdAt || b.id.localeCompare(a.id))[0];
+        if (visible) setVisibleThrough(visible.id);
+      }}
       keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never"
       maintainVisibleContentPosition={{ startRenderingFromBottom: true }}
       contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, ...(!query.data.messages.length ? { flexGrow: 1 } : {}) }}

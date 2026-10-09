@@ -6,7 +6,7 @@ import { useTheme } from "../../../../packages/ui/theme";
 import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { cachedAccountId, requireAccount, useAccount } from "./account";
 import { afterInteractions } from "./interactionWork";
-import { cachedAuthorFollowing, fetchAuthorProfile, setAuthorFollow, subscribeAuthorFollow } from "./feed/userPosts";
+import { cachedAuthorFollowing, fetchAuthorRelationship, setAuthorFollow, subscribeAuthorFollow } from "./feed/userPosts";
 import { HostText as Text } from "./feed/HostText";
 
 export function AuthorFollowButton({ authorId, compact = false, active = true }: { authorId: string; compact?: boolean; active?: boolean }) {
@@ -20,7 +20,7 @@ export function AuthorFollowButton({ authorId, compact = false, active = true }:
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
     if (!active || !owner || owner === authorId || cachedAuthorFollowing(authorId) !== undefined) return;
-    return afterInteractions(() => { void fetchAuthorProfile(authorId).catch(() => {}); });
+    return afterInteractions(() => { void fetchAuthorRelationship(authorId).catch(() => {}); });
   }, [authorId, owner, active]);
   if (!authorId || owner === authorId || compact && following) return null;
   async function follow() {

@@ -99,7 +99,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
     } catch (cause) { if (alive.current && before === version.current) setError(cause instanceof Error ? cause.message : "评论加载失败，请重试"); }
     finally { reading.current = false; if (alive.current) { setLoading(false); if (before !== version.current && !writing.current) void load(); } }
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { if (!initial?.readAt || Date.now() - initial.readAt > 4000) void load(); }, []);
 
   async function send() {
     if (!draftReady || writing.current || !text.trim() || characters > 1000) return;

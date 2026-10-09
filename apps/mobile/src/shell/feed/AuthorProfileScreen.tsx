@@ -34,7 +34,6 @@ import { formatWhen } from "../formatTime";
 import { usePullToRefresh } from "./pullToRefresh";
 import { PullRefreshSurface } from "./PullRefreshSurface";
 import {
-  fetchAuthorPosts,
   fetchAuthorProfile,
   cachedAuthorProfile,
   setAuthorFollow,
@@ -96,6 +95,8 @@ function AuthorProfileContent({
   }));
   const { visited, visit, reveal } = useVisitedPager();
   const [tab, setTab] = useState<"posts" | "apps">("posts");
+  const loadedTabs = useRef(new Set<string>());
+  const selectedTab = useRef(tab); selectedTab.current = tab;
   const pager = useRef<PagerView>(null);
   const position = useSharedValue(0);
   const appY = useSharedValue(0);
@@ -157,30 +158,22 @@ function AuthorProfileContent({
       if (!more) rerun.current = true;
       return false;
     }
-    if (more && !profile.nextCursor) return false;
-    reading.current = true;
-    setBusy(true);
+    const target = selectedTab.current;
+    const cursor = target === "posts" ? profile.nextCursor : profile.applicationsNextCursor;
+    if (more && !cursor) return false;
+    reading.current = true; setBusy(true);
     const before = revision.current;
     try {
-      const result = more
-        ? await fetchAuthorPosts(initialAuthor.id, profile.nextCursor!)
-        : await fetchAuthorProfile(initialAuthor.id);
+      const result = await fetchAuthorProfile(initialAuthor.id, target, more ? cursor! : undefined);
       if (!alive.current || before !== revision.current) return false;
-      if (!more) onProfileLoaded?.(result as AuthorProfile);
-      setProfile((previous) =>
-        more
-          ? {
-              ...previous,
-              posts: [
-                ...previous.posts,
-                ...result.posts.filter(
-                  (item) => !previous.posts.some((old) => old.id === item.id),
-                ),
-              ],
-              nextCursor: result.nextCursor,
-            }
-          : (result as AuthorProfile),
-      );
+      onProfileLoaded?.(result);
+      setProfile(previous => ({ ...previous, ...result,
+        posts: target === "posts" ? more ? [...previous.posts, ...result.posts.filter(item => !previous.posts.some(old => old.id === item.id))] : result.posts : previous.posts,
+        nextCursor: target === "posts" ? result.nextCursor : previous.nextCursor,
+        applications: target === "apps" ? more ? [...previous.applications, ...result.applications.filter(item => !previous.applications.some(old => old.manifest.appId === item.manifest.appId))] : result.applications : previous.applications,
+        applicationsNextCursor: target === "apps" ? result.applicationsNextCursor : previous.applicationsNextCursor,
+      }));
+      loadedTabs.current.add(target);
       setLoaded(true);
       setError("");
       return true;
@@ -210,11 +203,12 @@ function AuthorProfileContent({
     if (identity.current !== user?.id) {
       identity.current = user?.id;
       setProfile(cachedAuthorProfile(initialAuthor.id) ?? { author: initialAuthor, following: false, posts: [], applications: [], nextCursor: null });
-      setLoaded(!!cachedAuthorProfile(initialAuthor.id));
+      loadedTabs.current.clear();
+      setLoaded(false);
     }
     if (!focused) return;
     return afterInteractions(() => { void load(false); });
-  }, [focused, user?.id]);
+  }, [focused, user?.id, tab]);
   function updated(post: UserPost) {
     revision.current++;
     if (reading.current) rerun.current = true;
@@ -269,7 +263,7 @@ function AuthorProfileContent({
                 ) : null}
                 <Text style={{ color: colors.ink3, fontSize: 12 }}>
                   {loaded
-                    ? `${profile.applications.length} 个公开应用`
+                    ? `${profile.applicationCount ?? profile.applications.length} 个公开应用`
                     : error
                       ? "主页暂未同步"
                       : busy
@@ -423,7 +417,7 @@ function AuthorProfileContent({
                   );
                 }}
                 ListEmptyComponent={
-                  loaded && !error ? (
+                  loadedTabs.current.has(tab) && !error ? (
                     <EmptyState><Text
                       style={{
                         textAlign: "center",
@@ -433,13 +427,13 @@ function AuthorProfileContent({
                     >
                       {tab === "apps" ? "还没有公开作品" : "还没有公开动态"}
                     </Text></EmptyState>
-                  ) : !loaded && !error ? (
+                  ) : !loadedTabs.current.has(tab) && !error ? (
                     <PageSkeleton rows={3} shape={tab === "apps" ? "work" : "feed"} inset={tab === "apps" ? 12 : 16} />
                   ) : null
                 }
                 ListFooterComponent={
-                  <View style={{ padding: tab === "posts" && loaded && profile.nextCursor ? 16 : 0 }}>
-                    {tab === "posts" && loaded && profile.nextCursor ? (
+                  <View style={{ padding: loadedTabs.current.has(tab) && (tab === "posts" ? profile.nextCursor : profile.applicationsNextCursor) ? 16 : 0 }}>
+                    {loadedTabs.current.has(tab) && (tab === "posts" ? profile.nextCursor : profile.applicationsNextCursor) ? (
                       <Pressable
                         disabled={busy}
                         onPress={() => void load(true)}
@@ -455,7 +449,7 @@ function AuthorProfileContent({
                               fontWeight: "600",
                             }}
                           >
-                            加载更多动态
+                            加载更多
                           </Text>
                         )}
                       </Pressable>

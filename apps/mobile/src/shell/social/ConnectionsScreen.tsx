@@ -15,7 +15,7 @@ import { PullRefreshSurface } from "../feed/PullRefreshSurface";
 import { useSocialPage } from "./useSocialPage";
 import { readRelations, type RelationKind, type RelationPage } from "./api";
 import { SocialEmpty, SocialError, SocialFrame } from "./SocialLayout";
-import { requireAccount, useAccount } from "../account";
+import { cachedAccountId, requireAccount, useAccount } from "../account";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 const AnimatedPager = Animated.createAnimatedComponent(PagerView);
 export function ConnectionsScreen({ author, initialKind, onBack, onAuthor }: {
@@ -53,8 +53,9 @@ function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAut
     locks.current.add(id); setActing(id);
     try {
       if (!await requireAccount()) return;
-      await setAuthorFollow(id, wanted);
-      if (query.focused) await query.load();
+      const owner = query.user?.id;
+      const result = await setAuthorFollow(id, wanted);
+      if (owner === cachedAccountId()) query.update(previous => ({...previous, authors: previous.authors.map(item => item.author.id === id ? {...item, following: result.following} : item)}));
     } catch (cause) { Toast.show({ type: "error", text1: "关注未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
     finally { locks.current.delete(id); setActing(undefined); }
   }

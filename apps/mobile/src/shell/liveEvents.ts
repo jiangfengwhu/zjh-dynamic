@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { subscribeAccountIdentity } from "./account";
 
-export type LiveEvent = { type: "ready" | "message" | "read" | "notification" | "feed" | "work"; appId?: string };
+export type LiveEvent = { type: "ready" | "message" | "read" | "notification" | "feed" | "work"; appId?: string; peerId?: string };
 const listeners = new Set<(event: LiveEvent) => void>();
 let pending = new Map<string, LiveEvent>();
 let timer: ReturnType<typeof setTimeout> | undefined;
 /** A one-shot burst merge, never a poller. Account changes discard queued events. */
 export function dispatchLiveEvent(event: LiveEvent) {
-  pending.set(`${event.type}:${event.appId ?? ""}`, event);
+  pending.set(`${event.type}:${event.appId ?? event.peerId ?? ""}`, event);
   if (timer !== undefined) return;
   timer = setTimeout(() => {
     timer = undefined;

@@ -1,3 +1,4 @@
+import { cachedMySummary, fetchWorksGallery, subscribeMySummary } from "./worksGallery";
 import { lazyScreen } from "./lazyScreen";
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "./UserAvatar";
@@ -30,7 +31,6 @@ const AuthorProfileScreen = lazyScreen(() => (require("./feed/AuthorProfileScree
 const MyApplicationsScreen = lazyScreen(() => (require("./MyApplicationsScreen") as typeof import("./MyApplicationsScreen")).MyApplicationsScreen);
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { useProfileDrawer, showProfileDrawer } from "./ProfileDrawer";
-import { fetchAuthorProfile } from "./feed/userPosts";
 import type { UserPost, PublicAuthor } from "./feed/userPosts";
 import type { RelationKind } from "./social/api";
 import type { MarketApplication } from "./market";
@@ -91,17 +91,18 @@ function MyProfileContent({
     (profile: import("./feed/userPosts").AuthorProfile) =>
       setStats({
         id: profile.author.id,
-        publicCount: profile.applications.length,
+        publicCount: profile.applicationCount ?? profile.applications.length,
         followers: profile.followerCount ?? 0,
         following: profile.followingCount ?? 0,
       }),
     []
   );
+  useEffect(() => { const summary = cachedMySummary(); if (summary && summary.author.id === user?.id) onProfileLoaded(summary); return subscribeMySummary(summary => {if (summary.author.id === user?.id) onProfileLoaded(summary);}); }, [user?.id, onProfileLoaded]);
   useFocusEffect(useCallback(() => {
     if (!user) return;
     let live = true;
     const idle = requestIdleCallback(() => {
-      void fetchAuthorProfile(user.id).then(profile => { if (live) onProfileLoaded(profile); }).catch(() => {});
+      void fetchWorksGallery().then(page => { if (live && page.summary) onProfileLoaded(page.summary); }).catch(() => {});
     });
     return () => { live = false; cancelIdleCallback(idle); };
   }, [user?.id, onProfileLoaded]));

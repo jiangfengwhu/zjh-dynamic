@@ -1,3 +1,4 @@
+import { authorFollowRevision, rememberAuthorFollowing, type UserPost } from "./feed/userPosts";
 import { afterInteractions } from "./interactionWork";
 import { rememberPage, pageCacheKey } from "./pageCache";
 import { accountFetch, currentAccountId, cachedAccountId } from "./account";
@@ -27,6 +28,11 @@ import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { confirmCreation } from "./creationConsent";
 export type MarketApplication = {
+  summaryOnly?: boolean;
+  discussion?: UserPost;
+  interactionOwner?: string;
+  interactionAt?: number;
+  authorFollowing?: boolean;
   detailAt?: number;
   detailOwner?: string;
   downloadCount?: number;
@@ -117,25 +123,38 @@ export function invalidateMarketViews() {
   for (const cancel of viewWrites.values()) cancel();
   viewWrites.clear();
 }
+export async function fetchMarketPicker(owner: string, cursor?: string): Promise<MarketPage> {
+  const params = new URLSearchParams({authorId: owner, view: "picker", limit: "24"});
+  if (cursor) params.set("cursor", cursor);
+  const response = await fetch(`${edgeUrl}/v1/market?${params}`);
+  if (!response.ok) throw new Error("应用列表暂时不可用");
+  return response.json();
+}
 export async function fetchMarketPage(
   category = "",
   query = "",
-  cursor?: string
+  cursor?: string,
+  discovery = false
 ): Promise<MarketPage> {
   const params = new URLSearchParams({ limit: "24" });
+  if (!discovery) params.set("view", "summary");
   if (category) params.set("category", category);
   if (query.trim()) params.set("q", query.trim());
   if (cursor) params.set("cursor", cursor);
-  const response = await fetchApplicationCatalog(
-    `${edgeUrl}/v1/market?${params}`
-  );
+  const owner = cachedAccountId() ?? "guest";
+  const revision = authorFollowRevision();
+  const response = discovery
+    ? await (owner === "guest" ? fetch(`${edgeUrl}/v1/discovery?${params}`) : accountFetch(`${edgeUrl}/v1/discovery?${params}`, {}, false))
+    : await fetchApplicationCatalog(`${edgeUrl}/v1/market?${params}`);
   if (!response.ok) throw new Error("作品加载失败，请重试");
   const data = (await response.json()) as MarketPage;
   if (!Array.isArray(data.applications)) throw new Error("作品数据暂时不可用");
+  if (discovery && owner !== (cachedAccountId() ?? "guest")) throw new Error("账号已切换，请重试");
+  for (const item of data.applications) if (discovery && item.authorId && item.authorFollowing !== undefined) rememberAuthorFollowing(item.authorId, item.authorFollowing, revision);
   return {
     applications: data.applications
       .filter((item) => item.manifest.appId !== "jolly")
-      .map((item) => ({ ...item, latest: true })),
+      .map((item) => ({ ...item, latest: true, ...(discovery ? {interactionOwner: owner, interactionAt: Date.now()} : {}) })),
     nextCursor: data.nextCursor,
   };
 }
@@ -246,9 +265,9 @@ export async function installedMarket(): Promise<MarketApplication[]> {
   for (const entry of entries.filter(
     (entry) => !entry.trashedAt && !entry.purged
   )) {
-    const accessRaw = (await readShellValue(`application.pending.${entry.id}`))
-      ? await readShellValue(`application.pending.access.${entry.id}`)
-      : await readShellValue(`application.access.${entry.id}`);
+    const accessRaw = (readShellValueSync(`application.pending.${entry.id}`))
+      ? readShellValueSync(`application.pending.access.${entry.id}`)
+      : readShellValueSync(`application.access.${entry.id}`);
     try {
       const access = JSON.parse(accessRaw || "{}");
       if (access.ownerId && access.ownerId !== accountId) continue;
@@ -256,17 +275,17 @@ export async function installedMarket(): Promise<MarketApplication[]> {
       continue;
     }
     const raw =
-      (await readShellValue(`application.pending.${entry.id}`)) ||
-      (await readShellValue(`application.install.${entry.id}`));
+      (readShellValueSync(`application.pending.${entry.id}`)) ||
+      (readShellValueSync(`application.install.${entry.id}`));
     if (!raw) continue;
     try {
-      const saved = await readShellValue(`application.market.${entry.id}`);
+      const saved = readShellValueSync(`application.market.${entry.id}`);
       const author =
         market.find((item) => item.manifest.appId === entry.id) ??
         (saved ? (JSON.parse(saved) as MarketApplication) : undefined);
       const owned =
         Boolean(accountId) &&
-        (await readShellValue(`shell.jules.apps.${entry.id}.owner`)) ===
+        (readShellValueSync(`shell.jules.apps.${entry.id}.owner`)) ===
           accountId;
       const manifest = JSON.parse(raw) as ApplicationManifest;
       const sharing = owned ? cachedSharingSync(entry.id) : undefined;
@@ -285,7 +304,7 @@ export async function installedMarket(): Promise<MarketApplication[]> {
       /* Keep other applications available. */
     }
   }
-  return items;
+  return (await currentAccountId()) === accountId ? items : [];
 }
 export async function installMarketApplication(
   item: MarketApplication,

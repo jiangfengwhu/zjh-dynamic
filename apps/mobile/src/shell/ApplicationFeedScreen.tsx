@@ -126,7 +126,7 @@ export function ApplicationFeedScreen(props: Props) {
     setBusy(true);
     setError("");
     try {
-      const result = await fetchMarketPage("", "", cursor);
+      const result = await fetchMarketPage("", "", cursor, true);
       if (generation.current !== token || currentOwner.current !== owner) return;
       setPage(prior => ({ owner, loaded: true, applications: unique(more && prior.owner === owner ? [...prior.applications, ...result.applications] : result.applications), nextCursor: result.nextCursor === cursor ? undefined : result.nextCursor }));
       if (!more) { setIndex(0); setPause(false); setRevision(value => value + 1); }

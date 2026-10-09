@@ -1,5 +1,5 @@
 import { dispatchLiveEvent, subscribeLiveEvents } from "../liveEvents";
-import { applyLiveNotificationCounts, syncNotificationCount } from "../feed/notifications";
+import { applyLiveNotificationCounts, notificationRevision } from "../feed/notifications";
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { accountFetch, accountSocket, cachedAccountId, currentAccountId, subscribeAccountIdentity, useAccount } from "../account";
@@ -12,7 +12,7 @@ export type RelationPage = { authors: Relation[]; nextCursor: string | null };
 export type Message = { id: string; senderId: string; body: string; createdAt: number };
 export type Conversation = { peer: PublicAuthor; lastMessage: Message; unreadCount: number };
 export type InboxPage = { conversations: Conversation[]; nextCursor: string | null; unreadCount: number };
-export type MessagePage = { peer: PublicAuthor; messages: Message[]; nextCursor: string | null };
+export type MessagePage = { hasMoreNew?: boolean; peer: PublicAuthor; messages: Message[]; nextCursor: string | null };
 async function request<T>(path: string, body?: unknown, publicRead = false): Promise<T> {
   const owner = await currentAccountId();
   const init: RequestInit = { signal: AbortSignal.timeout(15000), ...(body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) };
@@ -28,7 +28,19 @@ export const readInbox = (cursor?: string) => {
   const before = countRevision;
   return request<InboxPage>(`/v1/messages${query(cursor)}`).then(page => { if (before === countRevision) emitCount(page.unreadCount); return page; });
 };
-export const readMessages = (id: string, cursor?: string) => request<MessagePage>(`/v1/messages/${id}${query(cursor)}`);
+export async function readMessages(id: string, cursor?: string, after?: string) {
+  if (cursor || !after) return request<MessagePage>(`/v1/messages/${id}${query(cursor)}`);
+  let result: MessagePage | undefined;
+  do {
+    const page = await request<MessagePage>(`/v1/messages/${id}?after=${after}`);
+    result = result ? {...page, messages: [...result.messages,...page.messages]} : page;
+    if (!page.hasMoreNew) break;
+    const last = page.messages.at(-1)?.id;
+    if (!last || last === after) throw new Error("私信增量分页异常");
+    after = last;
+  } while (true);
+  return result!;
+}
 export const sendMessage = (id: string, body: string, requestId: string) => request<{ message: Message }>(`/v1/messages/${id}`, { body, requestId });
 export const markMessagesRead = (id: string, through: string) => {
   const before = ++countRevision;
@@ -44,16 +56,19 @@ export function useMessageCount() {
   useEffect(() => { countListeners.add(setValue); setValue(unread); return () => { countListeners.delete(setValue); }; }, []);
   return value;
 }
-export function useInboxVersion(messageOnly = false) {
+export function useInboxVersion(messageOnly = false, peerId?: string) {
   const [version, setVersion] = useState(0);
   useEffect(() => subscribeLiveEvents(event => {
-    if (event.type === "ready" || event.type === "message" || !messageOnly && event.type === "read") setVersion(v => v + 1);
-  }), [messageOnly]);
+    if (event.type === "ready" || event.type === "message" && (!peerId || !event.peerId || event.peerId === peerId) || !messageOnly && event.type === "read") setVersion(v => v + 1);
+  }), [messageOnly, peerId]);
   return version;
 }
 function syncUnread() {
-  const before = countRevision;
-  void request<{ unreadCount: number }>("/v1/messages/unread").then(result => { if (before === countRevision) emitCount(result.unreadCount); }).catch(() => {});
+  const before = countRevision, noticesBefore = notificationRevision();
+  void request<{messageUnreadCount: number; unreadCount: number; unreadByCategory: {creation:number;interaction:number}}>("/v1/account-counts").then(result => {
+    if (before === countRevision) emitCount(result.messageUnreadCount);
+    if (noticesBefore === notificationRevision()) applyLiveNotificationCounts(result.unreadCount, result.unreadByCategory);
+  }).catch(() => {});
 }
 let reconnect: (() => void) | undefined;
 export function reconnectMessages() { reconnect?.(); }
@@ -65,7 +80,7 @@ export function useMessagesSync() {
     let retry: ReturnType<typeof setTimeout> | undefined, attempt = 0;
     let lastVersion = 0;
     let fallbackUsed = false;
-    const fallback = () => { if (!live || cachedAccountId() !== user?.id || fallbackUsed) return; fallbackUsed = true; syncUnread(); void syncNotificationCount().catch(() => {}); };
+    const fallback = () => { if (!live || cachedAccountId() !== user?.id || fallbackUsed) return; fallbackUsed = true; syncUnread(); };
     const valid = (next: WebSocket) => live && socket === next && cachedAccountId() === user?.id && AppState.currentState === "active";
     const scheduleReconnect = () => {
       if (!live || !user || retry !== undefined || cachedAccountId() !== user.id || AppState.currentState !== "active") return;
@@ -94,7 +109,7 @@ export function useMessagesSync() {
                   applyLiveNotificationCounts(data.notificationCount, counts);
               }
             } else if (data.type === "message" || data.type === "read") { syncUnread(); }
-            dispatchLiveEvent({ type: data.type, ...(typeof data.appId === "string" ? { appId: data.appId } : {}) });
+            dispatchLiveEvent({ type: data.type, ...(typeof data.peerId === "string" ? {peerId: data.peerId} : {}), ...(typeof data.appId === "string" ? { appId: data.appId } : {}) });
           } catch {}
         };
         next.onerror = () => { if (valid(next)) fallback(); };

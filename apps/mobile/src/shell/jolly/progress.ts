@@ -8,7 +8,6 @@ import { applicationContext } from "../../../../../packages/app-sdk/src/runtime"
 const getAppContext = () => applicationContext("jolly");
 import { type WorkshopDetail } from "../../../../../packages/app-sdk/src/creation";
 import { creationService as getCreationService } from "../cloudEvolve";
-import type { CloudTrace } from "../cloudEvolve";
 import { noteJollyRun, readJollyRun, type WorkshopStage } from "./run";
 
 export type ProgressState =
@@ -126,25 +125,10 @@ export function useProgress(
           setError("");
           return;
         }
-        const detail = await service.readWorkshopDetail(currentSession);
+        const detail = await service.readWorkshopProgress(currentSession);
         if (!valid()) return;
         if (!detail) throw new Error("暂时无法读取制作进度，请重试");
-        // Read every page so the last model reply is not limited to the first
-        // four activity pages. Retain only that reply in the progress snapshot.
-        let traces: CloudTrace[] = detail.traces;
-        let cursor = detail.historyCursor;
-        const cursors = new Set<string>();
-        while (cursor) {
-          if (!valid()) return;
-          if (cursors.has(cursor)) throw new Error("制作记录分页异常，请重试");
-          cursors.add(cursor);
-          const page = await service.readWorkshopHistory(currentSession, cursor);
-          traces = [...traces, ...page.traces];
-          cursor = page.nextCursor;
-        }
-        const output = traces.filter(trace => trace.kind === "text" && trace.title !== "你的需求" && (trace.detail || trace.title).trim())
-          .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || "")).at(-1);
-        const summary = { ...detail, traces: output ? [output] : [], historyCursor: undefined };
+        const summary = detail;
         if (!valid()) return;
         const latest = await service.loadJulesRun();
         if (!valid()) return;

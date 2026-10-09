@@ -93,7 +93,16 @@ export function ProvidersScreen({ onBack }: Props) {
       throw new Error(result.error ?? "保存失败");
     }
     if (alive.current) { setDraft(empty); setBaseline(empty); setEditing(false); }
-    await reload();
+    const id = result.id;
+    if (!id) { await reload(); }
+    else {
+      const saved = { ...draft, id, name: draft.name.trim() || draft.model.trim() || "未命名", baseUrl: draft.baseUrl.trim(), model: draft.model.trim(), apiKey: "", isDefault: draft.isDefault || items.length === 0 };
+      const next = items.filter(item => item.id !== id).map(item => saved.isDefault ? {...item, isDefault: false} : item);
+      const priorIndex = items.findIndex(item => item.id === id);
+      next.splice(priorIndex < 0 ? next.length : priorIndex, 0, saved);
+      if (next.length === 1) next[0].isDefault = true;
+      cachedProviders = next; if (alive.current) {setItems(next); setLoaded(true);}
+    }
     if (alive.current) Toast.show({ type: "success", text1: "AI 引擎已保存" });
     } catch (reason) { fail(reason); }
     finally { working.current = false; if (alive.current) setBusy(false); }
@@ -114,7 +123,7 @@ export function ProvidersScreen({ onBack }: Props) {
     Alert.alert("删除 AI 引擎？", `删除「${item.name}」及其保存的配置。`, [{ text: "取消", style: "cancel" }, { text: "删除", style: "destructive", onPress: () => { void (async () => {
       if (working.current || !alive.current) return;
       working.current = true; setBusy(true); setError("");
-      try { const result = await shellDeleteProvider(item.id) as { ok?: boolean; error?: string }; if (result.ok === false) throw new Error(result.error || "删除失败"); if (alive.current && draft.id === item.id) { setDraft(empty); setBaseline(empty); } await reload(); }
+      try { const result = await shellDeleteProvider(item.id) as { ok?: boolean; error?: string }; if (result.ok === false) throw new Error(result.error || "删除失败"); if (alive.current && draft.id === item.id) { setDraft(empty); setBaseline(empty); } const next = items.filter(row => row.id !== item.id); if (next.length && !next.some(row => row.isDefault)) next[0] = {...next[0], isDefault: true}; cachedProviders = next; if (alive.current) setItems(next); }
       catch (reason) { fail(reason); }
       finally { working.current = false; if (alive.current) setBusy(false); }
     })(); } }]);

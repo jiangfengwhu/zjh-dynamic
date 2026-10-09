@@ -89,7 +89,7 @@ export function MarketDetailScreen(
     }, () => { if (live) setError(true); });
     return () => { live = false; };
   }, [ready, focused, props.item.manifest.appId, props.item, attempt, user?.id, workVersion]);
-  // The list already supplies a complete public detail snapshot.
+  // Lists can carry a display-only projection. Actions wait for full detail.
   return <View style={{ flex: 1 }}><LoadedMarketDetail {...props} item={item} onRefresh={() => setAttempt(value => value + 1)} />{error ? <Pressy accessibilityRole="button" accessibilityLabel="重试作品同步" onPress={() => { setError(false); setAttempt(value => value + 1); }}><Text>同步未完成 · 重试</Text></Pressy> : null}</View>;
 }
 function LoadedMarketDetail(props: Parameters<typeof MarketDetailContent>[0]) {
@@ -185,6 +185,7 @@ function MarketDetailContent({
   const scroll = useRef<KeyboardAwareScrollViewRef>(null);
   const mutation = useRef(false);
   function modify() {
+    if (item.summaryOnly) return;
     const ownerId = user?.id;
     if (!ownerId) { void requireAccount(); return; }
     const manifest =
@@ -550,6 +551,7 @@ function MarketDetailContent({
   const update =
     installed && (owner || item.latest) && release && release !== targetRelease;
   async function install() {
+    if (item.summaryOnly) return;
     if (mutation.current) return;
     mutation.current = true;
     setBusy(true);
@@ -650,7 +652,7 @@ function MarketDetailContent({
       <ApplicationIcon application={{ ...item, manifest: displayed, iconUrl: manualIcon || sharing?.iconUrl || shared?.iconUrl || item.iconUrl }} size={size} />
       {uploadStatus === "正在上传图标…" ? <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.surface, opacity: 0.85, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={colors.accentText} /></View> : null}
     </>;
-    return owner ? <Pressy accessibilityRole="button" accessibilityLabel="更换应用图标" accessibilityHint="选择图片并裁剪" disabled={busy} onPress={() => void uploadIcon()} style={style}>{content}</Pressy> : <View style={style}>{content}</View>;
+    return owner ? <Pressy accessibilityRole="button" accessibilityLabel="更换应用图标" accessibilityHint="选择图片并裁剪" disabled={!!item.summaryOnly || busy} onPress={() => void uploadIcon()} style={style}>{content}</Pressy> : <View style={style}>{content}</View>;
   }
   const publicationStatus = (
     <View
@@ -702,7 +704,7 @@ function MarketDetailContent({
           ].map((option) => (
             <Pressy
               key={String(option.value)}
-              disabled={busy || !sharingReady}
+              disabled={!!item.summaryOnly || busy || !sharingReady}
               accessibilityState={{ selected: publishLatest === option.value }}
               onPress={() => setPublishLatest(option.value)}
               style={[
@@ -761,7 +763,7 @@ function MarketDetailContent({
       </Text>
       {shareNotice ? (
         <Pressy
-          disabled={busy}
+          disabled={!!item.summaryOnly || busy}
           onPress={onRefresh}
           accessibilityLabel="重新读取作品介绍"
         >
@@ -805,7 +807,7 @@ function MarketDetailContent({
           right={
             publication && owner && shared ? (
               <Pressy
-                disabled={busy || !sharingReady}
+                disabled={!!item.summaryOnly || busy || !sharingReady}
                 onPress={withdraw}
                 accessibilityLabel="撤回公开"
                 scale={1}
@@ -894,7 +896,7 @@ function MarketDetailContent({
                         .map((category) => (
                           <Pressy
                             key={category.id}
-                            disabled={busy}
+                            disabled={!!item.summaryOnly || busy}
                             accessibilityState={{
                               selected: shareCategory === category.id,
                             }}
@@ -948,7 +950,7 @@ function MarketDetailContent({
                             />
                           </Pressy>
                           <Pressy
-                            disabled={busy}
+                            disabled={!!item.summaryOnly || busy}
                             onPress={() =>
                               setScreenshots((previous) =>
                                 previous.filter((value) => value !== url)
@@ -967,7 +969,7 @@ function MarketDetailContent({
                     )} ListFooterComponent={<View style={{ paddingLeft: screenshots.length ? 8 : 0 }}>
                       {screenshots.length < 6 ? (
                         <Pressy
-                          disabled={busy}
+                          disabled={!!item.summaryOnly || busy}
                           onPress={() => void chooseScreenshots()}
                           accessibilityLabel="添加截图"
                           style={styles.addShot}
@@ -1129,7 +1131,7 @@ function MarketDetailContent({
                 <View style={styles.tools}>
                   <Pressy
                     disabled={
-                      busy ||
+                      !!item.summaryOnly || busy ||
                       !ownershipReady ||
                       app.appId === bootstrap.defaultApplication
                     }
@@ -1147,7 +1149,7 @@ function MarketDetailContent({
                     </Text>
                   </Pressy>
                   <Pressy
-                    disabled={busy || (ownsSurface && (!shared || !canManage))}
+                    disabled={!!item.summaryOnly || busy || (ownsSurface && (!shared || !canManage))}
                     accessibilityLabel={
                       ownsSurface && !shared
                         ? "分享，公开作品后可用"
@@ -1177,7 +1179,7 @@ function MarketDetailContent({
                   </Pressy>
                   <Pressy
                     disabled={
-                      busy ||
+                      !!item.summaryOnly || busy ||
                       !installed ||
                       app.appId === bootstrap.defaultApplication
                     }
@@ -1207,7 +1209,7 @@ function MarketDetailContent({
               {publication ? (
                 <Pressy
                   disabled={
-                    busy ||
+                    !!item.summaryOnly || busy ||
                     !canManage ||
                     !shareTitle.trim() ||
                     (!shared && !sharing?.application) ||
@@ -1245,7 +1247,7 @@ function MarketDetailContent({
                   {installed && update ? (
                     <Pressy
                       accessibilityLabel="更新应用"
-                      disabled={busy}
+                      disabled={!!item.summaryOnly || busy}
                       onPress={() => void install()}
                       style={styles.updateButton}
                     >
@@ -1261,7 +1263,7 @@ function MarketDetailContent({
                   ) : null}
                   <Pressy
                     disabled={
-                      busy ||
+                      !!item.summaryOnly || busy ||
                       !localReady ||
                       (!installed &&
                         (!ownershipReady || (ownsSurface && !owner)))

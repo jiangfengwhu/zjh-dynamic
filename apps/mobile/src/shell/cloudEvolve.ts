@@ -113,19 +113,19 @@ function createService(appId: string, originalAppId?: string) {
       APPROVAL_STORAGE
     )}:${await readShellValue(RUN_STORAGE)}`;
   }
-  async function fetchDetail(session: string, compact = false): Promise<RawDetail> {
-    const key = await detailKey(session);
+  async function fetchDetail(session: string, compact = false, progress = false): Promise<RawDetail> {
+    const key = `${await detailKey(session)}${progress ? ":progress" : ""}`;
     if (latestDetail?.key === key && latestDetail.compact === compact && Date.now() - latestDetail.at < 4000)
       return latestDetail.value;
     if (detailFlight?.key === key && detailFlight.compact === compact) return detailFlight.promise;
     const promise = (async () => {
       const value = (await workshop({
-        action: "detail",
+        action: progress ? "progress" : "detail",
         compact,
         session,
         applicationReleases: runningApplicationReleases(),
       })) as unknown as RawDetail;
-      if ((await detailKey(session)) !== key)
+      if (`${await detailKey(session)}${progress ? ":progress" : ""}` !== key)
         throw new Error("账号或制作轮次已改变，请重试");
       const run = await loadJulesRun();
       if (run?.submissionId && value.submissionId !== run.submissionId)
@@ -732,6 +732,7 @@ function createService(appId: string, originalAppId?: string) {
     watchJulesSession,
     workshopStatus,
     readWorkshopDetail,
+    readWorkshopProgress: async (session: string) => detailView(await fetchDetail(session, false, true)),
     readWorkshopHistory,
   };
 }

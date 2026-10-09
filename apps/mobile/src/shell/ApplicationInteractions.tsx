@@ -6,21 +6,20 @@ import { SymbolIcon, type IconSymbol } from "../../../../packages/ui/chrome/Symb
 import { useTheme } from "../../../../packages/ui/theme";
 import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { cachedAccountId, requireAccount } from "./account";
-import { fetchApplicationDiscussion, saveApplicationDiscussion, togglePostLike, type UserPost } from "./feed/userPosts";
+import { fetchApplicationComments, fetchApplicationDiscussion, saveApplicationDiscussion, togglePostLike, type UserPost } from "./feed/userPosts";
 import type { MarketApplication } from "./market";
 import { LikeGlyph } from "../../../../packages/ui/feed/kit/FeedActionBar";
 import { afterInteractions } from "./interactionWork";
 
 const cache = new Map<string, UserPost>();
+const cacheAt = new Map<string, number>();
 export async function readApplicationComments(appId: string) {
   const owner = cachedAccountId() ?? "guest";
   const key = `${owner}:${appId}`;
-  const existing = cache.get(key);
-  if (existing) return existing;
-  const post = await fetchApplicationDiscussion(appId);
+  const post = await fetchApplicationComments(appId);
   if ((cachedAccountId() ?? "guest") === owner) {
-    cache.set(key, post);
-    if (cache.size > 64) cache.delete(cache.keys().next().value!);
+    cache.set(key, post); cacheAt.set(key, Date.now());
+    if (cache.size > 64) { const first = cache.keys().next().value!; cache.delete(first); cacheAt.delete(first); }
   }
   return post;
 }
@@ -30,7 +29,7 @@ export function ApplicationInteractions({ item, active, onComment, onOpen, onSha
   const { colors: t } = useTheme();
   const owner = cachedAccountId() ?? "guest";
   const key = `${owner}:${item.manifest.appId}`;
-  const [post, setPost] = useState(() => cache.get(key));
+  const [post, setPost] = useState(() => item.interactionOwner === owner && (item.interactionAt || 0) > (cacheAt.get(key) || 0) ? item.discussion : cache.get(key));
   const [saving, setSaving] = useState(false);
   const current = useRef(post);
   const alive = useRef(true);
@@ -41,9 +40,12 @@ export function ApplicationInteractions({ item, active, onComment, onOpen, onSha
   function remember(next: UserPost) {
     if (!alive.current || (cachedAccountId() ?? "guest") !== owner) return;
     current.current = next; setPost(next);
-    cache.delete(key); cache.set(key, next);
-    if (cache.size > 64) cache.delete(cache.keys().next().value!);
+    cache.delete(key); cache.set(key, next); cacheAt.set(key, Date.now());
+    if (cache.size > 64) { const first = cache.keys().next().value!; cache.delete(first); cacheAt.delete(first); }
   }
+  useEffect(() => {
+    if (item.discussion && item.interactionOwner === owner && (item.interactionAt || 0) > (cacheAt.get(key) || 0)) remember(item.discussion);
+  }, [item.discussion, item.interactionAt, key]);
   function read() {
     if (reading.current) return reading.current;
     const before = version.current;
@@ -55,7 +57,7 @@ export function ApplicationInteractions({ item, active, onComment, onOpen, onSha
     return task;
   }
   useEffect(() => {
-    if (active) return afterInteractions(() => { void read().catch(() => {}); });
+    if (active && (!item.discussion || item.interactionOwner !== owner || Date.now() - (item.interactionAt || 0) > 30000)) return afterInteractions(() => { void read().catch(() => {}); });
   }, [active]);
   function fail(cause: unknown) {
     if (alive.current) Toast.show({ type: "error", text1: "互动未完成", text2: cause instanceof Error ? cause.message : "请重试" });
@@ -92,8 +94,8 @@ export function ApplicationInteractions({ item, active, onComment, onOpen, onSha
   }
   async function comment() {
     try {
-      const value = current.current ?? await read();
-      if (alive.current) onComment(value);
+      const value = await readApplicationComments(item.manifest.appId);
+      if (alive.current) { remember(value); onComment(value); }
     } catch (cause) { fail(cause); }
   }
   const action = (icon: IconSymbol, label: string, onPress: () => void, selected = false, disabled = false) =>

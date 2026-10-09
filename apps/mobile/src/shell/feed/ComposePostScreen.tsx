@@ -31,7 +31,7 @@ import {
 } from "../account";
 import { readShellValue, writeShellValue } from "../shellStorage";
 import { publishUserPost } from "./userPosts";
-import { fetchMarket, type MarketApplication } from "../market";
+import { fetchMarketPicker, type MarketApplication } from "../market";
 import { ApplicationPostCard } from "./ApplicationPostCard";
 import {
   retainDraftImage,
@@ -92,6 +92,7 @@ export function ComposePostScreen({
   const [picking, setPicking] = useState(false);
   const [loadingApps, setLoadingApps] = useState(false);
   const [appsError, setAppsError] = useState("");
+  const [appsCursor, setAppsCursor] = useState<string>();
   const [applications, setApplications] = useState<MarketApplication[]>([]);
   const [caption, setCaption] = useState(initialDraft?.html ? initialDraft.body ?? "" : "");
   const [htmlMode, setHtmlMode] = useState(!!initialDraft?.html);
@@ -245,18 +246,19 @@ export function ComposePostScreen({
     setPicking(false);
     saveDraft(text, item);
   }
-  async function pickApplication() {
+  async function pickApplication(more = false) {
     if (working.current || loadingApps || !draftReady) return;
     Keyboard.dismiss();
     setPicking(true);
     setLoadingApps(true);
     setAppsError("");
     try {
-      const items = await fetchMarket(owner);
+      const page = await fetchMarketPicker(owner!, more ? appsCursor : undefined);
+      const items = page.applications;
       if ((await currentAccountId()) !== owner)
         throw new Error("账号已改变，请重试");
       if (alive.current)
-        setApplications(items.filter((item) => item.authorId === owner));
+        { setAppsCursor(page.nextCursor); setApplications(previous => more ? [...previous, ...items.filter(item => item.authorId === owner && !previous.some(old => old.manifest.appId === item.manifest.appId))] : items.filter(item => item.authorId === owner)); }
     } catch (error) {
       if (alive.current)
         setAppsError(
@@ -604,7 +606,8 @@ export function ComposePostScreen({
               <Pressy scale={1} accessibilityLabel="关闭应用选择" onPress={() => setPicking(false)} style={{ width: 44, height: 44, alignItems: "center" }}><SymbolIcon name="close" size={16} color={colors.ink3} /></Pressy>
             </View>
             <Text style={styles.counter}>仅分享已经公开的作品版本</Text>
-            <AnimatedFlashList data={loadingApps || appsError ? [] : applications} keyExtractor={item => item.manifest.appId} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" style={{ minHeight: 160 }}
+            <AnimatedFlashList data={!applications.length && (loadingApps || appsError) ? [] : applications} keyExtractor={item => item.manifest.appId} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" style={{ minHeight: 160 }}
+              ListFooterComponent={appsCursor ? <Pressable disabled={loadingApps} onPress={() => void pickApplication(true)} style={styles.add}><Text style={styles.counter}>{loadingApps ? "加载中…" : "加载更多作品"}</Text></Pressable> : null}
               renderItem={({ item }) => (
                   <Pressable
                     accessibilityLabel={`选择${

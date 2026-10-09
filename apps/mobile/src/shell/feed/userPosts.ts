@@ -46,6 +46,7 @@ export type UserComment = {
   replyTo?: { id: string; name: string };
 };
 export type PostDetail = {
+  readAt?: number;
   post: UserPost;
   comments: UserComment[];
   nextCursor: string | null;
@@ -64,28 +65,43 @@ const authorProfiles = new Map<string, AuthorProfile>();
 const authorFlights = new Map<string, Promise<AuthorProfile>>();
 const followListeners = new Set<() => void>();
 const authorFollows = new Map<string, boolean>();
+let followRevision = 0;
+export function authorFollowRevision() { return followRevision; }
+export function rememberAuthorFollowing(id: string, following: boolean, revision = followRevision) {
+  if (revision !== followRevision) return;
+  authorFollows.set(profileKey(id), following);
+  followListeners.forEach(listener => listener());
+}
+export async function fetchAuthorRelationship(id: string) {
+  const revision = followRevision;
+  const result = await readSocial<{following: boolean}>(`/v1/profiles/${id}?view=relationship`);
+  rememberAuthorFollowing(id, result.following, revision);
+  return result;
+}
 export function subscribeAuthorFollow(listener: () => void) { followListeners.add(listener); return () => { followListeners.delete(listener); }; }
 export function cachedAuthorFollowing(id: string) { return authorFollows.get(profileKey(id)) ?? cachedAuthorProfile(id)?.following; }
 function profileKey(id: string) { return `${cachedAccountId() ?? "guest"}:${id}`; }
 export function cachedAuthorProfile(id: string) { return authorProfiles.get(profileKey(id)) ?? cachedPage<AuthorProfile>(pageCacheKey(`author:${id}`)); }
-export function fetchAuthorProfile(id: string) {
+export function fetchAuthorProfile(id: string, view: "summary" | "posts" | "apps" = "posts", cursor?: string) {
   const key = profileKey(id);
+  const flightKey = `${key}:${view}:${cursor || ""}`;
   const priorFollow = authorFollows.get(key);
-  const existing = authorFlights.get(key);
+  const existing = authorFlights.get(flightKey);
   if (existing) return existing;
-  const promise = readSocial<AuthorProfile>(`/v1/profiles/${id}`).then(profile => {
+  const promise = readSocial<AuthorProfile>(`/v1/profiles/${id}?view=${view}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`).then(profile => {
     if (profileKey(id) === key) {
       if (authorFollows.get(key) !== priorFollow) profile = { ...profile, following: authorFollows.get(key) };
       else if (profile.following !== undefined) authorFollows.set(key, profile.following);
       authorProfiles.delete(key);
+      profile = { ...cachedAuthorProfile(id), ...profile, nextCursor: view === "posts" ? profile.nextCursor : cachedAuthorProfile(id)?.nextCursor ?? null, applicationsNextCursor: view === "apps" ? profile.applicationsNextCursor : cachedAuthorProfile(id)?.applicationsNextCursor, posts: view === "posts" ? profile.posts : cachedAuthorProfile(id)?.posts ?? [], applications: view === "apps" ? profile.applications : cachedAuthorProfile(id)?.applications ?? [] };
       authorProfiles.set(key, profile);
       rememberPage(pageCacheKey(`author:${id}`), profile);
       if (authorProfiles.size > 12) authorProfiles.delete(authorProfiles.keys().next().value!);
       followListeners.forEach(listener => listener());
     }
     return profile;
-  }).finally(() => { if (authorFlights.get(key) === promise) authorFlights.delete(key); });
-  authorFlights.set(key, promise);
+  }).finally(() => { if (authorFlights.get(flightKey) === promise) authorFlights.delete(flightKey); });
+  authorFlights.set(flightKey, promise);
   return promise;
 }
 export function fetchAuthorPosts(id: string, cursor: string) {
@@ -172,6 +188,7 @@ function refreshedPage(current: Page, page: Page, silent: boolean): Page {
   return { ...next, posts: current.posts.map(post => incoming.get(post.id) ?? post) };
 }
 export async function setAuthorFollow(id: string, following: boolean) {
+  followRevision++;
   const owner = cachedAccountId();
   const key = profileKey(id);
   const result = await readSocial<{
@@ -180,6 +197,7 @@ export async function setAuthorFollow(id: string, following: boolean) {
     followingCount: number;
   }>(`/v1/profiles/${id}/follow`, { method: following ? "POST" : "DELETE" });
   if (cachedAccountId() !== owner) return result;
+  followRevision++;
   authorFollows.set(key, result.following);
   const profile = cachedAuthorProfile(id);
   if (profile) {
@@ -509,10 +527,18 @@ export function togglePostLike(post: UserPost) {
   })();
   return { post: entry.optimistic, settled: entry.settled };
 }
+export async function fetchApplicationComments(appId: string) {
+  const revision = followRevision;
+  const result = await readSocial<PostDetail & {following: boolean}>(`/v1/application-discussions/${appId}?comments=1`);
+  result.readAt = Date.now();
+  rememberPage(pageCacheKey(`post:${result.post.id}:`), result);
+  rememberAuthorFollowing(result.post.author.id, result.following, revision);
+  return result.post;
+}
 export async function fetchApplicationDiscussion(appId: string) {
   return (await readSocial<{ post: UserPost }>(`/v1/application-discussions/${appId}`)).post;
 }
-export type CommonApplication = ApplicationLink & { discussionId: string };
+export type CommonApplication = ApplicationLink & { discussionId: string; available?: boolean };
 export function fetchCommonApplications(cursor?: string) {
   return readSocial<{ applications: CommonApplication[]; nextCursor: string | null }>(`/v1/application-bookmarks${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
 }

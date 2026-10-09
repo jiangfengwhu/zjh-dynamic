@@ -1,3 +1,4 @@
+import { fetchWorksGallery, projectGallery } from "./worksGallery";
 import { AnimatedFlashList } from "./AnimatedFlashList";
 import { waitForInteractions, afterInteractions } from "./interactionWork";
 import { ApplicationIcon } from "./ApplicationIcon";
@@ -85,10 +86,12 @@ export function MyApplicationsScreen({
   const focused = useIsFocused() && active;
   const focusedRef = useRef(focused);
   focusedRef.current = focused;
-  const cacheKey = pageCacheKey(`applications:${scope}`);
-  type Snapshot = { works: MyWork[]; installed: MarketApplication[] };
+  const [serverQuery, setServerQuery] = useState("");
+  const cacheKey = pageCacheKey(`applications:${scope}:${serverQuery}`);
+  type Snapshot = { works: MyWork[]; installed: MarketApplication[]; nextCursor?: string | null };
   const cached = cachedPage<Snapshot>(cacheKey);
   const [loaded, setLoaded] = useState(!!cached);
+  const [nextCursor, setNextCursor] = useState<string | null>(cached?.nextCursor ?? null);
   const [works, setWorks] = useState<MyWork[]>(cached?.works ?? []);
   const [installed, setInstalled] = useState<MarketApplication[]>(cached?.installed ?? []);
   const [owner, setOwner] = useState<string | undefined>(cached ? user?.id : undefined);
@@ -121,13 +124,13 @@ export function MyApplicationsScreen({
     setPulling(manual);
     setError("");
     try {
-      const apps = await installedMarket();
+      const [apps, gallery] = await Promise.all([installedMarket(), scope === "works" && user ? fetchWorksGallery(undefined, serverQuery, manual) : Promise.resolve(undefined)]);
       if (scope === "works") {
-        await restoreWorks(manual, true);
-        const next = await readMyWorks(apps);
+        const next = gallery ? projectGallery(gallery.works) : await readMyWorks(apps);
         await waitForInteractions();
         if (before !== generation.current) return;
-        const snapshot = rememberPage(cacheKey, { works: next, installed: apps });
+        setNextCursor(gallery?.nextCursor ?? null);
+        const snapshot = rememberPage(cacheKey, { works: next, installed: apps, nextCursor: gallery?.nextCursor });
         setWorks(snapshot.works); setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id);
       } else {
         await waitForInteractions();
@@ -212,7 +215,7 @@ export function MyApplicationsScreen({
         reading.current = false;
       };
     }
-  }, [focused, user?.id, scope, catalogRevision]);
+  }, [focused, user?.id, scope, catalogRevision, serverQuery]);
   useEffect(() => {
     if (!focused) return;
     let cancelReload: (() => void) | undefined;
@@ -369,6 +372,25 @@ export function MyApplicationsScreen({
     }
     onDetail(item);
   }
+  async function loadMoreWorks() {
+    if (scope !== "works" || !nextCursor || reading.current || !focusedRef.current) return;
+    reading.current = true; setBusy(true); const before = generation.current;
+    try {
+      const page = await fetchWorksGallery(nextCursor, serverQuery);
+      if (before !== generation.current) return;
+      setNextCursor(page.nextCursor);
+      setWorks(previous => {
+        const next = [...previous, ...projectGallery(page.works).filter(work => !previous.some(old => old.appId === work.appId))];
+        rememberPage(cacheKey, {works: next, installed, nextCursor: page.nextCursor}); return next;
+      });
+    } catch { if (before === generation.current) setError("更多作品加载失败，点击重试"); }
+    finally { if (before === generation.current) {reading.current = false; setBusy(false);} }
+  }
+  useEffect(() => {
+    if (scope !== "works" || !focused) return;
+    const timer = setTimeout(() => { setServerQuery(query.trim()); }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
   const term = query.trim().toLowerCase();
   const visibleWorks =
     owner === user?.id
@@ -388,7 +410,7 @@ export function MyApplicationsScreen({
   type Row =
     | { type: "work"; work: MyWork }
     | { type: "app"; app: MarketApplication };
-  useEffect(() => { const next = cachedPage<Snapshot>(cacheKey); setWorks(next?.works ?? []); setInstalled(next?.installed ?? []); setOwner(next ? user?.id : undefined); setLoaded(!!next); }, [cacheKey]);
+  useEffect(() => { const next = cachedPage<Snapshot>(cacheKey); setNextCursor(next?.nextCursor ?? null); setWorks(next?.works ?? []); setInstalled(next?.installed ?? []); setOwner(next ? user?.id : undefined); setLoaded(!!next); }, [cacheKey]);
   const Root = embedded ? View : Screen;
   const actionStyle = {
     minHeight: 40,
@@ -424,6 +446,9 @@ export function MyApplicationsScreen({
               ? visibleWorks.map((work) => ({ type: "work" as const, work }))
               : visibleApps.map((app) => ({ type: "app" as const, app }))
           }
+          onEndReached={() => { void loadMoreWorks(); }}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={scope === "works" && nextCursor ? <Pressy onPress={() => { void loadMoreWorks(); }} disabled={busy} style={{minHeight: 44, alignItems: "center", justifyContent: "center"}}>{busy ? <ActivityIndicator color={colors.ink2} /> : <Text style={{color: colors.ink2}}>加载更多作品</Text>}</Pressy> : null}
           getItemType={row => row.type}
           keyExtractor={(row) =>
             row.type === "work" ? row.work.appId : row.app.manifest.appId
