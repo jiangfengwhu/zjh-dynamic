@@ -20,7 +20,7 @@ npm ci --prefix apps/mobile
 | --- | --- |
 | npm run build:sdk | 构建 SDK 的 dist |
 | npm run pack:sdk | 构建 SDK，并在 dist 生成 npm tarball |
-| npm run publish:sdk | 构建 SDK 并直接发布到 npm latest；发布前须核对线上平台契约 |
+| npm run publish:sdk | 构建 SDK 并直接发布到 npm latest；须先发布实现相同 SDK 版本的宿主，原生变化还需配套 APK |
 | npm run publish | 构建并发布宿主动态包，不发布应用 |
 | npm run release:official -- <appId> <releaseId> | 将指定官方应用版本公开，源码须属于 zjh-plugin/origin/main |
 
@@ -38,4 +38,4 @@ AI 的消息、多模态校验和请求体组装在 RN 层维护；原生只读�
 
 宿主使用 vendor 与 app 两层：宿主页面、主题、基础控件及 SDK 实现都属于 app。vendor 只包含第三方模块和最小启动桥接，不引用宿主 UI；打包器检查边界，第三方模块编号保持稳定。页面与主题修改不触发 vendor 重建；第三方依赖、补丁或启动桥接变化才重建 vendor。
 
-作品兼容规则：应用与宿主 SDK 大版本必须一致，宿主完整 SDK 版本不得低于应用实际使用的 SDK 版本。同大版本的新版宿主必须保留旧应用接口、行为和共享依赖入口。应用清单只记录 `sdk`，删除 `requires.sdk`，不兼容旧清单字段。SDK、vendor 或原生变更使旧作品包无法正常运行时必须升 SDK 大版本；纯 JS API 变更发布宿主动态包，原生能力或依赖变更才配套 APK。SDK 大版本不与 APK 契约的大版本绑定；应用清单不按 ABI 或第三方库精确版本拒绝旧包。APK/宿主底层运行时、包哈希与 vendor 配对检查继续保留。宿主与作品发布器复用 `packages/app-sdk/src/compatibility.ts` 的判断。
+作品兼容规则：应用与宿主 SDK 大版本必须一致，宿主完整 SDK 版本不得低于应用实际使用的 SDK 版本。同大版本的新版宿主必须保留旧应用接口、行为和共享依赖入口。应用清单只记录 `sdk`，不接受 `requires` 或独立的最低平台版本。SDK、vendor 或原生变更使旧作品包无法正常运行时必须升 SDK 大版本；纯 JS API 变更发布宿主动态包，原生能力或依赖变更才配套 APK。SDK 大版本不与 APK 契约的大版本绑定；应用清单不按 ABI 或第三方库精确版本拒绝旧包。APK/宿主底层运行时与 vendor 配对检查继续保留，客户端下载文件仅检查状态及长度，哈希用于缓存与版本定位；维护者构建和发布工具仍核对产物哈希。宿主与作品发布器复用 `packages/app-sdk/src/compatibility.ts` 的判断。
