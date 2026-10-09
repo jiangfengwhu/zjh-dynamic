@@ -75,7 +75,8 @@ export type ApplicationManifest = {
   /** Independently cached icon resource, generated from assets/icon.svg. */
   icon?: { sha256: string; bytes: number; format: "svg" };
   dataSchemaVersion: number;
-  requires: { sdk: string };
+  /** Actual SDK package version used to build this application. */
+  sdk: string;
   modules: { base: number; size: number };
   bundle: { sha256: string; bytes: number };
   assets: Array<{ name: string; sha256: string; bytes: number }>;

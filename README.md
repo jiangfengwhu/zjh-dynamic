@@ -24,7 +24,7 @@ npm ci --prefix apps/mobile
 | npm run publish | 构建并发布宿主动态包，不发布应用 |
 | npm run release:official -- <appId> <releaseId> | 将指定官方应用版本公开，源码须属于 zjh-plugin/origin/main |
 
-SDK 通过 npm 公共包 `@zijinhua/app-sdk` 分发。发布 SDK 代码、公共类型或指引变更时，更新包版本并运行 `npm run pack:sdk`；核对 SDK 与线上宿主/APK 契约一致后，执行 `npm publish ./dist/zijinhua-app-sdk-<版本>.tgz --access public --tag latest` 发布到 latest。latest 只指向当前线上平台可用的稳定版本；需回退时调整 npm dist-tag，不覆盖已发布版本。npm 包只包含 dist 和 README；SDK 包版本与 `platform.json.sdk` 的宿主 API 版本可不同，但大版本必须一致。
+SDK 通过 npm 公共包 `@zijinhua/app-sdk` 分发。SDK 版本只维护在 `packages/app-sdk/package.json`，宿主清单与应用构建都读取实际包版本，不维护独立的最低平台版本。发布 SDK 代码、公共类型或指引变更时，更新包版本并运行 `npm run pack:sdk`；先发布实现该 SDK 版本的宿主动态包，原生能力变化再配套 APK，然后执行 `npm publish ./dist/zijinhua-app-sdk-<版本>.tgz --access public --tag latest` 发布到 latest。云端制作安装 npm latest；手机运行时用实际加载的宿主 SDK 版本判断应用是否可运行。需回退时调整 npm dist-tag，不覆盖已发布版本。npm 包只包含 dist 和 README。
 
 应用构建校验 SDK 管理的依赖与其平台契约一致；应用发布校验授权、候选基线及线上宿主 SDK 兼容性。宿主发布另行校验 RN/Hermes ABI 与共享依赖是否匹配目标 APK。
 
@@ -38,4 +38,4 @@ AI 的消息、多模态校验和请求体组装在 RN 层维护；原生只读�
 
 宿主使用 vendor 与 app 两层：宿主页面、主题、基础控件及 SDK 实现都属于 app。vendor 只包含第三方模块和最小启动桥接，不引用宿主 UI；打包器检查边界，第三方模块编号保持稳定。页面与主题修改不触发 vendor 重建；第三方依赖、补丁或启动桥接变化才重建 vendor。
 
-平台兼容以 SDK 大版本为边界：同大版本的新版宿主必须保留旧应用接口、行为和共享依赖入口；应用最低 API 版本不得高于实际加载的宿主版本。SDK、vendor 或原生变更使旧作品包无法正常运行时必须升 SDK 大版本；纯 JS API 变更发布宿主动态包，原生能力或依赖变更才配套 APK。SDK 大版本不与 APK 契约的大版本绑定；应用清单不再按 ABI 或第三方库精确版本拒绝旧包。APK/宿主底层运行时、包哈希与 vendor 配对检查继续保留。宿主与作品发布器复用 `packages/app-sdk/src/compatibility.ts` 的判断。
+作品兼容规则：应用与宿主 SDK 大版本必须一致，宿主完整 SDK 版本不得低于应用实际使用的 SDK 版本。同大版本的新版宿主必须保留旧应用接口、行为和共享依赖入口。应用清单只记录 `sdk`，删除 `requires.sdk`，不兼容旧清单字段。SDK、vendor 或原生变更使旧作品包无法正常运行时必须升 SDK 大版本；纯 JS API 变更发布宿主动态包，原生能力或依赖变更才配套 APK。SDK 大版本不与 APK 契约的大版本绑定；应用清单不按 ABI 或第三方库精确版本拒绝旧包。APK/宿主底层运行时、包哈希与 vendor 配对检查继续保留。宿主与作品发布器复用 `packages/app-sdk/src/compatibility.ts` 的判断。

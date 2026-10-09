@@ -339,8 +339,6 @@ async function load(appId: string) {
   if (staged) manifest = JSON.parse(staged) as ApplicationManifest;
   else if (saved) manifest = JSON.parse(saved) as ApplicationManifest;
   else manifest = await firstManifest(appId);
-  // The default companion is shipped alongside the host SDK API.
-  if (!staged && appId === bootstrap.defaultApplication && manifest.requires.sdk !== contract.sdk) manifest = await firstManifest(appId);
   try { assertCompatible(manifest, appId); } catch (error) {
     if (!saved || staged) throw error;
     // A platform major upgrade can require an application update; retain data and pick a compatible seed/release.
@@ -408,7 +406,7 @@ function assertCompatible(manifest: ApplicationManifest, appId: string) {
   if (manifest.format !== 1 || manifest.appId !== appId || !/^[a-f0-9]{64}$/.test(manifest.releaseId) || !/^[a-f0-9]{64}$/.test(manifest.bundle?.sha256)) throw new Error("应用清单无效");
   const source = manifest.source;
   if (!source || typeof source.dirty !== "boolean" || !/^[a-f0-9]{40}$/.test(source.commit) || ((source.dirty || source.tree !== undefined) && !/^[a-f0-9]{40}$/.test(source.tree ?? ""))) throw new Error("应用源码快照无效，请重新发布");
-  assertApplicationSdkCompatible(manifest.requires.sdk, contract.sdk);
+  assertApplicationSdkCompatible(manifest.sdk, contract.sdk);
   if (allocations.applications[appId] !== undefined && allocations.applications[appId] !== manifest.modules.base) throw new Error("已分配应用的模块范围不可变更");
   if (!Number.isSafeInteger(manifest.modules.base) || manifest.modules.base < 2000000 || manifest.modules.base % allocations.moduleRangeSize || manifest.modules.size !== allocations.moduleRangeSize) throw new Error("应用模块范围不匹配");
   for (const other of active.values()) {
@@ -454,7 +452,7 @@ async function commitHealthy(appId: string) {
 
 async function firstManifest(appId: string): Promise<ApplicationManifest> {
   const seed = JSON.parse(await NativePluginHost.call("shell", "applicationSeed", JSON.stringify({ appId }))) as { manifest?: ApplicationManifest };
-  if (seed.manifest && (appId !== bootstrap.defaultApplication || seed.manifest.requires.sdk === contract.sdk)) {
+  if (seed.manifest) {
     try { assertCompatible(seed.manifest, appId); writeShellValue(`application.access.${appId}`, JSON.stringify({ releaseId: seed.manifest.releaseId, ownerId: null, public: true })); return seed.manifest; } catch { /* Need a newer compatible release. */ }
   }
   const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/public`);

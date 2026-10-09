@@ -20,17 +20,17 @@ export async function buildApplication(repo: string, appId: string) {
   if (config.appId !== appId || !/^\d+\.\d+\.\d+$/.test(config.version)) throw new Error("应用配置无效");
   const sdkDirectory = import.meta.dirname;
   const platform = JSON.parse(await readFile(path.join(sdkDirectory, "platform.json"), "utf8"));
+  const sdk = JSON.parse(await readFile(path.join(sdkDirectory, "../package.json"), "utf8")).version as string;
   await assertApplicationDependencies(repo, sdkDirectory, platform.shared);
   const base = config.moduleBase;
   if (!Number.isSafeInteger(base) || base < 2000000 || base % platform.moduleRangeSize || base + platform.moduleRangeSize >= 2 ** 31) throw new Error("应用模块范围无效");
   if (platform.reservedModules[appId] !== undefined && platform.reservedModules[appId] !== base) throw new Error("应用模块范围不可变更");
   await mkdir(path.join(output, "external"), { recursive: true });
-  const publicModules = { sdk: platform.sdk };
   const sharedNames: string[] = [...Object.keys(platform.shared), "@zijinhua/app-sdk", "@zijinhua/app-sdk/ui", "@zijinhua/app-sdk/creation"];
   const shared: Record<string, string> = {};
   for (const name of sharedNames) {
     const packageName = name.startsWith("@") ? name.split("/").slice(0, 2).join("/") : name.split("/")[0];
-    const version = packageName === "@zijinhua/app-sdk" ? publicModules.sdk : platform.shared[name];
+    const version = packageName === "@zijinhua/app-sdk" ? sdk : platform.shared[name];
     if (!version) throw new Error(`共享依赖没有锁定版本：${name}`);
     shared[name] = version;
     await writeFile(path.join(output, "external", `${Buffer.from(name).toString("hex")}.js`), `module.exports = globalThis.__zijinhuaApplications.require(${JSON.stringify(name)}, ${JSON.stringify(appId)});\n`);
@@ -87,7 +87,7 @@ export async function buildApplication(repo: string, appId: string) {
   const body = {
     appId, appName, description, version, releaseNotes, accent,
     ...(assets.find(asset => asset.name === "icon.svg") ? { icon: { ...assets.find(asset => asset.name === "icon.svg")!, format: "svg" as const } } : {}),
-    dataSchemaVersion: 1, format: 1, requires: { sdk: publicModules.sdk },
+    dataSchemaVersion: 1, format: 1, sdk,
     modules: { base, size: platform.moduleRangeSize },
     bundle: { sha256: sha256Hex(bytes), bytes: bytes.length }, assets: assets.sort((a, b) => a.name.localeCompare(b.name)), source,
   };

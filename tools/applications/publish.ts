@@ -8,11 +8,11 @@ import { publicationToken } from "./authorization.js";
 export async function publishApplication(root: string, appId: string) {
 const { manifest, bundleFile, output } = await buildApplication(root, appId);
 if (manifest.source.repository !== "jiangfengwhu/zjh-plugin") throw new Error("应用只能从 zjh-plugin 仓库发布");
-const platformResponse = await fetch(`${bundleEdgeBase()}/v1/release`);
-if (!platformResponse.ok) throw new Error("无法读取应用平台契约");
-const platform = (await platformResponse.json()).applications;
-if (!platform) throw new Error("无法读取当前宿主 SDK 契约");
-assertSdkCompatible(manifest.requires.sdk, platform.sdk);
+const hostResponse = await fetch(`${bundleEdgeBase()}/v1/release`);
+if (!hostResponse.ok) throw new Error("无法读取当前宿主版本");
+const host = (await hostResponse.json()).applications;
+if (!host) throw new Error("无法读取当前宿主 SDK 版本");
+assertSdkCompatible(manifest.sdk, host.sdk);
 const publishToken = await publicationToken(root, appId, bundleEdgeBase());
 let previous: Response;
 try { previous = await fetch(`${bundleEdgeBase()}/v1/applications/${appId}/candidate`, { headers: { Authorization: `Bearer ${publishToken}` }, signal: AbortSignal.timeout(15000) }); }
