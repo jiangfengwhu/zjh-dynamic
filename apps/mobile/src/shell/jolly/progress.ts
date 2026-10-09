@@ -78,11 +78,6 @@ export function useProgress(
   const [loaded, setLoaded] = useState(!!initial);
   const initialRead = useRef(false);
   const [error, setError] = useState("");
-  const [historyError, setHistoryError] = useState("");
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const historyFlight = useRef(false);
-  const snapshotRef = useRef(snapshot);
-  snapshotRef.current = snapshot;
   const [service] = useState(() =>
     appId ? getCreationService(appId, originalAppId) : undefined
   );
@@ -110,7 +105,6 @@ export function useProgress(
     if (flight.current) return flight.current;
     if (!valid() || !service || !appId) return Promise.resolve();
     setChecking(true);
-    setHistoryError("");
     const operation = (async () => {
       try {
         let run = await service.loadJulesRun();
@@ -134,6 +128,24 @@ export function useProgress(
         }
         const detail = await service.readWorkshopDetail(currentSession);
         if (!valid()) return;
+        if (!detail) throw new Error("暂时无法读取制作进度，请重试");
+        // Read every page so the last model reply is not limited to the first
+        // four activity pages. Retain only that reply in the progress snapshot.
+        let traces: CloudTrace[] = detail.traces;
+        let cursor = detail.historyCursor;
+        const cursors = new Set<string>();
+        while (cursor) {
+          if (!valid()) return;
+          if (cursors.has(cursor)) throw new Error("制作记录分页异常，请重试");
+          cursors.add(cursor);
+          const page = await service.readWorkshopHistory(currentSession, cursor);
+          traces = [...traces, ...page.traces];
+          cursor = page.nextCursor;
+        }
+        const output = traces.filter(trace => trace.kind === "text" && trace.title !== "你的需求" && (trace.detail || trace.title).trim())
+          .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || "")).at(-1);
+        const summary = { ...detail, traces: output ? [output] : [], historyCursor: undefined };
+        if (!valid()) return;
         const latest = await service.loadJulesRun();
         if (!valid()) return;
         if (
@@ -141,12 +153,11 @@ export function useProgress(
           latest?.startedAt !== run?.startedAt
         )
           throw new Error("制作轮次已更新，正在同步最新进度");
-        if (!detail) throw new Error("暂时无法读取制作进度，请重试");
         const next: ProgressSnapshot = {
           session: currentSession,
           submissionId: run?.submissionId,
           startedAt: run?.startedAt,
-          detail,
+          detail: summary,
           at: Date.now(),
         };
         rememberPage(pageCacheKey(`progress:${appId}:${currentSession}:${run?.submissionId ?? ""}:${run?.startedAt ?? ""}`), next);
@@ -169,30 +180,6 @@ export function useProgress(
       if (flight.current === operation) flight.current = undefined;
     });
     return operation;
-  }, [service, appId, scope]);
-
-  const loadMore = useCallback(async () => {
-    const before = snapshotRef.current;
-    const cursor = before?.detail.historyCursor;
-    if (!valid() || !service || !before || !cursor || flight.current || historyFlight.current) return;
-    historyFlight.current = true;
-    setLoadingHistory(true);
-    setHistoryError("");
-    try {
-      const page = await service.readWorkshopHistory(before.session, cursor);
-      const run = await service.loadJulesRun();
-      if (!valid() || snapshotRef.current !== before || run?.submissionId !== before.submissionId || run?.startedAt !== before.startedAt) return;
-      const traces = [...new Map([...before.detail.traces, ...page.traces].map(trace => [trace.id, trace as CloudTrace])).values()]
-        .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
-      const next = { ...before, detail: { ...before.detail, traces, historyCursor: page.nextCursor === cursor ? undefined : page.nextCursor } };
-      setSnapshot(next);
-      rememberPage(pageCacheKey(`progress:${appId}:${before.session}:${before.submissionId ?? ""}:${before.startedAt ?? ""}`), next);
-    } catch (cause) {
-      if (valid() && snapshotRef.current === before) setHistoryError(cause instanceof Error ? cause.message : "日志加载失败，请重试");
-    } finally {
-      historyFlight.current = false;
-      if (alive.current) setLoadingHistory(false);
-    }
   }, [service, appId, scope]);
 
   useEffect(() => {
@@ -257,8 +244,5 @@ export function useProgress(
     loaded,
     active,
     refresh,
-    loadMore,
-    loadingHistory,
-    historyError,
   };
 }
