@@ -1,6 +1,6 @@
 import { authorFollowRevision, rememberAuthorFollowing, type UserPost } from "./feed/userPosts";
 import { afterInteractions } from "./interactionWork";
-import { rememberPage, pageCacheKey } from "./pageCache";
+import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
 import { accountFetch, currentAccountId, cachedAccountId } from "./account";
 import {
   fetchApplicationCatalog,
@@ -73,7 +73,7 @@ export type MarketView = MarketPage & { at: number; offset: number };
 const views = new Map<string, MarketView>();
 export function cachedMarketView(key: string): MarketView | undefined {
   if (views.has(key)) return views.get(key);
-  try { const value = JSON.parse(readShellValueSync(`market.view.${encodeURIComponent(key)}`) || "null"); if (Array.isArray(value?.applications)) { const view = { ...value, at: value.at || 1 }; views.set(key, view); return view; } } catch {}
+  try { const value = cachedPage<MarketView>(`public:market-view:${key}`); if (Array.isArray(value?.applications)) { const view = { ...value, at: value.at || 1 }; views.set(key, view); return view; } } catch {}
   return undefined;
 }
 export const marketViewKey = (category: string, query: string) =>
@@ -86,37 +86,15 @@ export function rememberMarketView(key: string, view: MarketView, persist = true
   const cancel = afterInteractions(() => {
     viewWrites.delete(key);
     if (views.get(key) !== view) return;
-    writeShellValue(`market.view.${encodeURIComponent(key)}`, JSON.stringify(view));
+    rememberPage(`public:market-view:${key}`, view);
     while (views.size > 12) { const oldest = views.keys().next().value!; views.delete(oldest); }
-    const stored = shellKeys().filter(item => item.startsWith("market.view.") && item !== `market.view.${encodeURIComponent(key)}`);
-    while (stored.length >= 12) removeShellValue(stored.shift()!);
+    // Retire the former unbounded, monolithic search snapshots.
+    for (const stored of shellKeys()) if (stored.startsWith("market.view.")) removeShellValue(stored);
   });
   viewWrites.set(key, cancel);
 }
-export async function readMarketView(
-  key: string
-): Promise<MarketView | undefined> {
-  if (views.has(key)) return views.get(key);
-  try {
-    const value = JSON.parse(
-      (await readShellValue(`market.view.${encodeURIComponent(key)}`)) || "null"
-    );
-    if (Array.isArray(value?.applications)) {
-      const view = {
-        ...value,
-        at: value.at || 1,
-        applications: value.applications
-          .filter((item: MarketApplication) => item.manifest.appId !== "jolly")
-          .map((item: MarketApplication) => ({
-            ...item,
-            latest: false,
-          })),
-      };
-      views.set(key, view);
-      return view;
-    }
-  } catch {}
-  return undefined;
+export async function readMarketView(key: string): Promise<MarketView | undefined> {
+  return cachedMarketView(key);
 }
 export function invalidateMarketViews() {
   views.clear();

@@ -1,3 +1,4 @@
+import { appendUnique } from "./listData";
 import { fetchWorksGallery, projectGallery } from "./worksGallery";
 import { AnimatedFlashList } from "./AnimatedFlashList";
 import { waitForInteractions, afterInteractions } from "./interactionWork";
@@ -6,7 +7,7 @@ import { EmptyState } from "./EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
 import { ActivityIndicator } from "react-native";
 import { PageSkeleton } from "./LoadingSkeleton";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HostAlert } from "./HostAlert";
 import NativePluginHost from "../NativePluginHost";
 import { AppState, View } from "react-native";
@@ -380,7 +381,7 @@ export function MyApplicationsScreen({
       if (before !== generation.current) return;
       setNextCursor(page.nextCursor);
       setWorks(previous => {
-        const next = [...previous, ...projectGallery(page.works).filter(work => !previous.some(old => old.appId === work.appId))];
+        const next = appendUnique(previous, projectGallery(page.works), work => work.appId);
         rememberPage(cacheKey, {works: next, installed, nextCursor: page.nextCursor}); return next;
       });
     } catch { if (before === generation.current) setError("更多作品加载失败，点击重试"); }
@@ -392,21 +393,22 @@ export function MyApplicationsScreen({
     return () => clearTimeout(timer);
   }, [query]);
   const term = query.trim().toLowerCase();
-  const visibleWorks =
+  const visibleWorks = useMemo(() =>
     owner === user?.id
       ? works.filter((work) =>
           `${work.title} ${work.wish}`.toLowerCase().includes(term)
         )
-      : [];
-  const visibleApps =
+      : [], [owner, user?.id, works, term]);
+  const visibleApps = useMemo(() =>
     owner === user?.id
       ? installed.filter((item) =>
           `${item.manifest.appName} ${item.manifest.description}`
             .toLowerCase()
             .includes(term)
         )
-      : [];
-  const installedIds = new Set(installed.map((item) => item.manifest.appId));
+      : [], [owner, user?.id, installed, term]);
+  const installedIds = useMemo(() => new Set(installed.map((item) => item.manifest.appId)), [installed]);
+  const rows = useMemo(() => scope === "works" ? visibleWorks.map(work => ({ type: "work" as const, work })) : visibleApps.map(app => ({ type: "app" as const, app })), [scope, visibleWorks, visibleApps]);
   type Row =
     | { type: "work"; work: MyWork }
     | { type: "app"; app: MarketApplication };
@@ -441,11 +443,7 @@ export function MyApplicationsScreen({
           onLayout={profileScroll.onLayout}
           onContentSizeChange={profileScroll.onContentSizeChange}
           scrollEventThrottle={16}
-          data={
-            scope === "works"
-              ? visibleWorks.map((work) => ({ type: "work" as const, work }))
-              : visibleApps.map((app) => ({ type: "app" as const, app }))
-          }
+          data={rows}
           onEndReached={() => { void loadMoreWorks(); }}
           onEndReachedThreshold={0.4}
           ListFooterComponent={scope === "works" && nextCursor ? <Pressy onPress={() => { void loadMoreWorks(); }} disabled={busy} style={{minHeight: 44, alignItems: "center", justifyContent: "center"}}>{busy ? <ActivityIndicator color={colors.ink2} /> : <Text style={{color: colors.ink2}}>加载更多作品</Text>}</Pressy> : null}

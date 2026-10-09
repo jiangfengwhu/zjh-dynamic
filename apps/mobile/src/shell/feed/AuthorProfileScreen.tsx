@@ -1,3 +1,4 @@
+import type { MarketApplication } from "../market";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
 import { useVisitedPager } from "../useVisitedPager";
@@ -5,7 +6,7 @@ import { Text } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
 import { ActivityIndicator } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouteContentReady, useRouteRequestReady } from "../useRouteContentReady";
 import { afterInteractions } from "../interactionWork";
 import { useIsFocused } from "@react-navigation/native";
@@ -169,9 +170,9 @@ function AuthorProfileContent({
       if (!alive.current || before !== revision.current) return false;
       onProfileLoaded?.(result);
       setProfile(previous => ({ ...previous, ...result,
-        posts: target === "posts" ? more ? [...previous.posts, ...result.posts.filter(item => !previous.posts.some(old => old.id === item.id))] : result.posts : previous.posts,
+        posts: target === "posts" ? result.posts : previous.posts,
         nextCursor: target === "posts" ? result.nextCursor : previous.nextCursor,
-        applications: target === "apps" ? more ? [...previous.applications, ...result.applications.filter(item => !previous.applications.some(old => old.manifest.appId === item.manifest.appId))] : result.applications : previous.applications,
+        applications: target === "apps" ? result.applications : previous.applications,
         applicationsNextCursor: target === "apps" ? result.applicationsNextCursor : previous.applicationsNextCursor,
       }));
       loadedTabs.current.add(target);
@@ -217,26 +218,25 @@ function AuthorProfileContent({
     if (!focused || loadedTabs.current.has(tab)) return;
     return afterInteractions(() => { void load(false); });
   }, [tab, focused]);
-  function updated(post: UserPost) {
+  const updated = useCallback((post: UserPost) => {
     revision.current++;
     if (reading.current) rerun.current = true;
     setProfile((previous) => ({
       ...previous,
       posts: previous.posts.map((item) => (item.id === post.id ? post : item)),
     }));
-  }
-  function deleted(id: string) {
+  }, []);
+  const deleted = useCallback((id: string) => {
     revision.current++;
     if (reading.current) rerun.current = true;
     setProfile((previous) => ({
       ...previous,
       posts: previous.posts.filter((post) => post.id !== id),
     }));
-  }
-  const author =
-    profile.author.id === user?.id
+  }, []);
+  const author = useMemo(() => profile.author.id === user?.id
       ? { ...profile.author, name: user.name, avatarUrl: user.avatarUrl }
-      : profile.author;
+      : profile.author, [profile.author, user?.id, user?.name, user?.avatarUrl]);
   const Root = embedded ? View : Screen;
   const header = (
     <View>
@@ -354,22 +354,14 @@ function AuthorProfileContent({
       ) : null}
     </View>
   );
+  const postRows = useMemo(() => profile.posts.map(post => ({ type: "post" as const, post })), [profile.posts]);
+  const appRows = useMemo(() => profile.applications.map(app => ({ type: "app" as const, app })), [profile.applications]);
   const renderPage = (tab: "posts" | "apps") => {
     const refresh = tab === "posts" ? postsRefresh : appsRefresh;
     return <PullRefreshSurface refresh={refresh} drawerGesture={drawerGesture} top={profileScroll.refreshOffset}>
               <AnimatedFlashList<ProfileRow> maintainVisibleContentPosition={{ disabled: true }}
                 ref={tab === "posts" ? list : appList}
-                data={
-                  !contentReady && !loaded ? [] : tab === "posts"
-                    ? profile.posts.map((post) => ({
-                        type: "post" as const,
-                        post,
-                      }))
-                    : profile.applications.map((app) => ({
-                        type: "app" as const,
-                        app,
-                      }))
-                }
+                data={!contentReady && !loaded ? [] : tab === "posts" ? postRows : appRows}
                 getItemType={row => row.type}
                 keyExtractor={(row) =>
                   row.type === "post" ? row.post.id : row.app.manifest.appId
@@ -383,47 +375,9 @@ function AuthorProfileContent({
                 overScrollMode="never"
                 bounces={false}
                 scrollEnabled={refresh.phase !== "refreshing" && refresh.phase !== "done"}
-                renderItem={({ item: row, index }) => {
-                  if (row.type === "app") {
-                    const item = row.app;
-                    return (
-                      <View
-                        style={{ paddingHorizontal: 12, paddingBottom: 12 }}
-                      >
-                        <WorkCard
-                          application={item}
-                          title={item.title || item.manifest.appName}
-                          summary={item.summary ?? item.manifest.description}
-
-                          authorName={author.name}
-                          authorAvatarUrl={author.avatarUrl}
-                          visibility="public"
-                          tone={index}
-                          onOpen={() => onApplication(item.manifest.appId)}
-                        />
-                      </View>
-                    );
-                  }
-                  const item = row.post;
-                  return (
-                    <View
-                      style={{
-                        borderBottomWidth: colors.components.surfaceBorder,
-                        borderBottomColor: colors.line,
-                      }}
-                    >
-                      <UserPostCard
-                        post={{ ...item, author }}
-                        time={formatWhen(item.createdAt)}
-                        own={user?.id === item.author.id}
-                        onOpen={() => onPost(item)}
-                        onApplication={onApplication}
-                        onUpdated={updated}
-                        onDeleted={() => deleted(item.id)}
-                      />
-                    </View>
-                  );
-                }}
+                renderItem={({ item: row, index }) => row.type === "app"
+                  ? <AuthorApplicationRow item={row.app} author={author} index={index} onApplication={onApplication} />
+                  : <AuthorPostRow item={row.post} author={author} own={user?.id === row.post.author.id} onPost={onPost} onApplication={onApplication} onUpdated={updated} onDeleted={deleted} />}
                 ListEmptyComponent={
                   loadedTabs.current.has(tab) && !error ? (
                     <EmptyState><Text
@@ -482,3 +436,15 @@ function AuthorProfileContent({
     </Root>
   );
 }
+
+const AuthorApplicationRow = memo(function AuthorApplicationRow({ item, author, index, onApplication }: { item: MarketApplication; author: PublicAuthor; index: number; onApplication: (id: string) => Promise<void> }) {
+  const open = useCallback(() => { void onApplication(item.manifest.appId); }, [onApplication, item.manifest.appId]);
+  return <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}><WorkCard application={item} title={item.title || item.manifest.appName} summary={item.summary ?? item.manifest.description} authorName={author.name} authorAvatarUrl={author.avatarUrl} visibility="public" tone={index} onOpen={open} /></View>;
+});
+const AuthorPostRow = memo(function AuthorPostRow({ item, author, own, onPost, onApplication, onUpdated, onDeleted }: { item: UserPost; author: PublicAuthor; own: boolean; onPost: (post: UserPost) => void; onApplication: (id: string) => Promise<void>; onUpdated: (post: UserPost) => void; onDeleted: (id: string) => void }) {
+  const { colors } = useTheme();
+  const post = useMemo(() => ({ ...item, author }), [item, author]);
+  const open = useCallback(() => onPost(item), [onPost, item]);
+  const remove = useCallback(() => onDeleted(item.id), [onDeleted, item.id]);
+  return <View style={{ borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line }}><UserPostCard post={post} time={formatWhen(item.createdAt)} own={own} onOpen={open} onApplication={onApplication} onUpdated={onUpdated} onDeleted={remove} /></View>;
+});

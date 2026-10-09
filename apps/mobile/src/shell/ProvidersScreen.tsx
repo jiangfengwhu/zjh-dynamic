@@ -4,7 +4,7 @@ import { Text } from "../../../../packages/ui/primitives/Typography";
 import { useRouteRequestReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
 import { HostAlert as Alert } from "./HostAlert";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
 import { KeyboardAwareScrollView as ScrollView } from "react-native-keyboard-controller";
 import { useDiscardChanges, confirmDiscard } from "./useDiscardChanges";
@@ -129,22 +129,8 @@ export function ProvidersScreen({ onBack }: Props) {
     })(); } }]);
   }
 
-  return (
-    <Screen style={styles.screen}>
-      <PageHeader
-        title="AI 引擎"
-        caption="管理创作和动态小结使用的模型"
-        onBack={onBack}
-        right={<Pressy accessibilityLabel="添加 AI 引擎" style={styles.add} disabled={busy} onPress={() => selectDraft(empty)}><Icon name="plus" size={20} strokeWidth={2.4} color={colors.onAccent} /></Pressy>}
-      />
-
-      <AnimatedFlashList data={items} keyExtractor={item => item.id} extraData={{ draft, busy }} maintainVisibleContentPosition={{ disabled: true }} renderScrollComponent={ScrollView} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
-        ListHeaderComponent={<>
-        {!loaded ? error ? <Surface style={styles.loading}><Text style={styles.meta}>{error}</Text><Pressy accessibilityRole="button" accessibilityLabel="重试读取引擎配置" onPress={() => setAttempt(value => value + 1)} style={styles.retry}><Text style={styles.resetText}>重试</Text></Pressy></Surface> : <PageSkeleton rows={3} shape="provider" /> : null}
-        {error && !editing && items.length ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-          {items.length ? <SectionTitle>已接入</SectionTitle> : null}
-        </>}
-        renderItem={({ item }) => {
+  const actions = useRef({ selectDraft, remove, verify }); actions.current = { selectDraft, remove, verify };
+  const renderProvider = useCallback(({ item }: { item: AiProvider }) => {
               const selected = draft.id === item.id;
               return (
                 <View style={{ marginBottom: 12 }}>
@@ -162,7 +148,7 @@ export function ProvidersScreen({ onBack }: Props) {
                       accessibilityLabel={`编辑${item.name}`}
                       scale={0.985}
                       style={styles.main}
-                      onPress={() => selectDraft({ ...item, apiKey: "" })}
+                      onPress={() => actions.current.selectDraft({ ...item, apiKey: "" })}
                     >
                       <View style={styles.titleRow}>
                         <Text style={styles.name} numberOfLines={1}>
@@ -189,16 +175,33 @@ export function ProvidersScreen({ onBack }: Props) {
                       accessibilityLabel={`删除${item.name}`}
                       hitSlop={8}
                       scale={0.9}
-                      onPress={() => remove(item)}
+                      onPress={() => actions.current.remove(item)}
                       style={styles.remove}
                     >
                       <Icon name="close" size={16} color={colors.redText} strokeWidth={2} />
                     </Pressy>
                   </Surface>
-                  <Pressy disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("验证引擎连接", "将发送一条简短请求，可能消耗少量模型额度。", [{ text: "取消", style: "cancel" }, { text: "验证", onPress: () => void verify(item) }])} style={styles.verify}><Text style={{ color: colors.orchidText, fontSize: 13, fontWeight: "600" }}>验证连接</Text></Pressy>
+                  <Pressy disabled={busy} accessibilityRole="button" onPress={() => Alert.alert("验证引擎连接", "将发送一条简短请求，可能消耗少量模型额度。", [{ text: "取消", style: "cancel" }, { text: "验证", onPress: () => void actions.current.verify(item) }])} style={styles.verify}><Text style={{ color: colors.orchidText, fontSize: 13, fontWeight: "600" }}>验证连接</Text></Pressy>
                 </View>
               );
-        }}
+  }, [draft.id, busy, styles, colors]);
+  const listState = useMemo(() => ({ selectedId: draft.id, busy }), [draft.id, busy]);
+  return (
+    <Screen style={styles.screen}>
+      <PageHeader
+        title="AI 引擎"
+        caption="管理创作和动态小结使用的模型"
+        onBack={onBack}
+        right={<Pressy accessibilityLabel="添加 AI 引擎" style={styles.add} disabled={busy} onPress={() => selectDraft(empty)}><Icon name="plus" size={20} strokeWidth={2.4} color={colors.onAccent} /></Pressy>}
+      />
+
+      <AnimatedFlashList data={items} keyExtractor={item => item.id} extraData={listState} maintainVisibleContentPosition={{ disabled: true }} renderScrollComponent={ScrollView} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+        ListHeaderComponent={<>
+        {!loaded ? error ? <Surface style={styles.loading}><Text style={styles.meta}>{error}</Text><Pressy accessibilityRole="button" accessibilityLabel="重试读取引擎配置" onPress={() => setAttempt(value => value + 1)} style={styles.retry}><Text style={styles.resetText}>重试</Text></Pressy></Surface> : <PageSkeleton rows={3} shape="provider" /> : null}
+        {error && !editing && items.length ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+          {items.length ? <SectionTitle>已接入</SectionTitle> : null}
+        </>}
+        renderItem={renderProvider}
         ListFooterComponent={<>
 
 

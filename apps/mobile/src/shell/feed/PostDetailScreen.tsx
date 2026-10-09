@@ -1,3 +1,5 @@
+import { DraftInputScope, useDraftText, useDraftPersistence } from "../DraftInputScope";
+import { mergeChronological, chronological } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
 import { waitForInteractions } from "../interactionWork";
 import { TextInput as NativeTextInput } from "../../../../../packages/ui/primitives/Typography";
@@ -20,7 +22,7 @@ import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { Screen, ScreenEdge } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
 import { requireAccount, useAccount } from "../account";
-import { deletePostComment, fetchPostDetail, cachedPostDetail, publishPostComment, updateUserPost, useUserPosts, type UserComment, type UserPost, type PostDetail } from "./userPosts";
+import { deletePostComment, fetchPostDetail, cachedPostDetail, publishPostComment, updateUserPost, useUserPost, type UserComment, type UserPost, type PostDetail } from "./userPosts";
 import { UserPostCard } from "./UserPostCard";
 import { PullRefreshSurface } from "./PullRefreshSurface";
 import { usePullToRefresh } from "./pullToRefresh";
@@ -40,16 +42,16 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   const scrollY = useSharedValue(0);
   const trackScroll = useAnimatedScrollHandler(event => { scrollY.value = Math.max(0, event.contentOffset.y); });
   const refreshPull = usePullToRefresh({ scrollY, onRefresh: () => load(false, true) });
-  const { colors } = useTheme(); const { user } = useAccount(); const timeline = useUserPosts();
+  const { colors } = useTheme(); const { user } = useAccount();
   const entered = useRouteRequestReady();
-  const [fallback, setFallback] = useState(initialPost); const post = timeline.posts.find(item => item.id === initialPost.id) ?? fallback;
-  const [comments, setComments] = useState<UserComment[]>(initialDetail?.comments ?? []); const [cursor, setCursor] = useState<string | null>(initialDetail?.nextCursor ?? null);
-  const [loading, setLoading] = useState(!initialDetail); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState(""); const [text, setText] = useState("");
+  const [fallback, setFallback] = useState(initialPost); const post = useUserPost(initialPost.id, fallback);
+  const [comments, setComments] = useState<UserComment[]>(() => [...(initialDetail?.comments ?? [])].sort(chronological)); const [cursor, setCursor] = useState<string | null>(initialDetail?.nextCursor ?? null);
+  const [loading, setLoading] = useState(!initialDetail); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState(""); const draft = useDraftText(); const setText = draft.setText;
   const [reply, setReply] = useState<UserComment | null>(null); const [sending, setSending] = useState(false); const [deleting, setDeleting] = useState<string | null>(null);
   const alive = useRef(true); const version = useRef(0); const loaded = useRef(!!initialDetail); const reading = useRef(false); const writing = useRef(false); const input = useRef<NativeTextInput>(null);
   const identity = useRef(user?.id); const list = useRef<FlashListRef<UserComment>>(null); const headerHeight = useRef(0); const jumped = useRef(false);
   const request = useRef<{ signature: string; id: string } | null>(null);
-  const count = Array.from(text).length;
+
   const draftKey = `social.comment-draft.${user?.id || "guest"}.${initialPost.id}`;
   const [draftReady, setDraftReady] = useState(false);
   const loadedDraftKey = useRef<string | undefined>(undefined);
@@ -57,7 +59,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   useEffect(() => {
     let live = true;
     const previousKey = loadedDraftKey.current;
-    const guestText = previousKey?.includes(".guest.") ? text : "";
+    const guestText = previousKey?.includes(".guest.") ? draft.text : "";
     loadedDraftKey.current = undefined; setDraftReady(false); setText("");
     void readShellValue(draftKey).then(raw => {
       if (!live) return;
@@ -69,7 +71,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
     }).catch(() => { if (live) Toast.show({ type: "error", text1: "评论草稿读取失败，请重新打开动态" }); });
     return () => { live = false; };
   }, [draftKey]);
-  useEffect(() => { if (draftReady && loadedDraftKey.current === draftKey) { if (text) writeShellValue(draftKey, text); else removeShellValue(draftKey); } }, [text, draftReady, draftKey]);
+  useDraftPersistence(draft, draftKey, draftReady);
   function fail(title: string, cause: unknown) { Toast.show({ type: "error", text1: title, text2: cause instanceof Error ? cause.message : "请稍后重试" }); }
   async function load(more = false, manual = false) {
     if (reading.current || writing.current || (more && !cursor)) return false;
@@ -79,7 +81,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
       await waitForInteractions();
       if (!alive.current || before !== version.current) return;
       loaded.current = true; setFallback(result.post); updateUserPost(result.post); setCursor(result.nextCursor); setError("");
-      setComments(previous => (more ? [...previous, ...result.comments.filter(item => !previous.some(old => old.id === item.id))] : result.comments).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)));
+      setComments(previous => mergeChronological(more ? previous : [], result.comments));
       return true;
     } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "评论加载失败"); return false; }
     finally { reading.current = false; if (alive.current) { setLoading(false); setRefreshing(false); if (before !== version.current && !writing.current) void load(); } }
@@ -87,22 +89,22 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   useEffect(() => () => { alive.current = false; }, []);
   useEffect(() => {
     if (!providedDetail || writing.current) return;
-    loaded.current = true; setFallback(providedDetail.post); setComments(providedDetail.comments); setCursor(providedDetail.nextCursor);
+    loaded.current = true; setFallback(providedDetail.post); setComments([...providedDetail.comments].sort(chronological)); setCursor(providedDetail.nextCursor);
   }, [providedDetail]);
   const initialRequest = useRef(!!providedDetail);
   // The notice route already fetched this visit; later visits still revalidate.
   useEffect(() => { if (!entered || !focused) return; if (initialRequest.current) { initialRequest.current = false; return; } version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } void load(); }, [entered, focused, user?.id]);
-  function updated(post: UserPost) { version.current++; setFallback(post); }
+  function updated(post: UserPost) { version.current++; setFallback(post); updateUserPost(post); }
   async function send() {
-    if (!draftReady || writing.current || !text.trim() || count > 1000) return;
+    if (!draftReady || writing.current || !draft.text.trim() || Array.from(draft.text).length > 1000) return;
     writing.current = true; setSending(true); version.current++;
     try {
       if (!await requireAccount() || !alive.current) return;
-      const signature = JSON.stringify([text.trim(), reply?.id]);
+      const signature = JSON.stringify([draft.text.trim(), reply?.id]);
       if (request.current?.signature !== signature) request.current = { signature, id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}` };
-      const result = await publishPostComment(post.id, text.trim(), request.current!.id, reply?.id);
+      const result = await publishPostComment(post.id, draft.text.trim(), request.current!.id, reply?.id);
       if (!alive.current) return;
-      setFallback(result.post); setComments(previous => previous.some(item => item.id === result.comment.id) ? previous : [...previous, result.comment]);
+      setFallback(result.post); updateUserPost(result.post); setComments(previous => mergeChronological(previous, [result.comment]));
       setText(""); setReply(null); request.current = null; input.current?.blur();
     } catch (cause) { if (alive.current) fail("评论未发送，内容已保留", cause); }
     finally { writing.current = false; if (alive.current) { setSending(false); if (!loaded.current) void load(); } }
@@ -137,9 +139,9 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
       </View>
       <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10, borderTopWidth: colors.components.surfaceBorder, borderTopColor: colors.line, gap: 6 }}>
         {reply ? <Pressable disabled={sending} onPress={() => setReply(null)} style={{ alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.orchidTint }}><Text style={{ color: colors.orchidText, fontSize: 12, fontWeight: "600" }}>回复 {reply.author.name} · 取消</Text></Pressable> : null}
-        <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-end" }}><TextInput ref={input} onFocus={() => { jumped.current = true; }} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="写下你的评论…" placeholderTextColor={colors.ink3} style={{ flex: 1, color: colors.ink1, fontSize: 14, maxHeight: 120, minHeight: 38, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: colors.surfaceRaised, borderRadius: 19 }} />
+        <DraftInputScope draft={draft}>{(text, setText, count) => <> <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-end" }}><TextInput ref={input} onFocus={() => { jumped.current = true; }} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="写下你的评论…" placeholderTextColor={colors.ink3} style={{ flex: 1, color: colors.ink1, fontSize: 14, maxHeight: 120, minHeight: 38, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: colors.surfaceRaised, borderRadius: 19 }} />
           <Pressy accessibilityRole="button" accessibilityLabel="发送评论" disabled={!draftReady || sending || !!deleting || !text.trim() || count > 1000} onPress={() => void send()} style={{ backgroundColor: colors.accent, borderRadius: 19, minHeight: 38, paddingHorizontal: 16, paddingVertical: 8, alignItems: "center", justifyContent: "center", opacity: !text.trim() || count > 1000 || !!deleting ? 0.4 : 1 }}>{sending ? <ActivityIndicator size="small" color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontWeight: "700" }}>发送</Text>}</Pressy></View>
-        {count > 800 ? <Text style={{ color: count > 1000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 12 }}>{count}/1000</Text> : null}
+        {count > 800 ? <Text style={{ color: count > 1000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 12 }}>{count}/1000</Text> : null}</>}</DraftInputScope>
       </View>
     </KeyboardViewport>
   </Screen></ScreenEdge>;

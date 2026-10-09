@@ -92,7 +92,7 @@ export function ApplicationHomeScreen(props: Props) {
     <GestureDetector gesture={pagerGesture}>
       <AnimatedPagerView ref={pager} style={{ flex: 1 }} initialPage={0} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected} onPageScrollStateChanged={onPageScrollStateChanged}>
         <View key="discovery" collapsable={false} style={{ flex: 1 }}><ApplicationFeedScreen {...props} active={tab === "discovery"} stageRef={stage} /></View>
-        <View key="common" collapsable={false} style={{ flex: 1 }}>{visited.has(1) ? <CommonApplicationsScreen active={tab === "common"} onOpen={props.onOpen} /> : null}</View>
+        <View key="common" collapsable={false} style={{ flex: 1 }}>{visited.has(1) ? <CommonApplicationsScreen active={tab === "common"} /> : null}</View>
       </AnimatedPagerView>
     </GestureDetector>
   </View>;

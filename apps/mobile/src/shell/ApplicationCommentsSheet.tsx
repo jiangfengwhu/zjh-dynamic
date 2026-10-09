@@ -1,3 +1,5 @@
+import { DraftInputScope, useDraftText, useDraftPersistence } from "./DraftInputScope";
+import { mergeChronological, chronological } from "./listData";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ActivityIndicator, BackHandler, Keyboard, View, type TextInput } from "react-native";
 import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetTextInput, useBottomSheetScrollableCreator, useBottomSheetTimingConfigs, type BottomSheetBackdropProps, type BottomSheetFooterProps } from "@gorhom/bottom-sheet";
@@ -40,12 +42,12 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
   const [discussion, setDiscussion] = useState(initial?.post ?? post);
   const [opened, setOpened] = useState(false);
   const authorId = discussion?.author.id ?? application.authorId;
-  const [comments, setComments] = useState<UserComment[]>(initial?.comments ?? []);
+  const [comments, setComments] = useState<UserComment[]>(() => [...(initial?.comments ?? [])].sort(chronological));
   const [count, setCount] = useState(initial?.post.commentCount ?? post?.commentCount ?? 0);
   const [cursor, setCursor] = useState<string | null>(initial?.nextCursor ?? null);
   const [loading, setLoading] = useState(!initial);
   const [error, setError] = useState("");
-  const [text, setText] = useState("");
+  const draft = useDraftText(); const setText = draft.setText;
   const [draftReady, setDraftReady] = useState(false);
   const [reply, setReply] = useState<UserComment | null>(null);
   const [sending, setSending] = useState(false);
@@ -61,7 +63,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
   const loaded = useRef(!!initial);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const draftKey = discussion ? `social.comment-draft.${user?.id ?? "guest"}.${discussion.id}` : undefined;
-  const characters = Array.from(text).length;
+
   const Scrollable = useBottomSheetScrollableCreator({ enableFooterMarginAdjustment: true });
   const animation = useBottomSheetTimingConfigs({ duration: 220 });
   const close = useCallback(() => { Keyboard.dismiss(); modal.current?.dismiss(); }, []);
@@ -90,7 +92,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
     });
     return () => { live = false; };
   }, [draftKey, opened]);
-  useEffect(() => { if (draftReady && draftKey) { if (text) writeShellValue(draftKey, text); else removeShellValue(draftKey); } }, [draftReady, draftKey, text]);
+  useDraftPersistence(draft, draftKey, draftReady);
 
   async function load(more = false) {
     if (reading.current || writing.current || (more && (!cursor || !discussion))) return;
@@ -101,27 +103,27 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
       if (!alive.current || before !== version.current) return;
       setDiscussion(result.post);
       loaded.current = true; setError(""); setCount(result.post.commentCount ?? 0); setCursor(result.nextCursor);
-      setComments(prior => (more ? [...prior, ...result.comments.filter(item => !prior.some(old => old.id === item.id))] : result.comments).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)));
+      setComments(prior => mergeChronological(more ? prior : [], result.comments));
     } catch (cause) { if (alive.current && before === version.current) setError(cause instanceof Error ? cause.message : "评论加载失败，请重试"); }
     finally { reading.current = false; if (alive.current) { setLoading(false); if (before !== version.current && !writing.current) void load(); } }
   }
   useEffect(() => { if (opened && (!initial?.readAt || Date.now() - initial.readAt > 4000)) void load(); }, [opened]);
 
   async function send() {
-    if (!discussion || !draftKey || !draftReady || writing.current || !text.trim() || characters > 1000) return;
+    if (!discussion || !draftKey || !draftReady || writing.current || !draft.text.trim() || Array.from(draft.text).length > 1000) return;
     writing.current = true; setSending(true); version.current++;
     try {
       if (!cachedAccountId()) { loginAfterClose.current = true; close(); return; }
       if (!await requireAccount() || !alive.current) return;
-      const signature = JSON.stringify([text.trim(), reply?.id]);
+      const signature = JSON.stringify([draft.text.trim(), reply?.id]);
       if (request.current?.signature !== signature) request.current = { signature, id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}` };
-      const result = await publishPostComment(discussion.id, text.trim(), request.current.id, reply?.id);
+      const result = await publishPostComment(discussion.id, draft.text.trim(), request.current.id, reply?.id);
       if (!alive.current) {
-        if (await readShellValue(draftKey) === text) removeShellValue(draftKey);
+        if (await readShellValue(draftKey) === draft.text) removeShellValue(draftKey);
         return;
       }
       setCount(result.post.commentCount ?? 0);
-      setComments(prior => prior.some(item => item.id === result.comment.id) ? prior : [...prior, result.comment].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id)));
+      setComments(prior => mergeChronological(prior, [result.comment]));
       setText(""); setReply(null); request.current = null; input.current?.blur();
       requestAnimationFrame(() => { if (alive.current) list.current?.scrollToEnd({ animated: true }); });
     } catch (cause) { if (alive.current) Toast.show({ type: "error", text1: "评论未发送，内容已保留", text2: cause instanceof Error ? cause.message : "请重试" }); }
@@ -142,13 +144,13 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
   const Footer = useCommentFooter(
       <View onLayout={event => setFooterHeight(event.nativeEvent.layout.height)} style={{ backgroundColor: t.canvas, borderTopWidth: t.components.surfaceBorder, borderTopColor: t.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8, gap: 6 }}>
         {reply ? <Pressy disabled={sending} onPress={() => setReply(null)}><Text numberOfLines={1} style={{ color: t.orchidText, fontSize: 12 }}>回复 {reply.author.name} · 取消</Text></Pressy> : null}
-        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
+        <DraftInputScope draft={draft}>{(text, setText, characters) => <> <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
           <BottomSheetTextInput ref={input} value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={2000} placeholder="留下你的想法…" placeholderTextColor={t.ink3} style={{ flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 14, paddingVertical: 10, color: t.ink1, fontSize: 14, backgroundColor: t.surfaceRaised, borderRadius: t.radius.lg }} />
           <Pressy accessibilityRole="button" accessibilityLabel="发送评论" disabled={!draftReady || sending || !!deleting || !text.trim() || characters > 1000} onPress={() => void send()} style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center", opacity: !text.trim() || characters > 1000 || !!deleting ? 0.4 : 1 }}>
             {sending ? <ActivityIndicator color={t.accent} /> : <SymbolIcon name="send" size={23} color={t.accent} />}
           </Pressy>
         </View>
-        {characters > 800 ? <Text style={{ color: characters > 1000 ? t.danger : t.ink3, textAlign: "right", fontSize: 11 }}>{characters}/1000</Text> : null}
+        {characters > 800 ? <Text style={{ color: characters > 1000 ? t.danger : t.ink3, textAlign: "right", fontSize: 11 }}>{characters}/1000</Text> : null}</>}</DraftInputScope>
       </View>
   );
   return <BottomSheetModal ref={modal} footerComponent={Footer} index={0} snapPoints={["68%", "92%"]} onChange={(index, position) => { if (index >= 0) setOpened(true); if (index === 0 && position > 0 && !Keyboard.isVisible()) setCollapsedListHeight(position * 0.68 / 0.32 - 64); }} enableDynamicSizing={false} enablePanDownToClose enableBlurKeyboardOnGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan" onDismiss={() => { onDismiss(); if (loginAfterClose.current) void requireAccount(); }} backdropComponent={backdrop} animationConfigs={animation} overrideReduceMotion={ReduceMotion.System} backgroundStyle={{ backgroundColor: t.canvas, borderTopLeftRadius: t.radius.xxl, borderTopRightRadius: t.radius.xxl }} handleIndicatorStyle={{ backgroundColor: t.lineStrong, width: 36 }}>

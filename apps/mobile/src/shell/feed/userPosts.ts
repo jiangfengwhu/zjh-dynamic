@@ -1,6 +1,7 @@
+import { appendUnique } from "../listData";
 import { waitForInteractions } from "../interactionWork";
 import { cachedPage, rememberPage, forgetPageFamily, pageCacheKey } from "../pageCache";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { edgeUrl } from "../evolveHost";
 import {
   accountFetch,
@@ -93,8 +94,8 @@ export function fetchAuthorProfile(id: string, view: "summary" | "posts" | "apps
       if (authorFollows.get(key) !== priorFollow) profile = { ...profile, following: authorFollows.get(key) };
       else if (profile.following !== undefined) authorFollows.set(key, profile.following);
       const prior = cachedAuthorProfile(id);
-      if (cursor && view === "posts") profile = {...profile, posts: [...(prior?.posts || []), ...profile.posts.filter(post => !prior?.posts.some(old => old.id === post.id))]};
-      if (cursor && view === "apps") profile = {...profile, applications: [...(prior?.applications || []), ...profile.applications.filter(app => !prior?.applications.some(old => old.manifest.appId === app.manifest.appId))]};
+      if (cursor && view === "posts") profile = {...profile, posts: appendUnique(prior?.posts || [], profile.posts, post => post.id)};
+      if (cursor && view === "apps") profile = {...profile, applications: appendUnique(prior?.applications || [], profile.applications, app => app.manifest.appId)};
       authorProfiles.delete(key);
       profile = { ...cachedAuthorProfile(id), ...profile, nextCursor: view === "posts" ? profile.nextCursor : cachedAuthorProfile(id)?.nextCursor ?? null, applicationsNextCursor: view === "apps" ? profile.applicationsNextCursor : cachedAuthorProfile(id)?.applicationsNextCursor, posts: view === "posts" ? profile.posts : cachedAuthorProfile(id)?.posts ?? [], applications: view === "apps" ? profile.applications : cachedAuthorProfile(id)?.applications ?? [] };
       authorProfiles.set(key, profile);
@@ -302,6 +303,12 @@ export function useUserPosts(scope: FeedScope = "recommended", active = true) {
   return scope === "following"
     ? following.owner === cachedAccountId() ? following.page : { posts: [], nextCursor: null } as Page
     : page;
+}
+/** Details subscribe to their own post, rather than rerendering for the entire feed. */
+export function useUserPost(id: string, fallback: UserPost) {
+  const subscribe = useCallback((listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; }, []);
+  const snapshot = useCallback(() => value.posts.find(post => post.id === id) ?? fallback, [id, fallback]);
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 async function requestPage(cursor?: string) {
   const before = notificationRevision();

@@ -16,7 +16,7 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
   renderErrorAction?: (error: Error) => ReactNode;
   cacheKey?: string;
   title: string;
-  load: () => Promise<T>;
+  load: (signal: AbortSignal) => Promise<T>;
   children: (value: T) => ReactNode;
   onBack: () => void;
 }) {
@@ -34,8 +34,9 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
   useEffect(() => {
     if (!focused || (!cacheKey && displayed.current)) return;
     let live = true;
+    const controller = new AbortController();
     const run = () => {
-      void loader.current().then(
+      void loader.current(controller.signal).then(
         async value => { await waitForInteractions(); if (!live) return; if (cacheKey) rememberPage(cacheKey, value); if (!displayed.current || dataChanged(displayed.current.value, value)) setResult({ value, key: cacheKey }); setError(null); },
         cause => { if (live) setError(cause instanceof Error ? cause : new Error("加载失败，请重试")); }
       );
@@ -44,7 +45,7 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
     // background revalidation of displayed content waits for an idle slot.
     const cached = !!displayed.current;
     const cancel = cached ? afterInteractions(run) : (() => { const frame = requestAnimationFrame(run); return () => cancelAnimationFrame(frame); })();
-    return () => { live = false; cancel(); };
+    return () => { live = false; controller.abort(); cancel(); };
   }, [focused, attempt, cacheKey]);
   if (visible) return <View style={{ flex: 1 }}><View style={{ flex: 1 }}>{children(visible.value)}</View>{error ? <Pressy onPress={() => { setError(null); setAttempt(value => value + 1); }}><Text>同步未完成 · 点击重试</Text></Pressy> : null}</View>;
   return <ThemeContext.Provider value={theme}>

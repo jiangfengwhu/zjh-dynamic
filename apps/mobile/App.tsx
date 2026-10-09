@@ -1,3 +1,4 @@
+import { afterInteractions } from "./src/shell/interactionWork";
 import { notify as Toast } from "../../packages/ui/feedback/Toasts";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { ApplicationQueries } from "../../packages/app-sdk/src/query-runtime";
@@ -310,7 +311,7 @@ function ShellApp() {
 
   async function openBundle(id: string) {
     const opened = await openShellBundle(id);
-    if (opened) void rememberOpen(id);
+    if (opened) afterInteractions(() => { void rememberOpen(id); });
     return opened;
   }
 
@@ -389,6 +390,7 @@ function ShellApp() {
           mode={mode}
           listed={listed}
           onOpenBundle={openBundle}
+          onRememberBundleOpen={rememberOpen}
           onReplyToFriend={replyToFriend}
           onCheckUpdates={async () => {
             const ready = await refreshUpdates(true, true);

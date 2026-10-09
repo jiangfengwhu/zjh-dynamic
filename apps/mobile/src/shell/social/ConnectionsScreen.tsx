@@ -1,3 +1,4 @@
+import { appendUnique } from "../listData";
 import { AnimatedFlashList } from "../AnimatedFlashList";
 import { useVisitedPager } from "../useVisitedPager";
 import { useRef, useState } from "react";
@@ -43,7 +44,7 @@ function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAut
   const { colors } = useTheme();
   const query = useSocialPage<RelationPage>({ name: `connections:${author.id}:${kind}`, empty: { authors: [], nextCursor: null }, active,
     read: cursor => readRelations(author.id, kind, cursor),
-    merge: (previous, next, more) => more ? { ...next, authors: [...previous.authors, ...next.authors.filter(item => !previous.authors.some(old => old.author.id === item.author.id))] } : next });
+    merge: (previous, next, more) => more ? { ...next, authors: appendUnique(previous.authors, next.authors, item => item.author.id) } : next });
   const [acting, setActing] = useState<string>();
   const locks = useRef(new Set<string>());
   const scrollY = useSharedValue(0), scroll = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });

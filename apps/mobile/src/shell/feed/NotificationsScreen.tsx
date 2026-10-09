@@ -1,3 +1,4 @@
+import { appendUnique } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
 import { ListGesture } from "./ListGesture";
 import { afterInteractions, waitForInteractions } from "../interactionWork";
@@ -286,12 +287,7 @@ function NotificationsContent({
         const next = more
           ? {
               ...result,
-              notices: [
-                ...previous.notices,
-                ...result.notices.filter(
-                  (item) => !previous.notices.some((old) => old.id === item.id)
-                ),
-              ],
+              notices: appendUnique(previous.notices, result.notices, item => item.id),
             }
           : result;
         next.notices = next.notices.map(item => seen.current.has(item.id) ? { ...item, read: true } : item);

@@ -1,4 +1,4 @@
-import { beginRouteTransition, endRouteTransition } from "./interactionWork";
+import { afterInteractions, beginRouteTransition, endRouteTransition } from "./interactionWork";
 import { isApplicationInstalledSync } from "./market";
 import { markStartup } from "../runtime/startupTiming";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
@@ -106,6 +106,7 @@ const JollyProgressScreen = lazyScreen(() => (require("./jolly/ProgressScreen") 
 export type RootParamList = {
   sharedApplication: { appId: string };
   applicationLink: { appId: string };
+  commonApplication: { appId: string };
   noticePost: { postId: string; commentId?: string };
   workshopProgress: { appId?: string; title?: string; ownerId: string };
   tabs: NavigatorScreenParams<TabParamList> | undefined;
@@ -305,6 +306,11 @@ function ApplicationRecovery({ error, onCheckUpdates }: { error: Error; onCheckU
   }} />;
 }
 
+function CommonBundlePage({ onOpened, ...props }: Parameters<typeof BundlePage>[0] & { onOpened: (id: string) => Promise<void> }) {
+  const remember = useRef(onOpened); remember.current = onOpened;
+  useEffect(() => afterInteractions(() => { void remember.current(props.id); }), [props.id]);
+  return <BundlePage {...props} />;
+}
 function BundlePage({ id, render, onCheckUpdates }: {
   id: string;
   onCheckUpdates: () => Promise<boolean>;
@@ -401,6 +407,7 @@ export type ShellNavigatorProps = {
   mode: ThemeMode;
   listed: AppEntry[];
   onOpenBundle: (id: string) => Promise<boolean>;
+  onRememberBundleOpen: (id: string) => Promise<void>;
   /** 在动态里对某位朋友说一句：去工坊，带着 TA 的名字起个头。 */
   onReplyToFriend: (id: string) => void;
   onCheckUpdates: () => Promise<boolean>;
@@ -692,6 +699,19 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           </Stack.Screen>
           <Stack.Screen name="discovery">
             {() => <MarketScreen onBack={goBack} onOpen={props.onOpenBundle} onAuthor={openAuthor} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => openCreationComposer()} />}
+          </Stack.Screen>
+          <Stack.Screen name="commonApplication">
+            {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack} renderErrorAction={error => <ApplicationRecovery error={error} onCheckUpdates={props.onCheckUpdates} />}
+              load={async signal => {
+                const { fetchPublicMarketApplication } = require("./market") as typeof import("./market");
+                const { loadPublicApplicationExperience } = require("../runtime/applications") as typeof import("../runtime/applications");
+                const application = await fetchPublicMarketApplication(route.params.appId);
+                signal.throwIfAborted();
+                await loadPublicApplicationExperience(application.manifest, signal, application);
+                return route.params.appId;
+              }}>
+              {id => <CommonBundlePage id={id} render={props.renderBundle} onCheckUpdates={props.onCheckUpdates} onOpened={props.onRememberBundleOpen} />}
+            </AsyncRouteScreen>}
           </Stack.Screen>
           <Stack.Screen name="applicationLink">
             {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack} renderErrorAction={error => <ApplicationRecovery error={error} onCheckUpdates={props.onCheckUpdates} />} cacheKey={`link:${route.params.appId}:${isApplicationInstalledSync(route.params.appId) ? "installed" : "public"}`}

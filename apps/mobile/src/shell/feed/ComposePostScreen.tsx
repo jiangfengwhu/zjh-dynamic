@@ -1,3 +1,4 @@
+import { appendUnique } from "../listData";
 import { AnimatedFlashList } from "../AnimatedFlashList";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { Text } from "../../../../../packages/ui/primitives/Typography";
@@ -258,7 +259,7 @@ export function ComposePostScreen({
       if ((await currentAccountId()) !== owner)
         throw new Error("账号已改变，请重试");
       if (alive.current)
-        { setAppsCursor(page.nextCursor); setApplications(previous => more ? [...previous, ...items.filter(item => item.authorId === owner && !previous.some(old => old.manifest.appId === item.manifest.appId))] : items.filter(item => item.authorId === owner)); }
+        { setAppsCursor(page.nextCursor); setApplications(previous => more ? appendUnique(previous, items.filter(item => item.authorId === owner), item => item.manifest.appId) : items.filter(item => item.authorId === owner)); }
     } catch (error) {
       if (alive.current)
         setAppsError(

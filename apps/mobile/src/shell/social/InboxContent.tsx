@@ -1,3 +1,4 @@
+import { appendUnique } from "../listData";
 import { AnimatedFlashList } from "../AnimatedFlashList";
 import { useEffect, useRef } from "react";
 import { View, ActivityIndicator, AppState, type ViewToken } from "react-native";
@@ -20,7 +21,7 @@ export function InboxContent({ active, onMessage, drawerGesture }: { active: boo
   const version = useInboxVersion();
   const query = useSocialPage<InboxPage>({ name: "messages:inbox", authenticated: true, backgroundRefresh: true, active, version,
     empty: { conversations: [], unreadCount: 0, nextCursor: null }, read: readInbox,
-    merge: (previous, next, more) => more ? { ...next, conversations: [...previous.conversations, ...next.conversations.filter(item => !previous.conversations.some(old => old.peer.id === item.peer.id))] } : next });
+    merge: (previous, next, more) => more ? { ...next, conversations: appendUnique(previous.conversations, next.conversations, item => item.peer.id) } : next });
   const visible = useRef(new Set<string>()), seen = useRef(new Set<string>()), pending = useRef(new Set<string>());
   const alive = useRef(true), markVisible = useRef<() => void>(() => {});
   const viewabilityConfig = useRef({ minimumViewTime: 600, itemVisiblePercentThreshold: 50 }).current;

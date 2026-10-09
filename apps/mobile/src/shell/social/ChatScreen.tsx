@@ -1,3 +1,5 @@
+import { DraftInputScope, useDraftText, useDraftPersistence } from "../DraftInputScope";
+import { mergeChronological } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -29,11 +31,12 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
   const query = useSocialPage<MessagePage>({ name: `messages:thread:${peer.id}`, authenticated: true, version,
     empty: { peer, messages: [], nextCursor: null }, read: cursor => readMessages(peer.id, cursor, cursor ? undefined : latestMessage.current),
     merge: (previous, next, more) => {
-      const messages = [...new Map([...previous.messages, ...next.messages].map(message => [message.id, message])).values()].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+      const messages = mergeChronological(previous.messages, next.messages);
       return { ...next, messages, nextCursor: more ? next.nextCursor : messages.length > next.messages.length ? previous.nextCursor : next.nextCursor };
     } });
   latestMessage.current = query.data.messages.at(-1)?.id;
-  const [text, setText] = useState(""), [sending, setSending] = useState(false), [draftReady, setDraftReady] = useState(false);
+  const draft = useDraftText(); const setText = draft.setText;
+  const [sending, setSending] = useState(false), [draftReady, setDraftReady] = useState(false);
   const draftKey = `social.message-draft.${query.user?.id ?? "guest"}.${peer.id}`;
   const sendingRef = useRef(false), alive = useRef(true), list = useRef<FlashListRef<Message>>(null), atBottom = useRef(true);
   const request = useRef<{ body: string; id: string } | undefined>(undefined);
@@ -41,9 +44,11 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
   const ownerRef = useRef(query.user?.id); ownerRef.current = query.user?.id;
   const scrollY = useSharedValue(0);
   const recordBottom = (bottom: boolean) => { atBottom.current = bottom; };
+  const bottomUI = useSharedValue(true);
   const scroll = useAnimatedScrollHandler(e => {
     scrollY.value = e.contentOffset.y;
-    runOnJS(recordBottom)(e.contentSize.height - e.layoutMeasurement.height - e.contentOffset.y < 80);
+    const bottom = e.contentSize.height - e.layoutMeasurement.height - e.contentOffset.y < 80;
+    if (bottom !== bottomUI.value) { bottomUI.value = bottom; runOnJS(recordBottom)(bottom); }
   });
   const refresh = usePullToRefresh({ scrollY, onRefresh: () => { reconnectMessages(); return query.load(); } });
   usePreventRemove(sending, () => Toast.show({ type: "info", text1: "正在发送，请稍候" }));
@@ -54,10 +59,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
     void readShellValue(draftKey).then(raw => { if (live) { loadedDraftKey.current = draftKey; setText(raw ?? ""); setDraftReady(true); } }, () => { if (live) { loadedDraftKey.current = draftKey; setDraftReady(true); Toast.show({ type: "error", text1: "私信草稿读取失败" }); } });
     return () => { live = false; };
   }, [draftKey]);
-  useEffect(() => {
-    if (!draftReady || loadedDraftKey.current !== draftKey) return;
-    if (text) writeShellValue(draftKey, text); else removeShellValue(draftKey);
-  }, [draftKey, draftReady, text]);
+  useDraftPersistence(draft, draftKey, draftReady);
   const [visibleThrough, setVisibleThrough] = useState<string>();
   const acknowledged = useRef<string | undefined>(undefined);
   useEffect(() => { acknowledged.current = undefined; setVisibleThrough(undefined); }, [query.user?.id, peer.id]);
@@ -68,7 +70,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
     void markMessagesRead(peer.id, visibleThrough).catch(() => { if (cachedAccountId() === owner && acknowledged.current === visibleThrough) acknowledged.current = undefined; });
   }, [query.focused, visibleThrough, query.user?.id, peer.id]);
   async function send() {
-    const body = text.trim(), owner = query.user?.id;
+    const body = draft.text.trim(), owner = query.user?.id;
     if (sendingRef.current || !draftReady || !body || Array.from(body).length > 2000 || !owner) return;
     sendingRef.current = true; setSending(true);
     if (request.current?.body !== body) request.current = { body, id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}` };
@@ -76,18 +78,19 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
       const result = await sendMessage(peer.id, body, request.current.id);
       if (!alive.current || ownerRef.current !== owner || cachedAccountId() !== owner) return;
       atBottom.current = true;
-      query.update(previous => ({ ...previous, messages: [...new Map([...previous.messages, result.message].map(message => [message.id, message])).values()].sort((a, b) => a.createdAt - b.createdAt) }));
+      query.update(previous => ({ ...previous, messages: mergeChronological(previous.messages, [result.message]) }));
       setText(""); removeShellValue(draftKey); request.current = undefined;
     } catch (cause) { if (alive.current && ownerRef.current === owner) Toast.show({ type: "error", text1: "发送未完成，内容已保留", text2: cause instanceof Error ? cause.message : "请重试" }); }
     finally { sendingRef.current = false; if (alive.current) setSending(false); }
   }
-  const count = Array.from(text).length;
+
   return <SocialFrame title={query.data.peer.name || peer.name} onBack={onBack}><KeyboardViewport>
     <PullRefreshSurface refresh={refresh}><AnimatedFlashList<Message>
       ref={list} data={query.data.messages} keyExtractor={item => item.id} onScroll={scroll} scrollEventThrottle={16}
       viewabilityConfig={{itemVisiblePercentThreshold: 60, minimumViewTime: 200}}
       onViewableItemsChanged={({viewableItems}) => {
-        const visible = viewableItems.filter(token => token.isViewable && token.item.senderId !== query.user?.id).map(token => token.item).sort((a,b) => b.createdAt - a.createdAt || b.id.localeCompare(a.id))[0];
+        let visible: Message | undefined;
+        for (const token of viewableItems) if (token.isViewable && token.item.senderId !== query.user?.id && (!visible || token.item.createdAt > visible.createdAt || token.item.createdAt === visible.createdAt && token.item.id > visible.id)) visible = token.item;
         if (visible) setVisibleThrough(visible.id);
       }}
       keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never"
@@ -113,14 +116,14 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
       }}
     /></PullRefreshSurface>
     {query.user ? <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12, gap: 6, borderTopWidth: colors.components.surfaceBorder, borderTopColor: colors.line }}>
-      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
+      <DraftInputScope draft={draft}>{(text, setText, count) => <><View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
         <FormField accessibilityLabel="私信内容" value={text} onChangeText={setText} editable={draftReady && !sending} multiline maxLength={4000} placeholder="写一条私信…" placeholderTextColor={colors.ink3}
           style={{ flex: 1, minHeight: 38, maxHeight: 140, paddingHorizontal: 14, paddingVertical: 8, color: colors.ink1, fontSize: 14, backgroundColor: colors.surfaceRaised, borderRadius: 19 }} />
         <Pressy accessibilityRole="button" accessibilityLabel="发送私信" disabled={sending || !draftReady || !text.trim() || count > 2000} onPress={() => { void send(); }}
           style={{ minHeight: 38, minWidth: 60, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent, borderRadius: 19, opacity: !text.trim() || count > 2000 ? 0.35 : 1 }}>
           {sending ? <ActivityIndicator color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontWeight: "700" }}>发送</Text>}
         </Pressy>
-      </View>{count > 1600 ? <Text style={{ color: count > 2000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 11 }}>{count}/2000</Text> : null}
+      </View>{count > 1600 ? <Text style={{ color: count > 2000 ? colors.danger : colors.ink3, textAlign: "right", fontSize: 11 }}>{count}/2000</Text> : null}</>}</DraftInputScope>
     </View> : <Pressy accessibilityRole="button" onPress={() => { void requireAccount(); }} style={{ minHeight: 42, margin: 12, borderRadius: 21, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.onAccent, fontWeight: "700" }}>登录后发送私信</Text></Pressy>}
   </KeyboardViewport></SocialFrame>;
 }

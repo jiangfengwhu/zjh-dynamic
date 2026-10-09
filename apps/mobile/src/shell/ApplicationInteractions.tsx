@@ -36,7 +36,11 @@ export function ApplicationInteractions({ item, active, onComment, onOpen, onSha
   const owner = cachedAccountId() ?? "guest";
   const key = `${owner}:${item.manifest.appId}`;
   const [post, setPost] = useState(() => cachedApplicationDiscussion(item));
-  const [saving, setSaving] = useState(false);
+  const [pendingLike, setPendingLike] = useState<boolean>();
+  const [pendingSaved, setPendingSaved] = useState<boolean>();
+  const likeWanted = useRef<boolean | undefined>(undefined);
+  const savedWanted = useRef<boolean | undefined>(undefined);
+  const liking = useRef(false);
   const current = useRef(post);
   const alive = useRef(true);
   const version = useRef(0);
@@ -68,47 +72,64 @@ export function ApplicationInteractions({ item, active, onComment, onOpen, onSha
   function fail(cause: unknown) {
     if (alive.current) Toast.show({ type: "error", text1: "互动未完成", text2: cause instanceof Error ? cause.message : "请重试" });
   }
-  async function like() {
-    try {
-      if (!await requireAccount() || !alive.current) return;
-      const original = current.current ?? await read();
-      if (!alive.current) return;
-      version.current++;
-      const result = togglePostLike(original);
-      remember(result.post);
-      const settled = await result.settled;
-      remember({ ...(current.current ?? settled.post), liked: settled.post.liked, likeCount: settled.post.likeCount });
-      if (settled.error) fail(settled.error);
-    } catch (cause) { fail(cause); }
+  const valid = () => alive.current && cachedAccountId() === owner;
+  function like() {
+    if (!cachedAccountId()) { void requireAccount(); return; }
+    likeWanted.current = !(likeWanted.current ?? current.current?.liked ?? false);
+    setPendingLike(likeWanted.current);
+    if (!liking.current) void syncLike();
   }
-  async function bookmark() {
-    if (writing.current) return;
+  async function syncLike() {
+    liking.current = true;
+    try {
+      if (!await requireAccount() || !valid()) return;
+      let confirmed = current.current ?? await read();
+      while (valid() && likeWanted.current !== undefined && likeWanted.current !== !!confirmed.liked) {
+        version.current++;
+        const result = togglePostLike(confirmed);
+        remember(result.post);
+        const settled = await result.settled;
+        confirmed = settled.post;
+        remember({ ...(current.current ?? confirmed), liked: confirmed.liked, likeCount: confirmed.likeCount });
+        if (settled.error) throw settled.error;
+      }
+    } catch (cause) { fail(cause); }
+    finally { liking.current = false; likeWanted.current = undefined; if (alive.current) setPendingLike(undefined); }
+  }
+  function bookmark() {
+    if (!cachedAccountId()) { void requireAccount(); return; }
+    savedWanted.current = !(savedWanted.current ?? current.current?.saved ?? false);
+    setPendingSaved(savedWanted.current);
+    if (!writing.current) void syncSaved();
+  }
+  async function syncSaved() {
     writing.current = true;
     try {
-      if (!await requireAccount() || !alive.current) return;
-      const original = current.current ?? await read();
-      if (!alive.current) return;
-      version.current++; setSaving(true);
-      remember({ ...original, saved: !original.saved });
-      try {
-        const result = await saveApplicationDiscussion(original.id, !original.saved);
-        remember({ ...(current.current ?? original), saved: result.saved });
-        if (alive.current && cachedAccountId() === owner) Toast.show({ type: "success", text1: result.saved ? "已添加到常用" : "已从常用移除" });
-      } catch (cause) { remember({ ...(current.current ?? original), saved: original.saved }); throw cause; }
+      if (!await requireAccount() || !valid()) return;
+      let confirmed = current.current ?? await read();
+      while (valid() && savedWanted.current !== undefined && savedWanted.current !== !!confirmed.saved) {
+        const wanted = savedWanted.current;
+        version.current++;
+        const result = await saveApplicationDiscussion(confirmed.id, wanted);
+        confirmed = { ...confirmed, saved: result.saved };
+        remember({ ...(current.current ?? confirmed), saved: result.saved });
+      }
     } catch (cause) { fail(cause); }
-    finally { writing.current = false; if (alive.current) setSaving(false); }
+    finally { writing.current = false; savedWanted.current = undefined; if (alive.current) setPendingSaved(undefined); }
   }
+  const liked = pendingLike ?? !!post?.liked;
+  const saved = pendingSaved ?? !!post?.saved;
   function comment() { onComment(current.current); }
   const action = (icon: IconSymbol, label: string, onPress: () => void, selected = false, disabled = false) =>
     <Pressy accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress} style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", opacity: disabled ? 0.5 : 1 }}>
-      {icon === "heart" || icon === "heartOutline" ? <LikeGlyph identity={`${key}:${post?.id ?? "pending"}`} liked={selected} size={23} inactiveColor={t.ink1} />
-        : icon === "bookmark" ? <BookmarkGlyph identity={`${key}:${post?.id ?? "pending"}`} selected={selected} />
+      {icon === "heart" || icon === "heartOutline" ? <LikeGlyph identity={key} liked={selected} size={23} inactiveColor={t.ink1} />
+        : icon === "bookmark" ? <BookmarkGlyph identity={key} selected={selected} />
         : <SymbolIcon name={icon} size={23} color={t.ink1} />}
     </Pressy>;
   return <View style={{ flexDirection: "row", alignItems: "center" }}>
-    {action(post?.liked ? "heart" : "heartOutline", post?.liked ? "取消点赞" : "点赞", () => void like(), !!post?.liked)}
+    {action(liked ? "heart" : "heartOutline", liked ? "取消点赞" : "点赞", like, liked)}
     {action("chat", "评论", () => void comment())}
-    {action("bookmark", post?.saved ? "从常用移除" : "添加到常用", () => void bookmark(), !!post?.saved, saving)}
+    {action("bookmark", saved ? "从常用移除" : "添加到常用", bookmark, saved)}
     <View style={{ flex: 1 }} />
     {action("open", "打开应用", onOpen, false, !active)}
     {action("share", "分享", onShare)}
