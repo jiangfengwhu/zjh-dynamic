@@ -1,10 +1,11 @@
+import { applicationSharing, clearApplicationShareListeners } from "./sharing";
 const bootstrap = require("../../../tools/applications/bootstrap.json");
 import type { AppContext, AppDefinition, AppData, DataScope } from "./index";
 import { createElement, useEffect, useContext, useSyncExternalStore } from "react";
 import { requestNotifications, RESULTS } from "react-native-permissions";
 import { writePackageValue } from "../../ui/packageLink";
 import { applicationCapabilities } from "./capabilities";
-import { applicationData, fileAction } from "./data";
+import { applicationData } from "./data";
 import { shell } from "../../platform/src/phone";
 import { registerFeature } from "../../features/src/featureHost";
 import { phone } from "../../platform/src/phone";
@@ -120,7 +121,7 @@ export function applicationContext(appId: string): AppContext {
     ...applicationCapabilities(),
     ...scope(appId === bootstrap.defaultApplication ? "account" : "device"),
     scope,
-    share: input => fileAction("share", { text: input.text, title: input.title }),
+    sharing: applicationSharing(appId),
     assets: {
       uri: (name) => {
         const uri = assets.get(appId)?.[name];
@@ -213,7 +214,7 @@ export async function disposeApplication(appId: string) {
     requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(timer); resolve(); }));
   });
   try { await definition?.onDispose?.(applicationContext(appId)); }
-  finally { definitions.delete(appId); activated.delete(appId); assets.delete(appId); contexts.delete(appId); clearApplicationQueries(appId); }
+  finally { definitions.delete(appId); activated.delete(appId); assets.delete(appId); contexts.delete(appId); clearApplicationShareListeners(appId); clearApplicationQueries(appId); }
 }
 
 export function peekRegisteredApplication(appId: string) {

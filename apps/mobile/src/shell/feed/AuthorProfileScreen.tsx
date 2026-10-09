@@ -77,7 +77,7 @@ function AuthorProfileContent({
   active?: boolean;
   drawerGesture?: ReturnType<typeof Gesture.Pan>;
   onPost: (post: UserPost) => void;
-  onApplication: (appId: string) => Promise<void>;
+  onApplication: (appId: string, params?: import("../../../../../packages/app-sdk/src").ShareParams) => Promise<void>;
   onProfileLoaded?: (profile: AuthorProfile) => void;
   onConnections?: (author: PublicAuthor, kind: RelationKind) => void;
   onMessage?: (author: PublicAuthor) => void;

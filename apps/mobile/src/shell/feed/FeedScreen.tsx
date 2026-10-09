@@ -64,7 +64,7 @@ function timelineItemType({ post }: { post: UserPost }) {
 type FeedProps = {
   onCompose: () => void;
   onPost: (post: UserPost) => void;
-  onApplication: (appId: string) => Promise<void>;
+  onApplication: (appId: string, params?: import("../../../../../packages/app-sdk/src").ShareParams) => Promise<void>;
   onAuthor: (author: UserPost["author"]) => void;
 };
 

@@ -16,7 +16,7 @@ export function ApplicationPostCard({
 }: {
   application: ApplicationLink;
   preview?: boolean;
-  onOpen?: (appId: string) => Promise<void>;
+  onOpen?: (appId: string, params?: ApplicationLink["params"]) => Promise<void>;
 }) {
   const { colors } = useTheme();
   const [busy, setBusy] = useState(false);
@@ -26,7 +26,7 @@ export function ApplicationPostCard({
     working.current = true;
     setBusy(true);
     try {
-      await onOpen?.(application.appId);
+      await onOpen?.(application.appId, application.params);
     } catch (error) {
       Toast.show({
         type: "error",
@@ -77,6 +77,7 @@ export function ApplicationPostCard({
         >
           {application.title}
         </Text>
+        {application.author?.name ? <Text numberOfLines={1} style={{ fontSize: 11, color: colors.ink3 }}>作者：{application.author.name}</Text> : null}
         {application.summary ? <Text
           numberOfLines={1}
           style={{ fontSize: 12, lineHeight: 16, color: colors.ink3 }}

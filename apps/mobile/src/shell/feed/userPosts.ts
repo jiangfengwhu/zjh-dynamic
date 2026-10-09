@@ -14,6 +14,8 @@ import type { MarketApplication } from "../market";
 import { updateNotificationCount, notificationRevision } from "./notifications";
 
 export type ApplicationLink = {
+  params?: import("../../../../../packages/app-sdk/src").ShareParams;
+  author?: { id: string | null; name: string; avatarUrl: string | null };
   iconUrl?: string;
   icon?: import("../../../../../packages/app-sdk/src").ApplicationManifest["icon"];
   appId: string;
@@ -374,7 +376,7 @@ export async function publishUserPost(
   body: string,
   imageIds: string[],
   requestId: string,
-  application?: { appId: string; releaseId: string },
+  application?: { appId: string; releaseId: string; params?: import("../../../../../packages/app-sdk/src").ShareParams },
   content?: PostContent
 ): Promise<UserPost> {
   const owner = await currentAccountId();

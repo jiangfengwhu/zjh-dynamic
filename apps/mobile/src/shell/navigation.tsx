@@ -1,3 +1,6 @@
+import { applicationSharing } from "../../../../packages/app-sdk/src/sharing";
+import { receiveApplicationShare } from "../../../../packages/app-sdk/src/sharing";
+import type { ShareParams } from "../../../../packages/app-sdk/src";
 import { afterInteractions, beginRouteTransition, endRouteTransition } from "./interactionWork";
 import { isApplicationInstalledSync } from "./market";
 import { markStartup } from "../runtime/startupTiming";
@@ -216,8 +219,9 @@ function openPublication(mode: "post" | "create" = "create") {
   if (cachedAccountId()) open();
   else void requireAccount().then(allowed => { if (allowed) open(); });
 }
-export async function openPublicMarketApplication(appId: string) {
+export async function openPublicMarketApplication(appId: string, params?: ShareParams) {
   if (!shellNavigationRef.isReady()) return;
+  receiveApplicationShare(appId, params);
   if (cachedFeature(appId)) {
     shellNavigationRef.navigate("bundle", { id: appId });
     return;
@@ -227,6 +231,7 @@ export async function openPublicMarketApplication(appId: string) {
 
 export async function openShellBundle(id: string) {
   if (!shellNavigationRef.isReady()) return false;
+  receiveApplicationShare(id);
   if (id === bootstrap.defaultApplication) {
     const ownerId = cachedAccountId();
     if (!ownerId) return false;
@@ -338,7 +343,6 @@ function MarketDetailPage({ item, onOpen }: {
     onModify={(manifest, ownerId, fork) => openCreationComposer({
       appId: manifest.appId, title: manifest.appName, releaseId: manifest.releaseId, ownerId, fork,
     })}
-    onSharePost={application => shellNavigationRef.navigate("composePost", { application })}
     onAuthor={openAuthor}
     onPublication={() => shellNavigationRef.navigate("marketPublication", { item })}
   />;
@@ -426,7 +430,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
     pendingLink.current = undefined;
     linkOpened.current = true;
     if (link.kind === "post") shellNavigationRef.navigate("noticePost", { postId: link.id });
-    else shellNavigationRef.navigate("sharedApplication", { appId: link.id });
+    else void openPublicMarketApplication(link.id, link.params);
     if (pending.url) void NativePluginHost.call("shell", "consumeLaunchLink", JSON.stringify({ url: pending.url })).catch(() => {});
   }
   useEffect(() => {
@@ -621,7 +625,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             onOpen={props.onOpenBundle}
                             onAuthor={openAuthor}
                             onDetail={item => shellNavigationRef.navigate("marketDetail", { item })}
-                            onShare={application => shellNavigationRef.navigate("composePost", { application })}
+                            onShare={application => { void applicationSharing(application.manifest.appId).open({ title: application.title || application.manifest.appName }).catch(error => Toast.show({ type: "error", text1: "分享未完成", text2: error.message })); }}
                             onRemix={item => openCreationComposer({ appId: item.manifest.appId, title: item.manifest.appName, releaseId: item.manifest.releaseId, fork: true })}
                           />
                         </ShellTabScene>
@@ -704,16 +708,17 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           </Stack.Screen>
           <Stack.Screen name="applicationLink">
             {({ route }) => <AsyncRouteScreen key={route.params.appId} title="打开应用" onBack={goBack} renderErrorAction={error => <ApplicationRecovery error={error} onCheckUpdates={props.onCheckUpdates} />} cacheKey={`link:${route.params.appId}:${isApplicationInstalledSync(route.params.appId) ? "installed" : "public"}`}
-              load={async () => {
+              load={async signal => {
                 if (await isApplicationInstalled(route.params.appId)) {
                   await openFeature(route.params.appId);
                   return null;
                 }
-                return fetchMarketDetail(route.params.appId);
+                const application = await fetchMarketDetail(route.params.appId, { signal, immediate: true });
+                const { loadPublicApplicationExperience } = require("../runtime/applications") as typeof import("../runtime/applications");
+                await loadPublicApplicationExperience(application.manifest, signal, application);
+                return null;
               }}>
-              {item => item
-                ? <MarketDetailPage item={item} onOpen={props.onOpenBundle} />
-                : <BundlePage id={route.params.appId} render={props.renderBundle} onCheckUpdates={props.onCheckUpdates} />}
+              {() => <BundlePage id={route.params.appId} render={props.renderBundle} onCheckUpdates={props.onCheckUpdates} />}
             </AsyncRouteScreen>}
           </Stack.Screen>
           <Stack.Screen name="noticePost">
@@ -747,9 +752,6 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                     ownerId,
                     fork,
                   })
-                }
-                onSharePost={(application) =>
-                  shellNavigationRef.navigate("composePost", { application })
                 }
               />
             )}
@@ -881,3 +883,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+export function composeApplicationShare(draft: import("../../../../packages/app-sdk/src").UserPostDraft) {
+  if (!shellNavigationRef.isReady()) throw new Error("导航尚未就绪");
+  shellNavigationRef.navigate("composePost", { mode: "post", draft });
+}

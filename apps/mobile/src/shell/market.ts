@@ -102,10 +102,10 @@ export function invalidateMarketViews() {
   for (const cancel of viewWrites.values()) cancel();
   viewWrites.clear();
 }
-export async function fetchMarketPicker(owner: string, cursor?: string): Promise<MarketPage> {
-  const params = new URLSearchParams({authorId: owner, view: "picker", limit: "24"});
+export async function fetchMarketPicker(cursor?: string, query = ""): Promise<MarketPage> {
+  const params = new URLSearchParams({view: "picker", limit: "24", q: query});
   if (cursor) params.set("cursor", cursor);
-  const response = await fetch(`${edgeUrl}/v1/market?${params}`);
+  const response = await fetch(`${edgeUrl}/v1/market?${params}`, { signal: AbortSignal.timeout(15000) });
   if (!response.ok) throw new Error("应用列表暂时不可用");
   return response.json();
 }

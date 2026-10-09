@@ -1,3 +1,4 @@
+import { ApplicationSharingHost } from "./src/shell/ApplicationSharingHost";
 import { afterInteractions } from "./src/shell/interactionWork";
 import { notify as Toast } from "../../packages/ui/feedback/Toasts";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -172,7 +173,7 @@ function App() {
           navigationBarTranslucent
           preserveEdgeToEdge
         >
-            <HostAppearance><BottomSheetModalProvider><ApplicationQueries appId="__host"><KeyboardViewport reserveBottom={false}><ShellApp /></KeyboardViewport></ApplicationQueries></BottomSheetModalProvider></HostAppearance>
+            <HostAppearance><BottomSheetModalProvider><ApplicationQueries appId="__host"><KeyboardViewport reserveBottom={false}><ShellApp /><ApplicationSharingHost /></KeyboardViewport></ApplicationQueries></BottomSheetModalProvider></HostAppearance>
         </KeyboardProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

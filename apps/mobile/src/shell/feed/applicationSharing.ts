@@ -1,3 +1,5 @@
+import { normalizeShareParams } from "../../../../../packages/app-sdk/src/sharing";
+import { fetchMarketDetail } from "../market";
 import type { UserPostDraft } from "../../../../../packages/app-sdk/src/index";
 import { currentAccountId, requireAccount } from "../account";
 import { publishUserPost } from "./userPosts";
@@ -19,7 +21,11 @@ export function validatePostDraft(draft: UserPostDraft) {
     htmlByteLength(draft.html ?? "") > 32768
   )
     throw new Error("正文最多 2000 字，HTML 最多 32 KB");
-  if (!draft.body?.trim() && !draft.html?.trim())
+  if (draft.application) {
+    if (typeof draft.application.appId !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(draft.application.appId)) throw new Error("应用标识无效");
+    normalizeShareParams(draft.application.params);
+  }
+  if (!draft.body?.trim() && !draft.html?.trim() && !draft.application)
     throw new Error("请先添加分享内容");
 }
 
@@ -38,6 +44,7 @@ export async function shareApplicationPost(
     draft.body ?? "",
     draft.html ?? "",
     draft.requestId ?? "",
+    draft.application ?? null,
   ]);
   const existing = pending.get(key);
   if (existing) return existing;
@@ -49,15 +56,19 @@ export async function shareApplicationPost(
       .slice(2)}-${Math.random().toString(36).slice(2)}`;
   retries.set(key, requestId);
   if (retries.size > 100) retries.delete(retries.keys().next().value!);
-  const operation = publishUserPost(
+  const operation = (async () => {
+    const item = draft.application ? await fetchMarketDetail(draft.application.appId, { immediate: true }) : undefined;
+    if (await currentAccountId() !== owner) throw new Error("账号已改变，请重试");
+    return publishUserPost(
     draft.body?.trim() ?? "",
     [],
     requestId,
-    undefined,
+    item && draft.application ? { appId: item.manifest.appId, releaseId: item.manifest.releaseId, params: normalizeShareParams(draft.application.params) } : undefined,
     draft.html?.trim()
       ? { format: "html", version: 1, html: draft.html }
       : undefined
-  )
+  );
+  })()
     .then((post) => {
       retries.delete(key);
       Toast.show({ type: "success", text1: "已发布动态" });

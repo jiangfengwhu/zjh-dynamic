@@ -20,7 +20,11 @@ export type AppAvatarProps = {
   animated?: boolean;
   borderRadius?: number;
 };
+export type ShareValue = null | boolean | number | string | ShareValue[] | { [key: string]: ShareValue };
+export type ShareParams = { [key: string]: ShareValue };
+export type ApplicationShareInput = { title?: string; description?: string; params?: ShareParams };
 export type UserPostDraft = {
+  application?: { appId: string; params?: ShareParams };
   body?: string;
   html?: string;
   requestId?: string;
@@ -97,8 +101,12 @@ export type AppContext = AppData & {
   cloud: AppCloud;
   /** Device data is shared across host accounts; account data follows the signed-in account (or guest). */
   scope: (scope: DataScope) => AppData;
-  /** Opens the system share sheet; never publishes to the community feed. */
-  share: (input: { text: string; title?: string }) => Promise<FileActionResult>;
+  /** Opens the host application-sharing sheet. User chooses and confirms the destination. */
+  sharing: {
+    open: (input?: ApplicationShareInput) => Promise<void>;
+    getParams: () => ShareParams | undefined;
+    subscribe: (listener: (params: ShareParams | undefined) => void) => () => void;
+  };
   ai: AiService;
   assets: { uri: (name: string) => string };
   clipboard: { get: () => Promise<string>; set: (text: string) => void };

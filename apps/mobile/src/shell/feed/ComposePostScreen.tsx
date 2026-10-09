@@ -1,3 +1,4 @@
+import { normalizeShareParams } from "../../../../../packages/app-sdk/src/sharing";
 import { appendUnique } from "../listData";
 import { AnimatedFlashList } from "../AnimatedFlashList";
 import { PageSkeleton } from "../LoadingSkeleton";
@@ -32,7 +33,7 @@ import {
 } from "../account";
 import { readShellValue, writeShellValue } from "../shellStorage";
 import { publishUserPost } from "./userPosts";
-import { fetchMarketPicker, type MarketApplication } from "../market";
+import { fetchMarketPicker, fetchMarketDetail, type MarketApplication } from "../market";
 import { ApplicationPostCard } from "./ApplicationPostCard";
 import {
   retainDraftImage,
@@ -78,7 +79,7 @@ export function ComposePostScreen({
   const [text, setText] = useState(
     initialDraft?.html ?? initialDraft?.body ??
       (initialApplication
-        ? `我发布了《${
+        ? `分享《${
             initialApplication.title || initialApplication.manifest.appName
           }》，欢迎来体验。`
         : ""),
@@ -90,6 +91,13 @@ export function ComposePostScreen({
   const [application, setApplication] = useState<MarketApplication | undefined>(
     initialApplication,
   );
+  const attachmentRevision = useRef(0);
+  const [applicationParams, setApplicationParams] = useState(initialDraft?.application?.params);
+  const [attachmentReady, setAttachmentReady] = useState(!initialDraft?.application);
+  const [attachmentError, setAttachmentError] = useState("");
+  const [attachmentRetry, setAttachmentRetry] = useState(0);
+  const [appsQuery, setAppsQuery] = useState("");
+  const pickerQuery = useRef("");
   const [picking, setPicking] = useState(false);
   const [loadingApps, setLoadingApps] = useState(false);
   const [appsError, setAppsError] = useState("");
@@ -124,7 +132,7 @@ export function ComposePostScreen({
   );
   const count = Array.from(body).length;
   const canPublish =
-    draftReady &&
+    draftReady && attachmentReady &&
     (text.trim().length > 0 ||
       photos.length > 0 ||
       !!application ||
@@ -149,6 +157,18 @@ export function ComposePostScreen({
     if (published && !busy) onBack();
   }, [published, busy, onBack]);
   useEffect(() => {
+    const target = initialDraft?.application;
+    if (!target) return;
+    const controller = new AbortController();
+    const version = attachmentRevision.current;
+    setAttachmentError("");
+    void fetchMarketDetail(target.appId, { signal: controller.signal, immediate: true }).then(item => {
+      if (controller.signal.aborted || version !== attachmentRevision.current) return;
+      setApplication(item); setApplicationParams(normalizeShareParams(target.params)); setAttachmentReady(true);
+    }).catch(error => { if (!controller.signal.aborted && version === attachmentRevision.current) setAttachmentError(error instanceof Error ? error.message : "应用读取失败"); });
+    return () => controller.abort();
+  }, [initialDraft?.application, attachmentRetry]);
+  useEffect(() => {
     void (async () => {
       try {
         const value = owner ? await readShellValue(draftKey) : undefined;
@@ -165,10 +185,11 @@ export function ComposePostScreen({
             setText(typeof draft.editorText === "string" ? draft.editorText : draft.htmlMode && typeof draft.html === "string" ? draft.html : typeof draft.body === "string" ? draft.body : "");
             setCaption(typeof draft.caption === "string" ? draft.caption : draft.htmlMode && typeof draft.body === "string" ? draft.body : "");
             setApplication(
-              draft.application?.authorId === owner
+              draft.application?.manifest?.appId
                 ? draft.application
                 : initialApplication,
             );
+            setApplicationParams(normalizeShareParams(draft.applicationParams));
             setPhotos(restored);
             setHtmlMode(!!draft.htmlMode);
           }
@@ -192,12 +213,13 @@ export function ComposePostScreen({
     if (draftReady && owner && !published)
       writeShellValue(
         draftKey,
-        JSON.stringify({ body, editorText: text, caption, application, photos, html, htmlMode }),
+        JSON.stringify({ body, editorText: text, caption, application, applicationParams, photos, html, htmlMode }),
       );
   }, [
     draftReady,
     text,
     application,
+    applicationParams,
     photos,
     html,
     htmlMode,
@@ -210,7 +232,7 @@ export function ComposePostScreen({
     if (owner && draftReady)
       writeShellValue(
         draftKey,
-        JSON.stringify({ body: htmlMode ? caption : body, editorText: body, caption, application: selected, photos, html: htmlMode ? body : "", htmlMode }),
+        JSON.stringify({ body: htmlMode ? caption : body, editorText: body, caption, application: selected, applicationParams: selected?.manifest.appId === application?.manifest.appId ? applicationParams : undefined, photos, html: htmlMode ? body : "", htmlMode }),
       );
   }
   function change(value: string) {
@@ -243,23 +265,27 @@ export function ComposePostScreen({
     }
   }
   function selectApplication(item?: MarketApplication) {
+    attachmentRevision.current++;
+    if (!item || item.manifest.appId !== application?.manifest.appId) setApplicationParams(undefined);
+    setAttachmentReady(true); setAttachmentError("");
     setApplication(item);
     setPicking(false);
     saveDraft(text, item);
   }
-  async function pickApplication(more = false) {
+  async function pickApplication(more = false, query = appsQuery) {
     if (working.current || loadingApps || !draftReady) return;
     Keyboard.dismiss();
     setPicking(true);
     setLoadingApps(true);
     setAppsError("");
     try {
-      const page = await fetchMarketPicker(owner!, more ? appsCursor : undefined);
+      if (!more) { pickerQuery.current = query.trim(); setApplications([]); setAppsCursor(undefined); }
+      const page = await fetchMarketPicker(more ? appsCursor : undefined, pickerQuery.current);
       const items = page.applications;
       if ((await currentAccountId()) !== owner)
         throw new Error("账号已改变，请重试");
       if (alive.current)
-        { setAppsCursor(page.nextCursor); setApplications(previous => more ? appendUnique(previous, items.filter(item => item.authorId === owner), item => item.manifest.appId) : items.filter(item => item.authorId === owner)); }
+        { setAppsCursor(page.nextCursor); setApplications(previous => more ? appendUnique(previous, items, item => item.manifest.appId) : items); }
     } catch (error) {
       if (alive.current)
         setAppsError(
@@ -344,6 +370,7 @@ export function ComposePostScreen({
         ? {
             appId: application.manifest.appId,
             releaseId: application.manifest.releaseId,
+            params: applicationParams,
           }
         : undefined;
       const signature = JSON.stringify({
@@ -412,6 +439,7 @@ export function ComposePostScreen({
         />
       ) : null}
       {modeTabs}
+      {!attachmentReady ? <View style={{ padding: 16, gap: 8 }}>{attachmentError ? <><Text style={{ color: colors.danger }}>{attachmentError}</Text><Pressy onPress={() => setAttachmentRetry(value => value + 1)}><Text style={{ color: colors.accent }}>重试读取应用</Text></Pressy><Pressy onPress={() => selectApplication()}><Text style={{ color: colors.ink3 }}>移除附带应用</Text></Pressy></> : <PageSkeleton rows={1} shape="picker" />}</View> : null}
       <KeyboardViewport>
         <ScrollView
           keyboardShouldPersistTaps="handled"
@@ -502,7 +530,7 @@ export function ComposePostScreen({
               </Text>
             </Pressy>
             <Pressy
-              accessibilityLabel="选择自己已公开的应用"
+              accessibilityLabel="选择公开应用"
               disabled={!draftReady || busy || choosing}
               onPress={() => void pickApplication()}
               style={styles.tool}
@@ -603,10 +631,11 @@ export function ComposePostScreen({
           >
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
               <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: colors.orangeTint, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="box" size={16} strokeWidth={2.1} color={colors.orange} /></View>
-              <Text style={{ flex: 1, color: colors.ink1, ...colors.type.headline }}>我的已公开应用</Text>
+              <Text style={{ flex: 1, color: colors.ink1, ...colors.type.headline }}>选择应用</Text>
               <Pressy scale={1} accessibilityLabel="关闭应用选择" onPress={() => setPicking(false)} style={{ width: 44, height: 44, alignItems: "center" }}><SymbolIcon name="close" size={16} color={colors.ink3} /></Pressy>
             </View>
-            <Text style={styles.counter}>仅分享已经公开的作品版本</Text>
+            <Text style={styles.counter}>选择任何已公开的作品</Text>
+            <View style={{ flexDirection: "row", gap: 8 }}><TextInput value={appsQuery} onChangeText={setAppsQuery} placeholder="搜索应用" returnKeyType="search" onSubmitEditing={() => void pickApplication(false)} style={{ flex: 1 }} /><Pressy accessibilityLabel="搜索应用" disabled={loadingApps} onPress={() => void pickApplication(false)} style={{ padding: 12, justifyContent: "center" }}><SymbolIcon name="search" size={20} color={colors.ink1} /></Pressy></View>
             <AnimatedFlashList data={!applications.length && (loadingApps || appsError) ? [] : applications} keyExtractor={item => item.manifest.appId} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" style={{ minHeight: 160 }}
               ListFooterComponent={appsCursor ? <Pressable disabled={loadingApps} onPress={() => void pickApplication(true)} style={styles.add}><Text style={styles.counter}>{loadingApps ? "加载中…" : "加载更多作品"}</Text></Pressable> : null}
               renderItem={({ item }) => (
@@ -626,12 +655,13 @@ export function ComposePostScreen({
                     <Text style={styles.name}>
                       {item.title || item.manifest.appName}
                     </Text>
+                    <Text numberOfLines={1} style={styles.counter}>作者：{item.authorName}</Text>
                     <Text numberOfLines={2} style={styles.counter}>
                       {item.summary || item.manifest.description}
                     </Text>
                   </Pressable>
               )}
-              ListEmptyComponent={loadingApps ? <PageSkeleton rows={3} shape="picker" /> : appsError ? <Pressable onPress={() => void pickApplication()} style={styles.add}><Text style={{ color: colors.danger }}>{appsError} · 重试</Text></Pressable> : <EmptyState style={{ minHeight: 160, flexGrow: 0 }}><Text style={{ color: colors.ink3, textAlign: "center" }}>还没有已公开应用。先在作品详情中公开作品，就可以分享了。</Text></EmptyState>}
+              ListEmptyComponent={loadingApps ? <PageSkeleton rows={3} shape="picker" /> : appsError ? <Pressable onPress={() => void pickApplication()} style={styles.add}><Text style={{ color: colors.danger }}>{appsError} · 重试</Text></Pressable> : <EmptyState style={{ minHeight: 160, flexGrow: 0 }}><Text style={{ color: colors.ink3, textAlign: "center" }}>没有找到公开作品。</Text></EmptyState>}
             />
             <Pressable onPress={() => setPicking(false)} style={styles.add}>
               <Text style={[styles.addText, { textAlign: "center" }]}>

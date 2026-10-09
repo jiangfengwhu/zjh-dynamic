@@ -36,7 +36,7 @@ export function PostDetailScreen(props: Parameters<typeof PostDetailContent>[0])
   const theme = useTheme();
   return <ThemeContext.Provider value={theme}><PostDetailContent {...props} /></ThemeContext.Provider>;
 }
-function PostDetailContent({ initialPost, initialCommentId, initialDetail: providedDetail, onBack, onApplication, onAuthor }: { initialPost: UserPost; initialCommentId?: string; initialDetail?: PostDetail; onBack: () => void; onApplication: (appId: string) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {
+function PostDetailContent({ initialPost, initialCommentId, initialDetail: providedDetail, onBack, onApplication, onAuthor }: { initialPost: UserPost; initialCommentId?: string; initialDetail?: PostDetail; onBack: () => void; onApplication: (appId: string, params?: import("../../../../../packages/app-sdk/src").ShareParams) => Promise<void>; onAuthor: (author: UserPost["author"]) => void }) {
   const initialDetail = providedDetail ?? cachedPostDetail(initialPost.id, initialCommentId);
   const focused = useIsFocused();
   const scrollY = useSharedValue(0);

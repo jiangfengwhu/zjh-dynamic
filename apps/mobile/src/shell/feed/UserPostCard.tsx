@@ -38,7 +38,7 @@ export function UserPostCard({
   own: boolean;
   onOpen?: () => void;
   onDeleted?: () => void;
-  onApplication: (appId: string) => Promise<void>;
+  onApplication: (appId: string, params?: import("../../../../../packages/app-sdk/src").ShareParams) => Promise<void>;
   onAuthor?: (author: UserPost["author"]) => void;
   onUpdated?: (post: UserPost) => void;
   detail?: boolean;

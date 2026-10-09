@@ -1,3 +1,4 @@
+import { parseSharedLink } from "../deepLinks";
 import { Text } from "../../../../../packages/ui/primitives/Typography";
 import {
   memo,
@@ -112,7 +113,7 @@ export const HtmlPostContent = memo(function HtmlPostContent({
 }: {
   html: string;
   fallback?: string;
-  onApplication?: (id: string) => Promise<void>;
+  onApplication?: (id: string, params?: import("../../../../../packages/app-sdk/src").ShareParams) => Promise<void>;
   onImage?: (url: string) => void;
 }) {
   const { colors } = useTheme();
@@ -177,7 +178,9 @@ export const HtmlPostContent = memo(function HtmlPostContent({
     (_event: unknown, href: string) => {
       void (async () => {
         const app = /^zijinhua:\/\/app\/([a-z][a-z0-9-]{0,63})\/?$/.exec(href);
-        if (app && onApplication) await onApplication(app[1]);
+        const shared = parseSharedLink(href);
+        if (shared?.kind === "application" && onApplication) await onApplication(shared.id, shared.params);
+        else if (app && onApplication) await onApplication(app[1]);
         else if (/^https:\/\/[^\s]+$/i.test(href)) await Linking.openURL(href);
         else throw new Error("该链接不支持打开");
       })().catch((error) =>

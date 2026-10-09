@@ -1,3 +1,4 @@
+import { applicationSharing } from "../../../../packages/app-sdk/src/sharing";
 import { AnimatedFlashList } from "./AnimatedFlashList";
 import { afterInteractions, waitForInteractions } from "./interactionWork";
 import { cachedPage, pageCacheKey } from "./pageCache";
@@ -16,8 +17,7 @@ import {
 } from "./account";
 import { openCreationComposer } from "./creationComposer";
 import { useEffect, useRef, useState } from "react";
-import { Share, View } from "react-native";
-import { createShareText } from "./clipboardShares";
+import { View } from "react-native";
 import {
   KeyboardAwareScrollView as ScrollView,
   type KeyboardAwareScrollViewRef,
@@ -107,7 +107,6 @@ function MarketDetailContent({
   onBack,
   onOpen,
   onModify,
-  onSharePost,
   onAuthor,
   onRefresh,
 }: {
@@ -128,7 +127,6 @@ function MarketDetailContent({
   item: MarketApplication;
   onBack: () => void;
   onOpen: (id: string) => void;
-  onSharePost: (item: MarketApplication) => void;
 }) {
   const styles = useStyles();
 
@@ -1155,14 +1153,7 @@ function MarketDetailContent({
                         ? "分享，公开作品后可用"
                         : "分享作品"
                     }
-                    onPress={() => Alert.alert("分享作品", "选择分享方式", [
-                      { text: "分享到动态", onPress: () => onSharePost(shared ?? item) },
-                      { text: "分享链接", onPress: () => {
-                        const message = createShareText({ kind: "application", id: app.appId }, shared?.title || item.title || app.appName);
-                        void Share.share({ title: shared?.title || item.title || app.appName, message }).catch(() => Toast.show({ type: "error", text1: "分享未完成，请重试" }));
-                      } },
-                      { text: "取消", style: "cancel" },
-                    ])}
+                    onPress={() => { void applicationSharing(app.appId).open({ title: shared?.title || item.title || app.appName }).catch(error => Toast.show({ type: "error", text1: "分享未完成", text2: error.message })); }}
                     style={styles.tool}
                   >
                     <SymbolIcon

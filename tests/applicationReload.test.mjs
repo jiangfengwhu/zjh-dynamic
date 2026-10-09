@@ -139,6 +139,7 @@ test('SDK activates after assets are installed, disposes only the target, and ke
   const g = vm.createContext({ exports: {}, console, setTimeout, clearTimeout, requestAnimationFrame: callback => setImmediate(callback),
     require: () => ({ defaultApplication: 'jolly' }), registerFeature: (id, page) => registered.push([id, page]),
     applicationCapabilities: () => ({}), applicationData: () => ({ storage: { get: key => data.get(key), set: (key, value) => data.set(key, value) } }),
+    applicationSharing: () => ({}), clearApplicationShareListeners: () => {},
     applicationCloud: () => ({}), applicationAuth: {}, applicationAi: () => ({}), phone: {},
     clearApplicationQueries: id => cleared.push(id),
   });

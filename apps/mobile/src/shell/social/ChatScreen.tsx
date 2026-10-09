@@ -1,3 +1,5 @@
+import { ApplicationPostCard } from "../feed/ApplicationPostCard";
+import { openPublicMarketApplication } from "../navigation";
 import { DraftInputScope, useDraftText, useDraftPersistence } from "../DraftInputScope";
 import { mergeChronological } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
@@ -141,7 +143,8 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
         return <View style={{ flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-start", gap: 8 }}>
           <UserAvatar uri={mine ? query.user?.avatarUrl : query.data.peer.avatarUrl} authorId={item.senderId} size={26} />
           <View style={{ maxWidth: "78%", gap: 5, alignItems: mine ? "flex-end" : "flex-start" }}>
-            <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: 18, borderTopRightRadius: mine ? 6 : 18, borderTopLeftRadius: mine ? 18 : 6, paddingHorizontal: 12, paddingVertical: 8, boxShadow: mine ? undefined : colors.shadow.card, borderWidth: !mine && colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 14, lineHeight: 20 }}>{item.body}</Text></View>
+            {item.application ? <View style={{ width: 260, maxWidth: "100%" }}><ApplicationPostCard application={item.application} onOpen={openPublicMarketApplication} /></View> : null}
+            {item.body ? <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: 18, borderTopRightRadius: mine ? 6 : 18, borderTopLeftRadius: mine ? 18 : 6, paddingHorizontal: 12, paddingVertical: 8, boxShadow: mine ? undefined : colors.shadow.card, borderWidth: !mine && colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 14, lineHeight: 20 }}>{item.body}</Text></View> : null}
             <Text style={{ color: colors.ink3, fontSize: 11, letterSpacing: 0.2, paddingHorizontal: 6 }}>{formatWhen(item.createdAt)}</Text>
           </View>
         </View>;
