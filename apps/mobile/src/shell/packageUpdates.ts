@@ -1,7 +1,6 @@
 import { installApkUpdate, type ApkProgress } from "./apkUpdates";
 import NativePluginHost from "../NativePluginHost";
 import { edgeUrl } from "./evolveHost";
-import { checkApplicationUpdates, stageApplicationUpdates, applyStagedApplicationUpdates } from "../runtime/applications";
 
 export type PendingPackage = {
   id: string;
@@ -41,7 +40,7 @@ export async function checkPackageUpdates(): Promise<PendingPackage[]> {
     throw new Error("新包尚未下载完成或无法加载，请稍后重新检查");
   }
   console.log("package updates", items.map((item) => `${item.kind}:${item.id}`).join(" ") || "none");
-  return [...items, ...await checkApplicationUpdates()];
+  return items.filter(item => item.kind === "layer" || item.kind === "apk");
 }
 
 export function updateSignature(items: PendingPackage[]): string {
@@ -54,13 +53,9 @@ export async function applyPackageUpdates(items: PendingPackage[] = [], onApkPro
     await installApkUpdate(apk, onApkProgress);
     return 0;
   }
-  const applicationCount = await stageApplicationUpdates();
   const raw = await NativePluginHost.call("shell", "applyUpdates", "{}");
   const parsed = JSON.parse(raw) as { ok?: boolean; applied?: number; error?: string; message?: string };
   if (parsed.ok === false || !Number.isSafeInteger(parsed.applied) || parsed.applied! < 0) throw new Error(parsed.message || parsed.error || "更新未能应用，请重试");
   console.log("package updates apply", parsed.applied ?? 0);
-  if (applicationCount && !parsed.applied) {
-    await applyStagedApplicationUpdates();
-  }
-  return (parsed.applied ?? 0) + applicationCount;
+  return parsed.applied ?? 0;
 }

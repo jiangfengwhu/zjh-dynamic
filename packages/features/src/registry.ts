@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import type { AppAvatarProps } from "../../app-sdk/src/index";
 import { peekApplication } from "../../app-sdk/src/runtime";
-import { loadApplication, applicationLoaded } from "../../../apps/mobile/src/runtime/applications";
+import { loadApplication, applicationLoaded, applyPreparedPublicApplicationUpdate } from "../../../apps/mobile/src/runtime/applications";
 import { peekFeature, type FeatureComponent } from "./featureHost";
 // Metadata only. Application pages, avatars and cards arrive in independent bundles.
 export type BundleDefinition = {
@@ -56,6 +56,7 @@ export function cachedFeature(id: string): FeatureComponent | undefined {
 }
 
 export async function openFeature(id: string): Promise<FeatureComponent> {
+  await applyPreparedPublicApplicationUpdate(id);
   const cached = cachedFeature(id);
   if (cached) return cached;
 

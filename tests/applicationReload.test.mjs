@@ -68,6 +68,9 @@ function runtime() {
     subscribeAccountIdentity: listener => { callbacks.account = listener; }, onApplicationPageAttempt: listener => { callbacks.attempt = listener; }, onApplicationPageReady: listener => { callbacks.ready = listener; },
     cachedAccountId: () => state.owner, currentAccountId: async () => state.owner, restoreWorks: async () => {},
     readShellValue: async key => state.data.get(key), readShellValueSync: key => state.data.get(key), writeShellValue: (key, value) => state.data.set(key, value),
+    loadCatalog: async () => state.catalog ?? [], loadCatalogSync: () => state.catalog ?? [],
+    AbortController, setTimeout, clearTimeout, fetch: async () => ({ ok: true, json: async () => ({ applications: (state.catalog ?? []).map(item => ({ appId: item.id, manifest: state.publicManifest ?? null })) }) }),
+    downloadApplicationResources: async manifest => { state.downloads = (state.downloads ?? 0) + 1; if (state.downloadPause) await state.downloadPause; }, edgeUrl: 'https://example.test',
     assertApplicationSdkCompatible: () => {}, createApplicationModuleScope: modules.createApplicationModuleScope, releaseApplicationModuleScope: modules.releaseApplicationModuleScope,
     disposeApplication: async id => { state.disposals.push(id); state.definitions.delete(id); }, applicationContext: id => ({ appId: id }),
     peekRegisteredApplication: id => state.definitions.get(id), activateApplication: () => {}, installApplicationAssets: () => {},
@@ -158,4 +161,58 @@ test('SDK activates after assets are installed, disposes only the target, and ke
   assert.notEqual(api.applicationRuntimeSnapshot('a').generation, old.generation);
   assert.equal(registered.filter(([id]) => id === 'a').length, 1);
   await api.disposeApplication('a'); assert.deepEqual(cleanup, ['a'], 'onDispose is optional');
+});
+
+test('public update downloads leave the running application unchanged until its next explicit open', async () => {
+  const f = runtime(), old = f.manifest('a', 'a'), next = f.manifest('a', 'd');
+  f.install(old); f.state.catalog = [{ id: 'a' }]; f.state.publicManifest = next;
+  await f.api.loadApplication('a');
+  await f.api.preparePublicApplicationUpdates();
+  assert.equal(f.api.runningApplication('a').releaseId, old.releaseId);
+  assert.equal(f.state.data.get('application.pending.a'), undefined);
+  assert.deepEqual(f.state.disposals, []);
+  assert.equal(f.api.hasPreparedPublicApplicationUpdate('a'), true);
+  await f.api.preparePublicApplicationUpdates(); assert.equal(f.state.downloads, 1, 'prepared version must not download twice');
+  await Promise.all([f.api.applyPreparedPublicApplicationUpdate('a'), f.api.applyPreparedPublicApplicationUpdate('a')]);
+  assert.equal(f.api.runningApplication('a').releaseId, next.releaseId);
+  assert.deepEqual(f.state.disposals, ['a']);
+  assert.equal(f.api.hasPreparedPublicApplicationUpdate('a'), false);
+});
+test('private selection, uninstall or account change during download defeats a prepared public update', async () => {
+  for (const change of ['private', 'uninstall', 'account']) {
+    const f = runtime(), old = f.manifest('a', 'a'), next = f.manifest('a', 'd');
+    f.install(old); f.state.catalog = [{ id: 'a' }]; f.state.publicManifest = next;
+    let resume; f.state.downloadPause = new Promise(resolve => { resume = resolve; });
+    const preparing = f.api.preparePublicApplicationUpdates(); await new Promise(resolve => setImmediate(resolve));
+    if (change === 'private') { f.stage(f.manifest('a', 'b')); f.state.data.set('application.pending.access.a', JSON.stringify({ ownerId: 'owner', public: false })); }
+    if (change === 'uninstall') f.state.catalog = [{ id: 'a', purged: true }];
+    if (change === 'account') f.state.owner = 'new-account';
+    resume(); await preparing;
+    assert.equal(f.api.hasPreparedPublicApplicationUpdate('a'), false);
+    assert.equal(f.state.data.get('application.public-update.a'), undefined);
+  }
+});
+test('a later local version selection invalidates a previously prepared public update', async () => {
+  const f = runtime(), old = f.manifest('a', 'a'), next = f.manifest('a', 'd');
+  f.install(old); f.state.catalog = [{ id: 'a' }]; f.state.publicManifest = next;
+  await f.api.preparePublicApplicationUpdates();
+  const chosen = f.manifest('a', 'b'); f.stage(chosen);
+  await f.api.applyPreparedPublicApplicationUpdate('a');
+  assert.equal(JSON.parse(f.state.data.get('application.pending.a')).releaseId, chosen.releaseId);
+  assert.equal(f.state.executions.length, 0);
+});
+
+test('platform update checks and apply never mix in public application updates', async () => {
+  const calls = [];
+  const g = vm.createContext({ exports: {}, console, AbortSignal,
+    require: () => ({ buildId: 'host', apk: { versionCode: 1 } }), edgeUrl: 'https://example.test',
+    fetch: async () => ({ ok: true, json: async () => ({ release: { id: 'release', source: { buildId: 'host' } } }) }),
+    NativePluginHost: { call: async (_, method) => { calls.push(method); return JSON.stringify(method === 'checkUpdates' ? { items: [{ kind: 'application', id: 'dinner', sha256: 'a', bytes: 1 }] } : { applied: 1 }); } },
+    checkApplicationUpdates: () => { throw Error('must not include application updates'); },
+    stageApplicationUpdates: () => { throw Error('must not apply application updates'); },
+  });
+  const api = evaluate('apps/mobile/src/shell/packageUpdates.ts', g);
+  assert.equal((await api.checkPackageUpdates()).length, 0);
+  assert.equal(await api.applyPackageUpdates([]), 1);
+  assert.deepEqual(calls, ['checkUpdates', 'applyUpdates']);
 });

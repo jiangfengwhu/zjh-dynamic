@@ -203,7 +203,7 @@ const allocations = require("../../../../tools/applications/allocations.json") a
 export function runningApplication(appId: string) { return active.get(appId); }
 export function applicationLoaded(appId: string) {
   const access = activeAccess.get(appId);
-  return loaded.has(appId) && !quarantined.has(appId) && !!access && (!access.ownerId || access.ownerId === cachedAccountId());
+  return loaded.has(appId) && !reloading.has(appId) && !quarantined.has(appId) && !!access && (!access.ownerId || access.ownerId === cachedAccountId());
 }
 /** Common applications reuse only public runtimes, never workshop candidates. */
 export function publicApplicationLoaded(appId: string) {
@@ -262,6 +262,61 @@ export async function publicApplicationUpdates(force = false): Promise<Record<st
     } catch { result[id] = { status: "blocked", message: "本机版本信息异常，请重新打开详情" }; }
   }
   return result;
+}
+
+type PreparedPublicUpdate = { manifest: ApplicationManifest; baseline: string };
+let preparingPublicUpdates: Promise<void> | undefined;
+/** Download public updates separately from the platform banner and active selection. */
+export function preparePublicApplicationUpdates(): Promise<void> {
+  if (preparingPublicUpdates) return preparingPublicUpdates;
+  const task = (async () => {
+    const owner = cachedAccountId();
+    const updates = await publicApplicationUpdates(true);
+    if (owner !== cachedAccountId()) return;
+    const results = await Promise.allSettled(Object.entries(updates).map(async ([appId, update]) => {
+      if (update.status !== "update" || !update.manifest) return;
+      const manifest = update.manifest;
+      const baseline = readShellValueSync(`application.pending.${appId}`) || readShellValueSync(`application.install.${appId}`);
+      if (!baseline) return;
+      const readyKey = `application.public-update.${appId}`;
+      try { const ready = JSON.parse(readShellValueSync(readyKey) || "null") as PreparedPublicUpdate | null; if (ready?.baseline === baseline && ready.manifest.releaseId === manifest.releaseId) return; } catch {}
+      await downloadApplicationResources(manifest, undefined, "update");
+      if (owner !== cachedAccountId()) return;
+      const entry = loadCatalogSync().find(item => item.id === appId);
+      if (!entry || entry.trashedAt || entry.purged) return;
+      const selected = readShellValueSync(`application.pending.${appId}`) || readShellValueSync(`application.install.${appId}`);
+      if (selected !== baseline) return; // A concurrent install or workshop selection wins.
+      writeShellValue(readyKey, JSON.stringify({ manifest, baseline } satisfies PreparedPublicUpdate));
+    }));
+    if (results.some(result => result.status === "rejected")) throw new Error("部分应用新版未下载完成，下次检查重试");
+  })().finally(() => { if (preparingPublicUpdates === task) preparingPublicUpdates = undefined; });
+  preparingPublicUpdates = task;
+  return task;
+}
+function preparedPublicUpdate(appId: string): PreparedPublicUpdate | undefined {
+  try {
+    const ready = JSON.parse(readShellValueSync(`application.public-update.${appId}`) || "null") as PreparedPublicUpdate | null;
+    if (!ready || ready.manifest.appId !== appId) return;
+    const entry = loadCatalogSync().find(item => item.id === appId);
+    if (!entry || entry.trashedAt || entry.purged) return;
+    const pending = readShellValueSync(`application.pending.${appId}`);
+    const selected = pending || readShellValueSync(`application.install.${appId}`);
+    const access = JSON.parse(readShellValueSync(`application.${pending ? "pending.access" : "access"}.${appId}`) || "{}");
+    if (selected !== ready.baseline || access.public !== true || access.ownerId || access.releaseId !== JSON.parse(selected || "null")?.releaseId) return;
+    assertCompatible(ready.manifest, appId);
+    return ready;
+  } catch { return; }
+}
+export function hasPreparedPublicApplicationUpdate(appId: string) { return !!preparedPublicUpdate(appId); }
+/** Only explicit opens call this; preparation never replaces a running page. */
+export async function applyPreparedPublicApplicationUpdate(appId: string): Promise<void> {
+  const ready = preparedPublicUpdate(appId);
+  if (!ready) { await reloading.get(appId); return; }
+  writeShellValue(`application.pending.access.${appId}`, JSON.stringify({ releaseId: ready.manifest.releaseId, ownerId: null, public: true }));
+  writeShellValue(`application.pending.${appId}`, JSON.stringify(ready.manifest));
+  writeShellValue(`application.public-update.${appId}`, "");
+  if (active.has(appId)) await reloadApplication(appId);
+  else await loadApplication(appId);
 }
 
 export async function checkApplicationUpdates(targetAppId?: string): Promise<PendingPackage[]> {
@@ -358,12 +413,6 @@ function replaceRuntime(appId: string, reopen: boolean): Promise<void> {
 }
 export function reloadApplication(appId: string) { return replaceRuntime(appId, true); }
 export function unloadApplication(appId: string) { return replaceRuntime(appId, false); }
-export async function applyStagedApplicationUpdates() {
-  const ids = [...offered.keys()].filter(id => !!readShellValueSync(`application.pending.${id}`));
-  const results = await Promise.allSettled(ids.map(reloadApplication));
-  if (results.some(result => result.status === "rejected")) throw new Error("部分应用更新未能加载，请在应用详情重试");
-}
-
 export async function loadApplication(appId: string): Promise<void> {
   const replacement = reloading.get(appId);
   if (replacement) return replacement;
