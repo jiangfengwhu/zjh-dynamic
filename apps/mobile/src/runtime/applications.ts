@@ -37,15 +37,30 @@ onApplicationPageAttempt(appId => { const manifest = active.get(appId); if (mani
 onApplicationPageReady(appId => { void commitHealthy(appId); });
 const offered = new Map<string, { manifest: ApplicationManifest; ownerId: string | null }>();
 const activeAccess = new Map<string, Access>();
-type PublicReleaseReplacement = { previousReleaseId: string; manifest: ApplicationManifest };
-const publicReleaseReplacements = new Map<string, PublicReleaseReplacement>();
-const publicReleaseSelections = new Map<string, string>();
-const publicReleaseListeners = new Set<(replacement: PublicReleaseReplacement) => void>();
-export function subscribePublicApplicationRelease(listener: (replacement: PublicReleaseReplacement) => void) {
+export type PublicReleaseChange = { manifest: ApplicationManifest };
+const publicReleaseListeners = new Set<(replacement: PublicReleaseChange) => void>();
+export function subscribePublicApplicationRelease(listener: (replacement: PublicReleaseChange) => void) {
   publicReleaseListeners.add(listener);
   return () => { publicReleaseListeners.delete(listener); };
 }
-export function publicApplicationReleaseReplacement(appId: string) { return publicReleaseReplacements.get(appId); }
+/** Selected public installs survive runtime eviction. Private candidates never enter the feed. */
+export function selectedPublicApplicationRelease(appId: string): ApplicationManifest | undefined {
+  const entry = loadCatalogSync().find(item => item.id === appId);
+  if (!entry || entry.trashedAt || entry.purged) return undefined;
+  try {
+    const pending = readShellValueSync(`application.pending.${appId}`);
+    const manifest = JSON.parse(pending || readShellValueSync(`application.install.${appId}`) || "null") as ApplicationManifest | null;
+    const access = JSON.parse(readShellValueSync(`application.${pending ? "pending.access" : "access"}.${appId}`) || "null") as Access | null;
+    if (manifest?.appId === appId && access?.releaseId === manifest.releaseId && access.public && !access.ownerId) return manifest;
+  } catch { /* Incomplete local selections are not public versions. */ }
+}
+export function resolvePublicApplicationExperience(item: MarketApplication): MarketApplication {
+  const manifest = selectedPublicApplicationRelease(item.manifest.appId);
+  return !manifest || manifest.releaseId === item.manifest.releaseId ? item : {
+    ...item, manifest, title: manifest.appName, summary: manifest.description,
+    iconUrl: undefined, sharing: undefined, latest: true, detailAt: undefined,
+  };
+}
 export function loadedPublicApplicationRelease(appId: string) {
   const access = activeAccess.get(appId);
   return loaded.has(appId) && access?.public && !access.ownerId ? active.get(appId) : undefined;
@@ -73,7 +88,6 @@ function scheduleRuntimeTrim() {
       const task = Promise.resolve().then(async () => {
         if (protectedRuntime(id) || loading.has(id) || loaded.size <= 7) return;
         await releaseRuntime(id);
-        publicReleaseReplacements.delete(id); publicReleaseSelections.delete(id);
       }).finally(() => {
         if (reloading.get(id) === task) { reloading.delete(id); replacementModes.delete(id); }
       });
@@ -204,9 +218,6 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   // Native downloads finish even if the feed moved away. Keep completed,
   // complete packages installed; cancellation only stops runtime warming.
   await persistDownload();
-  // A download-only preview has no active runtime yet. Remember its identity
-  // so replacing its pending package still invalidates the feed's warm entry.
-  if (!publicReleaseSelections.has(appId)) publicReleaseSelections.set(appId, manifest.releaseId);
   if (downloadOnly) return;
   signal.throwIfAborted();
   // Downloads may finish during a gesture. Yield again before staging/evaluating
@@ -443,7 +454,6 @@ function replaceRuntime(appId: string, reopen: boolean): Promise<void> {
     await loading.get(appId)?.catch(() => {});
     await releaseRuntime(appId);
     if (reopen) await startApplicationLoad(appId);
-    else { publicReleaseReplacements.delete(appId); publicReleaseSelections.delete(appId); }
   })().finally(() => { if (reloading.get(appId) === task) { reloading.delete(appId); replacementModes.delete(appId); } });
   reloading.set(appId, task);
   replacementModes.set(appId, reopen);
@@ -469,15 +479,9 @@ function startApplicationLoad(appId: string): Promise<void> {
     runtimeUse.set(appId, ++useSequence);
     activateApplication(appId);
     const manifest = loadedPublicApplicationRelease(appId);
-    if (manifest) {
-      const previousReleaseId = publicReleaseSelections.get(appId);
-      publicReleaseSelections.set(appId, manifest.releaseId);
-      if (previousReleaseId && previousReleaseId !== manifest.releaseId) {
-        const replacement = { previousReleaseId, manifest };
-        publicReleaseReplacements.set(appId, replacement);
-        publicReleaseListeners.forEach(listener => listener(replacement));
-      }
-    }
+    // Notify even after eviction: a first load in this cache may be an update
+    // to a version still held by a mounted or restored discovery snapshot.
+    if (manifest) publicReleaseListeners.forEach(listener => listener({ manifest }));
   }).catch(async error => {
     if (evaluating.has(appId)) await recoverApplicationFailure(appId);
     throw error;

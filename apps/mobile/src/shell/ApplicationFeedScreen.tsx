@@ -23,7 +23,7 @@ import { AuthorFollowButton } from "./AuthorFollowButton";
 import type { UserPost } from "./feed/userPosts";
 import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
 import { fetchMarketDetail, fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
-import { loadedPublicApplicationRelease, publicApplicationReleaseReplacement, subscribePublicApplicationRelease } from "../runtime/applications";
+import { selectedPublicApplicationRelease, resolvePublicApplicationExperience, subscribePublicApplicationRelease, type PublicReleaseChange } from "../runtime/applications";
 import { useEventCallback } from "./useEventCallback";
 
 type Props = {
@@ -149,23 +149,20 @@ export function ApplicationFeedScreen(props: Props) {
   const refreshExperience = useCallback((fresh: MarketApplication) => {
     setPage(prior => prior.owner !== identity ? prior : { ...prior, applications: prior.applications.map(item => item.manifest.appId === fresh.manifest.appId ? fresh : item) });
   }, [identity]);
-  const syncPublicRelease = useEventCallback((replacement: NonNullable<ReturnType<typeof publicApplicationReleaseReplacement>>) => {
+  const syncPublicRelease = useEventCallback((replacement: PublicReleaseChange) => {
     const { manifest } = replacement;
-    if (loadedPublicApplicationRelease(manifest.appId)?.releaseId !== manifest.releaseId || !items.some(item => item.manifest.appId === manifest.appId && item.manifest.releaseId !== manifest.releaseId)) return;
+    if (selectedPublicApplicationRelease(manifest.appId)?.releaseId !== manifest.releaseId || !items.some(item => item.manifest.appId === manifest.appId && item.manifest.releaseId !== manifest.releaseId)) return;
     const owner = identity;
     // Change the queue identity immediately. Its old preparation and mounted
     // page are discarded without resetting the feed position or other apps.
     setPage(prior => prior.owner !== owner ? prior : {
       ...prior,
-      applications: prior.applications.map(item => item.manifest.appId === manifest.appId && item.manifest.releaseId !== manifest.releaseId ? {
-        ...item, manifest, title: manifest.appName, summary: manifest.description,
-        iconUrl: undefined, sharing: undefined, latest: true, detailAt: undefined,
-      } : item),
+      applications: prior.applications.map(item => item.manifest.appId === manifest.appId && item.manifest.releaseId !== manifest.releaseId ? resolvePublicApplicationExperience(item) : item),
     });
     // Refresh author/social metadata separately; never block version selection
     // or let an older network response overwrite a newer loaded release.
     void fetchMarketDetail(manifest.appId, { immediate: true }).then(fresh => {
-      if (currentOwner.current !== owner || fresh.manifest.releaseId !== manifest.releaseId || loadedPublicApplicationRelease(manifest.appId)?.releaseId !== manifest.releaseId) return;
+      if (currentOwner.current !== owner || fresh.manifest.releaseId !== manifest.releaseId || selectedPublicApplicationRelease(manifest.appId)?.releaseId !== manifest.releaseId) return;
       setPage(prior => prior.owner !== owner ? prior : {
         ...prior, applications: prior.applications.map(item => item.manifest.appId === manifest.appId && item.manifest.releaseId === manifest.releaseId ? fresh : item),
       });
@@ -175,11 +172,12 @@ export function ApplicationFeedScreen(props: Props) {
   // Also reconcile a newly fetched/stale feed snapshot and updates completed
   // before this screen mounted. Workshop candidates stay out of the feed.
   useEffect(() => {
-    for (const item of items) {
-      const replacement = publicApplicationReleaseReplacement(item.manifest.appId);
-      if (replacement && replacement.previousReleaseId === item.manifest.releaseId) syncPublicRelease(replacement);
+    if (!active) return;
+    for (const item of items.slice(Math.max(0, index - 3), index + EXPERIENCE_AHEAD + 1)) {
+      const manifest = selectedPublicApplicationRelease(item.manifest.appId);
+      if (manifest && manifest.releaseId !== item.manifest.releaseId) syncPublicRelease({ manifest });
     }
-  }, [items, syncPublicRelease]);
+  }, [items, index, active, syncPublicRelease]);
   useEffect(() => {
     if (active && page.owner === identity && !page.loaded && !request.current && !error) void load();
   }, [active, page.owner, page.loaded, identity, error, load]);
@@ -303,7 +301,7 @@ type QueueProps = {
 const ExperienceQueue = memo(function ExperienceQueue(props: QueueProps) {
   const { entries, preparations, retry } = useApplicationExperienceQueue(props.items, props.index, props.active, props.active && !props.switching, props.onRefresh);
   const current = props.items[props.index];
-  const positions = useMemo(() => new Map(props.items.map((item, index) => [experienceId(item), index])), [props.items]);
+  const positions = useMemo(() => new Map(props.items.map((item, index) => [item.manifest.appId, index])), [props.items]);
   const { height, drag } = props;
   const metrics = useMemo(() => ({ frame: { x: 0, y: 0, width: props.width, height }, insets: { top: 0, bottom: 0, left: 0, right: 0 } }), [props.width, height]);
   const origin = useSharedValue(0);
@@ -324,9 +322,9 @@ const ExperienceQueue = memo(function ExperienceQueue(props: QueueProps) {
   // the moving list: providers emit frame/inset events on every translated frame.
   return <SafeAreaProvider style={{ flex: 1 }} initialMetrics={metrics}><Animated.View pointerEvents="box-none" style={[{ position: "absolute", top: 0, left: 0, width: props.width, height: props.items.length * props.spacing }, motion]}>
     {entries.map(item => {
-      const index = positions.get(experienceId(item))!;
+      const index = positions.get(item.manifest.appId)!;
       const offset = index - props.index;
-      const selected = experienceId(item) === experienceId(current);
+      const selected = item.manifest.appId === current.manifest.appId;
       const nearby = Math.abs(offset) <= 1;
       return <View key={experienceId(item)} pointerEvents="box-none" style={{ position: "absolute", top: index * props.spacing, left: 0, width: props.width, height }}><CachedExperience item={item} selected={selected}
         ready={preparations.get(experienceId(item))?.ready ?? false} error={preparations.get(experienceId(item))?.error ?? ""} onRetry={retry}

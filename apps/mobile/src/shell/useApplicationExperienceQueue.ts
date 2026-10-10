@@ -1,6 +1,6 @@
 import { useEventCallback } from "./useEventCallback";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadPublicApplicationExperience, reloadApplication, retainApplicationRuntimes } from "../runtime/applications";
+import { loadPublicApplicationExperience, reloadApplication, retainApplicationRuntimes, resolvePublicApplicationExperience } from "../runtime/applications";
 import type { MarketApplication } from "./market";
 import { fetchMarketDetail, installMarketApplication } from "./market";
 
@@ -35,7 +35,7 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
   // history and then forcing a second list layout from a layout effect.
   if (visits.key !== key) setVisits({ key, history: current ? [current, ...visits.history.filter(item => experienceId(item) !== key)].slice(0, HISTORY_SIZE + 1) : [] });
   const availableIds = useMemo(() => new Set(items.map(experienceId)), [items]);
-  const entries = useMemo(() => experienceWindow(items, index, visits.history, availableIds), [items, index, visits.history, availableIds]);
+  const entries = useMemo(() => experienceWindow(items, index, visits.history, availableIds).map(resolvePublicApplicationExperience), [items, index, visits.history, availableIds]);
   const retentionOwner = useRef({});
   useEffect(() => retainApplicationRuntimes(retentionOwner.current, entries.map(item => item.manifest.appId)), [entries]);
   const [preparations, setPreparations] = useState<Map<string, Preparation>>(() => new Map());
