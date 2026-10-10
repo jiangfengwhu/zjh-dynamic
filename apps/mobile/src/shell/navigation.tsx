@@ -135,7 +135,7 @@ export type RootParamList = {
     initialDetail?: PostDetail;
   };
   notifications: undefined;
-  authorProfile: { author: PublicAuthor };
+  authorProfile: { author: PublicAuthor; initialTab: "posts" | "apps" };
   connections: { author: PublicAuthor; kind: RelationKind };
   chat: { peer: PublicAuthor };
 };
@@ -152,11 +152,13 @@ function openPost(post: UserPost) {
   if (shellNavigationRef.isReady()) shellNavigationRef.navigate("postDetail", { post });
 }
 function openPostComposer() { openPublication("post"); }
-function openAuthor(author: PublicAuthor) {
+function openAuthor(author: PublicAuthor) { openAuthorTab(author, "posts"); }
+function openApplicationAuthor(author: PublicAuthor) { openAuthorTab(author, "apps"); }
+function openAuthorTab(author: PublicAuthor, initialTab: "posts" | "apps") {
   if (shellNavigationRef.isReady()) {
     // Stop queued preheating as soon as the user taps, before native events arrive.
     beginRouteTransition(AUTHOR_NAVIGATION_INTENT);
-    shellNavigationRef.navigate("authorProfile", { author });
+    shellNavigationRef.navigate("authorProfile", { author, initialTab });
   }
 }
 
@@ -654,7 +656,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             onProfile={showProfileDrawer}
                             onSearch={openSearch}
                             onOpen={props.onOpenBundle}
-                            onAuthor={openAuthor}
+                            onAuthor={openApplicationAuthor}
                             onDetail={openApplicationDetail}
                             onShare={shareApplication}
                             onRemix={remixApplication}
@@ -820,7 +822,8 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           <Stack.Screen name="authorProfile">
             {({ route }) => (
               <AuthorProfileScreen
-                key={route.params.author.id}
+                key={`${route.params.author.id}:${route.params.initialTab}`}
+                initialTab={route.params.initialTab}
                 initialAuthor={route.params.author}
                 onConnections={openConnections}
                 onMessage={openChat}

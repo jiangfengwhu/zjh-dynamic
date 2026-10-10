@@ -61,6 +61,7 @@ export function AuthorProfileScreen(
 }
 function AuthorProfileContent({
   initialAuthor,
+  initialTab = "posts",
   onBack,
   onPost,
   onApplication,
@@ -72,6 +73,7 @@ function AuthorProfileContent({
   onMessage,
 }: {
   initialAuthor: PublicAuthor;
+  initialTab?: "posts" | "apps";
   onBack?: () => void;
   embedded?: boolean;
   active?: boolean;
@@ -94,13 +96,14 @@ function AuthorProfileContent({
     applications: [],
     nextCursor: null,
   }));
-  const { visited, visit, reveal } = useVisitedPager();
-  const [tab, setTab] = useState<"posts" | "apps">("posts");
+  const initialIndex = initialTab === "apps" ? 1 : 0;
+  const { visited, visit, reveal } = useVisitedPager(initialIndex);
+  const [tab, setTab] = useState<"posts" | "apps">(initialTab);
   const loadedTabs = useRef(new Set<string>());
   const selectedTab = useRef(tab); selectedTab.current = tab;
   const previousTab = useRef(tab);
   const pager = useRef<PagerView>(null);
-  const position = useSharedValue(0);
+  const position = useSharedValue(initialIndex);
   const appY = useSharedValue(0);
   const appList = useAnimatedRef<FlashListRef<ProfileRow>>();
   const appScroll = useAnimatedScrollHandler(event => { appY.value = Math.max(0, event.contentOffset.y); });
@@ -428,7 +431,7 @@ function AuthorProfileContent({
       ) : null}
       {header}
       {!contentReady ? <View style={{ flex: 1 }} /> : embedded ? renderPage("posts") : (
-        <AnimatedPagerView ref={pager} style={{ flex: 1 }} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected}>
+        <AnimatedPagerView ref={pager} initialPage={initialIndex} style={{ flex: 1 }} offscreenPageLimit={1} overScrollMode="never" onPageScroll={onPageScroll} onPageSelected={onPageSelected}>
           <View key="posts" collapsable={false} style={{ flex: 1 }}>{visited.has(0) ? renderPage("posts") : null}</View>
           <View key="apps" collapsable={false} style={{ flex: 1 }}>{visited.has(1) ? renderPage("apps") : null}</View>
         </AnimatedPagerView>
