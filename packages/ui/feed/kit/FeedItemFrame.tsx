@@ -21,7 +21,7 @@ export function FeedItemHeading({
   inline = false,
 }: {
   name: string;
-  time: string;
+  time: ReactNode;
   unread?: boolean;
   accent?: string;
   onIdentity?: () => void;
@@ -78,7 +78,7 @@ export function FeedItemHeading({
         color: colors.ink3,
       }}
     >
-      {inline ? `· ${time}` : time}
+      {inline ? <>· {time}</> : time}
     </FeedText>
   );
   if (inline) return (
@@ -141,7 +141,7 @@ export function FeedItemFrame({
 }: {
   avatar: ReactNode;
   name: string;
-  time: string;
+  time: ReactNode;
   unread?: boolean;
   accent?: string;
   onIdentity?: () => void;

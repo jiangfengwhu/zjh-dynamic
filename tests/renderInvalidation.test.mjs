@@ -85,3 +85,14 @@ test('inactive feed subscriptions pause and recover current data without exposin
   assert.equal(render(false), second);
   render(true); assert.equal(render(true), second);
 });
+
+test('relative timestamps share one clock and stop it after the last subscriber leaves', () => {
+  const listeners = new Set(); let created = 0, cleared = 0, callback; const updates = [];
+  const subscribe = new Function('listeners', 'setInterval', 'clearInterval', `let timer; ${compileFunction('apps/mobile/src/shell/feed/RelativeTime.tsx', 'subscribe')} return subscribe;`)(listeners, fn => { created++; callback = fn; return 1; }, () => cleared++);
+  const leaveFirst = subscribe(() => updates.push('first'));
+  const leaveSecond = subscribe(() => updates.push('second'));
+  assert.equal(created, 1); callback(); assert.deepEqual(updates, ['first', 'second']);
+  leaveFirst(); callback(); assert.deepEqual(updates, ['first', 'second', 'second']); assert.equal(cleared, 0);
+  leaveSecond(); assert.equal(cleared, 1); assert.equal(listeners.size, 0);
+  const leaveThird = subscribe(() => {}); assert.equal(created, 2); leaveThird(); assert.equal(cleared, 2);
+});

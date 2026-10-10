@@ -12,3 +12,5 @@ coverage/
 apps/mobile/src/shell/build-identity.json
 apps/mobile/src/runtime/application-contract.json
 apps/mobile/vendor-libs.js
+
+.npmrc

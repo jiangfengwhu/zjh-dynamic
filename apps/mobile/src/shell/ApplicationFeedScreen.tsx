@@ -70,9 +70,13 @@ export function ApplicationFeedScreen(props: Props) {
   const items = page.owner === identity ? page.applications : [];
   const item = items[index];
   useEffect(() => { setCommentPost(null); }, [identity, item?.manifest.appId]);
-  function openComments(post?: UserPost) {
+  const openComments = useCallback((post?: UserPost) => {
     if (item) setCommentPost({ owner: identity, appId: item.manifest.appId, post: post ?? cachedApplicationDiscussion(item) });
-  }
+  }, [item, identity]);
+  const openCurrent = useCallback(() => { if (item) void props.onOpen(item.manifest.appId); }, [item, props.onOpen]);
+  const shareCurrent = useCallback(() => { if (item) props.onShare(item); }, [item, props.onShare]);
+  const detailCurrent = useCallback(() => { if (item) props.onDetail(item); }, [item, props.onDetail]);
+  const dismissComments = useCallback(() => setCommentPost(null), []);
   const previous = items[index - 1];
   const next = items[index + 1];
   const active = focused && foreground && !drawerOpen;
@@ -233,7 +237,7 @@ export function ApplicationFeedScreen(props: Props) {
       <GestureDetector gesture={swipe}>
         <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
           {!item && (page.owner !== identity || (!page.loaded && !error)) ? <DiscoveryFooterSkeleton animated={active} /> : null}
-          {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={openComments} onOpen={() => { void props.onOpen(item.manifest.appId); }} onShare={() => props.onShare(item)} onDetail={() => props.onDetail(item)} /> : null}
+          {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={openComments} onOpen={openCurrent} onShare={shareCurrent} onDetail={detailCurrent} /> : null}
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <View style={{ width: 44, height: 48, alignItems: "center", justifyContent: "center" }}>
               <View style={{ width: 36, height: 36 }}>
@@ -252,7 +256,7 @@ export function ApplicationFeedScreen(props: Props) {
 
         </View>
       </GestureDetector>
-      {commentPost?.owner === identity && commentPost.appId === item?.manifest.appId && item ? <ApplicationCommentsSheet key={`${identity}:${commentPost.appId}`} post={commentPost.post} application={item} active={active} onDismiss={() => setCommentPost(null)} /> : null}
+      {commentPost?.owner === identity && commentPost.appId === item?.manifest.appId && item ? <ApplicationCommentsSheet key={`${identity}:${commentPost.appId}`} post={commentPost.post} application={item} active={active} onDismiss={dismissComments} /> : null}
     </View>
   </ThemeContext.Provider>;
 }

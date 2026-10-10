@@ -1,3 +1,4 @@
+import { RelativeTime } from "./RelativeTime";
 import { AnimatedFlashList, type FlashListProps, type FlashListRef } from "../AnimatedFlashList";
 import { ListGesture } from "./ListGesture";
 import { markStartup } from "../../runtime/startupTiming";
@@ -52,7 +53,6 @@ import { UserPostCard } from "./UserPostCard";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { FeedCategoryTabs } from "./FeedCategoryTabs";
 import { requireAccount } from "../account";
-import { formatWhen } from "../formatTime";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 const FEED_PAGE_INSET = 0;
@@ -124,13 +124,6 @@ export const FeedScreen = memo(function FeedScreen({
   );
   const [kind, selectCategory] = useState<FeedCategory>("recommended");
   const followingTimeline = useUserPosts("following", focused && kind === "following");
-  const [timeTick, tickTime] = useState(0);
-  useFocusEffect(
-    useCallback(() => {
-      const timer = setInterval(() => tickTime((value) => value + 1), 60000);
-      return () => clearInterval(timer);
-    }, [])
-  );
 
   const scrollY = useSharedValue(0);
   const selectedKey = kind;
@@ -234,70 +227,16 @@ export const FeedScreen = memo(function FeedScreen({
       <UserTimelineItem
         post={item.post}
         author={user}
-        time={formatWhen(item.post.createdAt)}
+
         onPost={onPost}
         onApplication={onApplication}
         onAuthor={onAuthor}
       />
     ),
-    [user, onPost, onApplication, onAuthor, timeTick]
+    [user, onPost, onApplication, onAuthor]
   );
 
-  return (
-    <ThemeContext.Provider value={themeContext}>
-      <FeedPresentationContext.Provider value={presentation}>
-        <GestureHandlerRootView style={styles.container}>
-          <View style={styles.container} onLayout={() => markStartup("feed-layout")}>
-            <Ambient />
-            <View
-              style={styles.viewport}
-              onLayout={(event) => {
-                setViewportSize(event.nativeEvent.layout.height);
-                setViewportWidth(event.nativeEvent.layout.width);
-              }}
-            >
-              <Animated.View
-                onLayout={(event) => {
-                  const height = event.nativeEvent.layout.height;
-                  headerHeight.value = height;
-                  setHeaderSize(height);
-                }}
-                style={[
-                  styles.floatingHeader,
-                  { paddingTop: insets.top },
-                  headerMotion,
-                ]}
-              >
-                <AmbientFill shift={hiddenHeader} />
-                <View style={styles.header}>
-                  <View style={styles.headerRow}>
-                    <View style={styles.headerTabs}>
-                      <FeedCategoryTabs
-                        selected={kind}
-                        position={pager.pagePosition}
-                        onSelect={selectCategory}
-                      />
-                    </View>
-                  </View>
-                </View>
-              </Animated.View>
-
-              <GestureDetector gesture={gesture}>
-                <View style={styles.pullHost}>
-                  <GestureDetector gesture={pager.nativeGesture}>
-                    <AnimatedPagerView
-                      ref={pager.ref}
-                      initialPage={pager.index}
-                      style={styles.scroll}
-                      layoutDirection="ltr"
-                      offscreenPageLimit={1}
-                      overScrollMode="never"
-                      scrollEnabled={phase !== "refreshing" && phase !== "done"}
-                      onPageSelected={pager.onPageSelected}
-                      onPageScroll={pager.onPageScroll}
-                      onPageScrollStateChanged={pager.onPageScrollStateChanged}
-                    >
-                      {pageRows.map(
+  const pageLists = useMemo(() => pageRows.map(
                         ({ category: pageKind, items: visible, page }) => (
                           <View
                             key={pageKind}
@@ -478,7 +417,63 @@ export const FeedScreen = memo(function FeedScreen({
                             ) : null}
                           </View>
                         )
-                      )}
+                      ), [pageRows, viewportWidth, pager.mounted, kind, gesture, pager.gesture, pager.nativeGesture, activeCategory, hiddenHeader, headerHeight, chromeTarget, bottomTravel, scrollY, styles, bottomSpace, viewportSize, headerSize, phase, refreshSpace, pull, timelineErrors, colors, timelineLoading, user, selectCategory, onCompose, renderPost, loadingMore]);
+
+  return (
+    <ThemeContext.Provider value={themeContext}>
+      <FeedPresentationContext.Provider value={presentation}>
+        <GestureHandlerRootView style={styles.container}>
+          <View style={styles.container} onLayout={() => markStartup("feed-layout")}>
+            <Ambient />
+            <View
+              style={styles.viewport}
+              onLayout={(event) => {
+                setViewportSize(event.nativeEvent.layout.height);
+                setViewportWidth(event.nativeEvent.layout.width);
+              }}
+            >
+              <Animated.View
+                onLayout={(event) => {
+                  const height = event.nativeEvent.layout.height;
+                  headerHeight.value = height;
+                  setHeaderSize(height);
+                }}
+                style={[
+                  styles.floatingHeader,
+                  { paddingTop: insets.top },
+                  headerMotion,
+                ]}
+              >
+                <AmbientFill shift={hiddenHeader} />
+                <View style={styles.header}>
+                  <View style={styles.headerRow}>
+                    <View style={styles.headerTabs}>
+                      <FeedCategoryTabs
+                        selected={kind}
+                        position={pager.pagePosition}
+                        onSelect={selectCategory}
+                      />
+                    </View>
+                  </View>
+                </View>
+              </Animated.View>
+
+              <GestureDetector gesture={gesture}>
+                <View style={styles.pullHost}>
+                  <GestureDetector gesture={pager.nativeGesture}>
+                    <AnimatedPagerView
+                      ref={pager.ref}
+                      initialPage={pager.index}
+                      style={styles.scroll}
+                      layoutDirection="ltr"
+                      offscreenPageLimit={1}
+                      overScrollMode="never"
+                      scrollEnabled={phase !== "refreshing" && phase !== "done"}
+                      onPageSelected={pager.onPageSelected}
+                      onPageScroll={pager.onPageScroll}
+                      onPageScrollStateChanged={pager.onPageScrollStateChanged}
+                    >
+                      {pageLists}
                     </AnimatedPagerView>
                   </GestureDetector>
                     {(kind === "following" ? followingTimeline : userTimeline).pending ? <NewDataNotice top={headerSize + 8} label="已发布 · 查看新动态" avatars={(kind === "following" ? followingTimeline : userTimeline).pending!.posts.map(post => post.author.avatarUrl).filter((uri): uri is string => !!uri).filter((uri, index, list) => list.indexOf(uri) === index)} onPress={() => { acceptUserPosts(kind); lists.current[kind]?.scrollToOffset({ offset: 0, animated: false }); }} /> : null}
@@ -494,14 +489,13 @@ export const FeedScreen = memo(function FeedScreen({
 const UserTimelineItem = memo(function UserTimelineItem({
   post: original,
   author,
-  time,
   onPost,
   onApplication,
   onAuthor,
 }: {
   post: UserPost;
   author: UserPost["author"] | null;
-  time: string;
+
   onPost: FeedProps["onPost"];
   onApplication: FeedProps["onApplication"];
   onAuthor: FeedProps["onAuthor"];
@@ -518,7 +512,7 @@ const UserTimelineItem = memo(function UserTimelineItem({
     <View collapsable={false} style={styles.post}>
       <UserPostCard
         post={post}
-        time={time}
+        time={<RelativeTime at={post.createdAt} />}
         own={own}
         onOpen={open}
         onApplication={onApplication}

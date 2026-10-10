@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import Animated, { cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
@@ -29,7 +29,7 @@ export function cachedApplicationDiscussion(item: MarketApplication) {
   const key = `${owner}:${item.manifest.appId}`;
   return item.interactionOwner === owner && (item.interactionAt || 0) > (cacheAt.get(key) || 0) ? item.discussion : cache.get(key);
 }
-export function ApplicationInteractions({ item, active, onComment, onOpen, onShare, onDetail }: {
+export const ApplicationInteractions = memo(function ApplicationInteractions({ item, active, onComment, onOpen, onShare, onDetail }: {
   item: MarketApplication; active: boolean; onComment: (post?: UserPost) => void; onOpen: () => void; onShare: () => void; onDetail: () => void;
 }) {
   const { colors: t } = useTheme();
@@ -135,7 +135,7 @@ export function ApplicationInteractions({ item, active, onComment, onOpen, onSha
     {action("share", "分享", onShare)}
     {action("info", "详情", onDetail)}
   </View>;
-}
+});
 
 /** A short lift and settle on save; restored state and rollback remain still. */
 function BookmarkGlyph({ identity, selected }: { identity: string; selected: boolean }) {

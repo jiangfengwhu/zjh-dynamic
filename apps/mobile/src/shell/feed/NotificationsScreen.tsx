@@ -210,7 +210,8 @@ function NotificationsContent({
   const [loading, setLoading] = useState(Boolean(user));
   const [loaded, setLoaded] = useState(() => !!cachedPage(cacheKey));
   const [loadingMore, setLoadingMore] = useState(false);
-  const [acting, setActing] = useState(false);
+  const [actingId, setActingId] = useState<string | null>(null);
+  const acting = actingId !== null;
   const [error, setError] = useState("");
   const alive = useRef(true);
   const revision = useRef(0);
@@ -345,7 +346,7 @@ function NotificationsContent({
   async function act(notice: Notice) {
     if (writing.current || !user) return;
     writing.current = true;
-    setActing(true);
+    setActingId(notice.id);
     try {
       await onOpen(notice);
     } catch (cause) {
@@ -358,7 +359,7 @@ function NotificationsContent({
     } finally {
       writing.current = false;
       if (alive.current) {
-        setActing(false);
+        setActingId(null);
         if (reading.current) again.current = true;
         else if (!page.notices.length) void reload.current();
       }
@@ -397,7 +398,7 @@ function NotificationsContent({
                     </Pressable>
                   ) : null
                 }
-                renderItem={({ item }) => <NoticeRow item={item} acting={acting} act={actNotice} />}
+                renderItem={({ item }) => <NoticeRow item={item} acting={actingId === item.id} act={actNotice} />}
                 ListEmptyComponent={
                   <EmptyState style={user && loading && !loaded ? { flexGrow: 0, alignItems: "stretch", padding: 16 } : undefined}>
                     {user && loading && !loaded ? (

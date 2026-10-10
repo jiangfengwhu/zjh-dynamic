@@ -304,7 +304,7 @@ export function useUserPosts(scope: FeedScope = "recommended", active = true) {
     };
   }, [scope, active]);
   return scope === "following"
-    ? following.owner === cachedAccountId() ? following.page : { posts: [], nextCursor: null } as Page
+    ? following.owner === cachedAccountId() ? following.page : EMPTY_PAGE
     : recommended.owner === cachedAccountId() ? recommended.page : value;
 }
 /** Details subscribe to their own post, rather than rerendering for the entire feed. */
@@ -612,3 +612,5 @@ subscribeAccountIdentity(() => {
     .then(() => refreshUserPosts())
     .catch(() => {});
 });
+
+const EMPTY_PAGE: Page = { posts: [], nextCursor: null };

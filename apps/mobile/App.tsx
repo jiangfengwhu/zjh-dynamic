@@ -14,6 +14,7 @@ import { reportApplicationFailure, restoreDownloadedApplications, runningApplica
 import { subscribeApplicationRuntime, applicationRuntimeSnapshot } from "../../packages/app-sdk/src/runtime";
 import {
   Component,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -385,6 +386,22 @@ function ShellApp() {
     console.log("package updates deferred", signature);
   }
 
+  const renderBundle = useCallback((id: string, onBack: () => void) => (
+            <ApplicationBoundary id={id}
+              resetKey={featureKey}
+              onRetry={() => setFeatureKey((value) => value + 1)}
+              onBack={onBack}
+              onError={(message) => {
+                noteError(`feature:${id}`, message);
+              }}
+            >
+              <FeatureHost
+                id={id}
+                onBack={onBack}
+                onError={(message) => noteError(`feature:${id}`, message)}
+              />
+            </ApplicationBoundary>
+          ), [featureKey]);
   function noteError(where: string, detail: string) {
     console.log("app error", where, detail.trim().slice(0, 4000));
   }
@@ -410,22 +427,7 @@ function ShellApp() {
             return ready.length > 0;
           }}
           onMode={setMode}
-          renderBundle={(id, onBack) => (
-            <ApplicationBoundary id={id}
-              resetKey={featureKey}
-              onRetry={() => setFeatureKey((value) => value + 1)}
-              onBack={onBack}
-              onError={(message) => {
-                noteError(`feature:${id}`, message);
-              }}
-            >
-              <FeatureHost
-                id={id}
-                onBack={onBack}
-                onError={(message) => noteError(`feature:${id}`, message)}
-              />
-            </ApplicationBoundary>
-          )}
+          renderBundle={renderBundle}
         />
         {updates.length > 0 ? (
           <UpdateBanner

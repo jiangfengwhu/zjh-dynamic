@@ -25,7 +25,7 @@ import { formatWhen } from "./formatTime";
 import { readShellValue, writeShellValue, removeShellValue } from "./shellStorage";
 
 /** Work discussion stays over the playable stage; no timeline card or route change. */
-export function ApplicationCommentsSheet({ post, application, active, onDismiss }: { post?: UserPost; application: MarketApplication; active: boolean; onDismiss: () => void }) {
+export const ApplicationCommentsSheet = memo(function ApplicationCommentsSheet({ post, application, active, onDismiss }: { post?: UserPost; application: MarketApplication; active: boolean; onDismiss: () => void }) {
   const { colors: t } = useTheme();
   const { user } = useAccount();
   const { bottom } = useSafeAreaInsets();
@@ -131,7 +131,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
     finally { writing.current = false; if (alive.current) { setSending(false); if (!loaded.current && !reading.current) void load(); } }
   }
   function remove(comment: UserComment) {
-    if (!discussion) return;
+    if (!discussion || writing.current) return;
     HostAlert.alert("删除评论？", "删除后无法恢复。", [{ text: "取消", style: "cancel" }, { text: "删除", style: "destructive", onPress: () => { void (async () => {
       if (writing.current || !alive.current) return;
       writing.current = true; version.current++; setDeleting(comment.id);
@@ -154,6 +154,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
         {characters > 800 ? <Text style={{ color: characters > 1000 ? t.danger : t.ink3, textAlign: "right", fontSize: 11 }}>{characters}/1000</Text> : null}</>}</DraftInputScope>
       </View>
   );
+  const loadMore = useEventCallback(() => { if (cursor && !error) void load(true); });
   const removeComment = useEventCallback(remove);
   const replyTo = useEventCallback((item: UserComment) => { if (!writing.current) { setReply(item); input.current?.focus(); } });
   return <BottomSheetModal ref={modal} footerComponent={Footer} index={0} snapPoints={["68%", "92%"]} onChange={(index, position) => { if (index >= 0) setOpened(true); if (index === 0 && position > 0 && !Keyboard.isVisible()) setCollapsedListHeight(position * 0.68 / 0.32 - 64); }} enableDynamicSizing={false} enablePanDownToClose enableBlurKeyboardOnGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan" onDismiss={() => { onDismiss(); if (loginAfterClose.current) void requireAccount(); }} backdropComponent={backdrop} animationConfigs={animation} overrideReduceMotion={ReduceMotion.System} backgroundStyle={{ backgroundColor: t.canvas, borderTopLeftRadius: t.radius.xxl, borderTopRightRadius: t.radius.xxl }} handleIndicatorStyle={{ backgroundColor: t.lineStrong, width: 36 }}>
@@ -163,7 +164,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
         <Pressy accessibilityRole="button" accessibilityLabel="关闭作品评论" onPress={close} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="close" color={t.ink2} /></Pressy>
       </View>
       <View style={{ flex: 1 }}>
-      <AnimatedFlashList ref={list} renderScrollComponent={Scrollable} data={comments} keyExtractor={item => item.id} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onEndReached={() => { if (cursor && !error) void load(true); }} onEndReachedThreshold={0.2}
+      <AnimatedFlashList ref={list} renderScrollComponent={Scrollable} data={comments} keyExtractor={commentKey} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onEndReached={loadMore} onEndReachedThreshold={0.2}
         ListHeaderComponent={<View onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)} style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12, gap: 10, borderBottomWidth: t.components.surfaceBorder, borderBottomColor: t.line }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <ApplicationIcon application={application} size={44} />
@@ -176,13 +177,13 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
         {application.summary || application.manifest.description ? <Text selectable style={{ color: t.ink2, fontSize: 13, lineHeight: 20 }}>{application.summary || application.manifest.description}</Text> : null}
       </View>}
         ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" animated={active} /></View> : !error && emptyHeight > 0 ? <View style={{ height: emptyHeight, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}><Text style={{ color: t.ink3, textAlign: "center" }}>还没有评论，来说点什么吧</Text></View> : null}
-        renderItem={({ item }) => <ApplicationCommentRow item={item} isAuthor={item.author.id === authorId} own={user?.id === item.author.id} busy={sending || !!deleting} replyTo={replyTo} remove={removeComment} />}
+        renderItem={({ item }) => <ApplicationCommentRow item={item} isAuthor={item.author.id === authorId} own={user?.id === item.author.id} busy={deleting === item.id} replyTo={replyTo} remove={removeComment} />}
         ListFooterComponent={error || loading && comments.length ? <View style={{ padding: 12 }}>{error ? <Pressy onPress={() => void load()} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ color: t.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressy> : <ActivityIndicator color={t.ink3} />}</View> : null} />
       </View>
 
     </View>
   </BottomSheetModal>;
-}
+});
 
 /** Keep the footer component identity stable so typing never remounts the input. */
 function useCommentFooter(content: ReactNode) {
@@ -222,3 +223,5 @@ const ApplicationCommentRow = memo(function ApplicationCommentRow({ item, isAuth
           </View>
         </View>;
 });
+
+const commentKey = (item: UserComment) => item.id;

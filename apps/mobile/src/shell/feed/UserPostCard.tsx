@@ -6,7 +6,7 @@ import { HostAlert as Alert } from "../HostAlert";
 import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
 import { HostText as Text } from "./HostText";
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, type ReactNode, useEffect, useMemo, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { EdgeModal } from "../../../../../packages/ui/edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,7 +34,7 @@ export const UserPostCard = memo(function UserPostCard({
   detail = false,
 }: {
   post: UserPost;
-  time: string;
+  time: ReactNode;
   own: boolean;
   onOpen?: () => void;
   onDeleted?: () => void;
