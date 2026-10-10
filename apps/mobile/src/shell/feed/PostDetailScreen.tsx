@@ -1,3 +1,4 @@
+import { useEventCallback } from "../useEventCallback";
 import { DraftInputScope, useDraftText, useDraftPersistence } from "../DraftInputScope";
 import { mergeChronological, chronological } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
@@ -9,7 +10,7 @@ import { HostText as Text } from "./HostText";
 import { ActivityIndicator } from "react-native";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { HostAlert as Alert } from "../HostAlert";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { FormField as TextInput } from "../FormField";
 import { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
@@ -117,6 +118,8 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
       finally { writing.current = false; if (alive.current) setDeleting(null); }
     })(); } }]);
   }
+  const removeComment = useEventCallback(remove);
+  const replyTo = useEventCallback((item: UserComment) => { if (!writing.current) { setReply(item); input.current?.focus(); } });
   return <ScreenEdge bottom={false}><Screen style={{ flex: 1, backgroundColor: colors.canvas }}>
     <PageHeader title={post.applicationDiscussion ? "作品评论" : "动态"} onBack={onBack} />
     <KeyboardViewport>
@@ -126,14 +129,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
         ListHeaderComponent={<View onLayout={event => { headerHeight.current = event.nativeEvent.layout.height; }}><UserPostCard post={post} own={user?.id === post.author.id} time={when(post.createdAt)} detail onOpen={() => input.current?.focus()} onDeleted={onBack} onApplication={onApplication} onAuthor={onAuthor} onUpdated={updated} /><View style={{ height: colors.components.surfaceBorder, marginTop: 8, backgroundColor: colors.line }} /><Text style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6, ...colors.type.headline, fontSize: 15, color: colors.ink1 }}>评论 <Text style={{ color: colors.ink3, fontWeight: "600", fontSize: 13 }}>{post.commentCount ?? 0}</Text></Text>{initialCommentId ? <Text style={{ paddingHorizontal: 16, paddingBottom: 6, color: colors.ink3, fontSize: 12 }}>从提醒中的评论开始显示</Text> : null}</View>}
         contentContainerStyle={!comments.length ? { flexGrow: 1 } : undefined}
         ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" /></View> : !error ? <EmptyState><Text style={{ textAlign: "center", color: colors.ink3 }}>还没有评论，来说点什么吧</Text></EmptyState> : null}
-        renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 10, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line, backgroundColor: item.id === initialCommentId ? colors.orchidTint : "transparent" }}>
-          <Pressable accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)}><UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} /></Pressable>
-          <View style={{ flex: 1, minWidth: 0 }}><View style={{ flexDirection: "row", alignItems: "center", minHeight: 20 }}><View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5 }}><Text onPress={() => onAuthor(item.author)} numberOfLines={1} style={{ flexShrink: 1, color: colors.ink1, fontWeight: "700", fontSize: 14, lineHeight: 20 }}>{item.author.name}</Text><Text style={{ color: colors.ink3, fontSize: 12, lineHeight: 20 }}>· {when(item.createdAt)}</Text></View>
-            <PostMenu busy={deleting === item.id} onCopy={() => { Clipboard.setString(item.body); Toast.show({ type: "success", text1: "已复制" }); }} onDelete={user?.id === item.author.id ? () => remove(item) : undefined} /></View>
-            {item.replyTo ? <Text style={{ color: colors.orchidText, fontSize: 12, fontWeight: "600", marginTop: 2 }}>回复 {item.replyTo.name}</Text> : null}
-            <Text selectable style={{ color: colors.ink1, fontSize: 14, lineHeight: 21, marginTop: 2 }}>{item.body}</Text>
-            <Pressable accessibilityLabel={`回复${item.author.name}`} onPress={() => { if (!writing.current) { setReply(item); input.current?.focus(); } }} style={{ alignSelf: "flex-start", paddingVertical: 8, paddingRight: 12 }}><Text style={{ color: colors.ink3, fontSize: 12, fontWeight: "600" }}>回复</Text></Pressable>
-          </View></View>}
+        renderItem={({ item }) => <PostCommentRow item={item} highlighted={item.id === initialCommentId} deleting={deleting === item.id} own={user?.id === item.author.id} onAuthor={onAuthor} remove={removeComment} replyTo={replyTo} />}
         ListFooterComponent={<View style={{ padding: error || cursor ? 16 : 0 }}>{error ? <Pressable onPress={() => void load()}><Text style={{ color: colors.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressable> : null}{cursor ? <Pressable disabled={loading} onPress={() => void load(true)} style={{ padding: 12 }}>{loading ? <ActivityIndicator color={colors.ink2} /> : <Text style={{ color: colors.orchidText, fontWeight: "600", textAlign: "center" }}>查看更多评论</Text>}</Pressable> : null}</View>} />
       </PullRefreshSurface>
       </View>
@@ -146,3 +142,15 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
     </KeyboardViewport>
   </Screen></ScreenEdge>;
 }
+
+const PostCommentRow = memo(function PostCommentRow({ item, highlighted, deleting, own, onAuthor, remove, replyTo }: { item: UserComment; highlighted: boolean; deleting: boolean; own: boolean; onAuthor: (author: UserPost["author"]) => void; remove: (item: UserComment) => void; replyTo: (item: UserComment) => void }) {
+  const { colors } = useTheme();
+  return <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 10, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line, backgroundColor: highlighted ? colors.orchidTint : "transparent" }}>
+          <Pressable accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)}><UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} /></Pressable>
+          <View style={{ flex: 1, minWidth: 0 }}><View style={{ flexDirection: "row", alignItems: "center", minHeight: 20 }}><View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5 }}><Text onPress={() => onAuthor(item.author)} numberOfLines={1} style={{ flexShrink: 1, color: colors.ink1, fontWeight: "700", fontSize: 14, lineHeight: 20 }}>{item.author.name}</Text><Text style={{ color: colors.ink3, fontSize: 12, lineHeight: 20 }}>· {when(item.createdAt)}</Text></View>
+            <PostMenu busy={deleting} onCopy={() => { Clipboard.setString(item.body); Toast.show({ type: "success", text1: "已复制" }); }} onDelete={own ? () => remove(item) : undefined} /></View>
+            {item.replyTo ? <Text style={{ color: colors.orchidText, fontSize: 12, fontWeight: "600", marginTop: 2 }}>回复 {item.replyTo.name}</Text> : null}
+            <Text selectable style={{ color: colors.ink1, fontSize: 14, lineHeight: 21, marginTop: 2 }}>{item.body}</Text>
+            <Pressable accessibilityLabel={`回复${item.author.name}`} onPress={() => replyTo(item)} style={{ alignSelf: "flex-start", paddingVertical: 8, paddingRight: 12 }}><Text style={{ color: colors.ink3, fontSize: 12, fontWeight: "600" }}>回复</Text></Pressable>
+          </View></View>;
+});

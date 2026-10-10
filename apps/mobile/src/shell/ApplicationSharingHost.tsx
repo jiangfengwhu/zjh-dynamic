@@ -1,7 +1,8 @@
+import { useEventCallback } from "./useEventCallback";
 import { useKeyboardMode } from "../../../../packages/ui/keyboard";
 import { setPostSharingHandler } from "./sharePanel";
 import type { UserPost } from "./feed/userPosts";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ActivityIndicator, BackHandler, Keyboard, Share, View } from "react-native";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetTextInput, useBottomSheetScrollableCreator } from "@gorhom/bottom-sheet";
@@ -34,7 +35,7 @@ export function ApplicationSharingHost() {
   const sheet = useRef<BottomSheetModal>(null);
   const [request, setRequest] = useState<ShareRequest>();
   useKeyboardMode("resize", !!request);
-  const current = useRef<ShareRequest>();
+  const current = useRef<ShareRequest | undefined>(undefined);
   const sequence = useRef(0);
   const [people, setPeople] = useState<Recipient[]>([]);
   const cursors = useRef<{ recent?: string | null; following?: string | null }>({});
@@ -144,10 +145,13 @@ export function ApplicationSharingHost() {
       else await Share.share({ message, title: active.input.title || manifest?.appName });
     } catch (cause) { Toast.show({ type: "error", text1: "分享未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
   }
-  const rows = people.filter(person => person.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const toggleRecipient = useEventCallback(toggle);
+  const backdrop = useCallback((props: Parameters<typeof BottomSheetBackdrop>[0]) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.32} pressBehavior="close" />, []);
+  const rows = useMemo(() => { const search = query.trim().toLowerCase(); return search ? people.filter(person => person.name.toLowerCase().includes(search)) : people; }, [people, query]);
+  const selectionState = useMemo(() => ({ selected, sent, sending }), [selected, sent, sending]);
   return <BottomSheetModal ref={sheet} snapPoints={["60%"]} enableDynamicSizing={false} enableOverDrag={false} keyboardBehavior="extend" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan"
     onDismiss={() => { current.current = undefined; ++listRevision.current; setRequest(undefined); }}
-    backdropComponent={props => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.32} pressBehavior="close" />}
+    backdropComponent={backdrop}
     backgroundStyle={{ backgroundColor: colors.surface, borderRadius: colors.radius.xxl }} handleIndicatorStyle={{ width: 36, height: 4, backgroundColor: colors.lineStrong }}>
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: 18 }}>
@@ -157,12 +161,8 @@ export function ApplicationSharingHost() {
           {query ? <Pressy accessibilityLabel="清空搜索" onPress={() => setQuery("")} style={{ minWidth: 32, minHeight: 44, alignItems: "center", justifyContent: "center" }}><SymbolIcon name="close" size={16} color={colors.ink3} /></Pressy> : null}
         </View>
       </View>
-      <AnimatedFlashList data={rows} extraData={{ selected, sent, sending }} renderScrollComponent={Scrollable} keyExtractor={item => item.id} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 12 }}
-        renderItem={({ item }) => <Pressy accessibilityRole="checkbox" accessibilityState={{ checked: selected.has(item.id), disabled: sending || sent.has(item.id) }} accessibilityLabel={`分享给 ${item.name}`} disabled={sending || sent.has(item.id)} onPress={() => toggle(item.id)} style={{ flexDirection: "row", alignItems: "center", gap: 14, minHeight: 76, paddingVertical: 12 }}>
-          <UserAvatar uri={item.avatarUrl} authorId={item.id} size={48} />
-          <View style={{ flex: 1, gap: 4 }}><Text numberOfLines={1} style={{ color: colors.ink1, fontSize: 16, fontWeight: "600" }}>{item.name}</Text><Text style={{ color: colors.ink3, fontSize: 13 }}>{sent.has(item.id) ? "已发送" : item.recent ? "最近聊天" : "已关注"}</Text></View>
-          <View style={{ width: 23, height: 23, borderRadius: 12, borderWidth: selected.has(item.id) || sent.has(item.id) ? 0 : 1.5, borderColor: colors.lineStrong, backgroundColor: selected.has(item.id) || sent.has(item.id) ? colors.accent : "transparent", alignItems: "center", justifyContent: "center" }}>{selected.has(item.id) || sent.has(item.id) ? <SymbolIcon name="check" size={14} strokeWidth={2.8} color={colors.onAccent} /> : null}</View>
-        </Pressy>}
+      <AnimatedFlashList data={rows} extraData={selectionState} renderScrollComponent={Scrollable} keyExtractor={item => item.id} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 12 }}
+        renderItem={({ item }) => <ShareRecipientRow item={item} selected={selected.has(item.id)} sent={sent.has(item.id)} sending={sending} toggle={toggleRecipient} />}
         ListEmptyComponent={loading ? <PageSkeleton rows={4} shape="picker" /> : <View style={{ minHeight: 160, justifyContent: "center", alignItems: "center", gap: 12 }}><Text style={{ color: colors.ink3 }}>{user ? query ? "没有找到好友" : "暂无可分享的好友" : "登录后可分享给好友"}</Text>{!user ? <Pressy onPress={() => void requireAccount()} style={{ padding: 12 }}><Text style={{ color: colors.accentText }}>登录</Text></Pressy> : null}</View>}
         ListFooterComponent={more || error ? <Pressy disabled={loading} onPress={() => void loadPeople(true)} style={{ padding: 14, alignItems: "center" }}>{loading ? <ActivityIndicator color={colors.ink3} /> : <Text style={{ color: error ? colors.danger : colors.ink3 }}>{error ? "加载未完成 · 重试" : "加载更多好友"}</Text>}</Pressy> : null} />
       <View style={{ borderTopWidth: colors.components.surfaceBorder, borderTopColor: colors.line, paddingTop: 18, paddingBottom: Math.max(bottom, 12), paddingHorizontal: 18, gap: 14 }}>
@@ -175,3 +175,12 @@ export function ApplicationSharingHost() {
     </View>
   </BottomSheetModal>;
 }
+
+const ShareRecipientRow = memo(function ShareRecipientRow({ item, selected, sent, sending, toggle }: { item: Recipient; selected: boolean; sent: boolean; sending: boolean; toggle: (id: string) => void }) {
+  const { colors } = useTheme();
+  return <Pressy accessibilityRole="checkbox" accessibilityState={{ checked: selected, disabled: sending || sent }} accessibilityLabel={`分享给 ${item.name}`} disabled={sending || sent} onPress={() => toggle(item.id)} style={{ flexDirection: "row", alignItems: "center", gap: 14, minHeight: 76, paddingVertical: 12 }}>
+          <UserAvatar uri={item.avatarUrl} authorId={item.id} size={48} />
+          <View style={{ flex: 1, gap: 4 }}><Text numberOfLines={1} style={{ color: colors.ink1, fontSize: 16, fontWeight: "600" }}>{item.name}</Text><Text style={{ color: colors.ink3, fontSize: 13 }}>{sent ? "已发送" : item.recent ? "最近聊天" : "已关注"}</Text></View>
+          <View style={{ width: 23, height: 23, borderRadius: 12, borderWidth: selected || sent ? 0 : 1.5, borderColor: colors.lineStrong, backgroundColor: selected || sent ? colors.accent : "transparent", alignItems: "center", justifyContent: "center" }}>{selected || sent ? <SymbolIcon name="check" size={14} strokeWidth={2.8} color={colors.onAccent} /> : null}</View>
+        </Pressy>;
+});

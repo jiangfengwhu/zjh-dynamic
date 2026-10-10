@@ -655,9 +655,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                             onSearch={openSearch}
                             onOpen={props.onOpenBundle}
                             onAuthor={openAuthor}
-                            onDetail={item => shellNavigationRef.navigate("marketDetail", { item })}
-                            onShare={application => { void applicationSharing(application.manifest.appId).open({ title: application.title || application.manifest.appName }).catch(error => Toast.show({ type: "error", text1: "分享未完成", text2: error.message })); }}
-                            onRemix={item => openCreationComposer({ appId: item.manifest.appId, title: item.manifest.appName, releaseId: item.manifest.releaseId, fork: true })}
+                            onDetail={openApplicationDetail}
+                            onShare={shareApplication}
+                            onRemix={remixApplication}
                           />
                         </ShellTabScene>
                       )}
@@ -686,27 +686,13 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                         <ShellTabScene>
                           {() => <MyProfileScreen
                             onConnections={openConnections}
-                            onAccount={() =>
-                              shellNavigationRef.navigate("account")
-                            }
-                            onPost={(post) =>
-                              shellNavigationRef.navigate("postDetail", {
-                                post,
-                              })
-                            }
+                            onAccount={openAccount}
+                            onPost={openPost}
                             onApplication={openPublicMarketApplication}
-                            onDetail={(item) =>
-                              shellNavigationRef.navigate("marketDetail", {
-                                item,
-                              })
-                            }
-                            onManagePublication={(item) =>
-                              shellNavigationRef.navigate("marketPublication", {
-                                item,
-                              })
-                            }
+                            onDetail={openApplicationDetail}
+                            onManagePublication={openApplicationPublication}
                             onOpen={props.onOpenBundle}
-                            onCreate={() => openPublication("create")}
+                            onCreate={openCreatePublication}
                           />}
                         </ShellTabScene>
                       )}
@@ -717,7 +703,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
             )}
           </Stack.Screen>
           <Stack.Screen name="discovery">
-            {() => <MarketScreen onBack={goBack} onOpen={props.onOpenBundle} onAuthor={openAuthor} onDetail={item => shellNavigationRef.navigate("marketDetail", { item })} onCreate={() => openCreationComposer()} />}
+            {() => <MarketScreen onBack={goBack} onOpen={props.onOpenBundle} onAuthor={openAuthor} onDetail={openApplicationDetail} onCreate={openNewCreation} />}
           </Stack.Screen>
           <Stack.Screen name="commonApplication">
             {({ route }) => <CommonBundlePage id={route.params.appId} render={props.renderBundle} onCheckUpdates={props.onCheckUpdates} onOpened={props.onRememberBundleOpen} />}
@@ -760,14 +746,10 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           <Stack.Screen name="myApps">
             {() => (
               <MyApplicationsScreen
-                onManagePublication={(item) =>
-                  shellNavigationRef.navigate("marketPublication", { item })
-                }
+                onManagePublication={openApplicationPublication}
                 onOpen={props.onOpenBundle}
                 onBack={goBack}
-                onDetail={(item) =>
-                  shellNavigationRef.navigate("marketDetail", { item })
-                }
+                onDetail={openApplicationDetail}
                 onCreate={() => {
                   void requireAccount().then((allowed) => {
                     if (allowed)
@@ -843,9 +825,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 onConnections={openConnections}
                 onMessage={openChat}
                 onBack={goBack}
-                onPost={(post) =>
-                  shellNavigationRef.navigate("postDetail", { post })
-                }
+                onPost={openPost}
                 onApplication={openPublicMarketApplication}
               />
             )}
@@ -897,3 +877,11 @@ export function openPublicApplicationDetail(appId: string) {
 export function openSharedPost(postId: string) {
   if (shellNavigationRef.isReady()) shellNavigationRef.navigate("noticePost", { postId });
 }
+
+function openApplicationDetail(item: MarketApplication) { shellNavigationRef.navigate("marketDetail", { item }); }
+function openApplicationPublication(item: MarketApplication) { shellNavigationRef.navigate("marketPublication", { item }); }
+function openAccount() { shellNavigationRef.navigate("account"); }
+function openCreatePublication() { openPublication("create"); }
+function openNewCreation() { return openCreationComposer(); }
+function remixApplication(item: MarketApplication) { return openCreationComposer({ appId: item.manifest.appId, title: item.manifest.appName, releaseId: item.manifest.releaseId, fork: true }); }
+function shareApplication(application: MarketApplication) { void applicationSharing(application.manifest.appId).open({ title: application.title || application.manifest.appName }).catch(error => Toast.show({ type: "error", text1: "分享未完成", text2: error.message })); }

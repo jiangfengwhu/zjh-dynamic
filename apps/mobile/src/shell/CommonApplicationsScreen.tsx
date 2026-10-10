@@ -1,5 +1,6 @@
+import { useEventCallback } from "./useEventCallback";
 import { appendUnique } from "./listData";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
@@ -49,8 +50,9 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
       if (!mounted.current || token !== generation.current || currentOwner.current !== owner) return false;
       setPage(prior => {
         const applications = more && prior.owner === owner ? appendUnique(prior.applications, result.applications, item => item.appId) : result.applications;
-        rememberPage(cacheKey, { applications, nextCursor: result.nextCursor });
-        return { owner, loaded: true, applications, nextCursor: result.nextCursor };
+        const shared = rememberPage(cacheKey, { applications, nextCursor: result.nextCursor });
+        return prior.owner === owner && prior.loaded && prior.applications === shared.applications && prior.nextCursor === shared.nextCursor
+          ? prior : { owner, loaded: true, ...shared };
       });
       return true;
     } catch (cause) { if (mounted.current && token === generation.current) setError(cause instanceof Error ? cause.message : "常用应用暂时无法加载"); return false; }
@@ -64,10 +66,10 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
     const cancel = afterInteractions(() => { void load(); });
     return () => { cancel(); generation.current++; };
   }, [owner, focused]);
-  function open(item: CommonApplication) {
+  const open = useEventCallback((item: CommonApplication) => {
     void openCommonApplication(item.appId).catch(error => Toast.show({ type: "error", text1: "打开失败", text2: error.message }));
-  }
-  function remove(item: CommonApplication) {
+  });
+  const remove = useEventCallback((item: CommonApplication) => {
     HostAlert.alert("从常用移除？", item.title, [{ text: "取消", style: "cancel" }, { text: "移除", style: "destructive", onPress: () => { void (async () => {
       if (writing.current || currentOwner.current !== owner || cachedAccountId() !== owner) return;
       writing.current = true;
@@ -94,7 +96,7 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
       } }
       finally { writing.current = false; }
     })(); } }]);
-  }
+  });
   const applications = page.owner === owner ? page.applications : [];
   return <View style={{ flex: 1 }}>
     {!user ? <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 14, padding: 24 }}><Text style={{ color: t.ink3 }}>登录后保存并同步常用应用</Text><Pressy onPress={() => void requireAccount()} style={{ padding: 12 }}><Text style={{ color: t.accentText }}>登录</Text></Pressy></View> :
@@ -103,10 +105,15 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
         onEndReached={() => { if (page.nextCursor && !error) void load(true); }} onEndReachedThreshold={0.3}
         contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16, flexGrow: 1 }}
         ListEmptyComponent={!page.loaded && !error ? <PageSkeleton shape="grid" rows={3} animated={focused} /> : !error ? <View style={{ flex: 1, minHeight: 280, alignItems: "center", justifyContent: "center", padding: 24, gap: 8 }}><Text style={{ color: t.ink1, fontSize: 16, fontWeight: "700" }}>把喜欢的应用留下来</Text><Text style={{ color: t.ink3, textAlign: "center", lineHeight: 22 }}>在发现作品中点书签，就能在这里直接打开。</Text></View> : null}
-        renderItem={({ item }) => <Pressy accessibilityRole="button" accessibilityLabel={`打开${item.title}，长按可移除`} onPress={() => void open(item)} onLongPress={() => remove(item)} style={{ alignItems: "center", gap: 7, paddingVertical: 16, paddingHorizontal: 6 }}>
-          <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}><ApplicationIcon application={{ manifest: { appId: item.appId, accent: item.accent, icon: item.icon }, iconUrl: item.iconUrl }} size={52} /></View>
-          <Text numberOfLines={1} style={{ color: t.ink1, fontSize: 12, maxWidth: "100%" }}>{item.title}</Text>
-        </Pressy>}
+        renderItem={({ item }) => <CommonApplicationTile item={item} open={open} remove={remove} />}
         ListFooterComponent={error ? <Pressy onPress={() => void load(!!applications.length && !!page.nextCursor)} style={{ padding: 20 }}><Text style={{ color: t.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressy> : page.nextCursor ? <Pressy disabled={busy} onPress={() => void load(true)} style={{ padding: 16 }}>{paging ? <ActivityIndicator color={t.ink3} /> : <Text style={{ color: t.ink3, textAlign: "center" }}>加载更多</Text>}</Pressy> : null} /></PullRefreshSurface>}
   </View>;
 }
+
+const CommonApplicationTile = memo(function CommonApplicationTile({ item, open, remove }: { item: CommonApplication; open: (item: CommonApplication) => void; remove: (item: CommonApplication) => void }) {
+  const { colors: t } = useTheme();
+  return <Pressy accessibilityRole="button" accessibilityLabel={`打开${item.title}，长按可移除`} onPress={() => void open(item)} onLongPress={() => remove(item)} style={{ alignItems: "center", gap: 7, paddingVertical: 16, paddingHorizontal: 6 }}>
+          <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}><ApplicationIcon application={{ manifest: { appId: item.appId, accent: item.accent, icon: item.icon }, iconUrl: item.iconUrl }} size={52} /></View>
+          <Text numberOfLines={1} style={{ color: t.ink1, fontSize: 12, maxWidth: "100%" }}>{item.title}</Text>
+        </Pressy>;
+});

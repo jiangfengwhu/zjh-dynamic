@@ -1,3 +1,4 @@
+import { useEventCallback } from "../useEventCallback";
 import { normalizeShareParams } from "../../../../../packages/app-sdk/src/sharing";
 import { appendUnique } from "../listData";
 import { AnimatedFlashList } from "../AnimatedFlashList";
@@ -8,6 +9,8 @@ import { EmptyState } from "../EmptyState";
 import { ActivityIndicator } from "react-native";
 import {
   useCallback,
+  memo,
+  useMemo,
   useDeferredValue,
   useEffect,
   useRef,
@@ -428,6 +431,9 @@ export function ComposePostScreen({
       }
     }
   }
+  const removePhoto = useEventCallback(remove);
+  const chooseApplication = useEventCallback(selectApplication);
+  const attachedCard = useMemo(() => application ? { ...application.manifest, title: application.title || application.manifest.appName, summary: application.summary ?? application.manifest.description } : undefined, [application]);
   const Root = embedded ? View : Screen;
   return (
     <ScreenEdge bottom={false}><Root style={[styles.screen, embedded && { backgroundColor: "transparent" }]}>
@@ -482,29 +488,7 @@ export function ComposePostScreen({
               placeholderTextColor={colors.ink3} style={[styles.input, { height: 200 }]} textAlignVertical="top"
               autoCapitalize={htmlMode ? "none" : "sentences"} autoCorrect={!htmlMode} />
           )}
-          <View style={styles.photos}>
-            {photos.map((photo, index) => (
-              <View key={photo.path} style={styles.photo}>
-                <AppImage
-                  source={{
-                    uri: photo.path.startsWith("file:")
-                      ? photo.path
-                      : `file://${photo.path}`,
-                  }}
-                  style={styles.image}
-                />
-                {!busy ? (
-                  <Pressable
-                    accessibilityLabel={`移除第 ${index + 1} 张图片`}
-                    onPress={() => remove(index)}
-                    style={styles.remove}
-                  >
-                    <Text style={styles.removeText}>×</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ))}
-          </View>
+          <ComposerPhotos photos={photos} busy={busy} styles={styles} remove={removePhoto} />
           <View style={styles.tools}>
             <View style={styles.tool}>
               <Text style={styles.addText}>HTML</Text>
@@ -560,11 +544,7 @@ export function ComposePostScreen({
             <View>
               <ApplicationPostCard
                 preview
-                application={{
-                  ...application.manifest,
-                  title: application.title || application.manifest.appName,
-                  summary: application.summary ?? application.manifest.description,
-                }}
+                application={attachedCard!}
               />
               <Pressable
                 disabled={busy}
@@ -638,29 +618,7 @@ export function ComposePostScreen({
             <View style={{ flexDirection: "row", gap: 8 }}><TextInput value={appsQuery} onChangeText={setAppsQuery} placeholder="搜索应用" returnKeyType="search" onSubmitEditing={() => void pickApplication(false)} style={{ flex: 1 }} /><Pressy accessibilityLabel="搜索应用" disabled={loadingApps} onPress={() => void pickApplication(false)} style={{ padding: 12, justifyContent: "center" }}><SymbolIcon name="search" size={20} color={colors.ink1} /></Pressy></View>
             <AnimatedFlashList data={!applications.length && (loadingApps || appsError) ? [] : applications} keyExtractor={item => item.manifest.appId} maintainVisibleContentPosition={{ disabled: true }} keyboardShouldPersistTaps="handled" style={{ minHeight: 160 }}
               ListFooterComponent={appsCursor ? <Pressable disabled={loadingApps} onPress={() => void pickApplication(true)} style={styles.add}><Text style={styles.counter}>{loadingApps ? "加载中…" : "加载更多作品"}</Text></Pressable> : null}
-              renderItem={({ item }) => (
-                  <Pressable
-                    accessibilityLabel={`选择${
-                      item.title || item.manifest.appName
-                    }`}
-                    onPress={() => selectApplication(item)}
-                    style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 4,
-                      gap: 2,
-                      borderBottomWidth: colors.components.surfaceBorder,
-                      borderBottomColor: colors.line,
-                    }}
-                  >
-                    <Text style={styles.name}>
-                      {item.title || item.manifest.appName}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.counter}>作者：{item.authorName}</Text>
-                    <Text numberOfLines={2} style={styles.counter}>
-                      {item.summary || item.manifest.description}
-                    </Text>
-                  </Pressable>
-              )}
+              renderItem={({ item }) => <ApplicationPickerRow item={item} styles={styles} selectApplication={chooseApplication} />}
               ListEmptyComponent={loadingApps ? <PageSkeleton rows={3} shape="picker" /> : appsError ? <Pressable onPress={() => void pickApplication()} style={styles.add}><Text style={{ color: colors.danger }}>{appsError} · 重试</Text></Pressable> : <EmptyState style={{ minHeight: 160, flexGrow: 0 }}><Text style={{ color: colors.ink3, textAlign: "center" }}>没有找到公开作品。</Text></EmptyState>}
             />
             <Pressable onPress={() => setPicking(false)} style={styles.add}>
@@ -761,4 +719,57 @@ const useStyles = createThemedStyles((base) => {
     disabled: { opacity: 0.3 },
     status: { flexDirection: "row", gap: 10, alignItems: "center" },
   };
+});
+
+const ComposerPhotos = memo(function ComposerPhotos({ photos, busy, styles, remove }: { photos: Photo[]; busy: boolean; styles: ReturnType<typeof useStyles>; remove: (index: number) => void }) {
+  return (          <View style={styles.photos}>
+            {photos.map((photo, index) => (
+              <View key={photo.path} style={styles.photo}>
+                <AppImage
+                  source={{
+                    uri: photo.path.startsWith("file:")
+                      ? photo.path
+                      : `file://${photo.path}`,
+                  }}
+                  style={styles.image}
+                />
+                {!busy ? (
+                  <Pressable
+                    accessibilityLabel={`移除第 ${index + 1} 张图片`}
+                    onPress={() => remove(index)}
+                    style={styles.remove}
+                  >
+                    <Text style={styles.removeText}>×</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ))}
+          </View>);
+});
+
+const ApplicationPickerRow = memo(function ApplicationPickerRow({ item, styles, selectApplication }: { item: MarketApplication; styles: ReturnType<typeof useStyles>; selectApplication: (item: MarketApplication) => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      accessibilityLabel={`选择${
+        item.title || item.manifest.appName
+      }`}
+      onPress={() => selectApplication(item)}
+      style={{
+        paddingVertical: 10,
+        paddingHorizontal: 4,
+        gap: 2,
+        borderBottomWidth: colors.components.surfaceBorder,
+        borderBottomColor: colors.line,
+      }}
+    >
+      <Text style={styles.name}>
+        {item.title || item.manifest.appName}
+      </Text>
+      <Text numberOfLines={1} style={styles.counter}>作者：{item.authorName}</Text>
+      <Text numberOfLines={2} style={styles.counter}>
+        {item.summary || item.manifest.description}
+      </Text>
+    </Pressable>
+);
 });

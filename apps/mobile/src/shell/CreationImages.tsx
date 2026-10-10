@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEventCallback } from "./useEventCallback";
+import { memo, useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { MediaPicker } from "../../../../packages/ui/media/MediaPicker";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
@@ -177,6 +178,11 @@ export function CreationImages({
   images: ReturnType<typeof useCreationImages>;
   disabled: boolean;
 }) {
+  const choose = useEventCallback(images.choose);
+  const remove = useEventCallback(images.remove);
+  return <CreationImagesContent photos={images.photos} ready={images.ready} picking={images.picking} disabled={disabled} choose={choose} remove={remove} />;
+}
+const CreationImagesContent = memo(function CreationImagesContent({ photos, ready, picking, disabled, choose, remove }: { photos: Photo[]; ready: boolean; picking: boolean; disabled: boolean; choose: () => Promise<void>; remove: (index: number) => void }) {
   const { colors } = useTheme();
   return (
     <View style={{ gap: 8 }}>
@@ -190,37 +196,37 @@ export function CreationImages({
         <Text style={{ fontSize: 14 }}>
           参考图片{" "}
           <Text style={{ color: colors.ink3, fontSize: 11 }}>
-            {images.photos.length}/3
+            {photos.length}/3
           </Text>
         </Text>
         <Pressable
           disabled={
             disabled ||
-            !images.ready ||
-            images.picking ||
-            images.photos.length >= 3
+            !ready ||
+            picking ||
+            photos.length >= 3
           }
           accessibilityRole="button"
           accessibilityLabel="添加参考图片"
-          onPress={() => void images.choose()}
+          onPress={() => void choose()}
           style={{
             minHeight: 44,
             paddingHorizontal: 10,
             flexDirection: "row",
             alignItems: "center",
             gap: 6,
-            opacity: disabled || images.photos.length >= 3 ? 0.5 : 1,
+            opacity: disabled || photos.length >= 3 ? 0.5 : 1,
           }}
         >
           <SymbolIcon name="photo" size={16} color={colors.cyanText} />
           <Text style={{ color: colors.cyanText, fontSize: 13 }}>
-            {images.picking ? "正在选择…" : "添加图片"}
+            {picking ? "正在选择…" : "添加图片"}
           </Text>
         </Pressable>
       </View>
-      {images.photos.length ? (
+      {photos.length ? (
         <View style={{ flexDirection: "row", gap: 8 }}>
-          {images.photos.map((photo, index) => (
+          {photos.map((photo, index) => (
             <View
               key={photo.path || photo.url}
               style={{ flex: 1, maxWidth: 112, gap: 2 }}
@@ -240,10 +246,10 @@ export function CreationImages({
                 }}
               />
               <Pressable
-                disabled={disabled || images.picking}
+                disabled={disabled || picking}
                 accessibilityRole="button"
                 accessibilityLabel={`移除参考图 ${index + 1}`}
-                onPress={() => images.remove(index)}
+                onPress={() => remove(index)}
                 style={{
                   minHeight: 44,
                   flexDirection: "row",
@@ -265,4 +271,4 @@ export function CreationImages({
       )}
     </View>
   );
-}
+});

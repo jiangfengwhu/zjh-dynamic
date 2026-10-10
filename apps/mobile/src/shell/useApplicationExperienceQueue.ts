@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEventCallback } from "./useEventCallback";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { loadPublicApplicationExperience, reloadApplication } from "../runtime/applications";
 import type { MarketApplication } from "./market";
 import { fetchMarketDetail, installMarketApplication } from "./market";
@@ -75,7 +76,7 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     });
     return () => controller.abort();
   }, [executeEnabled, key, nextKey]);
-  const retry = useCallback((id: string) => {
+  const retry = useEventCallback((id: string) => {
     const item = entries.find(candidate => experienceId(candidate) === id);
     if (!item || retries.current.has(id)) return;
     const controller = new AbortController(); retries.current.set(id, controller);
@@ -94,6 +95,6 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     })().catch(cause => {
       if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(id, { ready: false, error: cause instanceof Error ? cause.message : "作品更新失败，请重试" }));
     }).finally(() => { if (retries.current.get(id) === controller) retries.current.delete(id); });
-  }, [entries, onRefresh]);
+  });
   return { entries, preparations, retry };
 }

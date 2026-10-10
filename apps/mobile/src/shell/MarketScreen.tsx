@@ -393,7 +393,7 @@ function MarketDiscovery({
   return (
     <View style={styles.screen}>
       <View style={styles.discovery}>
-        <AnimatedFlashList horizontal data={marketDiscoveryCategories} keyExtractor={item => item.id} extraData={category} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} style={{ height: 36 }} contentContainerStyle={{ paddingHorizontal: 16 }} ItemSeparatorComponent={() => <View style={{ width: 8 }} />} renderItem={({ item }) => (
+        <AnimatedFlashList horizontal data={marketDiscoveryCategories} keyExtractor={item => item.id} extraData={category} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} style={{ height: 36 }} contentContainerStyle={{ paddingHorizontal: 16 }} ItemSeparatorComponent={GallerySeparator} renderItem={({ item }) => (
             <Pressy
               accessibilityRole="button"
               accessibilityState={{ selected: category === item.id }}
@@ -720,3 +720,5 @@ const useStyles = createThemedStyles((base) => {
     empty: { color: t.ink3, textAlign: "center", paddingVertical: 20 },
   };
 });
+
+function GallerySeparator() { return <View style={{ width: 8 }} />; }

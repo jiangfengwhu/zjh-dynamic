@@ -1,6 +1,7 @@
+import { useEventCallback } from "./useEventCallback";
 import { DraftInputScope, useDraftText, useDraftPersistence } from "./DraftInputScope";
 import { mergeChronological, chronological } from "./listData";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ActivityIndicator, BackHandler, Keyboard, View, type TextInput } from "react-native";
 import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetTextInput, useBottomSheetScrollableCreator, useBottomSheetTimingConfigs, type BottomSheetBackdropProps, type BottomSheetFooterProps } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -153,6 +154,8 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
         {characters > 800 ? <Text style={{ color: characters > 1000 ? t.danger : t.ink3, textAlign: "right", fontSize: 11 }}>{characters}/1000</Text> : null}</>}</DraftInputScope>
       </View>
   );
+  const removeComment = useEventCallback(remove);
+  const replyTo = useEventCallback((item: UserComment) => { if (!writing.current) { setReply(item); input.current?.focus(); } });
   return <BottomSheetModal ref={modal} footerComponent={Footer} index={0} snapPoints={["68%", "92%"]} onChange={(index, position) => { if (index >= 0) setOpened(true); if (index === 0 && position > 0 && !Keyboard.isVisible()) setCollapsedListHeight(position * 0.68 / 0.32 - 64); }} enableDynamicSizing={false} enablePanDownToClose enableBlurKeyboardOnGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustPan" onDismiss={() => { onDismiss(); if (loginAfterClose.current) void requireAccount(); }} backdropComponent={backdrop} animationConfigs={animation} overrideReduceMotion={ReduceMotion.System} backgroundStyle={{ backgroundColor: t.canvas, borderTopLeftRadius: t.radius.xxl, borderTopRightRadius: t.radius.xxl }} handleIndicatorStyle={{ backgroundColor: t.lineStrong, width: 36 }}>
     <View style={{ flex: 1 }}>
       <View style={{ height: 40, paddingLeft: 48, paddingRight: 8, flexDirection: "row", alignItems: "center" }}>
@@ -173,19 +176,7 @@ export function ApplicationCommentsSheet({ post, application, active, onDismiss 
         {application.summary || application.manifest.description ? <Text selectable style={{ color: t.ink2, fontSize: 13, lineHeight: 20 }}>{application.summary || application.manifest.description}</Text> : null}
       </View>}
         ListEmptyComponent={loading && !loaded.current ? <View style={{ padding: 16 }}><PageSkeleton rows={3} shape="comment" animated={active} /></View> : !error && emptyHeight > 0 ? <View style={{ height: emptyHeight, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}><Text style={{ color: t.ink3, textAlign: "center" }}>还没有评论，来说点什么吧</Text></View> : null}
-        renderItem={({ item }) => <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
-          <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text numberOfLines={1} style={{ color: t.ink3, fontSize: 12, lineHeight: 18 }}>{item.author.name}{item.author.id === authorId ? " · 作者" : ""}</Text>
-            {item.replyTo ? <Text style={{ color: t.orchidText, fontSize: 12, lineHeight: 18 }}>回复 {item.replyTo.name}</Text> : null}
-            <Text selectable style={{ color: t.ink1, fontSize: 14, lineHeight: 21 }}>{item.body}</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Text style={{ color: t.ink3, fontSize: 11 }}>{formatWhen(item.createdAt)}</Text>
-              <Pressy accessibilityRole="button" accessibilityLabel={`回复${item.author.name}`} disabled={sending || !!deleting} onPress={() => { setReply(item); input.current?.focus(); }} style={{ minHeight: 32, justifyContent: "center" }}><Text style={{ color: t.ink2, fontSize: 12 }}>回复</Text></Pressy>
-              {user?.id === item.author.id ? <Pressy accessibilityRole="button" accessibilityLabel="删除这条评论" disabled={sending || !!deleting} onPress={() => remove(item)} style={{ minHeight: 32, justifyContent: "center" }}><Text style={{ color: t.ink3, fontSize: 12 }}>删除</Text></Pressy> : null}
-            </View>
-          </View>
-        </View>}
+        renderItem={({ item }) => <ApplicationCommentRow item={item} isAuthor={item.author.id === authorId} own={user?.id === item.author.id} busy={sending || !!deleting} replyTo={replyTo} remove={removeComment} />}
         ListFooterComponent={error || loading && comments.length ? <View style={{ padding: 12 }}>{error ? <Pressy onPress={() => void load()} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ color: t.danger, textAlign: "center" }}>{error} · 点击重试</Text></Pressy> : <ActivityIndicator color={t.ink3} />}</View> : null} />
       </View>
 
@@ -214,3 +205,20 @@ function useCommentFooter(content: ReactNode) {
   useLayoutEffect(() => { store.update(content); }, [store, content]);
   return store.Footer;
 }
+
+const ApplicationCommentRow = memo(function ApplicationCommentRow({ item, isAuthor, own, busy, replyTo, remove }: { item: UserComment; isAuthor: boolean; own: boolean; busy: boolean; replyTo: (item: UserComment) => void; remove: (item: UserComment) => void }) {
+  const { colors: t } = useTheme();
+  return <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
+          <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={32} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={{ color: t.ink3, fontSize: 12, lineHeight: 18 }}>{item.author.name}{isAuthor ? " · 作者" : ""}</Text>
+            {item.replyTo ? <Text style={{ color: t.orchidText, fontSize: 12, lineHeight: 18 }}>回复 {item.replyTo.name}</Text> : null}
+            <Text selectable style={{ color: t.ink1, fontSize: 14, lineHeight: 21 }}>{item.body}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Text style={{ color: t.ink3, fontSize: 11 }}>{formatWhen(item.createdAt)}</Text>
+              <Pressy accessibilityRole="button" accessibilityLabel={`回复${item.author.name}`} disabled={busy} onPress={() => replyTo(item)} style={{ minHeight: 32, justifyContent: "center" }}><Text style={{ color: t.ink2, fontSize: 12 }}>回复</Text></Pressy>
+              {own ? <Pressy accessibilityRole="button" accessibilityLabel="删除这条评论" disabled={busy} onPress={() => remove(item)} style={{ minHeight: 32, justifyContent: "center" }}><Text style={{ color: t.ink3, fontSize: 12 }}>删除</Text></Pressy> : null}
+            </View>
+          </View>
+        </View>;
+});

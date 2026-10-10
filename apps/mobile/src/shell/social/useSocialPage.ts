@@ -1,5 +1,5 @@
 import { afterInteractions, waitForInteractions } from "../interactionWork";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { cachedPage, pageCacheKey, rememberPage } from "../pageCache";
@@ -26,8 +26,8 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
   const alive = useRef(true), canReadRef = useRef(canRead); canReadRef.current = canRead;
   const flight = useRef<{ key: string } | undefined>(undefined), again = useRef(false);
   const reload = useRef<(more?: boolean) => Promise<boolean>>(async () => false);
-  const commit = (next: T) => { const shared = rememberPage(key, next); dataRef.current = shared; setState(previous => previous.key === key && previous.data === shared ? previous : { key, data: shared }); };
-  const load = async (more = false): Promise<boolean> => {
+  const commit = useCallback((next: T) => { const shared = rememberPage(key, next); dataRef.current = shared; setState(previous => previous.key === key && previous.data === shared ? previous : { key, data: shared }); }, [key]);
+  const load = useCallback(async (more = false): Promise<boolean> => {
     if (!canReadRef.current || (more && !dataRef.current.nextCursor)) return false;
     if (flight.current?.key === key) { if (!more) again.current = true; return false; }
     const token = { key }; flight.current = token; setLoading(true); setError("");
@@ -49,7 +49,7 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
         }
       }
     }
-  };
+  }, [key, commit]);
   reload.current = load;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
@@ -65,6 +65,6 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
     const cancel = cached ? afterInteractions(run) : (() => { const frame = requestAnimationFrame(run); return () => cancelAnimationFrame(frame); })();
     return cancel;
   }, [canRead, focused, key, version]);
-  const update = (change: (previous: T) => T) => commit(change(dataRef.current));
+  const update = useCallback((change: (previous: T) => T) => commit(change(dataRef.current)), [commit]);
   return { data, load, commit, update, loading, error, loaded: !!cachedPage(key), focused, user };
 }

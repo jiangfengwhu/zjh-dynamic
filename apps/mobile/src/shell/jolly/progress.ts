@@ -144,8 +144,8 @@ export function useProgress(
           detail: summary,
           at: Date.now(),
         };
-        rememberPage(pageCacheKey(`progress:${appId}:${currentSession}:${run?.submissionId ?? ""}:${run?.startedAt ?? ""}`), next);
-        setSnapshot(next);
+        const shared = rememberPage(pageCacheKey(`progress:${appId}:${currentSession}:${run?.submissionId ?? ""}:${run?.startedAt ?? ""}`), next);
+        setSnapshot(shared);
         setLoaded(true);
         setError("");
       } catch (cause) {

@@ -934,7 +934,7 @@ function MarketDetailContent({
                       <Text style={styles.subtitle}>真实截图 · 可选</Text>
                       <Text style={styles.caption}>{screenshots.length}/6</Text>
                     </View>
-                    <AnimatedFlashList horizontal data={screenshots} keyExtractor={url => url} extraData={busy} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ height: 144 }} contentContainerStyle={{ paddingVertical: 2 }} ItemSeparatorComponent={() => <View style={{ width: 8 }} />} renderItem={({ item: url, index }) => (
+                    <AnimatedFlashList horizontal data={screenshots} keyExtractor={url => url} extraData={busy} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ height: 144 }} contentContainerStyle={{ paddingVertical: 2 }} ItemSeparatorComponent={GallerySeparator} renderItem={({ item: url, index }) => (
                         <View style={styles.editShot}>
                           <Pressy
                             scale={1}
@@ -1057,7 +1057,7 @@ function MarketDetailContent({
                       <Text style={styles.subtitle}>使用预览</Text>
                       <Text style={styles.caption}>{gallery.length} 张</Text>
                     </View>
-                    <AnimatedFlashList horizontal data={gallery} keyExtractor={url => url} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} style={{ height: 213 }} ItemSeparatorComponent={() => <View style={{ width: 10 }} />} renderItem={({ item: url, index }) => (
+                    <AnimatedFlashList horizontal data={gallery} keyExtractor={url => url} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} style={{ height: 213 }} ItemSeparatorComponent={WideGallerySeparator} renderItem={({ item: url, index }) => (
                         <Pressy
                           scale={1}
                           accessibilityLabel={`查看截图 ${index + 1}`}
@@ -1550,3 +1550,6 @@ const useStyles = createThemedStyles((base) => {
     empty: { padding: 20, gap: 12, alignItems: "center" },
   };
 });
+
+function GallerySeparator() { return <View style={{ width: 8 }} />; }
+function WideGallerySeparator() { return <View style={{ width: 10 }} />; }

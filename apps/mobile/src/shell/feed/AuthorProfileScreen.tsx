@@ -84,7 +84,7 @@ function AuthorProfileContent({
 }) {
   const { colors } = useTheme();
   const { user } = useAccount();
-  const timeline = useUserPosts();
+  const timeline = useUserPosts("recommended", false);
   const contentReady = useRouteContentReady(embedded);
   const requestReady = useRouteRequestReady(embedded);
   const focused = useIsFocused() && active && requestReady;

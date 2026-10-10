@@ -37,7 +37,7 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
     const controller = new AbortController();
     const run = () => {
       void loader.current(controller.signal).then(
-        async value => { await waitForInteractions(); if (!live) return; if (cacheKey) rememberPage(cacheKey, value); if (!displayed.current || dataChanged(displayed.current.value, value)) setResult({ value, key: cacheKey }); setError(null); },
+        async value => { await waitForInteractions(); if (!live) return; const shared = cacheKey ? rememberPage(cacheKey, value) : value; if (!displayed.current || (cacheKey ? displayed.current.value !== shared : dataChanged(displayed.current.value, shared))) setResult({ value: shared, key: cacheKey }); setError(null); },
         cause => { if (live) setError(cause instanceof Error ? cause : new Error("加载失败，请重试")); }
       );
     };

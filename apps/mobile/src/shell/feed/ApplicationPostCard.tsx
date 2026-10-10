@@ -1,7 +1,7 @@
 import { ApplicationIcon } from "../ApplicationIcon";
 import { ActivityIndicator, View } from "react-native";
 import { HostText as Text } from "./HostText";
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { Pressy } from "../../../../../packages/ui/chrome";
 import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
@@ -9,7 +9,7 @@ import { useTheme } from "../../../../../packages/ui/theme";
 import type { ApplicationLink } from "./userPosts";
 
 /** Community, composer preview and private messages share one application card. */
-export function ApplicationPostCard({ application, preview = false, onOpen, onDetail }: {
+export const ApplicationPostCard = memo(function ApplicationPostCard({ application, preview = false, onOpen, onDetail }: {
   application: ApplicationLink;
   preview?: boolean;
   onOpen?: (appId: string, params?: ApplicationLink["params"]) => Promise<void>;
@@ -49,4 +49,4 @@ export function ApplicationPostCard({ application, preview = false, onOpen, onDe
       <SymbolIcon name="info" size={20} color={colors.ink2} />
     </Pressy> : null}
   </View>;
-}
+});

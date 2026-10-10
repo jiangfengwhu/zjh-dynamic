@@ -4,7 +4,7 @@ import { openPublicMarketApplication } from "../navigation";
 import { DraftInputScope, useDraftText, useDraftPersistence } from "../DraftInputScope";
 import { mergeChronological } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View, type LayoutChangeEvent } from "react-native";
 import { usePreventRemove } from "@react-navigation/native";
 import { useAnimatedScrollHandler, useSharedValue, runOnJS } from "react-native-reanimated";
@@ -122,7 +122,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
   return <SocialFrame title={query.data.peer.name || peer.name} onBack={onBack}><KeyboardViewport>
     <PullRefreshSurface refresh={refresh}><AnimatedFlashList<Message>
       ref={list} onLayout={layout} data={query.data.messages} keyExtractor={item => item.id} onScroll={scroll} scrollEventThrottle={16}
-      viewabilityConfig={{itemVisiblePercentThreshold: 60, minimumViewTime: 200}}
+      viewabilityConfig={messageViewability}
       onViewableItemsChanged={({viewableItems}) => {
         let visible: Message | undefined;
         for (const token of viewableItems) if (token.isViewable && token.item.senderId !== query.user?.id && (!visible || token.item.createdAt > visible.createdAt || token.item.createdAt === visible.createdAt && token.item.id > visible.id)) visible = token.item;
@@ -131,7 +131,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
       keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never"
       maintainVisibleContentPosition={{ startRenderingFromBottom: true }}
       contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, ...(!query.data.messages.length ? { flexGrow: 1 } : {}) }}
-      ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+      ItemSeparatorComponent={MessageSeparator}
       onContentSizeChange={followBottom}
       ListHeaderComponent={<View><SocialError error={query.error} retry={() => { reconnectMessages(); void query.load(); }} />
         {query.data.nextCursor ? <Pressy accessibilityRole="button" disabled={query.loading} onPress={() => { atBottom.current = false; void query.load(true); }} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>
@@ -139,18 +139,7 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
         </Pressy> : null}
       </View>}
       ListEmptyComponent={<SocialEmpty shape="chat" inset={0} loading={query.loading} loaded={query.loaded} text="说声你好，开始聊天吧" login={!query.user} />}
-      renderItem={({ item }) => {
-        const mine = item.senderId === query.user?.id;
-        return <View style={{ flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-start", gap: 8 }}>
-          <UserAvatar uri={mine ? query.user?.avatarUrl : query.data.peer.avatarUrl} authorId={item.senderId} size={26} />
-          <View style={{ maxWidth: "78%", gap: 5, alignItems: mine ? "flex-end" : "flex-start" }}>
-            {item.post ? <SharedPostCard post={item.post} /> : null}
-            {item.application ? <View style={{ width: 260, maxWidth: "100%" }}><ApplicationPostCard application={item.application} onOpen={openPublicMarketApplication} /></View> : null}
-            {item.body ? <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: 18, borderTopRightRadius: mine ? 6 : 18, borderTopLeftRadius: mine ? 18 : 6, paddingHorizontal: 12, paddingVertical: 8, boxShadow: mine ? undefined : colors.shadow.card, borderWidth: !mine && colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 14, lineHeight: 20 }}>{item.body}</Text></View> : null}
-            <Text style={{ color: colors.ink3, fontSize: 11, letterSpacing: 0.2, paddingHorizontal: 6 }}>{formatWhen(item.createdAt)}</Text>
-          </View>
-        </View>;
-      }}
+      renderItem={({ item }) => <ChatMessageRow item={item} mine={item.senderId === query.user?.id} ownAvatar={query.user?.avatarUrl} peerAvatar={query.data.peer.avatarUrl} />}
     /></PullRefreshSurface>
     {query.user ? <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12, gap: 6, borderTopWidth: colors.components.surfaceBorder, borderTopColor: colors.line }}>
       <DraftInputScope draft={draft}>{(text, setText, count) => <><View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
@@ -164,3 +153,18 @@ export function ChatScreen({ peer, onBack }: { peer: PublicAuthor; onBack: () =>
     </View> : <Pressy accessibilityRole="button" onPress={() => { void requireAccount(); }} style={{ minHeight: 42, margin: 12, borderRadius: 21, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}><Text style={{ color: colors.onAccent, fontWeight: "700" }}>登录后发送私信</Text></Pressy>}
   </KeyboardViewport></SocialFrame>;
 }
+
+const messageViewability = { itemVisiblePercentThreshold: 60, minimumViewTime: 200 };
+function MessageSeparator() { return <View style={{ height: 8 }} />; }
+const ChatMessageRow = memo(function ChatMessageRow({ item, mine, ownAvatar, peerAvatar }: { item: Message; mine: boolean; ownAvatar?: string | null; peerAvatar?: string | null }) {
+  const { colors } = useTheme();
+  return <View style={{ flexDirection: mine ? "row-reverse" : "row", alignItems: "flex-start", gap: 8 }}>
+          <UserAvatar uri={mine ? ownAvatar : peerAvatar} authorId={item.senderId} size={26} />
+          <View style={{ maxWidth: "78%", gap: 5, alignItems: mine ? "flex-end" : "flex-start" }}>
+            {item.post ? <SharedPostCard post={item.post} /> : null}
+            {item.application ? <View style={{ width: 260, maxWidth: "100%" }}><ApplicationPostCard application={item.application} onOpen={openPublicMarketApplication} /></View> : null}
+            {item.body ? <View style={{ backgroundColor: mine ? colors.accent : colors.surface, borderRadius: 18, borderTopRightRadius: mine ? 6 : 18, borderTopLeftRadius: mine ? 18 : 6, paddingHorizontal: 12, paddingVertical: 8, boxShadow: mine ? undefined : colors.shadow.card, borderWidth: !mine && colors.mode === "dark" ? colors.components.surfaceBorder : 0, borderColor: colors.line }}><Text selectable style={{ color: mine ? colors.onAccent : colors.ink1, fontSize: 14, lineHeight: 20 }}>{item.body}</Text></View> : null}
+            <Text style={{ color: colors.ink3, fontSize: 11, letterSpacing: 0.2, paddingHorizontal: 6 }}>{formatWhen(item.createdAt)}</Text>
+          </View>
+        </View>;
+});

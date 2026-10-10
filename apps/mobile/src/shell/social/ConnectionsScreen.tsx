@@ -1,7 +1,8 @@
+import { useEventCallback } from "../useEventCallback";
 import { appendUnique } from "../listData";
 import { AnimatedFlashList } from "../AnimatedFlashList";
 import { useVisitedPager } from "../useVisitedPager";
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import PagerView, { type PagerViewOnPageScrollEvent, type PagerViewOnPageSelectedEvent } from "react-native-pager-view";
 import Animated, { runOnJS, useEvent, useSharedValue, useAnimatedScrollHandler } from "react-native-reanimated";
@@ -49,7 +50,7 @@ function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAut
   const locks = useRef(new Set<string>());
   const scrollY = useSharedValue(0), scroll = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
   const refresh = usePullToRefresh({ scrollY, onRefresh: () => query.load() });
-  async function follow(id: string, wanted: boolean) {
+  const follow = useEventCallback(async (id: string, wanted: boolean) => {
     if (locks.current.has(id)) return;
     locks.current.add(id); setActing(id);
     try {
@@ -59,26 +60,31 @@ function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAut
       if (owner === cachedAccountId()) query.update(previous => ({...previous, authors: previous.authors.map(item => item.author.id === id ? {...item, following: result.following} : item)}));
     } catch (cause) { Toast.show({ type: "error", text1: "关注未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
     finally { locks.current.delete(id); setActing(undefined); }
-  }
+  });
   return <PullRefreshSurface refresh={refresh}><AnimatedFlashList maintainVisibleContentPosition={{ disabled: true }}
     data={query.data.authors} keyExtractor={item => item.author.id} onScroll={scroll} scrollEventThrottle={16}
     showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never" contentContainerStyle={!query.data.authors.length ? { flexGrow: 1 } : undefined}
     ListHeaderComponent={<SocialError error={query.error} retry={() => { void query.load(); }} />}
     ListEmptyComponent={<SocialEmpty shape="person" loading={query.loading} loaded={query.loaded} text={kind === "following" ? "还没有关注的人" : "还没有粉丝"} />}
-    renderItem={({ item }) => <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line }}>
+    renderItem={({ item }) => <RelationRow item={item} ownerId={query.user?.id} acting={acting === item.author.id} onAuthor={onAuthor} follow={follow} />}
+    ListFooterComponent={query.data.nextCursor ? <Pressy accessibilityRole="button" onPress={() => { void query.load(true); }} disabled={query.loading} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>
+      {query.loading ? <ActivityIndicator color={colors.ink2} /> : <Text style={{ color: colors.ink2, fontWeight: "600" }}>加载更多</Text>}
+    </Pressy> : null}
+  /></PullRefreshSurface>;
+}
+
+const RelationRow = memo(function RelationRow({ item, ownerId, acting, onAuthor, follow }: { item: RelationPage["authors"][number]; ownerId?: string; acting: boolean; onAuthor: (author: PublicAuthor) => void; follow: (id: string, wanted: boolean) => Promise<void> }) {
+  const { colors } = useTheme();
+  return <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line }}>
       <Pressy accessibilityRole="button" accessibilityLabel={`查看${item.author.name}的主页`} onPress={() => onAuthor(item.author)} style={{ flex: 1, minWidth: 0, paddingVertical: 10, flexDirection: "row", gap: 10, alignItems: "center" }}>
         <UserAvatar uri={item.author.avatarUrl} authorId={item.author.id} size={40} />
         <View style={{ flex: 1, minWidth: 0, gap: 1 }}><Text numberOfLines={1} style={{ color: colors.ink1, fontSize: 15, lineHeight: 20, letterSpacing: -0.2, fontWeight: "700" }}>{item.author.name}</Text>
           {item.followsYou ? <Text style={{ color: colors.ink3, fontSize: 12, lineHeight: 17 }}>{item.following ? "互相关注" : "关注了你"}</Text> : null}
         </View>
       </Pressy>
-      {query.user?.id !== item.author.id ? <Pressy accessibilityRole="button" accessibilityLabel={item.following ? "取消关注" : "关注"} disabled={acting === item.author.id}
+      {ownerId !== item.author.id ? <Pressy accessibilityRole="button" accessibilityLabel={item.following ? "取消关注" : "关注"} disabled={acting}
         onPress={() => { void follow(item.author.id, !item.following); }} style={{ minHeight: 30, height: 30, minWidth: 64, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, paddingVertical: 0, backgroundColor: item.following ? colors.surfaceRaised : colors.accent, borderRadius: 15 }}>
-        <Text style={{ color: item.following ? colors.ink2 : colors.onAccent, fontSize: 14, fontWeight: "700" }}>{acting === item.author.id ? "处理中" : item.following ? "已关注" : "关注"}</Text>
+        <Text style={{ color: item.following ? colors.ink2 : colors.onAccent, fontSize: 14, fontWeight: "700" }}>{acting ? "处理中" : item.following ? "已关注" : "关注"}</Text>
       </Pressy> : null}
-    </View>}
-    ListFooterComponent={query.data.nextCursor ? <Pressy accessibilityRole="button" onPress={() => { void query.load(true); }} disabled={query.loading} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>
-      {query.loading ? <ActivityIndicator color={colors.ink2} /> : <Text style={{ color: colors.ink2, fontWeight: "600" }}>加载更多</Text>}
-    </Pressy> : null}
-  /></PullRefreshSurface>;
-}
+    </View>;
+});

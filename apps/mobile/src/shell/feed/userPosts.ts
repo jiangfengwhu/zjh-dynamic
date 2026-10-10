@@ -285,26 +285,27 @@ export function useUserPosts(scope: FeedScope = "recommended", active = true) {
   }));
   useEffect(() => {
     if (scope !== "following" || !active) return;
-    const update = (page: Page) => setFollowing({ owner: cachedAccountId(), page });
+    const update = (page: Page) => setFollowing(previous => { const owner = cachedAccountId(); return previous.owner === owner && previous.page === page ? previous : { owner, page }; });
     followingListeners.add(update);
     update(restoreFollowingPage());
     return () => {
       followingListeners.delete(update);
     };
   }, [scope, active]);
-  const [page, setPage] = useState(value);
+  const [recommended, setRecommended] = useState(() => ({ owner: cachedAccountId(), page: value }));
   useEffect(() => {
-    if (scope === "following") return;
-    listeners.add(setPage);
-    setPage(value);
+    if (scope === "following" || !active) return;
+    const update = (page: Page) => setRecommended(previous => { const owner = cachedAccountId(); return previous.owner === owner && previous.page === page ? previous : { owner, page }; });
+    listeners.add(update);
+    update(value);
     void currentAccountId();
     return () => {
-      listeners.delete(setPage);
+      listeners.delete(update);
     };
-  }, [scope]);
+  }, [scope, active]);
   return scope === "following"
     ? following.owner === cachedAccountId() ? following.page : { posts: [], nextCursor: null } as Page
-    : page;
+    : recommended.owner === cachedAccountId() ? recommended.page : value;
 }
 /** Details subscribe to their own post, rather than rerendering for the entire feed. */
 export function useUserPost(id: string, fallback: UserPost) {

@@ -1,6 +1,6 @@
 import { appendUnique } from "../listData";
 import { AnimatedFlashList } from "../AnimatedFlashList";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { View, ActivityIndicator, AppState, type ViewToken } from "react-native";
 import { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import type { Gesture } from "react-native-gesture-handler";
@@ -55,17 +55,22 @@ export function InboxContent({ active, onMessage, drawerGesture }: { active: boo
     showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never" contentContainerStyle={!query.data.conversations.length ? { flexGrow: 1 } : undefined}
     ListHeaderComponent={<SocialError error={query.error} retry={() => { reconnectMessages(); void query.load(); }} />}
     ListEmptyComponent={<SocialEmpty loading={query.loading} loaded={query.loaded} text="还没有私信，去作者主页聊聊吧" login={!query.user} />}
-    renderItem={({ item }) => <Pressy accessibilityRole="button" accessibilityLabel={`与${item.peer.name}聊天${item.unreadCount ? `，${item.unreadCount}条未读` : ""}`} onPress={() => onMessage(item.peer)}
-      style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, gap: 10, borderRadius: 0, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line, backgroundColor: item.unreadCount ? colors.accentTint : "transparent" }}>
-      <UserAvatar uri={item.peer.avatarUrl} authorId={item.peer.id} size={42} />
-      <View style={{ flex: 1, minWidth: 0, gap: 1 }}><View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, lineHeight: 20, letterSpacing: -0.2, fontWeight: item.unreadCount ? "700" : "600", color: colors.ink1 }}>{item.peer.name}</Text>
-        <Text style={{ fontSize: 11, color: colors.ink3 }}>{formatWhen(item.lastMessage.createdAt)}</Text>
-      </View><Text numberOfLines={2} style={{ color: item.unreadCount ? colors.ink2 : colors.ink3, fontSize: 13, lineHeight: 18 }}>{item.lastMessage.senderId === query.user?.id ? "你：" : ""}{(item.lastMessage.body || (item.lastMessage.post ? `[动态] ${item.lastMessage.post.author.name}` : "") || (item.lastMessage.application ? `[应用] ${item.lastMessage.application.title}` : ""))}</Text></View>
-      {item.unreadCount > 0 ? <View style={{ alignSelf: "center", minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, justifyContent: "center", backgroundColor: colors.orchid }}><Text style={{ textAlign: "center", color: colors.onOrchid, fontSize: 11, lineHeight: 14, fontWeight: "700" }}>{item.unreadCount > 99 ? "99+" : item.unreadCount}</Text></View> : null}
-    </Pressy>}
+    renderItem={({ item }) => <ConversationRow item={item} ownerId={query.user?.id} onMessage={onMessage} />}
     ListFooterComponent={query.data.nextCursor ? <Pressy accessibilityRole="button" onPress={() => { void query.load(true); }} disabled={query.loading} style={{ minHeight: 44, justifyContent: "center", alignItems: "center" }}>
       {query.loading ? <ActivityIndicator color={colors.ink2} /> : <Text style={{ color: colors.ink2, fontWeight: "600" }}>加载更多会话</Text>}
     </Pressy> : null}
   /></PullRefreshSurface>;
 }
+
+const ConversationRow = memo(function ConversationRow({ item, ownerId, onMessage }: { item: Conversation; ownerId?: string; onMessage: (peer: PublicAuthor) => void }) {
+  const { colors } = useTheme();
+  return <Pressy accessibilityRole="button" accessibilityLabel={`与${item.peer.name}聊天${item.unreadCount ? `，${item.unreadCount}条未读` : ""}`} onPress={() => onMessage(item.peer)}
+      style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, gap: 10, borderRadius: 0, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line, backgroundColor: item.unreadCount ? colors.accentTint : "transparent" }}>
+      <UserAvatar uri={item.peer.avatarUrl} authorId={item.peer.id} size={42} />
+      <View style={{ flex: 1, minWidth: 0, gap: 1 }}><View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, lineHeight: 20, letterSpacing: -0.2, fontWeight: item.unreadCount ? "700" : "600", color: colors.ink1 }}>{item.peer.name}</Text>
+        <Text style={{ fontSize: 11, color: colors.ink3 }}>{formatWhen(item.lastMessage.createdAt)}</Text>
+      </View><Text numberOfLines={2} style={{ color: item.unreadCount ? colors.ink2 : colors.ink3, fontSize: 13, lineHeight: 18 }}>{item.lastMessage.senderId === ownerId ? "你：" : ""}{(item.lastMessage.body || (item.lastMessage.post ? `[动态] ${item.lastMessage.post.author.name}` : "") || (item.lastMessage.application ? `[应用] ${item.lastMessage.application.title}` : ""))}</Text></View>
+      {item.unreadCount > 0 ? <View style={{ alignSelf: "center", minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, justifyContent: "center", backgroundColor: colors.orchid }}><Text style={{ textAlign: "center", color: colors.onOrchid, fontSize: 11, lineHeight: 14, fontWeight: "700" }}>{item.unreadCount > 99 ? "99+" : item.unreadCount}</Text></View> : null}
+    </Pressy>;
+});

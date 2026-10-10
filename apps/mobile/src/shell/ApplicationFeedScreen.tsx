@@ -263,7 +263,7 @@ type QueueProps = {
   render: Props["renderApplication"]; onPause: () => void; onResume: () => void; onDetail: Props["onDetail"];
   onRefresh: (item: MarketApplication) => void;
 };
-function ExperienceQueue(props: QueueProps) {
+const ExperienceQueue = memo(function ExperienceQueue(props: QueueProps) {
   const { entries, preparations, retry } = useApplicationExperienceQueue(props.items, props.index, props.active, props.active && !props.switching, props.onRefresh);
   const current = props.items[props.index];
   const positions = useMemo(() => new Map(props.items.map((item, index) => [experienceId(item), index])), [props.items]);
@@ -300,7 +300,7 @@ function ExperienceQueue(props: QueueProps) {
         width={props.width} height={height} render={props.render}
         onPause={props.onPause} onResume={props.onResume} onDetail={props.onDetail} /></View>;
     })}</Animated.View></SafeAreaProvider>;
-}
+});
 type CachedExperienceProps = Omit<QueueProps, "items" | "index" | "active" | "switching" | "drag" | "spacing"> & {
   item: MarketApplication; selected: boolean; ready: boolean; error: string; onRetry: (key: string) => void;
   interactive: boolean; accessible: boolean; visible: boolean;

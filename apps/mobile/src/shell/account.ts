@@ -18,7 +18,12 @@ let initialization: Promise<void> | undefined;
 const listeners = new Set<(value: State) => void>();
 const identityListeners = new Set<(id: string | null) => void>();
 export function subscribeAccountIdentity(listener: (id: string | null) => void) { identityListeners.add(listener); return () => { identityListeners.delete(listener); }; }
-function emit(value: State) { const changed = state.user?.id !== value.user?.id; state = value; setApplicationAccountScope(value.user?.id ?? null); listeners.forEach(listener => listener(value)); if (changed) identityListeners.forEach(listener => listener(value.user?.id ?? null)); }
+function emit(value: State) {
+  const previous = state.user, next = value.user;
+  const sameUser = previous === next || !!previous && !!next && previous.id === next.id && previous.email === next.email && previous.name === next.name && previous.avatarUrl === next.avatarUrl && previous.createdAt === next.createdAt;
+  if (sameUser && state.ready === value.ready && state.storageError === value.storageError) return;
+  if (sameUser) value = { ...value, user: previous };
+  const changed = state.user?.id !== value.user?.id; state = value; setApplicationAccountScope(value.user?.id ?? null); listeners.forEach(listener => listener(value)); if (changed) identityListeners.forEach(listener => listener(value.user?.id ?? null)); }
 function remember(user: Account) { profileRevision++; writeShellValue(cacheKey, JSON.stringify(user)); emit({ user, ready: true, storageError: false }); }
 async function clearAccount() {
   // Never report a successful logout while the persistent credential remains.

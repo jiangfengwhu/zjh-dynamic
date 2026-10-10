@@ -27,7 +27,7 @@ export function cachedPage<T>(key: string): T | undefined {
 export function rememberPage<T>(key: string, value: T) {
   const client = applicationQueryClient("__host");
   const previous = client.getQueryData<T>(["page", key]);
-  const remembered = client.setQueryData(["page", key], value);
+  const remembered = client.setQueryData<T>(["page", key], value);
   if (remembered === previous) return remembered ?? value;
   const entries = client.getQueryCache().findAll({ queryKey: ["page"] }).sort((a,b) => a.state.dataUpdatedAt - b.state.dataUpdatedAt);
   while (entries.length > 32) client.removeQueries({ queryKey: entries.shift()!.queryKey, exact: true });

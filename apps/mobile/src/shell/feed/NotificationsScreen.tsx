@@ -1,3 +1,4 @@
+import { useEventCallback } from "../useEventCallback";
 import { appendUnique } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
 import { ListGesture } from "./ListGesture";
@@ -16,7 +17,7 @@ import { EmptyState } from "../EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "../pageCache";
 import { ActivityIndicator, AppState, type ViewToken } from "react-native";
 import { PageSkeleton } from "../LoadingSkeleton";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { Pressable, View } from "react-native";
 import Animated, {
@@ -363,6 +364,7 @@ function NotificationsContent({
       }
     }
   }
+  const actNotice = useEventCallback(act);
   return (
     <View style={{ flex: 1 }}>
       <GestureDetector gesture={gesture}>
@@ -395,7 +397,71 @@ function NotificationsContent({
                     </Pressable>
                   ) : null
                 }
-                renderItem={({ item }) => (
+                renderItem={({ item }) => <NoticeRow item={item} acting={acting} act={actNotice} />}
+                ListEmptyComponent={
+                  <EmptyState style={user && loading && !loaded ? { flexGrow: 0, alignItems: "stretch", padding: 16 } : undefined}>
+                    {user && loading && !loaded ? (
+                      <PageSkeleton rows={4} shape="notification" />
+                    ) : (
+                      <Text style={{ color: colors.ink3, textAlign: "center", fontSize: 14, lineHeight: 20 }}>
+                        {user
+                          ? category === "creation"
+                            ? "制作完成或失败，会在这里通知你"
+                            : "点赞、评论和回复会出现在这里"
+                          : "请登录后查看通知"}
+                      </Text>
+                    )}
+                    {!user ? (
+                      <Pressy
+                        accessibilityRole="button"
+                        accessibilityLabel="登录查看通知"
+                        onPress={() => {
+                          void requireAccount();
+                        }}
+                        style={{ minHeight: 40, paddingHorizontal: 20, borderRadius: 20, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Text style={{ color: colors.onAccent, fontWeight: "700" }}>
+                          登录查看通知
+                        </Text>
+                      </Pressy>
+                    ) : null}
+                  </EmptyState>
+                }
+                ListFooterComponent={
+                  page.nextCursor ? (
+                    <Pressable
+                      disabled={loading || acting}
+                      onPress={() => void load(true)}
+                      style={{ padding: 16 }}
+                    >
+                      {loadingMore ? (
+                        <ActivityIndicator color={colors.ink2} />
+                      ) : (
+                        <Text
+                          style={{
+                            color: colors.ink2,
+                            fontWeight: "600",
+                            textAlign: "center",
+                          }}
+                        >
+                          加载更多通知
+                        </Text>
+                      )}
+                    </Pressable>
+                  ) : null
+                }
+              />
+            </ListGesture>
+          </Animated.View>
+        </View>
+      </GestureDetector>
+    </View>
+  );
+}
+
+const NoticeRow = memo(function NoticeRow({ item, acting, act }: { item: Notice; acting: boolean; act: (item: Notice) => Promise<void> }) {
+  const { colors } = useTheme();
+  return (
                   <Pressy
                     disabled={acting}
                     accessibilityLabel={`${noticeHeading(item)}${
@@ -458,64 +524,5 @@ function NotificationsContent({
                       />
                     ) : null}
                   </Pressy>
-                )}
-                ListEmptyComponent={
-                  <EmptyState style={user && loading && !loaded ? { flexGrow: 0, alignItems: "stretch", padding: 16 } : undefined}>
-                    {user && loading && !loaded ? (
-                      <PageSkeleton rows={4} shape="notification" />
-                    ) : (
-                      <Text style={{ color: colors.ink3, textAlign: "center", fontSize: 14, lineHeight: 20 }}>
-                        {user
-                          ? category === "creation"
-                            ? "制作完成或失败，会在这里通知你"
-                            : "点赞、评论和回复会出现在这里"
-                          : "请登录后查看通知"}
-                      </Text>
-                    )}
-                    {!user ? (
-                      <Pressy
-                        accessibilityRole="button"
-                        accessibilityLabel="登录查看通知"
-                        onPress={() => {
-                          void requireAccount();
-                        }}
-                        style={{ minHeight: 40, paddingHorizontal: 20, borderRadius: 20, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}
-                      >
-                        <Text style={{ color: colors.onAccent, fontWeight: "700" }}>
-                          登录查看通知
-                        </Text>
-                      </Pressy>
-                    ) : null}
-                  </EmptyState>
-                }
-                ListFooterComponent={
-                  page.nextCursor ? (
-                    <Pressable
-                      disabled={loading || acting}
-                      onPress={() => void load(true)}
-                      style={{ padding: 16 }}
-                    >
-                      {loadingMore ? (
-                        <ActivityIndicator color={colors.ink2} />
-                      ) : (
-                        <Text
-                          style={{
-                            color: colors.ink2,
-                            fontWeight: "600",
-                            textAlign: "center",
-                          }}
-                        >
-                          加载更多通知
-                        </Text>
-                      )}
-                    </Pressable>
-                  ) : null
-                }
-              />
-            </ListGesture>
-          </Animated.View>
-        </View>
-      </GestureDetector>
-    </View>
   );
-}
+});

@@ -102,11 +102,11 @@ export const FeedScreen = memo(function FeedScreen({
   );
   const feedVersion = useLiveVersion("feed");
   const seenFeedVersion = useRef<Record<string, number>>({});
-  const userTimeline = useUserPosts();
+  const focused = useIsFocused();
+  const userTimeline = useUserPosts("recommended", focused);
   useEffect(() => {
     if (userTimeline.loaded) markStartup("feed-data-ready");
   }, [userTimeline.loaded]);
-  const focused = useIsFocused();
   const lists = useRef<Partial<Record<FeedCategory, Pick<FlashListRef<unknown>, "scrollToOffset">>> >({});
   const [loadingMore, setLoadingMore] = useState(false);
   const [timelineLoading, setTimelineLoading] = useState({
@@ -119,7 +119,7 @@ export const FeedScreen = memo(function FeedScreen({
   });
   const setTimelineError = useCallback(
     (category: FeedCategory, message: string) =>
-      setTimelineErrors((previous) => ({ ...previous, [category]: message })),
+      setTimelineErrors((previous) => previous[category] === message ? previous : ({ ...previous, [category]: message })),
     []
   );
   const [kind, selectCategory] = useState<FeedCategory>("recommended");
@@ -162,14 +162,14 @@ export const FeedScreen = memo(function FeedScreen({
       const refresh = () => {
         if (!live) return;
         seenFeedVersion.current[kind] = feedVersion;
-        setTimelineLoading((previous) => ({ ...previous, [kind]: true }));
+        setTimelineLoading((previous) => previous[kind] ? previous : ({ ...previous, [kind]: true }));
         void refreshUserPosts(kind, true)
           .then(
             () => setTimelineError(kind, ""),
             () => setTimelineError(kind, "用户动态暂时未能同步，下拉可重试")
           )
           .finally(() =>
-            setTimelineLoading((previous) => ({ ...previous, [kind]: false }))
+            setTimelineLoading((previous) => !previous[kind] ? previous : ({ ...previous, [kind]: false }))
           );
       };
       // Missing content is startup work. Only cached, silent refresh waits idle.

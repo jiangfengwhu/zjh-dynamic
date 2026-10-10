@@ -1,7 +1,7 @@
 import { FlashList } from "@shopify/flash-list";
 import { EmptyState } from "../EmptyState";
 import { Skeleton } from "../../../../../packages/ui/feedback/Skeleton";
-import { useEffect, useRef, useState } from "react";
+import { memo, useMemo, useEffect, useRef, useState } from "react";
 import { cachedAccountId, subscribeAccountIdentity } from "../account";
 import { Animated, Easing, Pressable, View } from "react-native";
 import {
@@ -99,6 +99,7 @@ function ProgressContent({
     ? colors.amber
     : colors.orchid;
   const output = query.snapshot?.detail.traces.filter(trace => trace.kind === "text" && trace.title !== "你的需求" && (trace.detail || trace.title).trim()).at(-1);
+  const outputRows = useMemo(() => output ? [output] : [], [output]);
   const step = ready ? 2 : state === "packing" || state === "blocked" ? 1 : 0;
   const workTitle =
     query.snapshot?.detail.status.application?.appName || title || "这次制作";
@@ -148,9 +149,9 @@ function ProgressContent({
         />
       </ScreenBar>
       <FlashList
-        data={output ? [output] : []}
+        data={outputRows}
         keyExtractor={trace => trace.id}
-        renderItem={({ item }) => <View style={{ gap: 8, paddingVertical: 16 }}><Text style={{ ...colors.type.overline, color: colors.ink3 }}>{ready || state === "packing" ? "制作结果" : "最新回复"}</Text><Text selectable style={{ color: colors.ink2, fontSize: 14, lineHeight: 23 }}>{item.detail || item.title}</Text></View>}
+        renderItem={({ item }) => <ProgressOutput text={item.detail || item.title} result={ready || state === "packing"} />}
         maintainVisibleContentPosition={{ disabled: true }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -484,3 +485,8 @@ function LoadingPanel({ failed, active }: { failed: boolean; active: boolean }) 
     <View style={{ minHeight: 18, justifyContent: "center" }}>{block("85%", 11)}</View>
   </View>;
 }
+
+const ProgressOutput = memo(function ProgressOutput({ text, result }: { text: string; result: boolean }) {
+  const { colors } = useTheme();
+  return <View style={{ gap: 8, paddingVertical: 16 }}><Text style={{ ...colors.type.overline, color: colors.ink3 }}>{result ? "制作结果" : "最新回复"}</Text><Text selectable style={{ color: colors.ink2, fontSize: 14, lineHeight: 23 }}>{text}</Text></View>;
+});

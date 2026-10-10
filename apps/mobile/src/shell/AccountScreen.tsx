@@ -54,7 +54,7 @@ export function AccountScreen({ onBack }: { onBack: () => void }) {
       </View> : user ? <>
         <View style={styles.panel}>
           <View style={styles.avatarRow}>
-            <UserAvatar uri={user.avatarUrl} size={52} style={styles.avatar} onError={() => toast.error("头像加载失败，请检查网络后重试")} />
+            <UserAvatar uri={user.avatarUrl} size={52} style={styles.avatar} onError={avatarError} />
             <View style={styles.fill}><Text style={styles.label}>你的头像</Text><Text style={styles.hint}>从相册选择一张喜欢的照片</Text></View>
           </View>
           {button("更换头像", () => void perform(() => chooseAccountAvatar(setUploadStatus), "头像已更新"), false, true)}
@@ -94,3 +94,5 @@ const useStyles = createThemedStyles(t => ({
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingBottom: 2 }, fill: { flex: 1, gap: 2 },
   avatar: { width: 52, height: 52, borderRadius: 26 },
 }));
+
+function avatarError() { toast.error("头像加载失败，请检查网络后重试"); }
