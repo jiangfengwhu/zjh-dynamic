@@ -94,6 +94,16 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
       },
       exportFile: (path, options) => transfer("exportFile", path, options),
       share: (path, options) => transfer("share", path, options),
+      saveToGallery: async (path, options) => {
+        const ext = path.split(".").pop()?.toLowerCase() ?? "";
+        const mime = options?.mime ?? ({ jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif", mp4: "video/mp4", webm: "video/webm" } as Record<string, string>)[ext];
+        if (!mime || !["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm"].includes(mime)) throw new Error("相册仅支持 JPEG/PNG/WebP/GIF/MP4/WebM");
+        const { Platform } = require("react-native");
+        if (Number(Platform.Version) < 29) return transfer("exportFile", path, { ...options, mime });
+        const ns = namespace();
+        try { guard(ns); return await fileAction("saveToGallery", { appId, path: pathFor(path, ns), ...options, mime }); }
+        catch { return { ok: false, code: "ERROR", error: "无法保存到相册" }; }
+      },
     },
   };
 }

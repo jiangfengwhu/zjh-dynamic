@@ -1,6 +1,8 @@
 import type { ComponentType } from "react";
 import type { AiService } from "./ai-types";
 import type { AppAuth, AppCloud } from "./cloud-types";
+import type { ApplicationNativeCapabilities } from "./native-types";
+export type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, SpeechOptions, RecognitionOptions, SensorKind, SensorSample, CalendarEventInput, ShortcutInput } from "./native-types";
 export { CloudError } from "./cloud-types";
 export type { AppUser, AppAuth, AppCloud, CloudDatabase, CloudCollection, CloudRecord, CloudPage, CloudQuery, CloudRequestOptions, CloudWriteOptions, CloudErrorCode, CloudFile, CloudFiles, CloudRoom, CloudRooms, CloudRoomStatus, CloudRoomEvent, CloudRoomMember } from "./cloud-types";
 export type {
@@ -30,6 +32,27 @@ export type UserPostDraft = {
   requestId?: string;
 };
 export type ShellResult = { ok: boolean; error?: string };
+export type NotificationOptions = {
+  params?: ShareParams;
+  /** Up to three buttons. Native snooze/complete work without starting RN. */
+  actions?: { id: string; title: string; behavior?: "open" | "snooze" | "complete"; snoozeMs?: number }[];
+};
+export type ReminderOptions = NotificationOptions & {
+  /** Local calendar time; weekdays: Monday=1, Sunday=7. Omitted timeZone follows the device. */
+  repeat?: { hour: number; minute: number; weekdays: number[]; timeZone?: string };
+};
+export type NotificationEvent = { token: string; id: string; action: string; params: ShareParams; atMs: number };
+export type ReminderResult = ShellResult & { atMs?: number; exact?: boolean };
+export type NotificationStatus = ShellResult & {
+  /** Host-wide notification permission. */
+  granted?: boolean;
+  /** Whether this application's channel is allowed. */
+  channelEnabled?: boolean;
+  /** Both host permission and this application's channel are allowed. */
+  enabled?: boolean;
+  channelId?: string;
+  exact?: boolean;
+};
 export type LocationResult =
   | { ok: true; latitude: number; longitude: number; accuracy: number }
   | { ok: false; code: "PERMISSION" | "TIMEOUT" | "UNAVAILABLE"; error: string };
@@ -64,6 +87,8 @@ export type AppData = {
     exportFile: (path: string, options?: { name?: string; mime?: string }) => Promise<FileActionResult>;
     /** Opens the system share sheet with an existing application file. */
     share: (path: string, options?: { title?: string; mime?: string }) => Promise<FileActionResult>;
+    /** Saves existing app media to the gallery (Android 10+); older Android opens Save As without storage permission. */
+    saveToGallery: (path: string, options?: { name?: string; mime?: string }) => Promise<FileActionResult>;
   };
 };
 export type ApplicationManifest = {
@@ -134,22 +159,30 @@ export type AppContext = AppData & {
     open: () => void;
     create: (prompt?: string) => void;
   };
-  phone: {
+  phone: ApplicationNativeCapabilities & {
     /** One foreground fix; request location permission first. Accuracy is in metres. */
     location: (options?: { accuracy?: "fine" | "coarse" }) => Promise<LocationResult>;
-    speak: (text: string) => Promise<ShellResult>;
     /** Request notification permission only from a user action. */
     requestNotifications: () => Promise<{ ok: boolean; granted?: boolean; status?: "unavailable" | "denied" | "blocked" | "granted" | "limited"; error?: string }>;
-    notify: (id: string, title: string, body: string) => Promise<ShellResult>;
+    notificationStatus: () => Promise<NotificationStatus>;
+    /** Opens this app's channel settings, or host settings if permission is denied; only from a user action. */
+    notificationSettings: (kind?: "notifications" | "exact") => Promise<ShellResult>;
+    /** Persistent click events; acknowledge only after handling. Delivery can repeat until acknowledged. */
+    onNotification: (listener: (event: NotificationEvent) => void) => () => void;
+    acknowledgeNotification: (token: string) => Promise<ShellResult>;
+    notify: (id: string, title: string, body: string, options?: NotificationOptions) => Promise<ShellResult>;
     schedule: (
       id: string,
       title: string,
       body: string,
-      atMs: number
-    ) => Promise<ShellResult>;
+      atMs: number,
+      options?: ReminderOptions
+    ) => Promise<ReminderResult>;
     /** Cancels a pending reminder and its displayed notification; IDs are local to this app. */
     cancelSchedule: (id: string) => Promise<ShellResult>;
-    schedules: () => Promise<{ ok: true; items: { id: string; title: string; body: string; atMs: number }[] } | { ok: false; error: string }>;
+    /** Cancels this application's pending and displayed notifications. */
+    cancelAllSchedules: () => Promise<ShellResult>;
+    schedules: () => Promise<{ ok: true; items: { id: string; title: string; body: string; atMs: number; options?: ReminderOptions }[] } | { ok: false; error: string }>;
     keepAwake: (on: boolean) => Promise<ShellResult>;
   };
 };

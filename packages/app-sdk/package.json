@@ -1,6 +1,6 @@
 {
   "name": "@zijinhua/app-sdk",
-  "version": "2.2.6",
+  "version": "2.2.7",
   "description": "Zijinhua application SDK and independent build/publish tools",
   "type": "commonjs",
   "main": "dist/index.js",

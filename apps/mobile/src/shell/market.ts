@@ -26,6 +26,7 @@ import {
   registerApplicationMetadata,
 } from "../../../../packages/features/src/registry";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
+import { shell } from "../../../../packages/platform/src/phone";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { confirmCreation } from "./creationConsent";
 export type MarketApplication = {
@@ -355,6 +356,8 @@ export async function uninstallMarketApplication(appId: string) {
   entry.pinned = false;
   await saveCatalog(catalog);
   writeShellValue(`application.pending.${appId}`, "");
+  await shell("cancelAllSchedules", { appId }).catch(() => {});
+  await shell("removeApplicationShortcuts", { appId }).catch(() => {});
   await unloadApplication(appId);
 }
 export type SharingState = {

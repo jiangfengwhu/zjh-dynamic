@@ -1,4 +1,6 @@
 import { applicationSharing, clearApplicationShareListeners } from "./sharing";
+import { applicationNotifications, clearApplicationNotifications } from "./notifications";
+import { applicationNative, clearApplicationNative, setApplicationNativeActive } from "./native";
 const bootstrap = require("../../../tools/applications/bootstrap.json");
 import type { AppContext, AppDefinition, AppData, DataScope } from "./index";
 import { createElement, useEffect, useContext, useSyncExternalStore } from "react";
@@ -139,12 +141,17 @@ export function applicationContext(appId: string): AppContext {
       create: (prompt) => creationNavigation(appId, prompt),
     },
     phone: {
+      ...applicationNative(appId, () => {
+        const registry = require("../../features/src/registry") as typeof import("../../features/src/registry");
+        const bundle = registry.bundles.find(item => item.id === appId);
+        return { title: bundle?.title ?? appId, accent: bundle?.accent ?? "#E65088" };
+      }, path => scope("device").files.uri(path)),
       location: phone.location,
-      speak: phone.speak,
       requestNotifications: async () => { const { status } = await requestNotifications(["alert", "sound", "badge"]); return { ok: true, granted: status === RESULTS.GRANTED, status }; },
-      notify: (id, title, body) => phone.notify(reminderId(id), title, body),
-      schedule: (id, title, body, atMs) =>
-        phone.schedule(reminderId(id), title, body, atMs),
+      ...applicationNotifications(appId, reminderId, () => {
+        const registry = require("../../features/src/registry") as typeof import("../../features/src/registry");
+        return registry.bundles.find(item => item.id === appId)?.title ?? (appId === bootstrap.defaultApplication ? "Jolly" : appId);
+      }),
       cancelSchedule: id => shell("cancelSchedule", { id: reminderId(id) }),
       schedules: async () => {
         try {
@@ -186,7 +193,8 @@ export function registerApplication(appId: string, definition: AppDefinition) {
     useEffect(() => {
       if (!active || !focused) return;
       setApplicationCloudActive(appId, true);
-      return () => setApplicationCloudActive(appId, false);
+      setApplicationNativeActive(appId, true);
+      return () => { setApplicationCloudActive(appId, false); setApplicationNativeActive(appId, false); };
     }, [active, focused]);
     useEffect(() => {
       pageReady(appId);
@@ -214,7 +222,7 @@ export async function disposeApplication(appId: string) {
     requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(timer); resolve(); }));
   });
   try { await definition?.onDispose?.(applicationContext(appId)); }
-  finally { definitions.delete(appId); activated.delete(appId); assets.delete(appId); contexts.delete(appId); clearApplicationShareListeners(appId); clearApplicationQueries(appId); }
+  finally { definitions.delete(appId); activated.delete(appId); assets.delete(appId); contexts.delete(appId); clearApplicationShareListeners(appId); clearApplicationNotifications(appId); clearApplicationNative(appId); clearApplicationQueries(appId); }
 }
 
 export function peekRegisteredApplication(appId: string) {
