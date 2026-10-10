@@ -6,6 +6,10 @@ import { accountSocket, cachedAccountId, requireAccount, subscribeAccountIdentit
 const activeApps = new Set<string>();
 const clients = new Set<{ appId: string; refresh: () => void; leave: () => void }>();
 let installed = false;
+export function disposeApplicationRooms(appId: string) {
+  for (const client of [...clients]) if (client.appId === appId) client.leave();
+  activeApps.delete(appId);
+}
 export function setCloudActivity(appId: string, active: boolean) {
   if (active) activeApps.add(appId); else activeApps.delete(appId);
   for (const client of clients) if (client.appId === appId) client.refresh();

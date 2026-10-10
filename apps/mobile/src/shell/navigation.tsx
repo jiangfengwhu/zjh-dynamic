@@ -7,7 +7,7 @@ import { markStartup } from "../runtime/startupTiming";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "../../../../packages/ui/primitives/Button";
-import { publicApplicationLoaded } from "../runtime/applications";
+import { publicApplicationLoaded, retainApplicationRuntimes } from "../runtime/applications";
 import { ApplicationSdkError } from "../runtime/applicationCompatibility";
 import { Linking, StyleSheet, View, useWindowDimensions } from "react-native";
 import { AmbientFill } from "../../../../packages/ui/chrome";
@@ -366,7 +366,8 @@ function BundlePage({ id, render, onCheckUpdates }: {
   onCheckUpdates: () => Promise<boolean>;
   render: (id: string, onBack: () => void) => ReactNode;
 }) {
-
+  const retentionOwner = useRef({});
+  useEffect(() => retainApplicationRuntimes(retentionOwner.current, [id]), [id]);
   // The runtime cache already enforces account access and quarantines failed packages.
   // Reopening an evaluated package must not replay the entrance loading state.
   const cachedOnEntry = useRef(Boolean(cachedFeature(id))).current;

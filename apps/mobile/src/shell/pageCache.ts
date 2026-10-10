@@ -12,10 +12,11 @@ function removeSnapshot(key: string) {
   for (const part of shellKeys()) if (part.startsWith(partsKey(key))) removeShellValue(part);
 }
 export function pageCacheKey(key: string) { return `${cachedAccountId() ?? "guest"}:${key}`; }
-export function cachedPage<T>(key: string): T | undefined {
+export function cachedPage<T>(key: string, memoryOnly = false): T | undefined {
   const client = applicationQueryClient("__host");
   const cached = client.getQueryData<T>(["page", key]);
   if (cached !== undefined) return cached;
+  if (memoryOnly) return undefined;
   try {
     const raw = readShellValueSync(prefix + key);
     if (!raw) return undefined;

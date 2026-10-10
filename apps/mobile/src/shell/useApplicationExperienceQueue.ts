@@ -1,6 +1,6 @@
 import { useEventCallback } from "./useEventCallback";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadPublicApplicationExperience, reloadApplication } from "../runtime/applications";
+import { loadPublicApplicationExperience, reloadApplication, retainApplicationRuntimes } from "../runtime/applications";
 import type { MarketApplication } from "./market";
 import { fetchMarketDetail, installMarketApplication } from "./market";
 
@@ -11,13 +11,13 @@ export const experienceId = (item: MarketApplication) => `${item.manifest.appId}
 type Preparation = { ready: boolean; downloaded?: boolean; error: string };
 
 /** At most seven identities: current, three ahead and three recently visited. */
-export function experienceWindow(items: readonly MarketApplication[], index: number, history: readonly MarketApplication[]) {
+export function experienceWindow(items: readonly MarketApplication[], index: number, history: readonly MarketApplication[], availableIds?: ReadonlySet<string>) {
   const wanted = items.slice(index, index + EXPERIENCE_AHEAD + 1);
   const keys = new Set(wanted.map(experienceId));
   let retained = 0;
   // Always include the preceding feed page, even after reversing beyond history.
   const previous = items.slice(Math.max(0, index - 1), index);
-  const available = new Set(items.map(experienceId));
+  const available = availableIds ?? new Set(items.map(experienceId));
   for (const item of [...previous, ...history]) {
     if (!available.has(experienceId(item))) continue;
     if (!keys.has(experienceId(item))) { wanted.push(item); keys.add(experienceId(item)); retained++; }
@@ -34,7 +34,10 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
   // Adjust this component's state before commit, rather than committing the old
   // history and then forcing a second list layout from a layout effect.
   if (visits.key !== key) setVisits({ key, history: current ? [current, ...visits.history.filter(item => experienceId(item) !== key)].slice(0, HISTORY_SIZE + 1) : [] });
-  const entries = useMemo(() => experienceWindow(items, index, visits.history), [items, index, visits.history]);
+  const availableIds = useMemo(() => new Set(items.map(experienceId)), [items]);
+  const entries = useMemo(() => experienceWindow(items, index, visits.history, availableIds), [items, index, visits.history, availableIds]);
+  const retentionOwner = useRef({});
+  useEffect(() => retainApplicationRuntimes(retentionOwner.current, entries.map(item => item.manifest.appId)), [entries]);
   const [preparations, setPreparations] = useState<Map<string, Preparation>>(() => new Map());
   useEffect(() => {
     const retained = new Set(entries.map(experienceId));

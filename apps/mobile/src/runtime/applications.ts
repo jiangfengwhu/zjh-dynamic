@@ -1,11 +1,12 @@
+import { disposeApplicationRooms } from "./applicationRooms";
 import { assertApplicationSdkCompatible, ApplicationSdkError } from "./applicationCompatibility";
 import NativePluginHost from "../NativePluginHost";
 import { downloadApplicationResources, type DownloadPriority } from "./applicationDownloads";
-import { waitForInteractions, waitForRouteTransitions } from "../shell/interactionWork";
+import { afterInteractions, waitForInteractions, waitForRouteTransitions } from "../shell/interactionWork";
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, readShellValueSync, shellKeys, writeShellValue } from "../shell/shellStorage";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../shell/account";
-import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt, disposeApplication } from "../../../../packages/app-sdk/src/runtime";
+import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt, onApplicationPageMounted, disposeApplication } from "../../../../packages/app-sdk/src/runtime";
 import { createApplicationModuleScope, releaseApplicationModuleScope } from "./applicationModules";
 import { restoreWorks } from "../shell/workRecovery";
 import { loadCatalog, loadCatalogSync, saveCatalog } from "../shell/catalog";
@@ -49,6 +50,52 @@ export function loadedPublicApplicationRelease(appId: string) {
   const access = activeAccess.get(appId);
   return loaded.has(appId) && access?.public && !access.ownerId ? active.get(appId) : undefined;
 }
+// Keep seven evaluated runtimes, plus pages that are genuinely retained by UI.
+// Disk installs are unaffected; evicted apps can evaluate their cached bundle again.
+const runtimeWindows = new Map<object, ReadonlySet<string>>();
+const mountedPages = new Map<string, number>();
+const runtimeUse = new Map<string, number>();
+let useSequence = 0;
+let trimScheduled = false;
+const protectedRuntime = (id: string) => id === bootstrap.defaultApplication || !!mountedPages.get(id)
+  || [...runtimeWindows.values()].some(ids => ids.has(id));
+function scheduleRuntimeTrim() {
+  if (trimScheduled) return;
+  trimScheduled = true;
+  afterInteractions(() => {
+    trimScheduled = false;
+    const excess = loaded.size - 7;
+    if (excess <= 0) return;
+    const candidates = [...loaded].filter(id => !protectedRuntime(id) && !loading.has(id) && !reloading.has(id))
+      .sort((a, b) => (runtimeUse.get(a) ?? 0) - (runtimeUse.get(b) ?? 0));
+    for (const id of candidates.slice(0, excess)) {
+      // Reserve disposal before yielding; a concurrent open waits and reloads.
+      const task = Promise.resolve().then(async () => {
+        if (protectedRuntime(id) || loading.has(id) || loaded.size <= 7) return;
+        await releaseRuntime(id);
+        publicReleaseReplacements.delete(id); publicReleaseSelections.delete(id);
+      }).finally(() => {
+        if (reloading.get(id) === task) { reloading.delete(id); replacementModes.delete(id); }
+      });
+      reloading.set(id, task); replacementModes.set(id, false);
+      void task.catch(() => {});
+    }
+  });
+}
+export function retainApplicationRuntimes(owner: object, ids: readonly string[]) {
+  runtimeWindows.set(owner, new Set(ids));
+  scheduleRuntimeTrim();
+  return () => { runtimeWindows.delete(owner); scheduleRuntimeTrim(); };
+}
+onApplicationPageMounted(id => {
+  mountedPages.set(id, (mountedPages.get(id) ?? 0) + 1);
+  runtimeUse.set(id, ++useSequence);
+  return () => {
+    const remaining = (mountedPages.get(id) ?? 1) - 1;
+    if (remaining) mountedPages.set(id, remaining); else mountedPages.delete(id);
+    scheduleRuntimeTrim();
+  };
+});
 const manifestTexts = new WeakMap<ApplicationManifest, string>();
 const marketTexts = new WeakMap<MarketApplication, string>();
 function manifestText(manifest: ApplicationManifest) {
@@ -382,6 +429,8 @@ async function releaseRuntime(appId: string) {
   active.delete(appId); activeAccess.delete(appId);
   writeShellValue(`application.attempt.${appId}`, "");
   writeShellValue(`application.evaluation.${appId}`, "");
+  runtimeUse.delete(appId);
+  disposeApplicationRooms(appId);
   try { await disposeApplication(appId); }
   catch { console.warn("应用卸载回调失败", appId); }
   finally { releaseApplicationModuleScope(appId); }
@@ -404,7 +453,7 @@ export function reloadApplication(appId: string) { return replaceRuntime(appId, 
 export function unloadApplication(appId: string) { return replaceRuntime(appId, false); }
 export async function loadApplication(appId: string): Promise<void> {
   const replacement = reloading.get(appId);
-  if (replacement) return replacement;
+  if (replacement) { await replacement; return startApplicationLoad(appId); }
   return startApplicationLoad(appId);
 }
 function startApplicationLoad(appId: string): Promise<void> {
@@ -417,6 +466,7 @@ function startApplicationLoad(appId: string): Promise<void> {
   }
   const pending = load(appId).then(() => {
     loaded.add(appId);
+    runtimeUse.set(appId, ++useSequence);
     activateApplication(appId);
     const manifest = loadedPublicApplicationRelease(appId);
     if (manifest) {
@@ -434,6 +484,7 @@ function startApplicationLoad(appId: string): Promise<void> {
   }).finally(() => {
     evaluating.delete(appId);
     if (loading.get(appId) === pending) loading.delete(appId);
+    scheduleRuntimeTrim();
   });
   loading.set(appId, pending);
   return pending;
@@ -444,14 +495,10 @@ async function load(appId: string) {
   const key = `application.install.${appId}`;
   const saved = await readShellValue(key);
   let staged = await readShellValue(`application.pending.${appId}`);
-  if (staged && await readShellValue(`application.evaluation.host.${appId}`) === hostBuildId && (await readShellValue(`application.attempt.${appId}`) || await readShellValue(`application.evaluation.${appId}`))) {
-    writeShellValue(`application.failed.${appId}`, JSON.parse(staged).releaseId);
-    writeShellValue(`application.failed.host.${appId}`, hostBuildId);
-    writeShellValue(`application.pending.${appId}`, "");
-    writeShellValue(`application.attempt.${appId}`, "");
-    writeShellValue(`application.evaluation.${appId}`, "");
-    staged = undefined;
-  }
+  // An interrupted process is not proof of a failed release. Recovery records
+  // actual exceptions; unconfirmed downloads remain available for another try.
+  writeShellValue(`application.attempt.${appId}`, "");
+  writeShellValue(`application.evaluation.${appId}`, "");
   let manifest: ApplicationManifest;
   if (staged) manifest = JSON.parse(staged) as ApplicationManifest;
   else if (saved) manifest = JSON.parse(saved) as ApplicationManifest;

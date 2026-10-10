@@ -1,7 +1,6 @@
 import { applicationSharing } from "../../../../packages/app-sdk/src/sharing";
 import { AnimatedFlashList } from "./AnimatedFlashList";
 import { afterInteractions, waitForInteractions } from "./interactionWork";
-import { cachedPage, pageCacheKey } from "./pageCache";
 import { ApplicationIcon, rememberApplicationIcon } from "./ApplicationIcon";
 import { useLiveVersion } from "./liveEvents";
 import { UserAvatar } from "./UserAvatar";
@@ -62,7 +61,7 @@ import { HostText as Text } from "./feed/HostText";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 import { KeyboardViewport } from "./KeyboardViewport";
-import { useRouteRequestReady } from "./useRouteContentReady";
+import { useRouteContentReady, useRouteRequestReady } from "./useRouteContentReady";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export function MarketPublicationScreen(props: Parameters<typeof MarketDetailContent>[0]) { return <MarketDetailScreen {...props} publication />; }
 export function MarketDetailScreen(
@@ -71,8 +70,9 @@ export function MarketDetailScreen(
   const { user } = useAccount();
   const workVersion = useLiveVersion("work", props.item.manifest.appId);
   const ready = useRouteRequestReady();
+  const contentReady = useRouteContentReady();
   const focused = useIsFocused();
-  const [result, setResult] = useState(() => ({ owner: user?.id, item: cachedPage<MarketApplication>(pageCacheKey(`market-detail:${props.item.manifest.appId}`)) ?? props.item }));
+  const [result, setResult] = useState(() => ({ owner: user?.id, item: props.item }));
   const item = result.owner === user?.id ? result.item : props.item;
   const setItem = (next: MarketApplication) => setResult({ owner: user?.id, item: next });
   const [error, setError] = useState(false);
@@ -89,8 +89,26 @@ export function MarketDetailScreen(
     }, () => { if (live) setError(true); });
     return () => { live = false; };
   }, [ready, focused, props.item.manifest.appId, props.item, attempt, user?.id, workVersion]);
+  if (!contentReady) return <MarketDetailOpening {...props} />;
   // Lists can carry a display-only projection. Actions wait for full detail.
   return <View style={{ flex: 1 }}><LoadedMarketDetail {...props} item={item} onRefresh={() => setAttempt(value => value + 1)} />{error ? <Pressy accessibilityRole="button" accessibilityLabel="重试作品同步" onPress={() => { setError(false); setAttempt(value => value + 1); }}><Text>同步未完成 · 重试</Text></Pressy> : null}</View>;
+}
+function MarketDetailOpening({ item, publication, onBack }: Parameters<typeof MarketDetailContent>[0]) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  return <ScreenEdge bottom={false}><Screen style={styles.screen}>
+    <PageHeader title={publication ? "公开作品" : item.owned ? "作品详情" : "应用详情"} onBack={onBack} />
+    <View style={styles.content}>
+      <View style={styles.hero}>
+        <ApplicationIcon application={item} size={76} />
+        <View style={{ flex: 1, gap: 10 }}>
+          <Text style={styles.title} numberOfLines={1}>{item.title || item.manifest.appName}</Text>
+          <View style={{ height: 16, width: 96, borderRadius: 8, backgroundColor: colors.surfaceRaised }} />
+        </View>
+      </View>
+      {[72, 112, 144].map((height, index) => <View key={index} style={{ height, borderRadius: 16, backgroundColor: colors.surfaceRaised }} />)}
+    </View>
+  </Screen></ScreenEdge>;
 }
 function LoadedMarketDetail(props: Parameters<typeof MarketDetailContent>[0]) {
   const theme = useTheme();

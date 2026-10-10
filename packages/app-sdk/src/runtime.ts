@@ -40,6 +40,8 @@ let accountScope = "guest";
 const scopeListeners = new Set<() => void>();
 let pageReady: (appId: string) => void = () => {};
 let pageAttempt: (appId: string) => void = () => {};
+let pageMounted: (appId: string) => () => void = () => () => {};
+export function onApplicationPageMounted(handler: typeof pageMounted) { pageMounted = handler; }
 let postShare: (
   appId: string,
   draft: import("./index").UserPostDraft
@@ -193,6 +195,7 @@ export function registerApplication(appId: string, definition: AppDefinition) {
       setApplicationNativeActive(appId, true);
       return () => { setApplicationCloudActive(appId, false); setApplicationNativeActive(appId, false); };
     }, [active, focused]);
+    useEffect(() => pageMounted(appId), []);
     useEffect(() => {
       pageReady(appId);
     }, []);

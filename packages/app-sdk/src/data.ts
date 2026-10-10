@@ -11,6 +11,12 @@ export async function fileAction(method: string, payload: Record<string, unknown
   } catch { return { ok: false, code: "ERROR", error: "文件操作失败，请重试" }; }
 }
 
+/** Commit an app-owned temporary file without deleting the previous contents. */
+export async function commitApplicationFile(appId: string, temporary: string, path: string, signal?: AbortSignal) {
+  const result = await documentAction(appId, "fileCommit", { temporary, path }, signal, "operationCancel");
+  if (!result.ok) throw new Error(result.code === "CANCELLED" ? "CANCELLED" : "文件保存失败");
+}
+
 /** The resolver binds the scope; applications never supply host account IDs or native paths. */
 export function applicationData(appId: string, scope: DataScope, account: () => string, subscribeAccount: (listener: () => void) => () => void): AppData {
   const blob = () => require("react-native-blob-util").default;
@@ -91,12 +97,17 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
         if (result.length > 8 * 1024 * 1024) throw new Error("读取文件不能超过 6 MB");
         return result;
       },
-      writeText: async (path, data) => { const ns = namespace(); const target = pathFor(path, ns); await parent(target); guard(ns); await blob().fs.writeFile(target, data, "utf8"); guard(ns); },
+      writeText: async (path, data) => {
+        const ns = namespace(), target = pathFor(path, ns), temporary = `${target}.write-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await parent(target); guard(ns);
+        try { await blob().fs.writeFile(temporary, data, "utf8"); guard(ns); await commitApplicationFile(appId, temporary, target); guard(ns); }
+        finally { await blob().fs.unlink(temporary).catch(() => {}); }
+      },
       writeBase64: async (path, data) => {
         if (data.length > 8 * 1024 * 1024 || data.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(data)) throw new Error("Base64 数据无效或超过 6 MB");
         const ns = namespace(), target = pathFor(path, ns), temporary = `${target}.write-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await parent(target); guard(ns);
-        try { await blob().fs.writeFile(temporary, data, "base64"); guard(ns); await blob().fs.mv(temporary, target); guard(ns); }
+        try { await blob().fs.writeFile(temporary, data, "base64"); guard(ns); await commitApplicationFile(appId, temporary, target); guard(ns); }
         finally { await blob().fs.unlink(temporary).catch(() => {}); }
       },
       remove: async path => { const ns = namespace(); const target = pathFor(path, ns); if (await blob().fs.exists(target)) { guard(ns); await blob().fs.unlink(target); } guard(ns); },
@@ -123,7 +134,7 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
           const result = await task;
           if (result.info().status < 200 || result.info().status >= 300) throw new Error("下载失败");
           if (options.signal?.aborted) throw new Error("下载已取消");
-          guard(ns); await blob().fs.mv(temporary, target); guard(ns);
+          guard(ns); await commitApplicationFile(appId, temporary, target, options.signal); guard(ns);
         } finally { options.signal?.removeEventListener("abort", cancel); removeAccount(); if (await blob().fs.exists(temporary)) await blob().fs.unlink(temporary); }
       },
       importFile: async (path, options = {}) => {

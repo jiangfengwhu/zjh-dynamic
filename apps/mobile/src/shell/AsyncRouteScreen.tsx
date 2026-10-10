@@ -26,7 +26,7 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
   const loader = useRef(load);
   loader.current = load;
   const cacheKey = suppliedKey ? pageCacheKey(suppliedKey) : undefined;
-  const [result, setResult] = useState<{ value: T; key?: string } | undefined>(() => { const value = cacheKey ? cachedPage<T>(cacheKey) : undefined; return value === undefined ? undefined : { value, key: cacheKey }; });
+  const [result, setResult] = useState<{ value: T; key?: string } | undefined>(() => { const value = cacheKey ? cachedPage<T>(cacheKey, true) : undefined; return value === undefined ? undefined : { value, key: cacheKey }; });
   const visible = result?.key === cacheKey ? result : undefined;
   const displayed = useRef(visible); displayed.current = visible;
   const [error, setError] = useState<Error | null>(null);
@@ -34,10 +34,18 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
   useEffect(() => {
     if (!focused || (!cacheKey && displayed.current)) return;
     let live = true;
+    let received = false;
     const controller = new AbortController();
+    // Disk snapshots may require decoding many chunks. Keep that work out of
+    // the entrance animation, while allowing the network request to start now.
+    const restore = cacheKey && !displayed.current ? afterInteractions(() => {
+      if (!live || received || displayed.current) return;
+      const value = cachedPage<T>(cacheKey);
+      if (value !== undefined) setResult({ value, key: cacheKey });
+    }) : () => {};
     const run = () => {
       void loader.current(controller.signal).then(
-        async value => { await waitForInteractions(); if (!live) return; const shared = cacheKey ? rememberPage(cacheKey, value) : value; if (!displayed.current || (cacheKey ? displayed.current.value !== shared : dataChanged(displayed.current.value, shared))) setResult({ value: shared, key: cacheKey }); setError(null); },
+        async value => { received = true; await waitForInteractions(); if (!live) return; const shared = cacheKey ? rememberPage(cacheKey, value) : value; if (!displayed.current || (cacheKey ? displayed.current.value !== shared : dataChanged(displayed.current.value, shared))) setResult({ value: shared, key: cacheKey }); setError(null); },
         cause => { if (live) setError(cause instanceof Error ? cause : new Error("加载失败，请重试")); }
       );
     };
@@ -45,7 +53,7 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
     // background revalidation of displayed content waits for an idle slot.
     const cached = !!displayed.current;
     const cancel = cached ? afterInteractions(run) : (() => { const frame = requestAnimationFrame(run); return () => cancelAnimationFrame(frame); })();
-    return () => { live = false; controller.abort(); cancel(); };
+    return () => { live = false; controller.abort(); cancel(); restore(); };
   }, [focused, attempt, cacheKey]);
   if (visible) return <View style={{ flex: 1 }}><View style={{ flex: 1 }}>{children(visible.value)}</View>{error ? <Pressy onPress={() => { setError(null); setAttempt(value => value + 1); }}><Text>同步未完成 · 点击重试</Text></Pressy> : null}</View>;
   return <ThemeContext.Provider value={theme}>

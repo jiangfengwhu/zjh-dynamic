@@ -1,3 +1,4 @@
+import { commitApplicationFile } from "../../../../packages/app-sdk/src/data";
 import BlobUtil from "react-native-blob-util";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { CloudError, type CloudErrorCode, type CloudFiles, type CloudFile } from "../../../../packages/app-sdk/src/cloud-types";
@@ -57,9 +58,8 @@ export function applicationCloudFiles(appId: string): CloudFiles {
         await accountCloudFile(route(fileId) + "/content", temporary, false, options ?? {});
         if (cachedAccountId() !== owner) throw new Error("ACCOUNT_CHANGED");
         if (options?.signal?.aborted) throw new Error("CANCELLED");
-        if (await BlobUtil.fs.exists(target)) await BlobUtil.fs.unlink(target);
         if (cachedAccountId() !== owner) throw new Error("ACCOUNT_CHANGED");
-        await BlobUtil.fs.mv(temporary, target); temporary = undefined;
+        await commitApplicationFile(appId, temporary, target, options?.signal); temporary = undefined;
         if (cachedAccountId() !== owner) throw new Error("ACCOUNT_CHANGED");
       } catch (cause) { failure(cause); }
       finally { if (temporary) await BlobUtil.fs.unlink(temporary).catch(() => {}); }

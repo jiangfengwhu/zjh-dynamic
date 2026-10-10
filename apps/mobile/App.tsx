@@ -285,10 +285,11 @@ function ShellApp() {
   }), []);
 
   const items = useMemo<ShellItem[]>(() => {
+    const byId = new Map(catalog.map(entry => [entry.id, entry]));
     return bundles
-      .filter((bundle) => catalog.some((entry) => entry.id === bundle.id))
+      .filter((bundle) => byId.has(bundle.id))
       .map((bundle) => {
-        const entry = catalog.find((item) => item.id === bundle.id);
+        const entry = byId.get(bundle.id);
         const pinned = entry?.pinned ?? !(entry?.hidden ?? false);
         const trashedAt = entry?.trashedAt;
         const purged = entry?.purged ?? false;
@@ -304,7 +305,7 @@ function ShellApp() {
       });
   }, [catalog]);
 
-  const listed = items.filter((item) => !item.trashedAt && !item.purged);
+  const listed = useMemo(() => items.filter((item) => !item.trashedAt && !item.purged), [items]);
 
   async function patchCatalog(id: string, patch: Partial<CatalogEntry>) {
     const next = upsert(await loadCatalog(), id, patch);
