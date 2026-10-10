@@ -1,3 +1,4 @@
+import { afterInteractions } from "./interactionWork";
 import { cachedMySummary, fetchWorksGallery, subscribeMySummary } from "./worksGallery";
 import { lazyScreen } from "./lazyScreen";
 import { Text } from "../../../../packages/ui/primitives/Typography";
@@ -78,7 +79,12 @@ function MyProfileContent({
   const insets = useSafeAreaInsets();
   const { user } = useAccount();
   const [tab, setTab] = useState<"posts" | "works">("works");
-  const { visited, reveal } = useVisitedPager();
+  const { visited, reveal, visit } = useVisitedPager();
+  useFocusEffect(useCallback(() => {
+    let idle: number | undefined;
+    const cancel = afterInteractions(() => { idle = requestIdleCallback(() => visit(1)); });
+    return () => { cancel(); if (idle !== undefined) cancelIdleCallback(idle); };
+  }, [visit]));
   const [stats, setStats] = useState<{
     id: string;
     publicCount: number;

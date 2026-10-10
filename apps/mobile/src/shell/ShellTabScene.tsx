@@ -12,6 +12,8 @@ export function ShellTabScene({ children, immediate = false }: { children: React
   const route = useRoute();
   const [ready, setReady] = useState(immediate && focused);
   const { colors } = useTheme();
+  const [showSkeleton, setShowSkeleton] = useState(false);
+  useEffect(() => { if (ready || !focused) return; const timer = setTimeout(() => setShowSkeleton(true), 200); return () => clearTimeout(timer); }, [ready, focused]);
   useEffect(() => {
     if (ready || !focused) return;
     // Paint the selected route before mounting its content. Hidden routes never
@@ -25,7 +27,7 @@ export function ShellTabScene({ children, immediate = false }: { children: React
   return ready || (immediate && focused) ? (typeof children === "function" ? children() : children) : (
     <View style={{ flex: 1, padding: 16, backgroundColor: colors.canvas }}>
       <Ambient />
-      {focused ? <PageSkeleton rows={4} shape={route.name === "market" ? "feed" : route.name === "feed" ? "application" : route.name === "notifications" ? "notification" : "work"} /> : null}
+      {focused && showSkeleton ? <PageSkeleton rows={4} shape={route.name === "market" ? "feed" : route.name === "feed" ? "application" : route.name === "notifications" ? "notification" : "work"} /> : null}
     </View>
   );
 }

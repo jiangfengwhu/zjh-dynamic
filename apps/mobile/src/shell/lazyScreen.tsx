@@ -1,3 +1,5 @@
+import { Ambient } from "../../../../packages/ui/chrome";
+import { useTheme } from "../../../../packages/ui/theme";
 import { afterInteractions } from "./interactionWork";
 import { createElement, useEffect, useState, type ComponentType } from "react";
 import { View } from "react-native";
@@ -7,6 +9,7 @@ import { useIsFocused, useRoute } from "@react-navigation/native";
 export function lazyScreen<P extends object>(load: () => ComponentType<P>, afterPaint = false, deferCached = false): ComponentType<P> {
   let screen: ComponentType<P> | undefined;
   if (afterPaint) return function DeferredScreen(props: P) {
+    const { colors } = useTheme();
     const focused = useIsFocused();
     const route = useRoute();
     const [loaded, setLoaded] = useState<{ component?: ComponentType<P>; error?: unknown }>(() => ({ component: deferCached ? undefined : screen }));
@@ -22,7 +25,7 @@ export function lazyScreen<P extends object>(load: () => ComponentType<P>, after
       });
     }, [focused, loaded, route.name]);
     if (loaded.error) throw loaded.error;
-    return loaded.component ? createElement(loaded.component, props) : <View style={{ flex: 1 }} />;
+    return loaded.component ? createElement(loaded.component, props) : <View style={{ flex: 1, backgroundColor: colors.canvas }}><Ambient /></View>;
   };
   return function LazyScreen(props: P) {
     return createElement(screen ??= load(), props);

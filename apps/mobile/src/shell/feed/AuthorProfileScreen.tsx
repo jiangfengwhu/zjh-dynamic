@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import type { MarketApplication } from "../market";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
@@ -37,6 +38,8 @@ import { PullRefreshSurface } from "./PullRefreshSurface";
 import {
   fetchAuthorProfile,
   cachedAuthorProfile,
+  cachedAuthorFollowing,
+  subscribeAuthorFollow,
   setAuthorFollow,
   useUserPosts,
   type AuthorProfile,
@@ -98,6 +101,9 @@ function AuthorProfileContent({
   }));
   const initialIndex = initialTab === "apps" ? 1 : 0;
   const { visited, visit, reveal } = useVisitedPager(initialIndex);
+  const storedFollowing = useSyncExternalStore(subscribeAuthorFollow, () => cachedAuthorFollowing(initialAuthor.id));
+  const following = storedFollowing ?? profile.following;
+  const followUnknown = !!user && following === undefined;
   const [tab, setTab] = useState<"posts" | "apps">(initialTab);
   const loadedTabs = useRef(new Set<string>());
   const selectedTab = useRef(tab); selectedTab.current = tab;
@@ -135,7 +141,7 @@ function AuthorProfileContent({
       setFollowBusy(true);
       const result = await setAuthorFollow(
         initialAuthor.id,
-        !profile.following,
+        !following,
       );
       if (!alive.current || (await currentAccountId()) !== owner) return;
       revision.current++;
@@ -207,7 +213,7 @@ function AuthorProfileContent({
     revision.current++;
     if (identity.current !== user?.id) {
       identity.current = user?.id;
-      setProfile(cachedAuthorProfile(initialAuthor.id) ?? { author: initialAuthor, following: false, posts: [], applications: [], nextCursor: null });
+      setProfile(cachedAuthorProfile(initialAuthor.id) ?? { author: initialAuthor, posts: [], applications: [], nextCursor: null });
       loadedTabs.current.clear();
       setLoaded(false);
     }
@@ -286,12 +292,12 @@ function AuthorProfileContent({
             {user?.id !== author.id ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={profile.following ? "取消关注" : "关注作者"}
+                accessibilityLabel={following ? "取消关注" : "关注作者"}
                 accessibilityState={{
-                  disabled: followBusy || busy,
-                  selected: !!profile.following,
+                  disabled: followBusy || followUnknown,
+                  selected: !!following,
                 }}
-                disabled={followBusy || busy}
+                disabled={followBusy || followUnknown}
                 onPress={() => void toggleFollow()}
                 style={{
                   minHeight: 34,
@@ -300,10 +306,10 @@ function AuthorProfileContent({
                   borderRadius: 17,
                   justifyContent: "center",
                   alignItems: "center",
-                  backgroundColor: profile.following
+                  backgroundColor: following || followUnknown
                     ? colors.surfaceRaised
                     : colors.accent,
-                  opacity: followBusy || busy ? 0.6 : 1,
+                  opacity: followBusy || followUnknown ? 0.6 : 1,
                 }}
               >
                 <Text
@@ -311,12 +317,14 @@ function AuthorProfileContent({
                     fontSize: 13,
                     fontWeight: "700",
                     letterSpacing: -0.1,
-                    color: profile.following ? colors.ink2 : colors.onAccent,
+                    color: following || followUnknown ? colors.ink2 : colors.onAccent,
                   }}
                 >
                   {followBusy
                     ? "处理中…"
-                    : profile.following
+                    : followUnknown
+                      ? "—"
+                      : following
                       ? "已关注"
                       : "关注"}
                 </Text>
