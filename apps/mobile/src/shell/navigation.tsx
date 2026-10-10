@@ -7,6 +7,7 @@ import { markStartup } from "../runtime/startupTiming";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "../../../../packages/ui/primitives/Button";
+import { publicApplicationLoaded } from "../runtime/applications";
 import { ApplicationSdkError } from "../runtime/applicationCompatibility";
 import { Linking, StyleSheet, View, useWindowDimensions } from "react-native";
 import { AmbientFill } from "../../../../packages/ui/chrome";
@@ -45,7 +46,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { type AppEntry } from "./catalog";
 import type { MarketApplication } from "./market";
-import { fetchMarketDetail, isApplicationInstalled } from "./market";
+import { fetchMarketDetail, isApplicationInstalled, isPublicApplicationInstalledSync } from "./market";
 import {
   applicationContext,
   setApplicationPostHandlers,
@@ -246,12 +247,23 @@ export async function openPublicMarketApplication(appId: string, params?: ShareP
 export async function openCommonApplication(appId: string) {
   if (!shellNavigationRef.isReady()) return;
   receiveApplicationShare(appId);
+  const cached = cachedFeature(appId);
+  if (cached && publicApplicationLoaded(appId)) {
+    shellNavigationRef.navigate("commonApplication", { appId });
+    return;
+  }
   await showApplicationOpening(async signal => {
-    const { fetchPublicMarketApplication } = require("./market") as typeof import("./market");
-    const { loadPublicApplicationExperience } = require("../runtime/applications") as typeof import("../runtime/applications");
-    const application = await fetchPublicMarketApplication(appId);
-    signal.throwIfAborted();
-    await loadPublicApplicationExperience(application.manifest, signal, application);
+    // A cold JS session can load its persisted public install offline. A cached
+    // private candidate still follows the public-version selection below.
+    if (!cachedFeature(appId) && isPublicApplicationInstalledSync(appId)) {
+      await openFeature(appId);
+    } else {
+      const { fetchPublicMarketApplication } = require("./market") as typeof import("./market");
+      const { loadPublicApplicationExperience } = require("../runtime/applications") as typeof import("../runtime/applications");
+      const application = await fetchPublicMarketApplication(appId);
+      signal.throwIfAborted();
+      await loadPublicApplicationExperience(application.manifest, signal, application);
+    }
     signal.throwIfAborted();
     shellNavigationRef.navigate("commonApplication", { appId });
   });

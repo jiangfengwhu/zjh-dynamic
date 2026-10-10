@@ -205,6 +205,11 @@ export function applicationLoaded(appId: string) {
   const access = activeAccess.get(appId);
   return loaded.has(appId) && !quarantined.has(appId) && !!access && (!access.ownerId || access.ownerId === cachedAccountId());
 }
+/** Common applications reuse only public runtimes, never workshop candidates. */
+export function publicApplicationLoaded(appId: string) {
+  const access = activeAccess.get(appId);
+  return applicationLoaded(appId) && access?.public === true && !access.ownerId;
+}
 export function applicationNeedsReload(manifest: ApplicationManifest) {
   return quarantined.has(manifest.appId) || evaluating.has(manifest.appId) && !loaded.has(manifest.appId) || !!active.get(manifest.appId) && active.get(manifest.appId)?.releaseId !== manifest.releaseId;
 }

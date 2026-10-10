@@ -211,6 +211,16 @@ export function isApplicationInstalledSync(appId: string): boolean {
     return !access.ownerId || access.ownerId === cachedAccountId();
   } catch { return false; }
 }
+/** Reuse the locally selected public package without a catalog network request. */
+export function isPublicApplicationInstalledSync(appId: string): boolean {
+  if (!isApplicationInstalledSync(appId)) return false;
+  try {
+    const pending = readShellValueSync(`application.pending.${appId}`);
+    const manifest = JSON.parse(pending || readShellValueSync(`application.install.${appId}`) || "null") as ApplicationManifest | null;
+    const access = JSON.parse(readShellValueSync(`application.${pending ? "pending.access" : "access"}.${appId}`) || "{}");
+    return manifest?.appId === appId && access.releaseId === manifest.releaseId && access.public === true && !access.ownerId;
+  } catch { return false; }
+}
 export async function isApplicationInstalled(appId: string): Promise<boolean> {
   const owner = await currentAccountId();
   const entries = await loadCatalog();
