@@ -1,6 +1,6 @@
-import type { ShellResult, ShareParams } from "./index";
+import type { ShellResult, ShareParams, LocationResult } from "./index";
 
-export type NativeErrorCode = "CANCELLED" | "PERMISSION" | "UNSUPPORTED" | "BUSY" | "TIMEOUT" | "NO_MATCH" | "NETWORK" | "UNAVAILABLE";
+export type NativeErrorCode = "CANCELLED" | "PERMISSION" | "UNSUPPORTED" | "BUSY" | "TIMEOUT" | "NO_MATCH" | "NETWORK" | "UNAVAILABLE" | "DISABLED" | "TOO_LARGE";
 export type NativeActionResult = { ok: true } | { ok: false; code: NativeErrorCode; error: string };
 export type SpeechOptions = { language?: string; rate?: number; pitch?: number; signal?: AbortSignal };
 export type RecognitionOptions = { language?: string; onDevice?: boolean; signal?: AbortSignal; onPartial?: (text: string) => void };
@@ -12,9 +12,40 @@ export type CalendarEventInput = { title: string; startMs: number; endMs: number
 export type ShortcutInput = { id: string; label?: string; params?: ShareParams; /** Existing raster image in device-scoped app files. */ iconPath?: string };
 export type WidgetInput = { id: string; title: string; body?: string; imagePath?: string; params?: ShareParams; progress?: number; backgroundColor?: string; textColor?: string };
 export type OcrResult = { ok: true; text: string; width: number; height: number; blocks: { text: string; lines: string[]; bounds?: { x: number; y: number; width: number; height: number } }[] } | Extract<NativeActionResult, { ok: false }>;
-export type PdfOptions = { html: string; title?: string; pageSize?: "A4" | "A5" | "LETTER"; landscape?: boolean; marginMm?: number; signal?: AbortSignal };
-export type PdfResult = { ok: true; path: string; pages: number } | Extract<NativeActionResult, { ok: false }>;
+export type NativeRequestOptions = { signal?: AbortSignal; timeoutMs?: number };
+export type NativeValueResult<T> = ({ ok: true } & T) | Extract<NativeActionResult, { ok: false }>;
+export type DeviceInfo = { brand: string; model: string; sdk: number; release: string; battery: number; charging: boolean };
+export type BluetoothDevice = { name: string; address: string; rssi?: number };
+export type NfcTag = { id: string; text: string; records: { text: string; type: string }[]; technologies: string[] };
+export type HealthKind = "steps" | "heartRate" | "sleep";
+export type HealthSummary = { steps?: number; sleepMinutes?: number; heartRate?: number | null; heartRateAtMs?: number | null };
+export type CalendarEvent = { id: string; title: string; startMs: number; endMs: number; allDay: boolean };
 export type ApplicationNativeCapabilities = {
+  /** One foreground fix; request location permission first. Accuracy is in metres. */
+  location: (options?: NativeRequestOptions & { accuracy?: "fine" | "coarse" }) => Promise<LocationResult>;
+  device: () => Promise<NativeValueResult<DeviceInfo>>;
+  /** Opens an external URL from an explicit user action. */
+  openUrl: (url: string) => Promise<NativeActionResult>;
+  /** Camera permission required; released offscreen, in background, or on disposal. */
+  torch: (on: boolean) => Promise<NativeActionResult>;
+  bluetooth: {
+    status: () => Promise<NativeValueResult<{ present: boolean; enabled: boolean }>>;
+    requestPermissions: () => Promise<NativeValueResult<{ granted: boolean }>>;
+    pairedDevices: () => Promise<NativeValueResult<{ items: BluetoothDevice[] }>>;
+    /** BLE discovery only; does not connect or read GATT characteristics. */
+    scan: (options?: NativeRequestOptions & { seconds?: number }) => Promise<NativeValueResult<{ items: BluetoothDevice[] }>>;
+  };
+  nfc: {
+    status: () => Promise<NativeValueResult<{ present: boolean; enabled: boolean }>>;
+    /** Reads one tag/NDEF message; does not write cards or emulate payment cards. */
+    read: (options?: NativeRequestOptions) => Promise<NativeValueResult<NfcTag>>;
+  };
+  health: {
+    status: () => Promise<NativeValueResult<{ status: "available" | "update" | "unavailable" }>>;
+    permissions: () => Promise<NativeValueResult<{ granted: HealthKind[] }>>;
+    requestPermissions: (options?: NativeRequestOptions & { kinds?: HealthKind[] }) => Promise<NativeValueResult<{ granted: HealthKind[]; grantedAll: boolean }>>;
+    summary: (fromMs: number, toMs: number, options?: NativeRequestOptions & { kinds?: HealthKind[] }) => Promise<NativeValueResult<HealthSummary>>;
+  };
   keepAwake: (on: boolean) => Promise<NativeActionResult>;
   /** Resolves when queued, retaining the original speak contract. */
   speak: (text: string) => Promise<NativeActionResult>;
@@ -49,6 +80,11 @@ export type ApplicationNativeCapabilities = {
     remove: (id: string) => Promise<NativeActionResult>;
   };
   calendar: {
+    /** Expanded instances, including recurring/overlapping events; needs READ_CALENDAR. */
+    events: (fromMs: number, toMs: number, options?: NativeRequestOptions & { limit?: number; offset?: number }) => Promise<NativeValueResult<{ items: CalendarEvent[]; nextOffset: number | null }>>;
+    /** Insert needs READ_CALENDAR + WRITE_CALENDAR; direct mutations require an explicit user action. */
+    insert: (input: CalendarEventInput, options?: NativeRequestOptions) => Promise<NativeValueResult<{ id: string }>>;
+    remove: (id: string, options?: NativeRequestOptions) => Promise<NativeValueResult<{ removed: boolean }>>;
     /** Opens the system editor; success does not mean the user saved the event. No calendar read/write permission. */
     compose: (input: CalendarEventInput) => Promise<NativeActionResult>;
   };

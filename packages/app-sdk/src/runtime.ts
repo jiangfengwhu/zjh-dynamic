@@ -10,7 +10,6 @@ import { applicationCapabilities } from "./capabilities";
 import { applicationData } from "./data";
 import { shell } from "../../platform/src/phone";
 import { registerFeature } from "../../features/src/featureHost";
-import { phone } from "../../platform/src/phone";
 import { applicationAi } from "./ai";
 import { KeyboardViewport } from "../../ui/keyboard";
 import { ApplicationQueries, changeQueryAccount, clearApplicationQueries } from "./query-runtime";
@@ -146,7 +145,6 @@ export function applicationContext(appId: string): AppContext {
         const bundle = registry.bundles.find(item => item.id === appId);
         return { title: bundle?.title ?? appId, accent: bundle?.accent ?? "#E65088" };
       }, path => scope("device").files.uri(path)),
-      location: phone.location,
       requestNotifications: async () => { const { status } = await requestNotifications(["alert", "sound", "badge"]); return { ok: true, granted: status === RESULTS.GRANTED, status }; },
       ...applicationNotifications(appId, reminderId, () => {
         const registry = require("../../features/src/registry") as typeof import("../../features/src/registry");

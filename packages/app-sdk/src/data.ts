@@ -2,7 +2,7 @@ import type { AppData, DataScope, FileActionResult } from "./index";
 import { readPackageValue, writePackageValue, removePackageValue, subscribePackageValue } from "../../ui/packageLink";
 import { shell } from "../../platform/src/phone";
 import { documentAction } from "./documents";
-import type { OcrResult, PdfResult } from "./native-types";
+import type { OcrResult } from "./native-types";
 
 export async function fileAction(method: string, payload: Record<string, unknown>): Promise<FileActionResult> {
   try {
@@ -29,13 +29,29 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
   const pathFor = (path: string, ns = namespace()) => `${root(ns)}/${validPath(path)}`;
   const parent = async (path: string) => { const directory = path.slice(0, path.lastIndexOf("/")); if (!await blob().fs.exists(directory)) await blob().fs.mkdir(directory); };
   const secure = (value: string, ns: string) => `com.zijinhua.applications.${appId}.${ns ? `${ns.replaceAll("/", ".")}.` : ""}${encodeURIComponent(key(value))}`;
-  const transfer = async (method: string, path: string, options?: { name?: string; title?: string; mime?: string }): Promise<FileActionResult> => {
+  const transferOptions = (options?: { timeoutMs?: number; maxBytes?: number }) => {
+    if (options?.timeoutMs !== undefined && (!Number.isInteger(options.timeoutMs) || options.timeoutMs < 1000 || options.timeoutMs > 180000)) throw new Error("超时须为 1–180 秒");
+    if (options?.maxBytes !== undefined && (!Number.isSafeInteger(options.maxBytes) || options.maxBytes < 1 || options.maxBytes > 100 * 1024 * 1024)) throw new Error("文件上限须为 1 字节至 100 MB");
+  };
+  const scopedRequest = (ns: string, signal?: AbortSignal) => {
+    const controller = new AbortController();
+    const abort = () => controller.abort(); signal?.addEventListener("abort", abort);
+    const removeAccount = scope === "account" ? subscribeAccount(() => { if (ns !== namespace()) abort(); }) : () => {};
+    if (signal?.aborted) abort();
+    return { signal: controller.signal, dispose: () => { signal?.removeEventListener("abort", abort); removeAccount(); } };
+  };
+  const transfer = async (method: string, path: string, options?: { name?: string; title?: string; mime?: string; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number }): Promise<FileActionResult> => {
+    transferOptions(options);
     const ns = namespace(); const target = pathFor(path, ns);
+    const request = scopedRequest(ns, options?.signal);
     try {
       if (!await blob().fs.exists(target)) throw new Error("missing file");
       guard(ns);
-      return await fileAction(method, { path: target, ...options });
-    } catch { return { ok: false, code: "ERROR", error: "无法读取应用文件，请重试" }; }
+      const { signal, ...input } = options ?? {};
+      const result = await documentAction(appId, method, { path: target, ...input }, request.signal, "operationCancel"); guard(ns);
+      return result.ok ? { ok: true } : { ok: false, code: result.code, error: result.error };
+    } catch { return request.signal.aborted ? { ok: false, code: "CANCELLED", error: "已取消" } : { ok: false, code: "ERROR", error: "无法读取应用文件，请重试" }; }
+    finally { request.dispose(); }
   };
   return {
     storage: {
@@ -59,12 +75,6 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
         const ns = namespace(); guard(ns);
         const result = await documentAction(appId, "documentRecognize", { path: pathFor(path, ns) }, options?.signal); guard(ns);
         return result as OcrResult;
-      },
-      createPdf: async (path, options) => {
-        if (!path.toLowerCase().endsWith(".pdf") || !options.html.trim() || options.html.length > 2 * 1024 * 1024 || options.marginMm !== undefined && (!Number.isFinite(options.marginMm) || options.marginMm < 0 || options.marginMm > 40)) throw new Error("PDF 参数无效");
-        const ns = namespace(), { signal, ...input } = options; guard(ns);
-        const result = await documentAction(appId, "documentPdf", { ...input, path: pathFor(path, ns) }, signal); guard(ns);
-        return (result.ok ? { ...result, path } : result) as PdfResult;
       },
       print: async (path, options) => {
         const ns = namespace(); guard(ns);
@@ -116,21 +126,16 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
           guard(ns); await blob().fs.mv(temporary, target); guard(ns);
         } finally { options.signal?.removeEventListener("abort", cancel); removeAccount(); if (await blob().fs.exists(temporary)) await blob().fs.unlink(temporary); }
       },
-      importFile: async (path, options) => {
-        const ns = namespace(); const target = pathFor(path, ns); let temporary: string | undefined;
-        const staging = `${target}.import-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      importFile: async (path, options = {}) => {
+        transferOptions(options);
+        const ns = namespace(); const target = pathFor(path, ns);
+        const request = scopedRequest(ns, options.signal);
         try {
-          const picked = await shell<{ ok: boolean; path?: string; name?: string; error?: string }>("pick", { kind: "file", mime: options?.mime });
-          if (!picked.ok) return { ok: false, code: picked.error === "cancel" ? "CANCELLED" : "ERROR", error: picked.error === "cancel" ? "已取消" : "无法导入文件" };
-          temporary = picked.path;
-          if (!temporary) throw new Error("missing selection");
-          guard(ns); await parent(target); guard(ns); await blob().fs.cp(temporary, staging); guard(ns); await blob().fs.mv(staging, target); guard(ns);
-          return { ok: true, path, name: picked.name ?? path.split("/").pop()! };
-        } catch { return { ok: false, code: "ERROR", error: "无法导入文件，请重试" }; }
-        finally {
-          if (temporary) await blob().fs.unlink(temporary).catch(() => {});
-          await blob().fs.unlink(staging).catch(() => {});
-        }
+          const { signal, ...input } = options;
+          const result = await documentAction(appId, "pick", { path: target, ...input }, request.signal, "operationCancel"); guard(ns);
+          return result.ok ? { ok: true, path, name: typeof result.name === "string" ? result.name : path.split("/").pop()! } : { ok: false, code: result.code, error: result.error };
+        } catch { return request.signal.aborted ? { ok: false, code: "CANCELLED", error: "已取消" } : { ok: false, code: "ERROR", error: "无法导入文件，请重试" }; }
+        finally { request.dispose(); }
       },
       exportFile: (path, options) => transfer("exportFile", path, options),
       share: (path, options) => transfer("share", path, options),

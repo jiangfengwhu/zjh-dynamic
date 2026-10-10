@@ -1,8 +1,8 @@
 import type { ComponentType } from "react";
 import type { AiService } from "./ai-types";
 import type { AppAuth, AppCloud } from "./cloud-types";
-import type { ApplicationNativeCapabilities, NativeActionResult, OcrResult, PdfOptions, PdfResult } from "./native-types";
-export type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, SpeechOptions, RecognitionOptions, SensorKind, SensorSample, CalendarEventInput, ShortcutInput, WidgetInput, OcrResult, PdfOptions, PdfResult } from "./native-types";
+import type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, OcrResult } from "./native-types";
+export type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, SpeechOptions, RecognitionOptions, SensorKind, SensorSample, CalendarEventInput, ShortcutInput, WidgetInput, OcrResult, NativeRequestOptions, NativeValueResult, DeviceInfo, BluetoothDevice, NfcTag, HealthKind, HealthSummary, CalendarEvent } from "./native-types";
 export { CloudError } from "./cloud-types";
 export type { AppUser, AppAuth, AppCloud, CloudDatabase, CloudCollection, CloudRecord, CloudPage, CloudQuery, CloudRequestOptions, CloudWriteOptions, CloudErrorCode, CloudFile, CloudFiles, CloudRoom, CloudRooms, CloudRoomStatus, CloudRoomEvent, CloudRoomMember } from "./cloud-types";
 export type {
@@ -55,9 +55,9 @@ export type NotificationStatus = ShellResult & {
 };
 export type LocationResult =
   | { ok: true; latitude: number; longitude: number; accuracy: number }
-  | { ok: false; code: "PERMISSION" | "TIMEOUT" | "UNAVAILABLE"; error: string };
+  | { ok: false; code: NativeErrorCode; error: string };
 export type DataScope = "device" | "account";
-export type FileActionResult = { ok: true } | { ok: false; code: "CANCELLED" | "ERROR"; error: string };
+export type FileActionResult = { ok: true } | { ok: false; code: NativeErrorCode | "ERROR"; error: string };
 export type FileImportResult = { ok: true; path: string; name: string } | Extract<FileActionResult, { ok: false }>;
 export type AppData = {
   storage: {
@@ -74,8 +74,6 @@ export type AppData = {
   files: {
     /** Offline Chinese/Latin OCR. Bounds refer to the returned, possibly downsampled/rotated image size. */
     recognizeText: (path: string, options?: { signal?: AbortSignal }) => Promise<OcrResult>;
-    /** HTML/CSS and embedded data images only; no scripts, remote requests or local-file access. */
-    createPdf: (path: string, options: PdfOptions) => Promise<PdfResult>;
     /** Opens system printing with an existing PDF; success does not mean printing completed. */
     print: (path: string, options?: { title?: string }) => Promise<NativeActionResult & { opened?: boolean }>;
     uri: (path: string) => string;
@@ -90,9 +88,9 @@ export type AppData = {
     list: (directory?: string) => Promise<string[]>;
     download: (url: string, path: string, options?: { signal?: AbortSignal; timeoutMs?: number; onProgress?: (received: number, total?: number) => void }) => Promise<void>;
     /** Copies a user-selected document into the application; cancellation is a normal result. */
-    importFile: (path: string, options?: { mime?: string }) => Promise<FileImportResult>;
+    importFile: (path: string, options?: { mime?: string; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number }) => Promise<FileImportResult>;
     /** Opens the system Save As dialog for an existing application file. */
-    exportFile: (path: string, options?: { name?: string; mime?: string }) => Promise<FileActionResult>;
+    exportFile: (path: string, options?: { name?: string; mime?: string; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number }) => Promise<FileActionResult>;
     /** Opens the system share sheet with an existing application file. */
     share: (path: string, options?: { title?: string; mime?: string }) => Promise<FileActionResult>;
     /** Saves existing app media to the gallery (Android 10+); older Android opens Save As without storage permission. */
@@ -168,8 +166,6 @@ export type AppContext = AppData & {
     create: (prompt?: string) => void;
   };
   phone: ApplicationNativeCapabilities & {
-    /** One foreground fix; request location permission first. Accuracy is in metres. */
-    location: (options?: { accuracy?: "fine" | "coarse" }) => Promise<LocationResult>;
     /** Request notification permission only from a user action. */
     requestNotifications: () => Promise<{ ok: boolean; granted?: boolean; status?: "unavailable" | "denied" | "blocked" | "granted" | "limited"; error?: string }>;
     notificationStatus: () => Promise<NotificationStatus>;
