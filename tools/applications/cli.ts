@@ -1,5 +1,5 @@
 import path from "node:path";
-import { mkdir, readFile, writeFile, cp } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { buildApplication } from "./build.js";
@@ -27,8 +27,6 @@ else if (command === "init") {
   if (!Number.isSafeInteger(base) || base < 2000000 || base % platform.moduleRangeSize || base + platform.moduleRangeSize >= 2 ** 31) throw new Error("服务端模块范围无效");
   const directory = path.join(root, "apps", appId);
   await mkdir(directory);
-  const template = path.join(root, "templates/basic");
-  await cp(template, directory, { recursive: true, errorOnExist: true });
   let original = {};
   let dependencies: Record<string, string> | undefined;
   if (originalAppId) {
@@ -48,6 +46,11 @@ else if (command === "init") {
     const priorPackage = JSON.parse(execFileSync("git", ["show", `${originalCommit}:${prefix}package.json`], { cwd: root, encoding: "utf8", windowsHide: true }));
     dependencies = priorPackage.dependencies;
     original = { appName: prior.appName, description: prior.description, accent: prior.accent };
+  } else {
+    const src = path.join(directory, "src");
+    await mkdir(src);
+    await writeFile(path.join(src, "index.ts"), 'import { defineApp } from "@zijinhua/app-sdk";\nexport default defineApp({ main: () => require("./app").default });\n');
+    await writeFile(path.join(src, "app.tsx"), "export default function App() {\n  return null;\n}\n");
   }
   await writeFile(path.join(directory, "application.json"), JSON.stringify({ appName: "", description: "", accent: "#7A5BD0", ...original, appId, version: "1.0.0", releaseNotes: "", moduleBase: base }, null, 2));
   await writeFile(path.join(directory, "package.json"), JSON.stringify({ name: `@zjh-plugin/${appId}`, private: true, ...(dependencies ? { dependencies } : {}) }, null, 2));

@@ -1,6 +1,6 @@
 # zjh-dynamic
 
-维护 @zijinhua/app-sdk、RN 宿主、运行时适配、加载器和打包发布工具。应用源码与模板在 [zjh-plugin](https://github.com/jiangfengwhu/zjh-plugin)，不在本仓库新增应用业务。宿主从本机目录及已保存的安装清单恢复作品登记，不生成内置应用目录；Jolly 页面属于宿主。
+维护 @zijinhua/app-sdk、RN 宿主、运行时适配、加载器和打包发布工具。应用源码在 [zjh-plugin](https://github.com/jiangfengwhu/zjh-plugin)，初始化工具直接生成最小入口，不在本仓库新增应用业务。宿主从本机目录及已保存的安装清单恢复作品登记，不生成内置应用目录；Jolly 页面属于宿主。
 
 | 目录 | 职责 |
 | --- | --- |
