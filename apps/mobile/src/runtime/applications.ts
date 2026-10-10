@@ -36,6 +36,19 @@ onApplicationPageAttempt(appId => { const manifest = active.get(appId); if (mani
 onApplicationPageReady(appId => { void commitHealthy(appId); });
 const offered = new Map<string, { manifest: ApplicationManifest; ownerId: string | null }>();
 const activeAccess = new Map<string, Access>();
+type PublicReleaseReplacement = { previousReleaseId: string; manifest: ApplicationManifest };
+const publicReleaseReplacements = new Map<string, PublicReleaseReplacement>();
+const publicReleaseSelections = new Map<string, string>();
+const publicReleaseListeners = new Set<(replacement: PublicReleaseReplacement) => void>();
+export function subscribePublicApplicationRelease(listener: (replacement: PublicReleaseReplacement) => void) {
+  publicReleaseListeners.add(listener);
+  return () => { publicReleaseListeners.delete(listener); };
+}
+export function publicApplicationReleaseReplacement(appId: string) { return publicReleaseReplacements.get(appId); }
+export function loadedPublicApplicationRelease(appId: string) {
+  const access = activeAccess.get(appId);
+  return loaded.has(appId) && access?.public && !access.ownerId ? active.get(appId) : undefined;
+}
 const manifestTexts = new WeakMap<ApplicationManifest, string>();
 const marketTexts = new WeakMap<MarketApplication, string>();
 function manifestText(manifest: ApplicationManifest) {
@@ -144,6 +157,9 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
   // Native downloads finish even if the feed moved away. Keep completed,
   // complete packages installed; cancellation only stops runtime warming.
   await persistDownload();
+  // A download-only preview has no active runtime yet. Remember its identity
+  // so replacing its pending package still invalidates the feed's warm entry.
+  if (!publicReleaseSelections.has(appId)) publicReleaseSelections.set(appId, manifest.releaseId);
   if (downloadOnly) return;
   signal.throwIfAborted();
   // Downloads may finish during a gesture. Yield again before staging/evaluating
@@ -378,6 +394,7 @@ function replaceRuntime(appId: string, reopen: boolean): Promise<void> {
     await loading.get(appId)?.catch(() => {});
     await releaseRuntime(appId);
     if (reopen) await startApplicationLoad(appId);
+    else { publicReleaseReplacements.delete(appId); publicReleaseSelections.delete(appId); }
   })().finally(() => { if (reloading.get(appId) === task) { reloading.delete(appId); replacementModes.delete(appId); } });
   reloading.set(appId, task);
   replacementModes.set(appId, reopen);
@@ -398,7 +415,20 @@ function startApplicationLoad(appId: string): Promise<void> {
     if (access?.ownerId && cachedAccountId() !== access.ownerId) return Promise.reject(new AccessDenied("请登录作品所属账号后再体验候选版本"));
     return existing ?? Promise.resolve();
   }
-  const pending = load(appId).then(() => { loaded.add(appId); activateApplication(appId); }).catch(async error => {
+  const pending = load(appId).then(() => {
+    loaded.add(appId);
+    activateApplication(appId);
+    const manifest = loadedPublicApplicationRelease(appId);
+    if (manifest) {
+      const previousReleaseId = publicReleaseSelections.get(appId);
+      publicReleaseSelections.set(appId, manifest.releaseId);
+      if (previousReleaseId && previousReleaseId !== manifest.releaseId) {
+        const replacement = { previousReleaseId, manifest };
+        publicReleaseReplacements.set(appId, replacement);
+        publicReleaseListeners.forEach(listener => listener(replacement));
+      }
+    }
+  }).catch(async error => {
     if (evaluating.has(appId)) await recoverApplicationFailure(appId);
     throw error;
   }).finally(() => {

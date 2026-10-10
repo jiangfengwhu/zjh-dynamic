@@ -22,7 +22,9 @@ import { ApplicationInteractions, cachedApplicationDiscussion } from "./Applicat
 import { AuthorFollowButton } from "./AuthorFollowButton";
 import type { UserPost } from "./feed/userPosts";
 import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
-import { fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
+import { fetchMarketDetail, fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
+import { loadedPublicApplicationRelease, publicApplicationReleaseReplacement, subscribePublicApplicationRelease } from "../runtime/applications";
+import { useEventCallback } from "./useEventCallback";
 
 type Props = {
   renderApplication: (id: string, onBack: () => void) => ReactNode;
@@ -147,6 +149,37 @@ export function ApplicationFeedScreen(props: Props) {
   const refreshExperience = useCallback((fresh: MarketApplication) => {
     setPage(prior => prior.owner !== identity ? prior : { ...prior, applications: prior.applications.map(item => item.manifest.appId === fresh.manifest.appId ? fresh : item) });
   }, [identity]);
+  const syncPublicRelease = useEventCallback((replacement: NonNullable<ReturnType<typeof publicApplicationReleaseReplacement>>) => {
+    const { manifest } = replacement;
+    if (loadedPublicApplicationRelease(manifest.appId)?.releaseId !== manifest.releaseId || !items.some(item => item.manifest.appId === manifest.appId && item.manifest.releaseId !== manifest.releaseId)) return;
+    const owner = identity;
+    // Change the queue identity immediately. Its old preparation and mounted
+    // page are discarded without resetting the feed position or other apps.
+    setPage(prior => prior.owner !== owner ? prior : {
+      ...prior,
+      applications: prior.applications.map(item => item.manifest.appId === manifest.appId && item.manifest.releaseId !== manifest.releaseId ? {
+        ...item, manifest, title: manifest.appName, summary: manifest.description,
+        iconUrl: undefined, sharing: undefined, latest: true, detailAt: undefined,
+      } : item),
+    });
+    // Refresh author/social metadata separately; never block version selection
+    // or let an older network response overwrite a newer loaded release.
+    void fetchMarketDetail(manifest.appId, { immediate: true }).then(fresh => {
+      if (currentOwner.current !== owner || fresh.manifest.releaseId !== manifest.releaseId || loadedPublicApplicationRelease(manifest.appId)?.releaseId !== manifest.releaseId) return;
+      setPage(prior => prior.owner !== owner ? prior : {
+        ...prior, applications: prior.applications.map(item => item.manifest.appId === manifest.appId && item.manifest.releaseId === manifest.releaseId ? fresh : item),
+      });
+    }).catch(() => {});
+  });
+  useEffect(() => subscribePublicApplicationRelease(syncPublicRelease), [syncPublicRelease]);
+  // Also reconcile a newly fetched/stale feed snapshot and updates completed
+  // before this screen mounted. Workshop candidates stay out of the feed.
+  useEffect(() => {
+    for (const item of items) {
+      const replacement = publicApplicationReleaseReplacement(item.manifest.appId);
+      if (replacement && replacement.previousReleaseId === item.manifest.releaseId) syncPublicRelease(replacement);
+    }
+  }, [items, syncPublicRelease]);
   useEffect(() => {
     if (active && page.owner === identity && !page.loaded && !request.current && !error) void load();
   }, [active, page.owner, page.loaded, identity, error, load]);
