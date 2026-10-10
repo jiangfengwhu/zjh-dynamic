@@ -1,7 +1,7 @@
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { ActivityIndicator } from "react-native";
 import { syncNotificationCount } from "./feed/notifications";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Keyboard, View } from "react-native";
 import PagerView, {
   type PagerViewOnPageScrollEvent,
@@ -171,7 +171,7 @@ function PublicationContent({
   );
 }
 
-function CreateApplicationPage({
+const CreateApplicationPage = memo(function CreateApplicationPage({
   active,
   busy,
   setBusy,
@@ -588,4 +588,4 @@ function CreateApplicationPage({
     </View>
     </View>
   );
-}
+});

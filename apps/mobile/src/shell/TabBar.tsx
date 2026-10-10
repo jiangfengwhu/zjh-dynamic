@@ -1,3 +1,5 @@
+import { memo } from "react";
+import { useEventCallback } from "./useEventCallback";
 import { nextApplicationExperience } from "./applicationExperienceNavigation";
 import { HostText as Text } from "./feed/HostText";
 import { StyleSheet, View } from "react-native";
@@ -41,6 +43,7 @@ export function TabBar({
 }) {
   const styles = useStyles();
 
+  const selectTab = useEventCallback((id: ShellTabId) => id === "feed" && activeId === "feed" ? nextApplicationExperience() : onChange(id));
   const unread = useNotificationCount() + useMessageCount();
   useMessagesSync();
   return (
@@ -51,7 +54,7 @@ export function TabBar({
           item={item}
           active={item.id === activeId}
           unread={item.id === "notifications" ? unread : 0}
-          onPress={() => item.id === "feed" && activeId === "feed" ? nextApplicationExperience() : onChange(item.id)}
+          onSelect={selectTab}
         />
       ))}
       <View style={styles.slot}>
@@ -72,22 +75,22 @@ export function TabBar({
           item={item}
           active={item.id === activeId}
           unread={item.id === "notifications" ? unread : 0}
-          onPress={() => item.id === "feed" && activeId === "feed" ? nextApplicationExperience() : onChange(item.id)}
+          onSelect={selectTab}
         />
       ))}
     </View>
   );
 }
-function Tab({
+const Tab = memo(function Tab({
   item,
   active,
   unread,
-  onPress,
+  onSelect,
 }: {
   item: (typeof SHELL_TABS)[number];
   active: boolean;
   unread: number;
-  onPress: () => void;
+  onSelect: (id: ShellTabId) => void;
 }) {
   const styles = useStyles();
 
@@ -96,7 +99,7 @@ function Tab({
   return (
     <View style={styles.slot}>
       <Pressy
-        onPress={onPress}
+        onPress={() => onSelect(item.id)}
         scale={0.92}
         accessibilityRole="tab"
         accessibilityState={{ selected: active }}
@@ -122,7 +125,7 @@ function Tab({
       </Pressy>
     </View>
   );
-}
+});
 const useStyles = createThemedStyles((base) => {
   const t = base;
   return {

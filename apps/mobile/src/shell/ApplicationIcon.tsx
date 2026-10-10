@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { memo, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { SvgXml } from "react-native-svg";
 import { AppImage } from "../../../../packages/ui/media/AppImage";
 import type { ApplicationManifest } from "../../../../packages/app-sdk/src";
@@ -52,10 +52,13 @@ export function ApplicationIcon({ application, size }: {
   animated?: boolean;
 }) {
   const app = application.manifest;
-  const override = useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    () => overrides.get(app.appId) ?? readShellValueSync(`shell.application.icon.${app.appId}`) ?? "");
-  const url = application.iconUrl || override;
-  const hash = app.icon?.sha256;
+  return <ApplicationIconImage appId={app.appId} accent={app.accent} hash={app.icon?.sha256} iconUrl={application.iconUrl} size={size} />;
+}
+const ApplicationIconImage = memo(function ApplicationIconImage({ appId, accent, hash, iconUrl, size }: { appId: string; accent: string; hash?: string; iconUrl?: string; size: number }) {
+  const subscribe = useCallback((listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; }, []);
+  const snapshot = useCallback(() => overrides.get(appId) ?? readShellValueSync(`shell.application.icon.${appId}`) ?? "", [appId]);
+  const override = useSyncExternalStore(subscribe, snapshot);
+  const url = iconUrl || override;
   const [svg, setSvg] = useState<{ hash: string; xml: string }>();
   const [failed, setFailed] = useState("");
   useEffect(() => {
@@ -66,5 +69,5 @@ export function ApplicationIcon({ application, size }: {
   if (url && failed !== url) return <AppImage source={{ uri: url }} resizeMode="cover" resizeMethod="resize" resizeMultiplier={1.5} fadeDuration={0} style={{ width: size, height: size, borderRadius: size * 0.27 }} onError={() => setFailed(url)} />;
   const xml = hash ? xmlCache.get(hash) ?? (svg?.hash === hash ? svg.xml : undefined) : undefined;
   if (xml && failed !== hash) return <SvgXml xml={xml} width={size} height={size} onError={() => setFailed(hash!)} />;
-  return <SymbolIcon name="box" size={Math.min(size * 0.7, 40)} color={app.accent} />;
-}
+  return <SymbolIcon name="box" size={Math.min(size * 0.7, 40)} color={accent} />;
+});

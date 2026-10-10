@@ -5,7 +5,7 @@ import { Image } from "react-native";
 import { EmptyState } from "./EmptyState";
 import { useRouteRequestReady } from "./useRouteContentReady";
 import { ActivityIndicator } from "react-native";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { PageHeader, Pressy, Surface } from "../../../../packages/ui/chrome";
@@ -49,9 +49,11 @@ export function AppInfoScreen({ onBack }: Props) {
     let alive = true; setLoading(true); setError("");
     void loadInstalledPackages()
       .then((next) => {
-        cachedPackages = next;
+        const previous = cachedPackages;
+        const rows = next.map((item, index) => { const prior = previous?.[index]; return prior && prior.id === item.id && prior.kind === item.kind && prior.bytes === item.bytes && prior.present === item.present ? prior : item; });
+        cachedPackages = previous && previous.length === rows.length && rows.every((item, index) => item === previous[index]) ? previous : rows;
         if (!alive) return;
-        setItems(next);
+        setItems(cachedPackages);
         setError("");
       })
       .catch((reason) => {
@@ -84,7 +86,7 @@ export function AppInfoScreen({ onBack }: Props) {
   );
 }
 
-function PackageRow({ item, last }: { item: InstalledPackage; last: boolean }) {
+const PackageRow = memo(function PackageRow({ item, last }: { item: InstalledPackage; last: boolean }) {
   const styles = useStyles();
 
   useTheme();
@@ -105,7 +107,7 @@ function PackageRow({ item, last }: { item: InstalledPackage; last: boolean }) {
       {last ? null : <View style={styles.divider} />}
     </View>
   );
-}
+});
 
 function titleOf(item: InstalledPackage): string {
   if (item.kind === "layer") return layerTitle[item.id] ?? item.id;

@@ -58,7 +58,7 @@ export type ComposePostControls = {
 };
 
 type Photo = { path: string; id?: string; url?: string };
-export function ComposePostScreen({
+export const ComposePostScreen = memo(function ComposePostScreen({
   onBack,
   initialApplication,
   initialDraft,
@@ -631,7 +631,7 @@ export function ComposePostScreen({
       </EdgeModal>
     </Root></ScreenEdge>
   );
-}
+});
 const useStyles = createThemedStyles((base) => {
   const t = base;
   return {

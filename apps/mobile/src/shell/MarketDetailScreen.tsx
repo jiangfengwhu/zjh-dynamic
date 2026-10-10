@@ -16,7 +16,7 @@ import {
   uploadMarketScreenshot,
 } from "./account";
 import { openCreationComposer } from "./creationComposer";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import {
   KeyboardAwareScrollView as ScrollView,
@@ -167,6 +167,7 @@ function MarketDetailContent({
   const [uploadStatus, setUploadStatus] = useState("");
   const [manualIcon, setManualIcon] = useState<string>();
   const [preview, setPreview] = useState<string>();
+  const removeScreenshot = useCallback((url: string) => setScreenshots(previous => previous.filter(value => value !== url)), []);
   const alive = useRef(true);
   useEffect(
     () => () => {
@@ -934,37 +935,7 @@ function MarketDetailContent({
                       <Text style={styles.subtitle}>真实截图 · 可选</Text>
                       <Text style={styles.caption}>{screenshots.length}/6</Text>
                     </View>
-                    <AnimatedFlashList horizontal data={screenshots} keyExtractor={url => url} extraData={busy} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ height: 144 }} contentContainerStyle={{ paddingVertical: 2 }} ItemSeparatorComponent={GallerySeparator} renderItem={({ item: url, index }) => (
-                        <View style={styles.editShot}>
-                          <Pressy
-                            scale={1}
-                            onPress={() => setPreview(url)}
-                            accessibilityLabel={`预览截图 ${index + 1}`}
-                          >
-                            <AppImage
-                              source={{ uri: url }}
-                              style={styles.editImage}
-                              resizeMode="contain"
-                            />
-                          </Pressy>
-                          <Pressy
-                            disabled={!!item.summaryOnly || busy}
-                            onPress={() =>
-                              setScreenshots((previous) =>
-                                previous.filter((value) => value !== url)
-                              )
-                            }
-                            accessibilityLabel={`移除截图 ${index + 1}`}
-                            style={styles.removeShot}
-                          >
-                            <SymbolIcon
-                              name="close"
-                              size={16}
-                              color={colors.redText}
-                            />
-                          </Pressy>
-                        </View>
-                    )} ListFooterComponent={<View style={{ paddingLeft: screenshots.length ? 8 : 0 }}>
+                    <AnimatedFlashList horizontal data={screenshots} keyExtractor={url => url} extraData={busy} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ height: 144 }} contentContainerStyle={{ paddingVertical: 2 }} ItemSeparatorComponent={GallerySeparator} renderItem={({ item: url, index }) => <ScreenshotTile url={url} index={index} editing disabled={!!item.summaryOnly || busy} onPreview={setPreview} onRemove={removeScreenshot} />} ListFooterComponent={<View style={{ paddingLeft: screenshots.length ? 8 : 0 }}>
                       {screenshots.length < 6 ? (
                         <Pressy
                           disabled={!!item.summaryOnly || busy}
@@ -1057,19 +1028,7 @@ function MarketDetailContent({
                       <Text style={styles.subtitle}>使用预览</Text>
                       <Text style={styles.caption}>{gallery.length} 张</Text>
                     </View>
-                    <AnimatedFlashList horizontal data={gallery} keyExtractor={url => url} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} style={{ height: 213 }} ItemSeparatorComponent={WideGallerySeparator} renderItem={({ item: url, index }) => (
-                        <Pressy
-                          scale={1}
-                          accessibilityLabel={`查看截图 ${index + 1}`}
-                          onPress={() => setPreview(url)}
-                        >
-                          <AppImage
-                            source={{ uri: url }}
-                            style={styles.galleryImage}
-                            resizeMode="contain"
-                          />
-                        </Pressy>
-                    )} />
+                    <AnimatedFlashList horizontal data={gallery} keyExtractor={url => url} maintainVisibleContentPosition={{ disabled: true }} showsHorizontalScrollIndicator={false} style={{ height: 213 }} ItemSeparatorComponent={WideGallerySeparator} renderItem={({ item: url, index }) => <ScreenshotTile url={url} index={index} onPreview={setPreview} />} />
                   </View>
                 ) : null}
                 <Pressy
@@ -1553,3 +1512,19 @@ const useStyles = createThemedStyles((base) => {
 
 function GallerySeparator() { return <View style={{ width: 8 }} />; }
 function WideGallerySeparator() { return <View style={{ width: 10 }} />; }
+
+const ScreenshotTile = memo(function ScreenshotTile({ url, index, editing = false, disabled = false, onPreview, onRemove }: { url: string; index: number; editing?: boolean; disabled?: boolean; onPreview: (url: string) => void; onRemove?: (url: string) => void }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  if (!editing) return <Pressy scale={1} accessibilityLabel={`查看截图 ${index + 1}`} onPress={() => onPreview(url)}>
+    <AppImage source={{ uri: url }} style={styles.galleryImage} resizeMode="contain" />
+  </Pressy>;
+  return <View style={styles.editShot}>
+    <Pressy scale={1} onPress={() => onPreview(url)} accessibilityLabel={`预览截图 ${index + 1}`}>
+      <AppImage source={{ uri: url }} style={styles.editImage} resizeMode="contain" />
+    </Pressy>
+    <Pressy disabled={disabled} onPress={() => onRemove?.(url)} accessibilityLabel={`移除截图 ${index + 1}`} style={styles.removeShot}>
+      <SymbolIcon name="close" size={16} color={colors.redText} />
+    </Pressy>
+  </View>;
+});

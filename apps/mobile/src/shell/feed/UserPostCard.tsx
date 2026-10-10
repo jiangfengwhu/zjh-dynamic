@@ -6,7 +6,7 @@ import { HostAlert as Alert } from "../HostAlert";
 import { FeedItemFrame } from "../../../../../packages/ui/feed/kit/FeedItemFrame";
 import { FeedActionBar } from "../../../../../packages/ui/feed/kit/FeedActionBar";
 import { HostText as Text } from "./HostText";
-import { useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { EdgeModal } from "../../../../../packages/ui/edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,7 +22,7 @@ import { edgeUrl } from "../evolveHost";
 const HtmlPostContent = lazyScreen(() => (require("./HtmlPostContent") as typeof import("./HtmlPostContent")).HtmlPostContent);
 import { ApplicationPostCard } from "./ApplicationPostCard";
 
-export function UserPostCard({
+export const UserPostCard = memo(function UserPostCard({
   post,
   time,
   own,
@@ -225,7 +225,7 @@ export function UserPostCard({
       </EdgeModal>
     </>
   );
-}
+});
 const makeStyles = (t: Theme) =>
   StyleSheet.create({
     openArea: { alignSelf: "stretch", minHeight: 44 },
