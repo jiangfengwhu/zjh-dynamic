@@ -10,7 +10,7 @@ import type { ApkProgress } from "./src/shell/apkUpdates";
 import { ActivityIndicator } from "react-native";
 import { markStartup } from "./src/runtime/startupTiming";
 import { openCreationComposer } from "./src/shell/creationComposer";
-import { preparePublicApplicationUpdates, reportApplicationFailure, restoreDownloadedApplications, runningApplication } from "./src/runtime/applications";
+import { updatePublicApplicationsSilently, reportApplicationFailure, restoreDownloadedApplications, runningApplication } from "./src/runtime/applications";
 import { subscribeApplicationRuntime, applicationRuntimeSnapshot } from "../../packages/app-sdk/src/runtime";
 import {
   Component,
@@ -341,7 +341,7 @@ function ShellApp() {
     strict = false
   ): Promise<PendingPackage[]> {
     try {
-      void preparePublicApplicationUpdates().catch(error => console.warn("application update preparation failed", error instanceof Error ? error.message : "下载未完成"));
+      void updatePublicApplicationsSilently().catch(error => console.warn("silent application update failed", error instanceof Error ? error.message : "下载未完成"));
       const items = await checkPackageUpdates();
       const signature = updateSignature(items);
       if (force) removeShellValue("shell.updates.dismissed");

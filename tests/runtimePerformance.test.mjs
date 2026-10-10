@@ -41,7 +41,7 @@ function staging() {
   const { stageApplicationUpdates: stage } = moduleAt('apps/mobile/src/runtime/applications.ts', {
     loadCatalog: async () => structuredClone(state.catalog), cachedAccountId: () => state.owner, offered, active: new Map(),
     verifyCandidateAccess: async () => {}, downloadApplicationResources: (item, signal, priority) => { assert.equal(priority, 'update'); const task = deferred(); state.requests.push({ ...task, id: item.appId }); return task.promise; },
-    writeShellValue: (key, value) => state.writes.set(key, value), saveCatalog: async value => { state.catalog = value; },
+    readShellValueSync: key => state.writes.get(key), writeShellValue: (key, value) => state.writes.set(key, value), saveCatalog: async value => { state.catalog = value; },
   }, 'stageApplicationUpdates');
   return { state, offered, stage };
 }

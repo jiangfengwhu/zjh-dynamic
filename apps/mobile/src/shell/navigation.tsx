@@ -7,7 +7,7 @@ import { markStartup } from "../runtime/startupTiming";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "../../../../packages/ui/primitives/Button";
-import { publicApplicationLoaded, hasPreparedPublicApplicationUpdate } from "../runtime/applications";
+import { publicApplicationLoaded } from "../runtime/applications";
 import { ApplicationSdkError } from "../runtime/applicationCompatibility";
 import { Linking, StyleSheet, View, useWindowDimensions } from "react-native";
 import { AmbientFill } from "../../../../packages/ui/chrome";
@@ -228,7 +228,7 @@ function openPublication(mode: "post" | "create" = "create") {
 export async function openPublicMarketApplication(appId: string, params?: ShareParams) {
   if (!shellNavigationRef.isReady()) return;
   receiveApplicationShare(appId, params);
-  if (cachedFeature(appId) && !hasPreparedPublicApplicationUpdate(appId)) {
+  if (cachedFeature(appId)) {
     shellNavigationRef.navigate("bundle", { id: appId });
     return;
   }
@@ -248,14 +248,14 @@ export async function openCommonApplication(appId: string) {
   if (!shellNavigationRef.isReady()) return;
   receiveApplicationShare(appId);
   const cached = cachedFeature(appId);
-  if (cached && publicApplicationLoaded(appId) && !hasPreparedPublicApplicationUpdate(appId)) {
+  if (cached && publicApplicationLoaded(appId)) {
     shellNavigationRef.navigate("commonApplication", { appId });
     return;
   }
   await showApplicationOpening(async signal => {
     // A cold JS session can load its persisted public install offline. A cached
     // private candidate still follows the public-version selection below.
-    if ((!cachedFeature(appId) || hasPreparedPublicApplicationUpdate(appId)) && isPublicApplicationInstalledSync(appId)) {
+    if (!cachedFeature(appId) && isPublicApplicationInstalledSync(appId)) {
       await openFeature(appId);
     } else {
       const { fetchPublicMarketApplication } = require("./market") as typeof import("./market");
@@ -278,7 +278,7 @@ export async function openShellBundle(id: string) {
     const appId = applicationContext(id).storage.get("workshopTarget") || undefined;
     shellNavigationRef.navigate("workshopProgress", { appId, ownerId });
   } else {
-    if (cachedFeature(id) && !hasPreparedPublicApplicationUpdate(id)) shellNavigationRef.navigate("bundle", { id });
+    if (cachedFeature(id)) shellNavigationRef.navigate("bundle", { id });
     else await showApplicationOpening(async signal => {
       await openFeature(id);
       signal.throwIfAborted();

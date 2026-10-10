@@ -264,59 +264,29 @@ export async function publicApplicationUpdates(force = false): Promise<Record<st
   return result;
 }
 
-type PreparedPublicUpdate = { manifest: ApplicationManifest; baseline: string };
-let preparingPublicUpdates: Promise<void> | undefined;
-/** Download public updates separately from the platform banner and active selection. */
-export function preparePublicApplicationUpdates(): Promise<void> {
-  if (preparingPublicUpdates) return preparingPublicUpdates;
+let updatingPublicApplications: Promise<void> | undefined;
+/** Download and replace public applications independently of host/APK updates. */
+export function updatePublicApplicationsSilently(): Promise<void> {
+  if (updatingPublicApplications) return updatingPublicApplications;
   const task = (async () => {
-    const owner = cachedAccountId();
-    const updates = await publicApplicationUpdates(true);
-    if (owner !== cachedAccountId()) return;
-    const results = await Promise.allSettled(Object.entries(updates).map(async ([appId, update]) => {
-      if (update.status !== "update" || !update.manifest) return;
-      const manifest = update.manifest;
-      const baseline = readShellValueSync(`application.pending.${appId}`) || readShellValueSync(`application.install.${appId}`);
-      if (!baseline) return;
-      const readyKey = `application.public-update.${appId}`;
-      try { const ready = JSON.parse(readShellValueSync(readyKey) || "null") as PreparedPublicUpdate | null; if (ready?.baseline === baseline && ready.manifest.releaseId === manifest.releaseId) return; } catch {}
-      await downloadApplicationResources(manifest, undefined, "update");
-      if (owner !== cachedAccountId()) return;
-      const entry = loadCatalogSync().find(item => item.id === appId);
-      if (!entry || entry.trashedAt || entry.purged) return;
-      const selected = readShellValueSync(`application.pending.${appId}`) || readShellValueSync(`application.install.${appId}`);
-      if (selected !== baseline) return; // A concurrent install or workshop selection wins.
-      writeShellValue(readyKey, JSON.stringify({ manifest, baseline } satisfies PreparedPublicUpdate));
-    }));
-    if (results.some(result => result.status === "rejected")) throw new Error("部分应用新版未下载完成，下次检查重试");
-  })().finally(() => { if (preparingPublicUpdates === task) preparingPublicUpdates = undefined; });
-  preparingPublicUpdates = task;
+    await checkApplicationUpdates();
+    let stageError: unknown;
+    try { await stageApplicationUpdates(); } catch (error) { stageError = error; }
+    const ids = [...offered].filter(([appId, offer]) => {
+      if (offer.ownerId) return false;
+      try {
+        const pending = JSON.parse(readShellValueSync(`application.pending.${appId}`) || "null") as ApplicationManifest | null;
+        const access = JSON.parse(readShellValueSync(`application.pending.access.${appId}`) || "{}");
+        const entry = loadCatalogSync().find(item => item.id === appId);
+        return !!entry && !entry.trashedAt && !entry.purged && pending?.releaseId === offer.manifest.releaseId && access.public === true && !access.ownerId && access.releaseId === pending.releaseId;
+      } catch { return false; }
+    }).map(([id]) => id);
+    const results = await Promise.allSettled(ids.map(reloadApplication));
+    if (stageError) throw stageError;
+    if (results.some(result => result.status === "rejected")) throw new Error("部分应用新版未能加载，保留原有版本");
+  })().finally(() => { if (updatingPublicApplications === task) updatingPublicApplications = undefined; });
+  updatingPublicApplications = task;
   return task;
-}
-function preparedPublicUpdate(appId: string): PreparedPublicUpdate | undefined {
-  try {
-    const ready = JSON.parse(readShellValueSync(`application.public-update.${appId}`) || "null") as PreparedPublicUpdate | null;
-    if (!ready || ready.manifest.appId !== appId) return;
-    const entry = loadCatalogSync().find(item => item.id === appId);
-    if (!entry || entry.trashedAt || entry.purged) return;
-    const pending = readShellValueSync(`application.pending.${appId}`);
-    const selected = pending || readShellValueSync(`application.install.${appId}`);
-    const access = JSON.parse(readShellValueSync(`application.${pending ? "pending.access" : "access"}.${appId}`) || "{}");
-    if (selected !== ready.baseline || access.public !== true || access.ownerId || access.releaseId !== JSON.parse(selected || "null")?.releaseId) return;
-    assertCompatible(ready.manifest, appId);
-    return ready;
-  } catch { return; }
-}
-export function hasPreparedPublicApplicationUpdate(appId: string) { return !!preparedPublicUpdate(appId); }
-/** Only explicit opens call this; preparation never replaces a running page. */
-export async function applyPreparedPublicApplicationUpdate(appId: string): Promise<void> {
-  const ready = preparedPublicUpdate(appId);
-  if (!ready) { await reloading.get(appId); return; }
-  writeShellValue(`application.pending.access.${appId}`, JSON.stringify({ releaseId: ready.manifest.releaseId, ownerId: null, public: true }));
-  writeShellValue(`application.pending.${appId}`, JSON.stringify(ready.manifest));
-  writeShellValue(`application.public-update.${appId}`, "");
-  if (active.has(appId)) await reloadApplication(appId);
-  else await loadApplication(appId);
 }
 
 export async function checkApplicationUpdates(targetAppId?: string): Promise<PendingPackage[]> {
@@ -345,6 +315,7 @@ export async function stageApplicationUpdates(appId?: string): Promise<number> {
     (active.get(item.manifest.appId)?.releaseId !== item.manifest.releaseId || !!appId && !installed.has(item.manifest.appId))
   );
   const installerId = cachedAccountId();
+  const initialSelections = new Map(pending.map(({ manifest }) => [manifest.appId, readShellValueSync(`application.pending.${manifest.appId}`) || readShellValueSync(`application.install.${manifest.appId}`)]));
   const initialStates = new Map(pending.map(({ manifest }) => {
     const entry = catalog.find(entry => entry.id === manifest.appId);
     return [manifest.appId, entry ? { trashedAt: entry.trashedAt, purged: entry.purged } : undefined] as const;
@@ -363,6 +334,7 @@ export async function stageApplicationUpdates(appId?: string): Promise<number> {
     const initial = initialStates.get(manifest.appId);
     if ((initial && !entry) || (entry?.trashedAt && entry.trashedAt !== initial?.trashedAt) || (entry?.purged && !initial?.purged)) continue;
     if (!appId && (!entry || entry.trashedAt || entry.purged)) continue;
+    if ((readShellValueSync(`application.pending.${manifest.appId}`) || readShellValueSync(`application.install.${manifest.appId}`)) !== initialSelections.get(manifest.appId)) continue;
     // A newer offer arriving during download supersedes this snapshot.
     const currentOffer = offered.get(manifest.appId);
     if (currentOffer?.manifest.releaseId !== manifest.releaseId || currentOffer.ownerId !== ownerId) continue;
