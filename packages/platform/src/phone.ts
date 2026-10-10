@@ -20,8 +20,6 @@ export const phone = {
     } catch { return { ok: false, code: "UNAVAILABLE", error: "暂时无法定位，请检查系统定位开关" }; }
   },
   device: () => shell<{ ok: boolean; brand: string; model: string; sdk: number; battery: number; charging: boolean }>("device"),
-  contacts: (query = "", limit = 40) =>
-    shell<{ ok: boolean; items: { name: string; number: string }[] }>("contacts", { query, limit }),
   calendarEvents: (fromMs: number, toMs: number) =>
     shell<{ ok: boolean; items: { id: string; title: string; startMs: number; endMs: number }[] }>("calendarEvents", { fromMs, toMs }),
   calendarInsert: (title: string, startMs: number, endMs: number, description = "") =>
@@ -44,9 +42,5 @@ export const phone = {
     shell<{ ok: boolean; items: { name: string; address: string; rssi: number }[] }>("bluetoothScan", { seconds }),
   nfcStatus: () => shell<{ ok: boolean; present: boolean; enabled: boolean }>("nfcStatus"),
   nfcRead: (seconds = 20) => shell<{ ok: boolean; id: string; text: string }>("nfcRead", { seconds }),
-  smsList: (box: "inbox" | "sent" = "inbox", limit = 30) =>
-    shell<{ ok: boolean; items: { address: string; body: string; dateMs: number }[] }>("smsList", { box, limit }),
-  smsSend: (to: string, body: string) => shell("smsSend", { to, body }),
-  callLog: (limit = 30) =>
-    shell<{ ok: boolean; items: { number: string; name: string; type: string; dateMs: number; durationSec: number }[] }>("callLog", { limit }),
+
 };

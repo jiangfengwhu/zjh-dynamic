@@ -1,8 +1,8 @@
 import type { ComponentType } from "react";
 import type { AiService } from "./ai-types";
 import type { AppAuth, AppCloud } from "./cloud-types";
-import type { ApplicationNativeCapabilities } from "./native-types";
-export type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, SpeechOptions, RecognitionOptions, SensorKind, SensorSample, CalendarEventInput, ShortcutInput } from "./native-types";
+import type { ApplicationNativeCapabilities, NativeActionResult, OcrResult, PdfOptions, PdfResult } from "./native-types";
+export type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, SpeechOptions, RecognitionOptions, SensorKind, SensorSample, CalendarEventInput, ShortcutInput, WidgetInput, OcrResult, PdfOptions, PdfResult } from "./native-types";
 export { CloudError } from "./cloud-types";
 export type { AppUser, AppAuth, AppCloud, CloudDatabase, CloudCollection, CloudRecord, CloudPage, CloudQuery, CloudRequestOptions, CloudWriteOptions, CloudErrorCode, CloudFile, CloudFiles, CloudRoom, CloudRooms, CloudRoomStatus, CloudRoomEvent, CloudRoomMember } from "./cloud-types";
 export type {
@@ -72,15 +72,23 @@ export type AppData = {
     remove: (key: string) => Promise<void>;
   };
   files: {
+    /** Offline Chinese/Latin OCR. Bounds refer to the returned, possibly downsampled/rotated image size. */
+    recognizeText: (path: string, options?: { signal?: AbortSignal }) => Promise<OcrResult>;
+    /** HTML/CSS and embedded data images only; no scripts, remote requests or local-file access. */
+    createPdf: (path: string, options: PdfOptions) => Promise<PdfResult>;
+    /** Opens system printing with an existing PDF; success does not mean printing completed. */
+    print: (path: string, options?: { title?: string }) => Promise<NativeActionResult & { opened?: boolean }>;
     uri: (path: string) => string;
     readText: (path: string) => Promise<string>;
     /** Reads up to 6 MiB of an application file, for image/audio AI attachments. */
     readBase64: (path: string) => Promise<string>;
     writeText: (path: string, text: string) => Promise<void>;
+    /** Writes raw base64 (no data URL prefix), up to 6 MiB decoded, without overwriting on failure. */
+    writeBase64: (path: string, data: string) => Promise<void>;
     remove: (path: string) => Promise<void>;
     /** Lists direct children of the given relative directory. */
     list: (directory?: string) => Promise<string[]>;
-    download: (url: string, path: string) => Promise<void>;
+    download: (url: string, path: string, options?: { signal?: AbortSignal; timeoutMs?: number; onProgress?: (received: number, total?: number) => void }) => Promise<void>;
     /** Copies a user-selected document into the application; cancellation is a normal result. */
     importFile: (path: string, options?: { mime?: string }) => Promise<FileImportResult>;
     /** Opens the system Save As dialog for an existing application file. */
@@ -183,7 +191,6 @@ export type AppContext = AppData & {
     /** Cancels this application's pending and displayed notifications. */
     cancelAllSchedules: () => Promise<ShellResult>;
     schedules: () => Promise<{ ok: true; items: { id: string; title: string; body: string; atMs: number; options?: ReminderOptions }[] } | { ok: false; error: string }>;
-    keepAwake: (on: boolean) => Promise<ShellResult>;
   };
 };
 

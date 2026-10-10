@@ -358,6 +358,7 @@ export async function uninstallMarketApplication(appId: string) {
   writeShellValue(`application.pending.${appId}`, "");
   await shell("cancelAllSchedules", { appId }).catch(() => {});
   await shell("removeApplicationShortcuts", { appId }).catch(() => {});
+  await shell("removeApplicationWidgets", { appId }).catch(() => {});
   await unloadApplication(appId);
 }
 export type SharingState = {

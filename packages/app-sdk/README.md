@@ -8,7 +8,7 @@
 
 共享库直接导入，入口与版本查安装包 `dist/libraries.md`；不引用私有路径，不重复安装共享库或使用 overrides。额外纯 JS 依赖写应用 `package.json`，根目录 `npm install` 更新锁文件。不引入 APK 未提供的原生能力。
 
-权限检查与请求统一用 `react-native-permissions`；仅在用户操作后请求，按 `RESULTS` 处理结果，永久拒绝时由用户点击 `openSettings()`。通知用 `app.phone.requestNotifications()`。
+权限检查与请求统一用 `react-native-permissions`；仅在用户操作后请求，按 `RESULTS` 处理结果，永久拒绝时由用户点击 `openSettings()`。通知用 `app.phone.requestNotifications()`。平台不提供短信、联系人、通话记录能力，不申请这些权限。
 
 | 功能 | 使用规则 |
 | --- | --- |
@@ -16,7 +16,7 @@
 | 页面 | 按独立应用设计页面：首页不放返回按钮，二级页面按需提供应用内返回。需要独立路由时可使用导航库。系统栏采用边缘绘制，宿主不添加应用安全区 padding 或导航区背景，应用自行处理安全区。底栏背景应覆盖底部安全区，仅交互内容避让 inset，避免与系统导航区域出现色差。宿主应用页面已避让键盘，独立原生 Modal 需自行处理；长表单可用 `KeyboardAwareScrollView`。宿主已提供手势、安全区、键盘容器；弹层可用 SDK Dialog、原生 Modal 或 `@gorhom/bottom-sheet`；使用 BottomSheetModal 时在应用内提供 BottomSheetModalProvider，独立导航用 `NavigationIndependentTree`。 |
 | 表单与请求 | 简单输入可用本地状态；复杂表单可用 `react-hook-form` 的 Controller，Zod 按需校验。缓存读取可用 `@tanstack/react-query`；宿主已提供按应用和账号隔离的 QueryClient，不再创建 Provider，queryFn 将 signal 传入请求。默认 staleTime 为 60 秒，未使用缓存保留 20 分钟；重新挂载过期查询会保留旧内容并后台刷新，无轮询、自动重试、聚焦或联网刷新。手动更新用 refetch／invalidateQueries。缓存仅在内存中，跨进程保存需使用 storage；宿主在切换账号时取消请求并清理缓存。AI 流式调用可直接使用 SDK。 |
 | 反馈与系统能力 | 简单提示用 `app.toast.show`。复制与触觉用 `app.clipboard`、`app.haptics`，不另引入同类库。 |
-| 资源与存储 | 资源放 `assets/`，名称相对该目录，如 `assets/logo.webp` 用 `app.assets.uri("logo.webp")`，不用 require 图片。默认数据保存在本机、跨账号共用；需账号隔离用 `app.scope("account")`，设备共享用 `app.scope("device")`，两者均提供 storage、secureStorage、files。账号作用域随登录切换，游客独立；订阅自动更新，异步操作遇到账号切换失败，勿应用旧结果。文件路径相对应用目录、不能含 `..`；下载仅 HTTPS。 |
+| 资源与存储 | 资源放 `assets/`，名称相对该目录，如 `assets/logo.webp` 用 `app.assets.uri("logo.webp")`，不用 require 图片。默认数据保存在本机、跨账号共用；需账号隔离用 `app.scope("account")`，设备共享用 `app.scope("device")`，两者均提供 storage、secureStorage、files。账号作用域随登录切换，游客独立；订阅自动更新，异步操作遇到账号切换失败，勿应用旧结果。文件路径相对应用目录、不能含 `..`；下载仅 HTTPS，download(url,path,{signal?,timeoutMs?,onProgress?}) 连接与读取默认60秒超时、可设1–180秒，进度回调间隔250ms，total未知时省略；取消、失败不替换原文件。writeBase64(path,data) 写最多6 MB的原始Base64，不包含data URL前缀。 |
 | 登录与云数据 | `app.auth.getUser()` 同步返回缓存的 `{ id, name, avatarUrl }` 或 null，`subscribe` 监听资料变化；用户操作后可调用 `requireLogin()`，取消返回 null。`app.cloud.private.collection<T>(name)` 保存当前用户的应用数据；`public` 所有登录用户可读，仅创建者可修改、删除。集合自动创建，无需配置。两者均提供 create/get/list/update/remove；数据为 JSON 对象，单条 ≤32 KB。get 不存在返回 null；list 返回 items/nextCursor，默认 20 条、最多 100，游标沿用同一筛选和排序。update 只合并顶层字段；increment(id, { score: 1 }) 在服务端原子累加数值字段，缺失字段按 0 处理；可传 expectedVersion 检测冲突。写入失败重试复用 requestId（一小时内去重）；平台字段在记录外层，业务字段在 data。失败抛出 CloudError，按 code 处理登录过期、冲突、限流等，保留输入。缓存配合 React Query，不轮询、不自动重试写入；离开页面用 signal 取消。 |
 | 导入导出与分享 | 先取 `const { files } = app.scope("account")`（设备共享可选 device）。用户点击后调用 `files.importFile("imports/data.csv", { mime: "text/csv" })` 选择并复制文件，第一个参数是应用内目标相对路径。`files.exportFile(path, { name, mime })` 另存已有文件；`files.share(path, { mime })` 分享已有文件。检查返回的 ok；取消返回 `code: "CANCELLED"`，不提示失败。 |
 | 定位 | 用户操作后用权限库申请 `ACCESS_COARSE_LOCATION`，需要精确位置时同时申请 `ACCESS_FINE_LOCATION`，尊重用户选择的近似位置。`app.phone.location({ accuracy: "coarse" })` 获取一次前台位置，精确定位用 `fine`；默认 coarse，不请求后台定位。成功返回 `{ ok: true, latitude, longitude, accuracy }`，accuracy 单位为米；失败返回 `{ ok: false, code, error }`，code 为 PERMISSION、TIMEOUT 或 UNAVAILABLE。不自动申请权限或轮询。 |
@@ -31,11 +31,16 @@
 
 ## 系统交互能力
 
+- 离线文字识别：`app.files.recognizeText(path,{signal?})` 识别应用图片中的中文、拉丁文字，返回 `{ok:true,text,blocks,width,height}`；blocks 包含文字、行和 bounds。最大20 MB，图片降采样至400万像素，坐标对应返回的尺寸和方向；无需联网或新增权限，30秒超时。账号图片用 `app.scope("account").files`。
+- PDF：`app.files.createPdf(path,{html,title?,pageSize?,landscape?,marginMm?,signal?})` 生成并保存 `.pdf`，成功返回 `{ok:true,path,pages}`。pageSize 为 A4/A5/LETTER，默认A4；页边距0–40毫米，默认12。HTML/CSS 可自由排版，图片须内嵌 data URL，不执行脚本、不访问远程或本机文件；HTML最大2 MB，45秒超时。取消或失败不覆盖原PDF。同一时间只生成一份；系统WebView打印实现不可用时返回UNSUPPORTED。`app.files.print(path,{title?})` 打开系统打印，成功只表示面板已打开；用户选择打印机或保存为PDF，按所选页码输出。生成的文件也可用已有 exportFile/share 导出或分享。
+- 桌面小组件：`app.phone.widgets.status()` 查询桌面是否支持；`set({id,title,body?,imagePath?,params?,progress?,backgroundColor?,textColor?})` 保存快照并更新同ID的全部实例，再由用户点击后 `pin(id)` 请求桌面确认。`list()` 返回配置id及已添加的 instances；`remove(id)` 清除内容和跳转，桌面占位由用户移除。id为1–60位字母、数字、点、下划线或连字符；每应用最多8项、宿主64项。title最多60字、body500字；imagePath 是设备作用域图片，缩至320像素以内；progress为0–1；颜色为 #RRGGBB。支持缩放、系统深浅主题、图片、文本和进度，小尺寸会精简内容；点击携带 params 打开应用。展示不依赖RN后台常驻；需要更新内容时主动调用set，不保证JS在后台执行。系统小组件不能直接渲染任意RN页面，复杂视觉可用自己生成的图片。
+- 屏幕常亮：`app.phone.keepAwake(true/false)` 仅影响当前可见应用，隐藏或切后台暂停，重新可见时恢复；卸载自动释放；不获取系统唤醒锁或申请权限。
+
 这些接口由宿主绑定当前应用。交互类接口只从用户操作调用，检查返回值的 ok；失败含 code/error，取消为 CANCELLED。APK 必须配套实现，不能仅安装 SDK 就假定旧 APK 支持。
 
-- 桌面入口：`app.phone.shortcuts.status()` 查询 supported；`add({ id,label?,params?,iconPath? })` 请求系统添加，label 默认应用名、最多40字，params 遵循分享参数规则。同 ID 更新已固定入口，requested 仅表示请求已提交，不表示用户确认。iconPath 是 device 作用域已有的位图相对路径（最多6 MB），省略使用应用名首字和主题色。remove(id) 禁用入口，桌面可能保留禁用图标；卸载作品自动禁用入口。
+- 桌面入口：`app.phone.shortcuts.status()` 查询 supported；`add({ id,label?,params?,iconPath? })` 请求系统添加，label 默认应用名、最多40字，params 遵循分享参数规则。同 ID 更新已固定入口，requested 仅表示请求已提交，不表示用户确认。iconPath 是 device 作用域已有的位图相对路径（最多6 MB），省略使用应用名首字和主题色。list() 查询自己已固定的入口及 enabled 状态；remove(id) 禁用入口，桌面可能保留禁用图标；卸载作品自动禁用入口。
 - 朗读：`app.phone.speech.speak(text,{language?,rate?,pitch?,signal?})` 在完成、失败或取消时返回，app.phone.stopSpeaking() 停止本应用朗读。language 默认 zh-CN，rate 为0.25–2、pitch 为0.5–2，文字受设备 TTS 长度限制。原 app.phone.speak(text) 在提交朗读后返回；同应用新的朗读可先停止旧朗读，不打断其他应用；离开作品停止。
-- 语音输入：`app.phone.speech.status()` 查询 recognition/onDevice/microphone/tts；用户选择语音输入后 requestPermission() 请求麦克风，再 recognize({language?,onDevice?,signal?,onPartial?})，成功返回 {ok:true,text}，onPartial 为累计临时文本。onDevice:true 仅本机识别，不支持时返回 UNSUPPORTED；默认系统识别服务可能联网。离开作品停止识别，失败保留输入、不自动重试。
+- 语音输入：`app.phone.speech.status()` 查询 recognition/onDevice/microphone/tts；用户选择语音输入后 requestPermission() 请求麦克风，再 recognize({language?,onDevice?,signal?,onPartial?})，成功返回 {ok:true,text}，onPartial 为累计临时文本；finish() 结束收音并等待原 recognize() 的最终结果，cancel() 放弃当前识别。onDevice:true 仅本机识别，不支持时返回 UNSUPPORTED；默认系统识别服务可能联网。离开作品停止识别，失败保留输入、不自动重试。
 - 保存相册：`app.files.saveToGallery(path,{name?,mime?})` 保存应用已有 JPEG/PNG/WebP/GIF/MP4/WebM，mime 可按后缀推断；账号文件用 app.scope("account").files。安卓10+保存新媒体，不读取整个相册、不申请存储权限；安卓8/9打开系统另存为，是否进入相册取决于用户保存位置。原文件保留。
 - 日历：`app.phone.calendar.compose({title,startMs,endMs,description?,location?,allDay?})` 打开系统日历编辑，由用户确认保存，无日历读写权限。时间为毫秒时间戳，endMs > startMs；全天事件使用 UTC 零点日期边界，结束日期不包含在事件内。成功仅表示编辑页已打开，不能宣称已保存。
 - 传感器：`app.phone.sensors.available()` 返回支持的 items；subscribe(kind,listener,{intervalMs?,onError?}) 返回取消订阅函数，在 effect 清理时调用。kind 为 accelerometer/gyroscope/gravity/rotation；intervalMs 为20–1000，默认50，不申请危险权限。样本 values 为原生轴值，加速度m/s²、陀螺仪rad/s，rotation为安卓旋转向量；timestampMs 是开机以来的单调时间，accuracy 是原生精度等级。隐藏或切后台暂停，返回恢复；每应用最多4个、宿主最多16个订阅，避免每条样本重绘整页。

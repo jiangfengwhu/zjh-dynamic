@@ -1,6 +1,8 @@
 import type { AppData, DataScope, FileActionResult } from "./index";
 import { readPackageValue, writePackageValue, removePackageValue, subscribePackageValue } from "../../ui/packageLink";
 import { shell } from "../../platform/src/phone";
+import { documentAction } from "./documents";
+import type { OcrResult, PdfResult } from "./native-types";
 
 export async function fileAction(method: string, payload: Record<string, unknown>): Promise<FileActionResult> {
   try {
@@ -53,6 +55,22 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
       remove: async value => { const ns = namespace(); await require("react-native-keychain").resetGenericPassword({ service: secure(value, ns) }); guard(ns); },
     },
     files: {
+      recognizeText: async (path, options) => {
+        const ns = namespace(); guard(ns);
+        const result = await documentAction(appId, "documentRecognize", { path: pathFor(path, ns) }, options?.signal); guard(ns);
+        return result as OcrResult;
+      },
+      createPdf: async (path, options) => {
+        if (!path.toLowerCase().endsWith(".pdf") || !options.html.trim() || options.html.length > 2 * 1024 * 1024 || options.marginMm !== undefined && (!Number.isFinite(options.marginMm) || options.marginMm < 0 || options.marginMm > 40)) throw new Error("PDF 参数无效");
+        const ns = namespace(), { signal, ...input } = options; guard(ns);
+        const result = await documentAction(appId, "documentPdf", { ...input, path: pathFor(path, ns) }, signal); guard(ns);
+        return (result.ok ? { ...result, path } : result) as PdfResult;
+      },
+      print: async (path, options) => {
+        const ns = namespace(); guard(ns);
+        const result = await documentAction(appId, "documentPrint", { path: pathFor(path, ns), title: options?.title }); guard(ns);
+        return result;
+      },
       uri: path => `file://${pathFor(path)}`,
       readText: async path => { const ns = namespace(); const result = await blob().fs.readFile(pathFor(path, ns), "utf8"); guard(ns); return result; },
       readBase64: async path => {
@@ -64,17 +82,39 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
         return result;
       },
       writeText: async (path, data) => { const ns = namespace(); const target = pathFor(path, ns); await parent(target); guard(ns); await blob().fs.writeFile(target, data, "utf8"); guard(ns); },
+      writeBase64: async (path, data) => {
+        if (data.length > 8 * 1024 * 1024 || data.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(data)) throw new Error("Base64 数据无效或超过 6 MB");
+        const ns = namespace(), target = pathFor(path, ns), temporary = `${target}.write-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await parent(target); guard(ns);
+        try { await blob().fs.writeFile(temporary, data, "base64"); guard(ns); await blob().fs.mv(temporary, target); guard(ns); }
+        finally { await blob().fs.unlink(temporary).catch(() => {}); }
+      },
       remove: async path => { const ns = namespace(); const target = pathFor(path, ns); if (await blob().fs.exists(target)) { guard(ns); await blob().fs.unlink(target); } guard(ns); },
       list: async (directory = "") => { const ns = namespace(); const target = directory ? pathFor(directory, ns) : root(ns); const result: string[] = await blob().fs.exists(target) ? await blob().fs.ls(target) : []; guard(ns); return scope === "device" && !directory ? result.filter(name => name !== "accounts") : result; },
-      download: async (url, path) => {
+      download: async (url, path, options = {}) => {
         if (!/^https:\/\//i.test(url)) throw new Error("下载地址必须使用 HTTPS");
+        const timeout = options.timeoutMs ?? 60000;
+        if (!Number.isInteger(timeout) || timeout < 1000 || timeout > 180000) throw new Error("下载超时须为 1–180 秒");
+        if (options.signal?.aborted) throw new Error("下载已取消");
         const ns = namespace(); const target = pathFor(path, ns); const temporary = `${target}.download-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await parent(target); guard(ns);
+        if (options.signal?.aborted) throw new Error("下载已取消");
+        const task = blob().config({ path: temporary, followRedirect: false, timeout }).fetch("GET", url);
+        let cancelled = false;
+        const cancel = () => { if (cancelled) return; cancelled = true; try { task.cancel(); } catch {} };
+        options.signal?.addEventListener("abort", cancel);
+        const removeAccount = scope === "account" ? subscribeAccount(() => { if (ns !== namespace()) cancel(); }) : () => {};
+        if (options.onProgress) task.progress({ interval: 250 }, (received: string, total: string) => {
+          if (options.signal?.aborted || ns !== namespace()) return;
+          try { options.onProgress?.(Number(received), Number(total) > 0 ? Number(total) : undefined); } catch {}
+        });
+        if (options.signal?.aborted) cancel();
         try {
-          const result = await blob().config({ path: temporary, followRedirect: false }).fetch("GET", url);
+          const result = await task;
           if (result.info().status < 200 || result.info().status >= 300) throw new Error("下载失败");
+          if (options.signal?.aborted) throw new Error("下载已取消");
           guard(ns); await blob().fs.mv(temporary, target); guard(ns);
-        } finally { if (await blob().fs.exists(temporary)) await blob().fs.unlink(temporary); }
+        } finally { options.signal?.removeEventListener("abort", cancel); removeAccount(); if (await blob().fs.exists(temporary)) await blob().fs.unlink(temporary); }
       },
       importFile: async (path, options) => {
         const ns = namespace(); const target = pathFor(path, ns); let temporary: string | undefined;

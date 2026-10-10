@@ -18,10 +18,11 @@ async function action(method: string, payload: Record<string, unknown>): Promise
   } catch { return { ok: false, code: "UNAVAILABLE", error: messages.UNAVAILABLE }; }
 }
 export function setApplicationNativeActive(appId: string, active: boolean) { bindings.get(appId)?.visibility(active ? 1 : -1); }
-export function clearApplicationNative(appId: string) { bindings.get(appId)?.clear(); bindings.delete(appId); }
+export function clearApplicationNative(appId: string) { bindings.get(appId)?.clear(); bindings.delete(appId); void shell("documentStopApp", { appId }).catch(() => {}); }
 
 export function applicationNative(appId: string, metadata: () => { title: string; accent: string }, fileUri: (path: string) => string): ApplicationNativeCapabilities {
   let visible = 0, disposed = false, foreground = AppState.currentState === "active";
+  let wantsAwake = false;
   let sensorChain: Promise<unknown> = Promise.resolve();
   type SensorSubscription = { kind: SensorKind; listener: (sample: SensorSample) => void; intervalMs: number; onError?: (error: Extract<NativeActionResult, { ok: false }>) => void };
   const sensors = new Map<string, SensorSubscription>();
@@ -40,7 +41,7 @@ export function applicationNative(appId: string, metadata: () => { title: string
     // Dispatch before a replacement app can start; queued sensor starts recheck visibility.
     void action("appNativeStop", { appId, includeBiometric: !background });
   };
-  const resume = () => { if (available()) sensors.forEach((item, id) => startSensor(id, item)); };
+  const resume = () => { if (available()) { sensors.forEach((item, id) => startSensor(id, item)); if (wantsAwake) void action("appKeepAwake", { appId, on: true }); } };
   const stateListener = AppState.addEventListener("change", state => {
     const next = state === "active";
     if (foreground === next) return;
@@ -55,7 +56,7 @@ export function applicationNative(appId: string, metadata: () => { title: string
   });
   bindings.set(appId, {
     visibility: delta => { const was = available(); visible = Math.max(0, visible + delta); if (was && !available()) suspend(); else if (!was && available()) resume(); },
-    clear: () => { disposed = true; suspend(); sensors.clear(); events.remove(); stateListener.remove(); },
+    clear: () => { disposed = true; wantsAwake = false; suspend(); sensors.clear(); events.remove(); stateListener.remove(); },
   });
   async function operation(method: string, stop: string, options: { signal?: AbortSignal; onPartial?: (text: string) => void } & Record<string, unknown>) {
     if (!available() || options.signal?.aborted) return cancelled;
@@ -81,9 +82,12 @@ export function applicationNative(appId: string, metadata: () => { title: string
     finally { cancellations.delete(abort); event?.remove(); signal?.removeEventListener("abort", abort); }
   }
   return {
+    keepAwake: on => { if (on && !available()) return Promise.resolve(cancelled); wantsAwake = on; return action("appKeepAwake", { appId, on }); },
     speak: text => { if (!text.trim()) throw new Error("朗读文字不能为空"); return operation("speechSpeak", "speechStop", { text, waitForCompletion: false }); },
     stopSpeaking: () => action("speechStop", { appId }),
     speech: {
+      finish: () => action("speechFinish", { appId }),
+      cancel: () => action("speechCancelAll", { appId }),
       speak: (text, options = {}) => {
         if (!text.trim() || options.language !== undefined && (!options.language.trim() || options.language.length > 40) || options.rate !== undefined && (!Number.isFinite(options.rate) || options.rate < 0.25 || options.rate > 2) || options.pitch !== undefined && (!Number.isFinite(options.pitch) || options.pitch < 0.5 || options.pitch > 2)) throw new Error("朗读参数无效");
         return operation("speechSpeak", "speechStop", { text, ...options });
@@ -97,6 +101,7 @@ export function applicationNative(appId: string, metadata: () => { title: string
       },
     },
     shortcuts: {
+      list: () => shell("shortcutList", { appId }),
       status: () => shell("shortcutStatus", { appId }),
       add: async input => {
         if (!/^[A-Za-z0-9._-]{1,60}$/.test(input.id)) throw new Error("快捷入口 ID 无效");
@@ -107,6 +112,18 @@ export function applicationNative(appId: string, metadata: () => { title: string
         return action("shortcutAdd", { appId, id: input.id, label, params: normalizeShareParams(input.params), path, accent: details.accent });
       },
       remove: id => { if (!/^[A-Za-z0-9._-]{1,60}$/.test(id)) throw new Error("快捷入口 ID 无效"); return action("shortcutRemove", { appId, id }); },
+    },
+    widgets: {
+      status: () => shell("widgetStatus", { appId }),
+      list: () => shell("widgetList", { appId }),
+      set: input => {
+        if (!/^[A-Za-z0-9._-]{1,60}$/.test(input.id) || !input.title.trim() || input.title.length > 60 || (input.body?.length ?? 0) > 500 || input.progress !== undefined && (!Number.isFinite(input.progress) || input.progress < 0 || input.progress > 1)) throw new Error("小组件参数无效");
+        for (const color of [input.backgroundColor, input.textColor]) if (color !== undefined && !/^#[a-f0-9]{6}$/i.test(color)) throw new Error("颜色需为 #RRGGBB");
+        const { imagePath, ...value } = input;
+        return action("widgetSet", { appId, ...value, params: normalizeShareParams(input.params), path: imagePath ? fileUri(imagePath).replace(/^file:\/\//, "") : undefined });
+      },
+      pin: id => { if (!/^[A-Za-z0-9._-]{1,60}$/.test(id)) throw new Error("小组件 ID 无效"); return available() ? action("widgetPin", { appId, id }) : Promise.resolve(cancelled); },
+      remove: id => { if (!/^[A-Za-z0-9._-]{1,60}$/.test(id)) throw new Error("小组件 ID 无效"); return action("widgetRemove", { appId, id }); },
     },
     calendar: {
       compose: input => {

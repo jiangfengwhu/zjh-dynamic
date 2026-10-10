@@ -161,7 +161,6 @@ export function applicationContext(appId: string): AppContext {
           return { ok: true, items: result.items.filter(item => item.id.startsWith(prefix)).map(item => ({ ...item, id: item.id.slice(prefix.length) })) };
         } catch { return { ok: false, error: "无法查询提醒" }; }
       },
-      keepAwake: phone.keepAwake,
     },
   };
   contexts.set(appId, context);

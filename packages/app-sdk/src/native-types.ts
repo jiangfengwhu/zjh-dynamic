@@ -10,7 +10,12 @@ export type SensorSample = { sensor: SensorKind; values: number[]; timestampMs: 
 /** All-day events use UTC midnight date boundaries; endMs is exclusive. */
 export type CalendarEventInput = { title: string; startMs: number; endMs: number; description?: string; location?: string; allDay?: boolean };
 export type ShortcutInput = { id: string; label?: string; params?: ShareParams; /** Existing raster image in device-scoped app files. */ iconPath?: string };
+export type WidgetInput = { id: string; title: string; body?: string; imagePath?: string; params?: ShareParams; progress?: number; backgroundColor?: string; textColor?: string };
+export type OcrResult = { ok: true; text: string; width: number; height: number; blocks: { text: string; lines: string[]; bounds?: { x: number; y: number; width: number; height: number } }[] } | Extract<NativeActionResult, { ok: false }>;
+export type PdfOptions = { html: string; title?: string; pageSize?: "A4" | "A5" | "LETTER"; landscape?: boolean; marginMm?: number; signal?: AbortSignal };
+export type PdfResult = { ok: true; path: string; pages: number } | Extract<NativeActionResult, { ok: false }>;
 export type ApplicationNativeCapabilities = {
+  keepAwake: (on: boolean) => Promise<NativeActionResult>;
   /** Resolves when queued, retaining the original speak contract. */
   speak: (text: string) => Promise<NativeActionResult>;
   stopSpeaking: () => Promise<NativeActionResult>;
@@ -21,12 +26,26 @@ export type ApplicationNativeCapabilities = {
     /** Only call in response to the user choosing voice input. */
     requestPermission: () => Promise<{ granted: boolean; status: string }>;
     recognize: (options?: RecognitionOptions) => Promise<({ ok: true; text: string } | Extract<NativeActionResult, { ok: false }>)>;
+    /** Stops listening and waits for the existing recognize() request to produce its final result. */
+    finish: () => Promise<NativeActionResult>;
+    cancel: () => Promise<NativeActionResult>;
   };
   shortcuts: {
+    list: () => Promise<ShellResult & { items?: { id: string; label: string; enabled: boolean }[] }>;
     status: () => Promise<ShellResult & { supported?: boolean }>;
     /** Requests launcher confirmation; requested does not mean the user accepted. Reusing an ID updates its pinned entry. */
     add: (input: ShortcutInput) => Promise<(NativeActionResult & { requested?: boolean; existing?: boolean })>;
     /** Disables the pinned entry; the launcher may retain its icon. */
+    remove: (id: string) => Promise<NativeActionResult>;
+  };
+  widgets: {
+    status: () => Promise<ShellResult & { supported?: boolean }>;
+    /** Saves a persistent snapshot and updates all pinned instances of this ID. */
+    set: (input: WidgetInput) => Promise<NativeActionResult>;
+    /** Launcher confirmation is required; requested is not confirmation of installation. Call set first. */
+    pin: (id: string) => Promise<NativeActionResult & { requested?: boolean }>;
+    list: () => Promise<ShellResult & { items?: { id: string; instances: number[] }[] }>;
+    /** Clears content and disables entry; only the user can remove the launcher widget. */
     remove: (id: string) => Promise<NativeActionResult>;
   };
   calendar: {
