@@ -1,6 +1,6 @@
 import { applicationSharing, clearApplicationShareListeners } from "./sharing";
 import { applicationNotifications, clearApplicationNotifications } from "./notifications";
-import { applicationNative, clearApplicationNative, setApplicationNativeActive } from "./native";
+import { applicationNative, clearApplicationNative, setApplicationNativeActive, isApplicationNativeActive } from "./native";
 const bootstrap = require("../../../tools/applications/bootstrap.json");
 import type { AppContext, AppDefinition, AppData, DataScope } from "./index";
 import { createElement, useEffect, useContext, useSyncExternalStore } from "react";
@@ -147,7 +147,7 @@ export function applicationContext(appId: string): AppContext {
         const bundle = registry.bundles.find(item => item.id === appId);
         return { title: bundle?.title ?? appId, accent: bundle?.accent ?? "#E65088" };
       }, path => scope("device").files.uri(path)),
-      requestNotifications: async () => { const { status } = await requestNotifications(["alert", "sound", "badge"]); return { ok: true, granted: status === RESULTS.GRANTED, status }; },
+      requestNotifications: async () => { if (!isApplicationNativeActive(appId)) return { ok: false, granted: false, status: "unavailable" as const }; const { status } = await requestNotifications(["alert", "sound", "badge"]); return { ok: true, granted: status === RESULTS.GRANTED, status }; },
       ...applicationNotifications(appId, reminderId, () => {
         const registry = require("../../features/src/registry") as typeof import("../../features/src/registry");
         return registry.bundles.find(item => item.id === appId)?.title ?? (appId === bootstrap.defaultApplication ? "Jolly" : appId);
@@ -155,7 +155,7 @@ export function applicationContext(appId: string): AppContext {
       cancelSchedule: id => shell("cancelSchedule", { id: reminderId(id) }),
       schedules: async () => {
         try {
-          const result = await shell<{ ok: boolean; items?: { id: string; title: string; body: string; atMs: number }[] }>("schedules", {});
+          const result = await shell<{ ok: boolean; items?: { id: string; title: string; body: string; atMs: number }[] }>("schedules", { appId });
           if (!result.ok || !Array.isArray(result.items)) return { ok: false, error: "无法查询提醒" };
           const prefix = `${appId}:`;
           return { ok: true, items: result.items.filter(item => item.id.startsWith(prefix)).map(item => ({ ...item, id: item.id.slice(prefix.length) })) };

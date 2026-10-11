@@ -1,4 +1,5 @@
 import type { ShareParams, ApplicationShareInput } from "./index";
+import { applicationIncomingShares, clearIncomingShares } from "./incoming-shares";
 
 /** Validate before crossing a link, storage or native boundary. */
 export function normalizeShareParams(value: unknown): ShareParams | undefined {
@@ -27,9 +28,10 @@ export function receiveApplicationShare(appId: string, value?: ShareParams) {
   const recipients = [...(listeners.get(appId) ?? [])];
   void Promise.resolve().then(() => recipients.forEach(listener => { if (!listeners.get(appId)?.has(listener)) return; try { listener(normalizeShareParams(next)); } catch { console.warn("分享参数接收失败"); } }));
 }
-export function clearApplicationShareListeners(appId: string) { listeners.delete(appId); }
+export function clearApplicationShareListeners(appId: string) { listeners.delete(appId); clearIncomingShares(appId); }
 export function applicationSharing(appId: string) {
   return {
+    incoming: applicationIncomingShares(appId),
     open: async (input: ApplicationShareInput = {}) => {
       if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("分享内容无效");
       if (input.title !== undefined && (typeof input.title !== "string" || input.title.length > 200) || input.description !== undefined && (typeof input.description !== "string" || input.description.length > 1000)) throw new Error("分享标题或简介过长");

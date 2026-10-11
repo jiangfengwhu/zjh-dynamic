@@ -382,6 +382,7 @@ export async function uninstallMarketApplication(appId: string) {
   await shell("cancelAllSchedules", { appId }).catch(() => {});
   await shell("removeApplicationShortcuts", { appId }).catch(() => {});
   await shell("removeApplicationWidgets", { appId }).catch(() => {});
+  await shell("incomingShareRemoveApp", { appId }).catch(() => {});
   await unloadApplication(appId);
 }
 export type SharingState = {

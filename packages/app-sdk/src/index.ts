@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import type { AiService } from "./ai-types";
 import type { AppAuth, AppCloud } from "./cloud-types";
 import type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, OcrResult } from "./native-types";
-export type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, SpeechOptions, RecognitionOptions, SensorKind, SensorSample, CalendarEventInput, ShortcutInput, WidgetInput, OcrResult, NativeRequestOptions, NativeValueResult, DeviceInfo, BluetoothDevice, NfcTag, HealthKind, HealthSummary, CalendarEvent } from "./native-types";
+export type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, SpeechOptions, RecognitionOptions, SpeechState, SpeechVoice, SensorKind, SensorSample, CalendarEventInput, ShortcutInput, WidgetInput, OcrResult, NativeRequestOptions, NativeValueResult, DeviceInfo, BluetoothDevice, BluetoothService, BluetoothEvent, BluetoothCharacteristic, NfcTag, NfcWriteRecord, HealthKind, HealthSummary, CalendarEvent } from "./native-types";
 export { CloudError } from "./cloud-types";
 export type { AppUser, AppAuth, AppCloud, CloudDatabase, CloudCollection, CloudRecord, CloudPage, CloudQuery, CloudRequestOptions, CloudWriteOptions, CloudErrorCode, CloudFile, CloudFiles, CloudRoom, CloudRooms, CloudRoomStatus, CloudRoomEvent, CloudRoomMember } from "./cloud-types";
 export type {
@@ -60,6 +60,9 @@ export type DataScope = "device" | "account";
 export type FileActionResult = { ok: true } | { ok: false; code: NativeErrorCode | "ERROR"; error: string };
 export type FileImportResult = { ok: true; path: string; name: string } | Extract<FileActionResult, { ok: false }>;
 export type TextReadOptions = { signal?: AbortSignal };
+export type FileOperationOptions = { signal?: AbortSignal; timeoutMs?: number };
+export type AppFileStat = { exists: false } | { exists: true; type: "file" | "directory"; size: number; modifiedMs: number };
+export type IncomingShare = { id: string; title?: string; text?: string; createdAt: number; /** Paths are device-scoped application files; acknowledge leaves these files intact. */ files: { path: string; name: string; mime: string; bytes: number }[] };
 export type TextChunkOptions = TextReadOptions & {
   /** UTF-8 bytes per chunk: 4–256 KiB, default 64 KiB. Characters stay intact. */
   chunkBytes?: number;
@@ -77,6 +80,13 @@ export type AppData = {
     remove: (key: string) => Promise<void>;
   };
   files: {
+    stat: (path: string, options?: FileOperationOptions) => Promise<AppFileStat>;
+    /** Cursor is a file name; additions before it appear on a new traversal. Direct children only. */
+    listPage: (directory?: string, options?: FileOperationOptions & { limit?: number; cursor?: string }) => Promise<{ items: string[]; nextCursor: string | null }>;
+    copy: (from: string, to: string, options?: FileOperationOptions & { overwrite?: boolean }) => Promise<FileActionResult>;
+    move: (from: string, to: string, options?: FileOperationOptions & { overwrite?: boolean }) => Promise<FileActionResult>;
+    /** Atomic UTF-8 append, up to 6 MiB per call. Existing contents stay native. */
+    appendText: (path: string, text: string, options?: FileOperationOptions) => Promise<FileActionResult>;
     /** Offline Chinese/Latin OCR. Bounds refer to the returned, possibly downsampled/rotated image size. */
     recognizeText: (path: string, options?: { signal?: AbortSignal }) => Promise<OcrResult>;
     /** Opens system printing with an existing PDF; success does not mean printing completed. */
@@ -142,6 +152,12 @@ export type AppContext = AppData & {
   scope: (scope: DataScope) => AppData;
   /** Opens the host application-sharing sheet. User chooses and confirms the destination. */
   sharing: {
+    incoming: {
+      list: () => Promise<IncomingShare[]>;
+      /** Delivery may repeat until acknowledged; handle idempotently by id. */
+      subscribe: (listener: (item: IncomingShare) => void) => () => void;
+      acknowledge: (id: string) => Promise<NativeActionResult>;
+    };
     open: (input?: ApplicationShareInput) => Promise<void>;
     getParams: () => ShareParams | undefined;
     subscribe: (listener: (params: ShareParams | undefined) => void) => () => void;

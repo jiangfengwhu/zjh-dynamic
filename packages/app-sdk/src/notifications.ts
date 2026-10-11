@@ -10,9 +10,10 @@ export function applicationNotifications(appId: string, reminderId: (id: string)
   const listeners = new Set<(event: NotificationEvent) => void>();
   let running = false;
   let again = false;
+  let disposed = false;
   let subscriptions: { remove: () => void }[] = [];
   const refresh = async () => {
-    if (!listeners.size) return;
+    if (disposed || !listeners.size) return;
     if (running) { again = true; return; }
     running = true;
     try {
@@ -20,16 +21,16 @@ export function applicationNotifications(appId: string, reminderId: (id: string)
         again = false;
         const result = await shell<{ ok: boolean; items?: NotificationEvent[] }>("notificationEvents", { appId });
         if (result.ok) for (const event of result.items ?? []) for (const listener of [...listeners]) {
-          if (!listeners.has(listener)) continue;
-          try { listener({ ...event, params: normalizeShareParams(event.params) ?? {} }); }
+          if (disposed || !listeners.has(listener)) continue;
+          try { void Promise.resolve(listener({ ...event, params: normalizeShareParams(event.params) ?? {} })).catch(() => {}); }
           catch { console.warn("通知事件处理失败"); }
         }
-      } while (again && listeners.size);
+      } while (again && !disposed && listeners.size);
     } catch { /* Pending events remain on disk for the next subscribe/resume. */ }
     finally { running = false; }
   };
   const stop = () => { listeners.clear(); subscriptions.forEach(item => item.remove()); subscriptions = []; };
-  cleanup.set(appId, stop);
+  cleanup.set(appId, () => { disposed = true; stop(); });
   const options = (value: ReminderOptions = {}) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("提醒选项无效");
     return { params: normalizeShareParams(value.params), actions: value.actions, repeat: value.repeat, appName: getAppName() };
@@ -44,6 +45,7 @@ export function applicationNotifications(appId: string, reminderId: (id: string)
       return shell<ReminderResult>("schedule", { id: reminderId(id), title, body, atMs, options: options(value) });
     },
     onNotification: (listener: (event: NotificationEvent) => void) => {
+      if (disposed || typeof listener !== "function") throw new Error("通知监听无效或应用已关闭");
       listeners.add(listener);
       if (!subscriptions.length) subscriptions = [
         AppState.addEventListener("change", state => { if (state === "active") void refresh(); }),

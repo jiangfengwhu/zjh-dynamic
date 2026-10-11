@@ -1,9 +1,11 @@
 import type { ShellResult, ShareParams, LocationResult } from "./index";
 
-export type NativeErrorCode = "CANCELLED" | "PERMISSION" | "UNSUPPORTED" | "BUSY" | "TIMEOUT" | "NO_MATCH" | "NETWORK" | "UNAVAILABLE" | "DISABLED" | "TOO_LARGE";
+export type NativeErrorCode = "CANCELLED" | "PERMISSION" | "UNSUPPORTED" | "BUSY" | "TIMEOUT" | "NO_MATCH" | "NETWORK" | "UNAVAILABLE" | "DISABLED" | "TOO_LARGE" | "LANGUAGE_UNSUPPORTED" | "MISSING_DATA" | "READ_ONLY" | "TAG_LOST" | "CONNECTION_LOST" | "REJECTED" | "NOT_FOUND" | "ALREADY_EXISTS";
 export type NativeActionResult = { ok: true } | { ok: false; code: NativeErrorCode; error: string };
-export type SpeechOptions = { language?: string; rate?: number; pitch?: number; signal?: AbortSignal };
-export type RecognitionOptions = { language?: string; onDevice?: boolean; signal?: AbortSignal; onPartial?: (text: string) => void };
+export type SpeechState = "listening" | "hearing" | "processing" | "speaking";
+export type SpeechVoice = { id: string; language: string; networkRequired: boolean; quality: number };
+export type SpeechOptions = { language?: string; voice?: string; rate?: number; pitch?: number; signal?: AbortSignal; /** 1 second–30 minutes; default 10 minutes. */ timeoutMs?: number; onState?: (state: SpeechState) => void };
+export type RecognitionOptions = { language?: string; onDevice?: boolean; signal?: AbortSignal; onPartial?: (text: string) => void; onState?: (state: SpeechState) => void; /** System speech service's raw RMS dB, throttled to at most 12.5 Hz. */ onVolume?: (level: number) => void };
 export type SensorKind = "accelerometer" | "gyroscope" | "gravity" | "rotation";
 /** timestampMs is monotonic time since boot. Acceleration: m/s², gyroscope: rad/s, rotation: Android rotation vector. */
 export type SensorSample = { sensor: SensorKind; values: number[]; timestampMs: number; accuracy: number };
@@ -16,6 +18,10 @@ export type NativeRequestOptions = { signal?: AbortSignal; timeoutMs?: number };
 export type NativeValueResult<T> = ({ ok: true } & T) | Extract<NativeActionResult, { ok: false }>;
 export type DeviceInfo = { brand: string; model: string; sdk: number; release: string; battery: number; charging: boolean };
 export type BluetoothDevice = { name: string; address: string; rssi?: number };
+export type BluetoothService = { uuid: string; characteristics: { uuid: string; properties: number; descriptors: string[] }[] };
+export type BluetoothEvent = { connectionId: string; type: "disconnected" } | { connectionId: string; type: "value"; service: string; characteristic: string; data: string };
+export type BluetoothCharacteristic = { connectionId: string; service: string; characteristic: string };
+export type NfcWriteRecord = { type: "text"; text: string; language?: string } | { type: "uri"; uri: string };
 export type NfcTag = { id: string; text: string; records: { text: string; type: string }[]; technologies: string[] };
 export type HealthKind = "steps" | "heartRate" | "sleep";
 export type HealthSummary = { steps?: number; sleepMinutes?: number; heartRate?: number | null; heartRateAtMs?: number | null };
@@ -34,11 +40,24 @@ export type ApplicationNativeCapabilities = {
     pairedDevices: () => Promise<NativeValueResult<{ items: BluetoothDevice[] }>>;
     /** BLE discovery only; does not connect or read GATT characteristics. */
     scan: (options?: NativeRequestOptions & { seconds?: number }) => Promise<NativeValueResult<{ items: BluetoothDevice[] }>>;
+    /** Foreground BLE GATT; hides/background disconnect it. Two connections per app, four per host. */
+    connect: (address: string, options?: NativeRequestOptions) => Promise<NativeValueResult<{ connectionId: string }>>;
+    disconnect: (connectionId: string) => Promise<NativeActionResult>;
+    services: (connectionId: string, options?: NativeRequestOptions) => Promise<NativeValueResult<{ items: BluetoothService[] }>>;
+    read: (characteristic: BluetoothCharacteristic, options?: NativeRequestOptions) => Promise<NativeValueResult<{ data: string }>>;
+    /** Raw base64, 1–512 bytes decoded; device/MTU can impose a smaller write limit. */
+    write: (characteristic: BluetoothCharacteristic, data: string, options?: NativeRequestOptions & { withoutResponse?: boolean }) => Promise<NativeActionResult>;
+    subscribe: (characteristic: BluetoothCharacteristic, options?: NativeRequestOptions) => Promise<NativeActionResult>;
+    unsubscribe: (characteristic: BluetoothCharacteristic, options?: NativeRequestOptions) => Promise<NativeActionResult>;
+    /** Subscribe before enabling characteristic notifications. Binary values are raw base64. */
+    onEvent: (listener: (event: BluetoothEvent) => void) => () => void;
   };
   nfc: {
     status: () => Promise<NativeValueResult<{ present: boolean; enabled: boolean }>>;
     /** Reads one tag/NDEF message; does not write cards or emulate payment cards. */
     read: (options?: NativeRequestOptions) => Promise<NativeValueResult<NfcTag>>;
+    /** Writes NDEF text/URI records to a writable tag. Cancellation cannot undo a completed write. */
+    write: (records: NfcWriteRecord[], options?: NativeRequestOptions) => Promise<NativeValueResult<{ id: string }>>;
   };
   health: {
     status: () => Promise<NativeValueResult<{ status: "available" | "update" | "unavailable" }>>;
@@ -54,6 +73,9 @@ export type ApplicationNativeCapabilities = {
     /** Resolves on completion, cancellation or failure. Requests from other apps are never interrupted. */
     speak: (text: string, options?: SpeechOptions) => Promise<NativeActionResult>;
     status: () => Promise<ShellResult & { recognition?: boolean; onDevice?: boolean; microphone?: boolean; tts?: boolean }>;
+    voices: (options?: NativeRequestOptions) => Promise<NativeValueResult<{ items: SpeechVoice[] }>>;
+    /** Speech service language support query; Android 13+ and a supporting recognition service required. */
+    languages: (options?: NativeRequestOptions & { onDevice?: boolean }) => Promise<NativeValueResult<{ installed: string[]; supported: string[]; online: string[] }>>;
     /** Only call in response to the user choosing voice input. */
     requestPermission: () => Promise<{ granted: boolean; status: string }>;
     recognize: (options?: RecognitionOptions) => Promise<({ ok: true; text: string } | Extract<NativeActionResult, { ok: false }>)>;

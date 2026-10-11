@@ -3,11 +3,12 @@ import { readPackageValue, writePackageValue, removePackageValue, subscribePacka
 import { shell } from "../../platform/src/phone";
 import { documentAction } from "./documents";
 import type { OcrResult } from "./native-types";
+import { nativeResult } from "./native-result";
 
 export async function fileAction(method: string, payload: Record<string, unknown>): Promise<FileActionResult> {
   try {
     const result = await shell<{ ok: boolean; error?: string }>(method, payload);
-    return result.ok ? { ok: true } : { ok: false, code: result.error === "cancel" ? "CANCELLED" : "ERROR", error: result.error === "cancel" ? "已取消" : "文件操作失败，请重试" };
+    return nativeResult(result);
   } catch { return { ok: false, code: "ERROR", error: "文件操作失败，请重试" }; }
 }
 
@@ -73,6 +74,14 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
     } catch { return request.signal.aborted ? { ok: false, code: "CANCELLED", error: "已取消" } : { ok: false, code: "ERROR", error: "无法读取应用文件，请重试" }; }
     finally { request.dispose(); }
   };
+  const fileMutation = async (method: string, path: string, target?: string, text?: string, options: import("./index").FileOperationOptions & { overwrite?: boolean } = {}): Promise<FileActionResult> => {
+    transferOptions(options); const ns = namespace(), request = scopedRequest(ns, options.signal);
+    try {
+      const { signal, ...input } = options;
+      const result = await documentAction(appId, method, { path: pathFor(path, ns), ...(target === undefined ? {} : { target: pathFor(target, ns) }), ...(text === undefined ? {} : { text }), ...input }, request.signal, "operationCancel"); guard(ns); return result;
+    } catch { return request.signal.aborted ? { ok: false, code: "CANCELLED", error: "已取消" } : { ok: false, code: "ERROR", error: "文件操作失败，请重试" }; }
+    finally { request.dispose(); }
+  };
   async function* textChunks(path: string, options: TextChunkOptions = {}, maxBytes?: number): AsyncGenerator<string> {
     const chunkBytes = options.chunkBytes ?? 64 * 1024;
     if (!Number.isInteger(chunkBytes) || chunkBytes < 4096 || chunkBytes > 256 * 1024) throw new Error("分片大小须为 4–256 KiB");
@@ -116,10 +125,30 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
       remove: async value => { const ns = namespace(); await require("react-native-keychain").resetGenericPassword({ service: secure(value, ns) }); guard(ns); },
     },
     files: {
+      stat: async (path, options = {}) => {
+        transferOptions(options); const ns = namespace(), request = scopedRequest(ns, options.signal);
+        try { const { signal, ...input } = options; const result = await documentAction(appId, "fileStat", { path: pathFor(path, ns), ...input }, request.signal, "operationCancel"); guard(ns); if (!result.ok) throw new Error(result.error); return result as unknown as import("./index").AppFileStat; }
+        finally { request.dispose(); }
+      },
+      listPage: async (directory = "", options = {}) => {
+        transferOptions(options);
+        if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 200) || options.cursor !== undefined && (options.cursor.length > 255 || options.cursor.includes("/") || options.cursor.includes("\\"))) throw new Error("目录分页参数无效");
+        const ns = namespace(), request = scopedRequest(ns, options.signal);
+        try {
+          const { signal, ...input } = options;
+          const target = directory ? pathFor(directory, ns) : root(ns);
+          const result = await documentAction(appId, "fileListPage", { path: target, device: scope === "device", ...input }, request.signal, "operationCancel"); guard(ns);
+          if (!result.ok) throw new Error(result.error);
+          return { items: result.items as string[], nextCursor: result.nextCursor as string | null };
+        } finally { request.dispose(); }
+      },
+      copy: (from, to, options) => fileMutation("fileCopy", from, to, undefined, options),
+      move: (from, to, options) => fileMutation("fileMove", from, to, undefined, options),
+      appendText: (path, text, options) => { if (typeof text !== "string" || text.length > 6 * 1024 * 1024) throw new Error("追加文字过大"); return fileMutation("fileAppendText", path, undefined, text, options); },
       recognizeText: async (path, options) => {
-        const ns = namespace(); guard(ns);
-        const result = await documentAction(appId, "documentRecognize", { path: pathFor(path, ns) }, options?.signal); guard(ns);
-        return result as OcrResult;
+        const ns = namespace(), request = scopedRequest(ns, options?.signal);
+        try { const result = await documentAction(appId, "documentRecognize", { path: pathFor(path, ns) }, request.signal); guard(ns); return result as OcrResult; }
+        finally { request.dispose(); }
       },
       print: async (path, options) => {
         const ns = namespace(); guard(ns);
