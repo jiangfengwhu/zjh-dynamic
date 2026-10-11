@@ -291,7 +291,7 @@ export function ApplicationFeedScreen(props: Props) {
       <GestureDetector gesture={swipe}>
         <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
           {!item && (page.owner !== identity || (!page.loaded && !error)) ? <View style={{ height: 96 }}><DelayedExperienceLoading><DiscoveryFooterSkeleton animated={active} /></DelayedExperienceLoading></View> : null}
-          {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={openComments} onOpen={openCurrent} onShare={shareCurrent} onDetail={detailCurrent} /> : null}
+          {item ? <ApplicationInteractions key={identity} item={item} active={active && !switching} onComment={openComments} onOpen={openCurrent} onShare={shareCurrent} onDetail={detailCurrent} /> : null}
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <View style={{ width: 44, height: 48, alignItems: "center", justifyContent: "center" }}>
               <View style={{ width: 36, height: 36 }}>
@@ -382,25 +382,24 @@ const CachedExperience = memo(function CachedExperience({ item, selected, ready,
 const InlineExperience = memo(function InlineExperience({ appId, ready, error, selected, foreground, visible, render, onRetry, onPause, onDetail }: { appId: string; ready: boolean; error: string; selected: boolean; foreground: boolean; visible: boolean; render: Props["renderApplication"]; onRetry: () => void; onPause: () => void; onDetail: () => void }) {
   const { colors: t } = useTheme();
   const showing = foreground && visible;
-  const [retainedVisible, setRetainedVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
+  if (ready && selected && !mounted) setMounted(true);
   const applicationLayout = useCallback(() => {
     if (selected && showing) markStartup("discovery-application-layout");
   }, [selected, showing]);
   useEffect(() => {
-    if (!ready || !showing) { setRetainedVisible(false); return; }
-    if (selected) { setMounted(true); return; }
-    // Only activating a neighbour may wait for idle. The `showing` gate below
-    // suspends departed pages immediately, even during uninterrupted swiping.
-    return afterInteractions(() => startTransition(() => { setMounted(true); setRetainedVisible(true); }));
-  }, [ready, showing, selected]);
+    if (!ready || !showing || mounted) return;
+    // Only create a neighbour once. Returning cached neighbours use their saved
+    // presentation without restarting effects or scheduling another React pass.
+    return afterInteractions(() => startTransition(() => setMounted(true)));
+  }, [ready, showing, mounted]);
   const content = useMemo(() => render(appId, onPause), [render, appId, onPause]);
   if (ready) {
     // Activity hides effects, but still renders an initially hidden tree. Do not
     // create distant, unvisited pages every time the forward window advances.
     // Once previewed, keep the tree and its state until the cache evicts it.
     if (!mounted && !selected) return null;
-    return <RetainedApplicationPresentation active={showing && (selected || retainedVisible)} foreground={foreground} retain={selected}>
+    return <RetainedApplicationPresentation active={showing && selected} preview={showing && !selected} foreground={foreground} retain>
       <ApplicationCloudActivity.Provider value={showing && selected}><View style={{ flex: 1 }} onLayout={applicationLayout}>{content}</View></ApplicationCloudActivity.Provider>
     </RetainedApplicationPresentation>;
   }

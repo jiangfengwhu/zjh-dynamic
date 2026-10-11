@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
 import Animated, { cancelAnimation, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { Pressy } from "../../../../packages/ui/chrome";
@@ -35,91 +35,100 @@ export const ApplicationInteractions = memo(function ApplicationInteractions({ i
   const { colors: t } = useTheme();
   const owner = cachedAccountId() ?? "guest";
   const key = `${owner}:${item.manifest.appId}`;
-  const [post, setPost] = useState(() => cachedApplicationDiscussion(item));
-  const [pendingLike, setPendingLike] = useState<boolean>();
-  const [pendingSaved, setPendingSaved] = useState<boolean>();
-  const likeWanted = useRef<boolean | undefined>(undefined);
-  const savedWanted = useRef<boolean | undefined>(undefined);
-  const liking = useRef(false);
-  const current = useRef(post);
-  const alive = useRef(true);
-  const version = useRef(0);
-  const reading = useRef<Promise<UserPost> | undefined>(undefined);
-  const writing = useRef(false);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  // Reuse the native buttons across pages, but keep every in-flight operation
+  // attached to its own application. Late responses cannot update the next row.
+  const scope = useMemo(() => ({
+    post: cachedApplicationDiscussion(item), alive: false, version: 0,
+    likeWanted: undefined as boolean | undefined, savedWanted: undefined as boolean | undefined,
+    liking: false, writing: false, reading: undefined as Promise<UserPost> | undefined,
+  }), [key]);
+  const currentScope = useRef(scope);
+  useLayoutEffect(() => {
+    currentScope.current = scope;
+    scope.alive = true;
+    return () => { scope.alive = false; };
+  }, [scope]);
+  const [state, setState] = useState(() => ({ scope, post: scope.post, pendingLike: undefined as boolean | undefined, pendingSaved: undefined as boolean | undefined }));
+  if (state.scope !== scope) setState({ scope, post: scope.post, pendingLike: undefined, pendingSaved: undefined });
+  const post = state.scope === scope ? state.post : scope.post;
+  const pendingLike = state.scope === scope ? state.pendingLike : undefined;
+  const pendingSaved = state.scope === scope ? state.pendingSaved : undefined;
+  const validScope = () => scope.alive && currentScope.current === scope && (cachedAccountId() ?? "guest") === owner;
+  function setPendingLike(value: boolean | undefined) { setState(prior => prior.scope === scope ? { ...prior, pendingLike: value } : prior); }
+  function setPendingSaved(value: boolean | undefined) { setState(prior => prior.scope === scope ? { ...prior, pendingSaved: value } : prior); }
   function remember(next: UserPost) {
-    if (!alive.current || (cachedAccountId() ?? "guest") !== owner) return;
-    current.current = next; setPost(next);
+    if (!validScope()) return;
+    scope.post = next; setState(prior => prior.scope === scope ? { ...prior, post: next } : prior);
     cache.delete(key); cache.set(key, next); cacheAt.set(key, Date.now());
     if (cache.size > 64) { const first = cache.keys().next().value!; cache.delete(first); cacheAt.delete(first); }
   }
   useEffect(() => {
     if (item.discussion && item.interactionOwner === owner && (item.interactionAt || 0) > (cacheAt.get(key) || 0)) remember(item.discussion);
-  }, [item.discussion, item.interactionAt, key]);
+  }, [item.discussion, item.interactionAt, scope]);
   function read() {
-    if (reading.current) return reading.current;
-    const before = version.current;
+    if (scope.reading) return scope.reading;
+    const before = scope.version;
     const task = fetchApplicationDiscussion(item.manifest.appId).then(next => {
-      if (before === version.current) remember(next);
-      return current.current ?? next;
-    }).finally(() => { if (reading.current === task) reading.current = undefined; });
-    reading.current = task;
+      if (before === scope.version) remember(next);
+      return scope.post ?? next;
+    }).finally(() => { if (scope.reading === task) scope.reading = undefined; });
+    scope.reading = task;
     return task;
   }
   useEffect(() => {
     if (active && (!item.discussion || item.interactionOwner !== owner || Date.now() - (item.interactionAt || 0) > 30000)) return afterInteractions(() => { void read().catch(() => {}); });
-  }, [active]);
+  }, [active, scope]);
   function fail(cause: unknown) {
-    if (alive.current) Toast.show({ type: "error", text1: "互动未完成", text2: cause instanceof Error ? cause.message : "请重试" });
+    if (validScope()) Toast.show({ type: "error", text1: "互动未完成", text2: cause instanceof Error ? cause.message : "请重试" });
   }
-  const valid = () => alive.current && cachedAccountId() === owner;
+  const valid = () => validScope() && cachedAccountId() === owner;
   function like() {
     if (!cachedAccountId()) { void requireAccount(); return; }
-    likeWanted.current = !(likeWanted.current ?? current.current?.liked ?? false);
-    setPendingLike(likeWanted.current);
-    if (!liking.current) void syncLike();
+    scope.likeWanted = !(scope.likeWanted ?? scope.post?.liked ?? false);
+    setPendingLike(scope.likeWanted);
+    if (!scope.liking) void syncLike();
   }
   async function syncLike() {
-    liking.current = true;
+    scope.liking = true;
     try {
       if (!await requireAccount() || !valid()) return;
-      let confirmed = current.current ?? await read();
-      while (valid() && likeWanted.current !== undefined && likeWanted.current !== !!confirmed.liked) {
-        version.current++;
+      let confirmed = scope.post ?? await read();
+      while (valid() && scope.likeWanted !== undefined && scope.likeWanted !== !!confirmed.liked) {
+        scope.version++;
         const result = togglePostLike(confirmed);
         remember(result.post);
         const settled = await result.settled;
         confirmed = settled.post;
-        remember({ ...(current.current ?? confirmed), liked: confirmed.liked, likeCount: confirmed.likeCount });
+        remember({ ...(scope.post ?? confirmed), liked: confirmed.liked, likeCount: confirmed.likeCount });
         if (settled.error) throw settled.error;
       }
     } catch (cause) { fail(cause); }
-    finally { liking.current = false; likeWanted.current = undefined; if (alive.current) setPendingLike(undefined); }
+    finally { scope.liking = false; scope.likeWanted = undefined; if (validScope()) setPendingLike(undefined); }
   }
   function bookmark() {
     if (!cachedAccountId()) { void requireAccount(); return; }
-    savedWanted.current = !(savedWanted.current ?? current.current?.saved ?? false);
-    setPendingSaved(savedWanted.current);
-    if (!writing.current) void syncSaved();
+    scope.savedWanted = !(scope.savedWanted ?? scope.post?.saved ?? false);
+    setPendingSaved(scope.savedWanted);
+    if (!scope.writing) void syncSaved();
   }
   async function syncSaved() {
-    writing.current = true;
+    scope.writing = true;
     try {
       if (!await requireAccount() || !valid()) return;
-      let confirmed = current.current ?? await read();
-      while (valid() && savedWanted.current !== undefined && savedWanted.current !== !!confirmed.saved) {
-        const wanted = savedWanted.current;
-        version.current++;
+      let confirmed = scope.post ?? await read();
+      while (valid() && scope.savedWanted !== undefined && scope.savedWanted !== !!confirmed.saved) {
+        const wanted = scope.savedWanted;
+        scope.version++;
         const result = await saveApplicationDiscussion(confirmed.id, wanted);
         confirmed = { ...confirmed, saved: result.saved };
-        remember({ ...(current.current ?? confirmed), saved: result.saved });
+        remember({ ...(scope.post ?? confirmed), saved: result.saved });
       }
     } catch (cause) { fail(cause); }
-    finally { writing.current = false; savedWanted.current = undefined; if (alive.current) setPendingSaved(undefined); }
+    finally { scope.writing = false; scope.savedWanted = undefined; if (validScope()) setPendingSaved(undefined); }
   }
   const liked = pendingLike ?? !!post?.liked;
   const saved = pendingSaved ?? !!post?.saved;
-  function comment() { onComment(current.current); }
+  function comment() { onComment(scope.post); }
   const action = (icon: IconSymbol, label: string, onPress: () => void, selected = false, disabled = false) =>
     <Pressy accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress} style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", opacity: disabled ? 0.5 : 1 }}>
       {icon === "heart" || icon === "heartOutline" ? <LikeGlyph identity={key} liked={selected} size={23} inactiveColor={t.ink1} />
