@@ -10,6 +10,7 @@ import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdenti
 import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt, onApplicationPageMounted, disposeApplication, runApplicationLifecycle } from "../../../../packages/app-sdk/src/runtime";
 import { createApplicationModuleScope, releaseApplicationModuleScope } from "./applicationModules";
 import { restoreWorks } from "../shell/workRecovery";
+import { isWorkDeleted } from "../shell/deletedWorkState";
 import { loadCatalog, loadCatalogSync, saveCatalog } from "../shell/catalog";
 import type { PendingPackage } from "../shell/packageUpdates";
 import type { MarketApplication } from "../shell/market";
@@ -138,8 +139,10 @@ async function verifyCandidateAccess(manifest: ApplicationManifest, ownerId: str
 }
 /** Public manifests come from the platform's market/release responses. */
 export async function preparePublicApplication(manifest: ApplicationManifest, rememberAccess = true, signal?: AbortSignal) {
+  if (isWorkDeleted(manifest.appId)) throw new Error("作品已删除");
   assertCompatible(manifest, manifest.appId);
   await downloadApplicationResources(manifest, signal);
+  if (isWorkDeleted(manifest.appId)) throw new Error("作品已删除");
   signal?.throwIfAborted();
   if (rememberAccess) writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
 }
@@ -147,11 +150,13 @@ export async function preparePublicApplication(manifest: ApplicationManifest, re
 /** Load a public work for the current stage or its bounded warm queue. */
 export async function loadPublicApplicationExperience(manifest: ApplicationManifest, signal: AbortSignal, item?: MarketApplication, downloadOnly = false, priority: DownloadPriority = "visible") {
   const appId = manifest.appId;
+  if (isWorkDeleted(appId)) throw new Error("作品已删除");
   assertCompatible(manifest, appId);
   signal.throwIfAborted();
   const installerId = cachedAccountId();
   const initialEntry = loadCatalogSync().find(entry => entry.id === appId);
   const checkLocal = () => {
+    if (isWorkDeleted(appId)) throw new Error("作品已删除");
     const saved = readShellValueSync(`application.pending.${appId}`) || readShellValueSync(`application.install.${appId}`);
     if (saved && saved !== manifestText(manifest) && !sameApplicationRelease(JSON.parse(saved) as ApplicationManifest, manifest))
       throw new Error("本机保存的版本与当前公开版本不同，请从作品详情管理版本后再体验");
@@ -189,6 +194,7 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
     }
   };
   const acceptPublicRuntime = async () => {
+    if (isWorkDeleted(appId)) throw new Error("作品已删除");
     const running = active.get(appId);
     if (!running || !sameApplicationRelease(running, manifest))
       throw new Error("本机正在使用其他版本，请从作品详情管理版本后再体验");
@@ -418,6 +424,7 @@ export async function stageApplicationUpdates(appId?: string): Promise<number> {
   const currentCatalog = await loadCatalog();
   let stagedCount = 0;
   for (const [index, { manifest, ownerId }] of pending.entries()) {
+    if (isWorkDeleted(manifest.appId)) continue;
     if (results[index].status !== "fulfilled") continue;
     const entry = currentCatalog.find(entry => entry.id === manifest.appId);
     const initial = initialStates.get(manifest.appId);
@@ -476,11 +483,13 @@ function replaceRuntime(appId: string, reopen: boolean): Promise<void> {
 export function reloadApplication(appId: string) { return replaceRuntime(appId, true); }
 export function unloadApplication(appId: string) { return replaceRuntime(appId, false); }
 export async function loadApplication(appId: string): Promise<void> {
+  if (isWorkDeleted(appId)) throw new Error("作品已删除");
   const replacement = reloading.get(appId);
   if (replacement) { await replacement; return startApplicationLoad(appId); }
   return startApplicationLoad(appId);
 }
 function startApplicationLoad(appId: string): Promise<void> {
+  if (isWorkDeleted(appId)) return Promise.reject(new Error("作品已删除"));
   if (quarantined.has(appId)) throw new Error("这个版本加载失败，请等待新版本或重载后安装其他版本");
   const existing = loading.get(appId);
   if (existing || loaded.has(appId)) {
@@ -489,6 +498,7 @@ function startApplicationLoad(appId: string): Promise<void> {
     return existing ?? Promise.resolve();
   }
   const pending = load(appId).then(() => {
+    if (isWorkDeleted(appId)) return;
     loaded.add(appId);
     runtimeUse.set(appId, ++useSequence);
     activateApplication(appId);
@@ -652,7 +662,7 @@ async function commitHealthy(appId: string) {
   const manifest = active.get(appId); const access = activeAccess.get(appId);
   if (!manifest || !access || healthy.has(appId)) return;
   if (access.ownerId && await currentAccountId() !== access.ownerId) return;
-  if (quarantined.has(appId) || active.get(appId)?.releaseId !== manifest.releaseId) return;
+  if (isWorkDeleted(appId) || quarantined.has(appId) || active.get(appId)?.releaseId !== manifest.releaseId) return;
   healthy.add(appId);
   writeShellValue(`application.install.${appId}`, JSON.stringify(manifest));
   writeShellValue(`application.access.${appId}`, JSON.stringify(access));

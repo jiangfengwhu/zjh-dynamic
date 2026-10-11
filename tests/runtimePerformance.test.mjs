@@ -36,10 +36,10 @@ test('download scheduler reserves foreground capacity and joins identical work',
 });
 
 function staging() {
-  const state = { owner: 'owner', catalog: ['a', 'b', 'c'].map(id => ({ id })), writes: new Map(), requests: [] };
+  const state = { owner: 'owner', deleted: new Set(), catalog: ['a', 'b', 'c'].map(id => ({ id })), writes: new Map(), requests: [] };
   const offered = new Map(state.catalog.map(({ id }) => [id, { manifest: manifest(id), ownerId: null }]));
   const { stageApplicationUpdates: stage } = moduleAt('apps/mobile/src/runtime/applications.ts', {
-    loadCatalog: async () => structuredClone(state.catalog), cachedAccountId: () => state.owner, offered, active: new Map(),
+    isWorkDeleted: id => state.deleted.has(id), loadCatalog: async () => structuredClone(state.catalog), cachedAccountId: () => state.owner, offered, active: new Map(),
     verifyCandidateAccess: async () => {}, downloadApplicationResources: (item, signal, priority) => { assert.equal(priority, 'update'); const task = deferred(); state.requests.push({ ...task, id: item.appId }); return task.promise; },
     readShellValueSync: key => state.writes.get(key), writeShellValue: (key, value) => state.writes.set(key, value), saveCatalog: async value => { state.catalog = value; },
   }, 'stageApplicationUpdates');
@@ -64,6 +64,12 @@ test('staging does not revive explicit uninstall or commit under a changed accou
   fixture = staging(); result = fixture.stage(); await tick(); fixture.state.owner = 'other';
   fixture.state.requests.forEach(task => task.resolve()); await assert.rejects(result, /账号已改变/);
   assert.equal(fixture.state.writes.size, 0);
+});
+
+test('staging does not revive a work deleted while downloading', async () => {
+  const fixture = staging(); const pending = fixture.stage('a'); await tick();
+  fixture.state.deleted.add('a'); fixture.state.requests[0].resolve();
+  assert.equal(await pending, 0); assert.equal(fixture.state.writes.size, 0);
 });
 
 function aiFixture() {

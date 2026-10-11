@@ -46,6 +46,7 @@ import { openApplicationWorkshop } from "./workshopNavigation";
 import { openCreationComposer } from "./creationComposer";
 import { restoreWorks } from "./workRecovery";
 import { readMyWorks, workLabels, type MyWork } from "./works";
+import { deleteWork, isWorkDeleted } from "./deletedWorks";
 import { WorkCard } from "./WorkCard";
 import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 import { HostText as Text } from "./feed/HostText";
@@ -99,6 +100,8 @@ export function MyApplicationsScreen({
     Record<string, PublicApplicationUpdate>
   >({});
   const [updating, setUpdating] = useState("");
+  const [deleting, setDeleting] = useState<ReadonlySet<string>>(new Set());
+  const deletePrompts = useRef(new Set<string>());
   const writing = useRef(false);
   const [busy, setBusy] = useState(false);
   const [pulling, setPulling] = useState(false);
@@ -344,6 +347,34 @@ export function MyApplicationsScreen({
     } catch { if (before === generation.current) setError("更多作品加载失败，点击重试"); }
     finally { if (before === generation.current) {reading.current = false; setBusy(false);} }
   }
+  function confirmDelete(work: MyWork) {
+    const ownerId = user?.id;
+    if (!ownerId || deletePrompts.current.has(work.appId)) return;
+    deletePrompts.current.add(work.appId);
+    HostAlert.alert("删除作品？", `“${work.title}”的作品和制作记录将被删除，已公开的作品也会下架。此操作不可恢复。`, [
+      { text: "取消", style: "cancel", onPress: () => { deletePrompts.current.delete(work.appId); } },
+      { text: "删除", style: "destructive", onPress: () => {
+        setDeleting(previous => new Set(previous).add(work.appId));
+        void (async () => {
+          try {
+            await deleteWork(work.appId, ownerId);
+            if (await currentAccountId() !== ownerId) return;
+            generation.current++; reading.current = false;
+            setBusy(false); setPulling(false);
+            setWorks(previous => previous.filter(item => !isWorkDeleted(item.appId)));
+            setInstalled(previous => previous.filter(item => item.manifest.appId !== work.appId));
+            Toast.show({ type: "success", text1: "作品已删除" });
+            void refresh(true);
+          } catch (cause) {
+            Toast.show({ type: "error", text1: "删除未完成", text2: cause instanceof Error ? cause.message : "请重试" });
+          } finally {
+            deletePrompts.current.delete(work.appId);
+            setDeleting(previous => { const next = new Set(previous); next.delete(work.appId); return next; });
+          }
+        })();
+      } },
+    ], { onDismiss: () => { deletePrompts.current.delete(work.appId); } });
+  }
   useEffect(() => {
     if (scope !== "works" || !focused) return;
     const timer = setTimeout(() => { setServerQuery(query.trim()); }, 300);
@@ -353,7 +384,7 @@ export function MyApplicationsScreen({
   const visibleWorks = useMemo(() =>
     owner === user?.id
       ? works.filter((work) =>
-          `${work.title} ${work.wish}`.toLowerCase().includes(term)
+          !isWorkDeleted(work.appId) && `${work.title} ${work.wish}`.toLowerCase().includes(term)
         )
       : [], [owner, user?.id, works, term]);
   const visibleApps = useMemo(() =>
@@ -371,6 +402,7 @@ export function MyApplicationsScreen({
     | { type: "app"; app: MarketApplication };
   useEffect(() => { const next = cachedPage<Snapshot>(cacheKey); setNextCursor(next?.nextCursor ?? null); setWorks(next?.works ?? []); setInstalled(next?.installed ?? []); setOwner(next ? user?.id : undefined); setLoaded(!!next); }, [cacheKey]);
   const detailWork = useEventCallback(detail);
+  const removeWork = useEventCallback(confirmDelete);
   const openWorkshop = useEventCallback(workshop);
   const updateApp = useEventCallback(update);
   const openInstalledDetail = useEventCallback(installedDetail);
@@ -405,6 +437,7 @@ export function MyApplicationsScreen({
           onContentSizeChange={profileScroll.onContentSizeChange}
           scrollEventThrottle={16}
           data={rows}
+          extraData={deleting}
           onEndReached={() => { void loadMoreWorks(); }}
           onEndReachedThreshold={0.4}
           ListFooterComponent={scope === "works" && nextCursor ? <Pressy onPress={() => { void loadMoreWorks(); }} disabled={busy} style={{minHeight: 44, alignItems: "center", justifyContent: "center"}}>{busy ? <ActivityIndicator color={colors.ink2} /> : <Text style={{color: colors.ink2}}>加载更多作品</Text>}</Pressy> : null}
@@ -473,7 +506,7 @@ export function MyApplicationsScreen({
             </View>
           }
           renderItem={({ item, index }) => item.type === "work"
-            ? <MyWorkRow work={item.work} index={index} authorName={user?.name} authorAvatarUrl={user?.avatarUrl} installed={installedIds.has(item.work.appId)} canManage={!!onManagePublication} detail={detailWork} workshop={openWorkshop} onOpen={onOpen} />
+            ? <MyWorkRow work={item.work} index={index} authorName={user?.name} authorAvatarUrl={user?.avatarUrl} installed={installedIds.has(item.work.appId)} canManage={!!onManagePublication} deleting={deleting.has(item.work.appId)} onDelete={removeWork} detail={detailWork} workshop={openWorkshop} onOpen={onOpen} />
             : <InstalledApplicationRow app={item.app} authorName={user && (item.app.owned || item.app.authorId === user.id) ? user.name || "我" : item.app.authorName} updateState={updates[item.app.manifest.appId]} updating={updating === item.app.manifest.appId} updateBusy={!!updating} update={updateApp} installedDetail={openInstalledDetail} onOpen={onOpen} />}
           ListEmptyComponent={
             loaded || (!busy && !error) ? (
@@ -504,7 +537,7 @@ export function MyApplicationsScreen({
   );
 }
 
-const MyWorkRow = memo(function MyWorkRow({ work, index, authorName, authorAvatarUrl, installed, canManage, detail, workshop, onOpen }: { work: MyWork; index: number; authorName?: string; authorAvatarUrl?: string | null; installed: boolean; canManage: boolean; detail: (work: MyWork, publication?: boolean) => void; workshop: (work: MyWork) => Promise<unknown>; onOpen: (id: string) => void }) {
+const MyWorkRow = memo(function MyWorkRow({ work, index, authorName, authorAvatarUrl, installed, canManage, deleting, onDelete, detail, workshop, onOpen }: { work: MyWork; index: number; authorName?: string; authorAvatarUrl?: string | null; installed: boolean; canManage: boolean; deleting: boolean; onDelete: (work: MyWork) => void; detail: (work: MyWork, publication?: boolean) => void; workshop: (work: MyWork) => Promise<unknown>; onOpen: (id: string) => void }) {
   const { colors } = useTheme();
   const published = work.sharing?.shared;
   const visual = published?.manifest ?? work.manifest;
@@ -522,6 +555,9 @@ const MyWorkRow = memo(function MyWorkRow({ work, index, authorName, authorAvata
                   authorAvatarUrl={authorAvatarUrl}
                   tone={index}
                   onOpen={() => (work.manifest ? detail(work) : workshop(work))}
+                  headerAction={<Pressy accessibilityLabel="删除作品" disabled={deleting} onPress={() => onDelete(work)} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
+                    {deleting ? <ActivityIndicator size="small" color={colors.ink3} /> : <SymbolIcon name="trash" size={18} color={colors.ink3} />}
+                  </Pressy>}
                   actions={
                     <>
                       {work.manifest && canManage ? (

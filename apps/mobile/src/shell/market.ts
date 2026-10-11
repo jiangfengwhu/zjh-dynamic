@@ -1,4 +1,5 @@
 import { authorFollowRevision, rememberAuthorFollowing, type UserPost } from "./feed/userPosts";
+import { isWorkDeleted } from "./deletedWorkState";
 import { afterInteractions, waitForRouteTransitions } from "./interactionWork";
 import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
 import { accountFetch, currentAccountId, cachedAccountId } from "./account";
@@ -329,6 +330,7 @@ export async function installMarketApplication(
   // Compatibility is checked before downloading or changing the installed catalog.
   validateApplication(manifest);
   await preparePublicApplication(manifest, false, options?.signal);
+  if (isWorkDeleted(manifest.appId)) throw new Error("作品已删除");
   if (installerId !== cachedAccountId()) throw new Error("账号已改变，请重试");
   writeShellValue(`application.pending.access.${manifest.appId}`, JSON.stringify({ releaseId: manifest.releaseId, ownerId: null, public: true }));
   writeShellValue(`application.market.${manifest.appId}`, JSON.stringify(item));
@@ -340,6 +342,7 @@ export async function installMarketApplication(
   writeShellValue(`application.attempt.${manifest.appId}`, "");
   registerApplicationMetadata(manifest);
   const catalog = await loadCatalog();
+  if (isWorkDeleted(manifest.appId)) throw new Error("作品已删除");
   const existing = catalog.find((entry) => entry.id === manifest.appId);
   if (existing) {
     existing.trashedAt = undefined;
@@ -373,11 +376,12 @@ export async function uninstallMarketApplication(appId: string) {
     throw new Error("Jolly 是默认伙伴，暂不支持卸载");
   const catalog = await loadCatalog();
   const entry = catalog.find((entry) => entry.id === appId);
-  if (!entry) return;
-  entry.trashedAt = Date.now();
-  entry.hidden = true;
-  entry.pinned = false;
-  await saveCatalog(catalog);
+  if (entry) {
+    entry.trashedAt = Date.now();
+    entry.hidden = true;
+    entry.pinned = false;
+    await saveCatalog(catalog);
+  }
   writeShellValue(`application.pending.${appId}`, "");
   await shell("cancelAllSchedules", { appId }).catch(() => {});
   await shell("removeApplicationShortcuts", { appId }).catch(() => {});

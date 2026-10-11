@@ -4,6 +4,7 @@ import { cachedSharing, installedMarket, type MarketApplication, type SharingSta
 import { readShellValue, readShellValueSync } from "./shellStorage";
 import { hydrateWorksCache, type Work } from "./workRecovery";
 import { runningApplicationReleases } from "../runtime/applications";
+import { isWorkDeleted } from "./deletedWorks";
 
 export type WorkStage = "draft" | "making" | "reply" | "load" | "ready" | "paused" | "failed" | "blocked";
 export type MyWork = { appId: string; title: string; wish: string; stage: WorkStage; message: string; manifest?: MarketApplication["manifest"]; sharing?: SharingState; stale?: boolean; createdAt: number };
@@ -43,5 +44,5 @@ export async function readMyWorks(knownInstalled?: MarketApplication[]): Promise
     if (!manifest && !session?.startsWith("sessions/")) return undefined;
     return { appId: workspace.appId, title: title && title !== workspace.appId ? title : "未命名作品", wish: run?.wish ?? "", stage, message: run?.status ?? "", manifest, sharing, stale: summary?.stale, createdAt: run?.at ?? 0 };
   }));
-  return result.filter((work): work is NonNullable<typeof work> => !!work).sort((a, b) => b.createdAt - a.createdAt || b.appId.localeCompare(a.appId));
+  return result.filter((work): work is NonNullable<typeof work> => !!work && !isWorkDeleted(work.appId)).sort((a, b) => b.createdAt - a.createdAt || b.appId.localeCompare(a.appId));
 }

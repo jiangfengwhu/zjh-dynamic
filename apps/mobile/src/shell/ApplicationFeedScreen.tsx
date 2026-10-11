@@ -1,4 +1,6 @@
 import { RetainedApplicationPresentation } from "./RetainedApplicationPresentation";
+import { isWorkDeleted } from "./deletedWorkState";
+import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { cachedPage, rememberPage } from "./pageCache";
 import { useKeyboardMode } from "../../../../packages/ui/keyboard";
 import { ApplicationCloudActivity } from "../../../../packages/app-sdk/src/cloud-activity";
@@ -45,7 +47,7 @@ type Props = {
 const timing = { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
 const LOADING_INDICATOR_DELAY = 250;
 const SWITCH_INTERACTION = "application-feed-switch";
-const unique = (items: MarketApplication[]) => [...new Map(items.map(item => [item.manifest.appId, item])).values()];
+const unique = (items: MarketApplication[]) => [...new Map(items.filter(item => !isWorkDeleted(item.manifest.appId)).map(item => [item.manifest.appId, item])).values()];
 
 /** Only the lower switching surface owns paging; the native app stage owns its touches. */
 export function ApplicationFeedScreen(props: Props) {
@@ -58,7 +60,7 @@ export function ApplicationFeedScreen(props: Props) {
   const { progress } = useProfileDrawer();
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [page, setPage] = useState<MarketPage & { owner: string; loaded: boolean }>(() => ({ owner: identity, applications: cachedPage<MarketApplication[]>(`discovery-start:${identity}`) ?? [], loaded: false }));
+  const [page, setPage] = useState<MarketPage & { owner: string; loaded: boolean }>(() => ({ owner: identity, applications: unique(cachedPage<MarketApplication[]>(`discovery-start:${identity}`) ?? []), loaded: false }));
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [commentPost, setCommentPost] = useState<{ owner: string; appId: string; post?: UserPost } | null>(null);
@@ -77,6 +79,18 @@ export function ApplicationFeedScreen(props: Props) {
   const items = page.owner === identity ? page.applications : [];
   const item = items[index];
   const selection = useRef(item?.manifest.appId); selection.current = item?.manifest.appId;
+  useEffect(() => subscribePackageValue("shell.works.changed", () => {
+    setPage(prior => {
+      const applications = prior.applications.filter(app => !isWorkDeleted(app.manifest.appId));
+      if (applications.length === prior.applications.length) return prior;
+      return { ...prior, applications };
+    });
+    setIndex(previous => {
+      const applications = page.applications.filter(app => !isWorkDeleted(app.manifest.appId));
+      const selected = applications.findIndex(app => app.manifest.appId === selection.current);
+      return selected >= 0 ? selected : Math.min(previous, Math.max(0, applications.length - 1));
+    });
+  }), [page.applications]);
   useEffect(() => { setCommentPost(null); }, [identity, item?.manifest.appId]);
   const openComments = useCallback((post?: UserPost) => {
     if (item) setCommentPost({ owner: identity, appId: item.manifest.appId, post: post ?? cachedApplicationDiscussion(item) });

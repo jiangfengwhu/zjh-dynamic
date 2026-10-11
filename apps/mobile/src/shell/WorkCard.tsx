@@ -23,6 +23,7 @@ export const WorkCard = memo(function WorkCard({
   tone = 0,
   onOpen,
   actions,
+  headerAction,
 }: {
   appId?: string;
   application?: Parameters<typeof ApplicationIcon>[0]["application"];
@@ -35,6 +36,7 @@ export const WorkCard = memo(function WorkCard({
   tone?: number;
   onOpen: () => void | Promise<unknown>;
   actions?: import("react").ReactNode;
+  headerAction?: import("react").ReactNode;
 }) {
   const { colors } = useTheme();
   const acting = useRef(false);
@@ -80,7 +82,9 @@ export const WorkCard = memo(function WorkCard({
         marginBottom: 10,
       }}
     >
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
       <Pressy
+        style={{ flex: 1, minWidth: 0 }}
         scale={0.99}
         accessibilityRole="button"
         accessibilityLabel={`查看作品 ${title}，${
@@ -142,6 +146,8 @@ export const WorkCard = memo(function WorkCard({
           </View>
         </View>
       </Pressy>
+      {headerAction}
+      </View>
       <View
         style={{
           paddingLeft: 12,

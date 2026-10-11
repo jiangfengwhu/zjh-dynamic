@@ -1,4 +1,6 @@
 import { useEventCallback } from "./useEventCallback";
+import { isWorkDeleted } from "./deletedWorkState";
+import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { appendUnique } from "./listData";
 import { memo, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -29,7 +31,7 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
   const currentOwner = useRef(owner); currentOwner.current = owner;
   const cacheKey = pageCacheKey("common-applications");
   const cached = cachedPage<Page>(cacheKey);
-  const [page, setPage] = useState(() => ({ owner, loaded: !!cached, applications: cached?.applications ?? [], nextCursor: cached?.nextCursor ?? null }));
+  const [page, setPage] = useState(() => ({ owner, loaded: !!cached, applications: (cached?.applications ?? []).filter(item => !isWorkDeleted(item.appId)), nextCursor: cached?.nextCursor ?? null }));
   const [busy, setBusy] = useState(false);
   const [paging, setPaging] = useState(false);
   const [error, setError] = useState("");
@@ -41,6 +43,12 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
   const trackScroll = useAnimatedScrollHandler(event => { scrollY.value = Math.max(0, event.contentOffset.y); });
   const refresh = usePullToRefresh({ scrollY, onRefresh: () => load() });
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => subscribePackageValue("shell.works.changed", () => {
+    setPage(prior => {
+      const applications = prior.applications.filter(app => !isWorkDeleted(app.appId));
+      return applications.length === prior.applications.length ? prior : { ...prior, applications };
+    });
+  }), []);
   async function load(more = false) {
     if (!focused || !user || writing.current || reading.current || (more && !page.nextCursor)) return false;
     reading.current = true; setBusy(true); setPaging(more); setError("");
@@ -49,7 +57,7 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
       const result = await fetchCommonApplications(more ? page.nextCursor ?? undefined : undefined);
       if (!mounted.current || token !== generation.current || currentOwner.current !== owner) return false;
       setPage(prior => {
-        const applications = more && prior.owner === owner ? appendUnique(prior.applications, result.applications, item => item.appId) : result.applications;
+        const applications = (more && prior.owner === owner ? appendUnique(prior.applications, result.applications, item => item.appId) : result.applications).filter(item => !isWorkDeleted(item.appId));
         const shared = rememberPage(cacheKey, { applications, nextCursor: result.nextCursor });
         return prior.owner === owner && prior.loaded && prior.applications === shared.applications && prior.nextCursor === shared.nextCursor
           ? prior : { owner, loaded: true, ...shared };
@@ -62,7 +70,7 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
     if (!focused) return;
     generation.current++; reading.current = false; setBusy(false); setPaging(false); setError("");
     const saved = cachedPage<Page>(pageCacheKey("common-applications"));
-    setPage(prior => prior.owner === owner ? prior : { owner, loaded: !!saved, applications: saved?.applications ?? [], nextCursor: saved?.nextCursor ?? null });
+    setPage(prior => prior.owner === owner ? prior : { owner, loaded: !!saved, applications: (saved?.applications ?? []).filter(item => !isWorkDeleted(item.appId)), nextCursor: saved?.nextCursor ?? null });
     const cancel = afterInteractions(() => { void load(); });
     return () => { cancel(); generation.current++; };
   }, [owner, focused]);

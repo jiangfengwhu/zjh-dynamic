@@ -11,6 +11,7 @@ import {
 } from "../runtime/applications";
 import type { WorkshopStatus } from "./cloudEvolve";
 import type { SharingState } from "./market";
+import { isWorkDeleted, syncDeletedWorks } from "./deletedWorks";
 
 export type Work = {
   submissionId?: string;
@@ -86,11 +87,13 @@ async function restore(owner: string, force: boolean) {
       false
     );
     if (!response.ok) throw new Error("暂时无法加载作品，请稍后重试");
-    const { works } = (await response.json()) as { works: Work[] };
+    const result = (await response.json()) as { works: Work[]; deletedAppIds?: string[] };
     if ((await currentAccountId()) !== owner) return;
+    if (result.deletedAppIds?.length) await syncDeletedWorks(owner, result.deletedAppIds).catch(() => {});
     await waitForInteractions();
     const previous = await readShellValue(`shell.works.cache.${owner}`);
     if ((await currentAccountId()) !== owner) return;
+    const works = result.works.filter(work => !isWorkDeleted(work.appId));
     writeShellValue(`shell.works.cache.${owner}`, JSON.stringify({ at: Date.now(), works }));
     await applyWorks(owner, works);
     if ((await currentAccountId()) === owner) {
@@ -125,6 +128,7 @@ async function applyWorks(owner: string, works: Work[], fromCache = false) {
       );
     } catch {}
     if ((await currentAccountId()) !== owner) return;
+    if (isWorkDeleted(work.appId)) continue;
     // An older cache or in-flight list response cannot overwrite an accepted new round.
     if (
       currentRun.submissionId &&
@@ -261,12 +265,9 @@ async function applyWorks(owner: string, works: Work[], fromCache = false) {
       );
     }
   }
-  const serialized = JSON.stringify(workspaces);
-  if (
-    (await currentAccountId()) === owner &&
-    context.storage.get("workspaces") !== serialized
-  )
-    context.storage.set("workspaces", serialized);
+  if ((await currentAccountId()) !== owner) return;
+  const serialized = JSON.stringify(workspaces.filter(work => !isWorkDeleted(work.appId)));
+  if (context.storage.get("workspaces") !== serialized) context.storage.set("workspaces", serialized);
 }
 
 // Events request only the local BFF snapshot; upstream progress stays manual.
