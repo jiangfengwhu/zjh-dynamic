@@ -1,3 +1,4 @@
+import { workshopContext } from "./workshopContext";
 import { authorFollowRevision, rememberAuthorFollowing, type UserPost } from "./feed/userPosts";
 import { isWorkDeleted } from "./deletedWorkState";
 import { afterInteractions, waitForRouteTransitions } from "./interactionWork";
@@ -26,7 +27,6 @@ import {
 import {
   registerApplicationMetadata,
 } from "../../../../packages/features/src/registry";
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { shell } from "../../../../packages/platform/src/phone";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { confirmCreation } from "./creationConsent";
@@ -135,7 +135,6 @@ export async function fetchMarketPage(
   for (const item of data.applications) if (discovery && item.authorId && item.authorFollowing !== undefined) rememberAuthorFollowing(item.authorId, item.authorFollowing, revision);
   return {
     applications: data.applications
-      .filter((item) => item.manifest.appId !== "jolly")
       .map((item) => ({ ...item, latest: true, ...(discovery && item.discussion ? {interactionOwner: owner, interactionAt: Date.now()} : {}) })),
     nextCursor: data.nextCursor,
   };
@@ -160,7 +159,6 @@ export async function fetchDiscoveryInteractions(pageRequest: Promise<MarketPage
   });
 }
 const CACHE = "market.catalog.v1";
-const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export async function fetchPublicMarketApplication(
   appId: string
 ): Promise<MarketApplication> {
@@ -219,7 +217,6 @@ export async function fetchMarket(
   if (!Array.isArray(data.applications))
     throw new Error("公开作品数据暂时不可用");
   const items = data.applications
-    .filter((item) => item.manifest?.appId !== "jolly")
     .filter((item) => /^[a-z][a-z0-9-]{0,63}$/.test(item.manifest?.appId))
     .map((item) => ({ ...item, latest: true }));
   if (!authorId) writeShellValue(CACHE, JSON.stringify(items));
@@ -372,8 +369,6 @@ export async function installMarketApplication(
   return "ready" as const;
 }
 export async function uninstallMarketApplication(appId: string) {
-  if (appId === bootstrap.defaultApplication)
-    throw new Error("Jolly 是默认伙伴，暂不支持卸载");
   const catalog = await loadCatalog();
   const entry = catalog.find((entry) => entry.id === appId);
   if (entry) {
@@ -449,7 +444,7 @@ async function marketAction(
       throw new Error(result.message || "分享操作未完成，请重试");
     const state = result as SharingState;
     writeShellValue(`shell.market.state.${appId}`, JSON.stringify(state));
-    applicationContext(bootstrap.defaultApplication).storage.set(
+    workshopContext().storage.set(
       `sharing.${appId}`,
       JSON.stringify({
         releaseId: state.shared?.manifest.releaseId ?? "",

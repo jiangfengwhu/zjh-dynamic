@@ -1,11 +1,11 @@
-import { applicationContext } from "../../../../../packages/app-sdk/src/runtime";
-const getAppContext = () => applicationContext("jolly");
+import { workshopContext } from "../workshopContext";
+const getAppContext = () => workshopContext();
 const {
   get: readPackageValue,
   set: writePackageValue,
 } = getAppContext().storage;
 
-export type JollyPhase = "idle" | "making" | "ready" | "stopped" | "failed";
+export type WorkshopPhase = "idle" | "making" | "ready" | "stopped" | "failed";
 
 export type WorkshopStage =
   | "draft"
@@ -26,9 +26,9 @@ export const workshopStageLabels: Record<WorkshopStage, string> = {
   failed: "制作未完成",
   blocked: "需要处理",
 };
-export type JollyRun = {
+export type WorkshopRun = {
   stage?: WorkshopStage;
-  phase: JollyPhase;
+  phase: WorkshopPhase;
   wish: string;
   status: string;
   steps: string[];
@@ -37,7 +37,7 @@ export type JollyRun = {
 
 const KEY = "run";
 
-const EMPTY: JollyRun = {
+const EMPTY: WorkshopRun = {
   phase: "idle",
   wish: "",
   status: "",
@@ -45,11 +45,11 @@ const EMPTY: JollyRun = {
   at: 0,
 };
 
-export function readJollyRun(appId?: string): JollyRun {
+export function readWorkshopRun(appId?: string): WorkshopRun {
   const raw = readPackageValue(appId ? `run:${appId}` : KEY);
   if (!raw) return EMPTY;
   try {
-    const parsed = JSON.parse(raw) as Partial<JollyRun>;
+    const parsed = JSON.parse(raw) as Partial<WorkshopRun>;
     const phase = parsed.phase;
     if (
       phase !== "idle" &&
@@ -76,23 +76,23 @@ export function readJollyRun(appId?: string): JollyRun {
     };
   } catch (error) {
     console.log(
-      "jolly run unreadable",
+      "workshop run unreadable",
       error instanceof Error ? error.message : error
     );
     return EMPTY;
   }
 }
 
-export function noteJollyRun(input: {
+export function noteWorkshopRun(input: {
   appId?: string;
-  phase: JollyPhase;
+  phase: WorkshopPhase;
   wish: string;
   status: string;
   steps?: string[];
   stage?: WorkshopStage;
-}): { prev: JollyRun; next: JollyRun } | undefined {
-  const prev = readJollyRun(input.appId);
-  const next: JollyRun = {
+}): { prev: WorkshopRun; next: WorkshopRun } | undefined {
+  const prev = readWorkshopRun(input.appId);
+  const next: WorkshopRun = {
     stage: input.stage ?? prev.stage,
     phase: input.phase,
     wish: input.wish.trim(),
@@ -114,6 +114,6 @@ export function noteJollyRun(input: {
   if (input.appId)
     writePackageValue(`run:${input.appId}`, JSON.stringify(next));
   writePackageValue(KEY, JSON.stringify(next));
-  console.log("jolly run", next.phase, next.status);
+  console.log("workshop run", next.phase, next.status);
   return { prev, next };
 }

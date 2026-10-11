@@ -1,4 +1,4 @@
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
+import { workshopContext } from "./workshopContext";
 import { currentAccountId } from "./account";
 import { creationService } from "./cloudEvolve";
 import { fetchPublicMarketApplication } from "./market";
@@ -10,12 +10,11 @@ import {
   writeShellValue,
   removeShellValue,
 } from "./shellStorage";
-const bootstrap = require("../../../../tools/applications/bootstrap.json");
 
 export async function polishCreationPrompt(source: string) {
   const owner = await currentAccountId();
   if (!owner) throw new Error("请先登录后润色");
-  const ai = applicationContext(bootstrap.defaultApplication).ai;
+  const ai = workshopContext().ai;
   if (!(await ai.listProviders()).length)
     throw new Error("还没有配置 AI 引擎，可前往设置配置，也可以按原文制作");
   if ((await currentAccountId()) !== owner)
@@ -25,7 +24,7 @@ export async function polishCreationPrompt(source: string) {
       {
         role: "system",
         content:
-          "你是 Jolly 的需求润色助手。将用户的应用想法整理为简洁、可以直接制作的首版需求，只输出需求正文，不输出代码块、解释或追问。保留用户原意和所有明确限制；仅整理已提到的用途、功能、界面与完成标准，不擅自新增功能、技术架构、商业化或登录需求，不把未知信息编成已确认需求。正文最多 8000 个字符。",
+          "你是生花的需求润色助手。将用户的应用想法整理为简洁、可以直接制作的首版需求，只输出需求正文，不输出代码块、解释或追问。保留用户原意和所有明确限制；仅整理已提到的用途、功能、界面与完成标准，不擅自新增功能、技术架构、商业化或登录需求，不把未知信息编成已确认需求。正文最多 8000 个字符。",
       },
       { role: "user", content: source },
     ],
@@ -94,7 +93,7 @@ export async function submitCreationPrompt(
     } catch {}
     if ((await currentAccountId()) !== owner)
       throw new Error("账号已改变，请重新提交");
-    const context = applicationContext(bootstrap.defaultApplication);
+    const context = workshopContext();
     let owned = false;
     if (intent && !intent.fork) {
       if (

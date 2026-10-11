@@ -1,5 +1,5 @@
+import { workshopContext } from "./workshopContext";
 import { accountFetch, currentAccountId, requireAccount } from "./account";
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { edgeUrl } from "./evolveHost";
 import {
   readShellValue,
@@ -250,7 +250,7 @@ function createService(appId: string, originalAppId?: string) {
     writeShellValue(RUN_STORAGE, JSON.stringify(run));
     // Only an accepted session belongs in the user's works; opening a draft does not.
     if (run.session.startsWith("sessions/")) {
-      const context = applicationContext("jolly");
+      const context = workshopContext();
       const workspaces = JSON.parse(
         context.storage.get("workspaces") || "[]"
       ) as Array<{ appId: string; title: string }>;
@@ -446,7 +446,7 @@ function createService(appId: string, originalAppId?: string) {
         `shell.workshop.application.${appId}`,
         JSON.stringify(manifest)
       );
-      const context = applicationContext("jolly");
+      const context = workshopContext();
       const workspaces = JSON.parse(
         context.storage.get("workspaces") || "[]"
       ) as Array<{ appId: string; title: string }>;
@@ -640,7 +640,7 @@ function createService(appId: string, originalAppId?: string) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
     try {
-      const context = applicationContext("jolly");
+      const context = workshopContext();
       let workspace:
         | { originalAppId?: string; originalReleaseId?: string }
         | undefined;

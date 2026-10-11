@@ -22,7 +22,7 @@ else if (command === "init") {
   const token = await applicationPublisher(root, appId);
   let response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (response.status === 404 && token) response = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-  if (!response.ok) throw new Error("尚未分配应用模块范围，请先在 Jolly 发起这个应用的创作");
+  if (!response.ok) throw new Error("尚未分配应用模块范围，请先在生花发起这个应用的创作");
   const { moduleBase: base, originalAppId, originalReleaseId, originalCommit } = await response.json();
   if (!Number.isSafeInteger(base) || base < 2000000 || base % platform.moduleRangeSize || base + platform.moduleRangeSize >= 2 ** 31) throw new Error("服务端模块范围无效");
   const directory = path.join(root, "apps", appId);

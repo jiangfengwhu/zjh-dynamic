@@ -1,8 +1,8 @@
+import { workshopContext } from "./workshopContext";
 import { waitForInteractions } from "./interactionWork";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { subscribeLiveEvents } from "./liveEvents";
 import { accountFetch, currentAccountId } from "./account";
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import { edgeUrl } from "./evolveHost";
 import {
@@ -108,7 +108,7 @@ async function restore(owner: string, force: boolean) {
 
 async function applyWorks(owner: string, works: Work[], fromCache = false) {
   if ((await currentAccountId()) !== owner || !Array.isArray(works)) return;
-  const context = applicationContext("jolly");
+  const context = workshopContext();
   let workspaces: Array<{
     appId: string;
     title: string;

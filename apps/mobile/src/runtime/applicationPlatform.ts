@@ -1,6 +1,5 @@
 import { bindApplicationSdk, registerApplication, setApplicationCreationNavigation } from "../../../../packages/app-sdk/src/runtime";
 import { openCreationComposer } from "../shell/creationComposer";
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { runningApplication } from "./applications";
 import { applicationNativeModule, applicationReanimatedModule, applicationCalendarsModule } from "./applicationTypography";
 import { installApplicationCloud } from "./applicationCloud";
@@ -58,16 +57,8 @@ export function installApplicationPlatform() {
   installApplicationModuleLoader();
   installApplicationCloud();
   setApplicationCreationNavigation((appId, prompt) => {
-    if (appId === "jolly") {
-      const context = applicationContext("jolly");
-      const target = prompt !== undefined ? context.storage.get("workshopTarget") : undefined;
-      let workspace: { title: string; originalAppId?: string } | undefined;
-      try { workspace = JSON.parse(context.storage.get("workspaces") || "[]").find((item: { appId: string }) => item.appId === target); } catch {}
-      openCreationComposer(target && workspace ? { appId: target, title: workspace.title, originalAppId: workspace.originalAppId, fork: false, prompt } : undefined);
-    } else {
-      const manifest = runningApplication(appId);
-      if (manifest) openCreationComposer({ appId, title: manifest.appName, releaseId: manifest.releaseId, prompt });
-    }
+    const manifest = runningApplication(appId);
+    if (manifest) openCreationComposer({ appId, title: manifest.appName, releaseId: manifest.releaseId, prompt });
   });
   target.__zijinhuaApplications = Object.freeze({
     require: (name: string, appId: string) => {

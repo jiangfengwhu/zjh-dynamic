@@ -62,7 +62,6 @@ import { SymbolIcon } from "../../../../packages/ui/chrome/SymbolIcon";
 
 import { KeyboardViewport } from "./KeyboardViewport";
 import { useRouteContentReady, useRouteRequestReady } from "./useRouteContentReady";
-const bootstrap = require("../../../../tools/applications/bootstrap.json");
 export function MarketPublicationScreen(props: Parameters<typeof MarketDetailContent>[0]) { return <MarketDetailScreen {...props} publication />; }
 export function MarketDetailScreen(
   props: Parameters<typeof MarketDetailContent>[0]
@@ -1112,8 +1111,7 @@ function MarketDetailContent({
                   <Pressy
                     disabled={
                       !!item.summaryOnly || busy ||
-                      !ownershipReady ||
-                      app.appId === bootstrap.defaultApplication
+                      !ownershipReady
                     }
                     onPress={() => (owner ? void modify() : continueCreation())}
                     style={styles.tool}
@@ -1153,8 +1151,7 @@ function MarketDetailContent({
                   <Pressy
                     disabled={
                       !!item.summaryOnly || busy ||
-                      !installed ||
-                      app.appId === bootstrap.defaultApplication
+                      !installed
                     }
                     onPress={uninstall}
                     style={styles.tool}

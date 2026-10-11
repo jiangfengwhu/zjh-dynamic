@@ -1,3 +1,4 @@
+import { workshopContext } from "./workshopContext";
 import { useEventCallback } from "./useEventCallback";
 import { applicationSharing } from "../../../../packages/app-sdk/src/sharing";
 import { appendUnique } from "./listData";
@@ -21,7 +22,6 @@ import { useIsFocused } from "@react-navigation/native";
 import { notify as Toast } from "../../../../packages/ui/feedback/Toasts";
 import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { FormField } from "./FormField";
 import { useAccount, currentAccountId } from "./account";
@@ -240,7 +240,7 @@ export function MyApplicationsScreen({
     });
     const offSharing = subscribePackageValue("shell.market.changed", reload);
     const offSnapshot = subscribePackageValue("shell.works.changed", reload);
-    const offWorks = applicationContext("jolly").storage.subscribe(
+    const offWorks = workshopContext().storage.subscribe(
       "workspaces",
       reload
     );

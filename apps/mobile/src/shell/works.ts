@@ -1,5 +1,5 @@
+import { workshopContext } from "./workshopContext";
 import { currentAccountId } from "./account";
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { cachedSharing, installedMarket, type MarketApplication, type SharingState } from "./market";
 import { readShellValue, readShellValueSync } from "./shellStorage";
 import { hydrateWorksCache, type Work } from "./workRecovery";
@@ -15,7 +15,7 @@ export async function readMyWorks(knownInstalled?: MarketApplication[]): Promise
   if (!accountId) return [];
   await hydrateWorksCache();
   if (await currentAccountId() !== accountId) return [];
-  const context = applicationContext("jolly");
+  const context = workshopContext();
   let workspaces = parsed<Array<{ appId: string; title: string }>>(context.storage.get("workspaces")) ?? [];
   workspaces = (await Promise.all(workspaces.map(async workspace => { const owner = await readShellValue(`shell.jules.apps.${workspace.appId}.owner`); return owner && owner !== accountId ? undefined : workspace; }))).filter((workspace): workspace is { appId: string; title: string } => Boolean(workspace));
   const installed = knownInstalled ?? await installedMarket();

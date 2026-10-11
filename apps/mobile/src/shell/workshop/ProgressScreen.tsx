@@ -54,7 +54,7 @@ export default function ProgressScreen(props: Props) {
 }
 const descriptions: Record<ProgressState, string> = {
   queued: "需求已收到，轮到你时就会开始。",
-  making: "Jolly 正在实现你的想法。",
+  making: "正在实现你的想法。",
   packing: "制作已结束，正在等待作品交付。",
   ready: "作品已就绪，到「我的 → 作品」打开与管理。",
   reply: "需要补充你的想法，请到「我的 → 作品」继续修改。",

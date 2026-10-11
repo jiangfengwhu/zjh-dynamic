@@ -17,7 +17,7 @@ export async function openApplicationWorkshop(
   if (!ownerId) return;
   if (expectedOwnerId && expectedOwnerId !== ownerId)
     throw new Error("账号已改变，请重新打开作品");
-  if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId) || appId === "jolly")
+  if (!/^[a-z][a-z0-9-]{0,63}$/.test(appId))
     throw new Error("作品身份无效");
   if (!shellNavigationRef.isReady()) return;
   shellNavigationRef.navigate("workshopProgress", { appId, title, ownerId });

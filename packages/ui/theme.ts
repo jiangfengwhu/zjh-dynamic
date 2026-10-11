@@ -34,11 +34,6 @@ type BaseTheme = {
   ink2: string;
   ink3: string;
 
-  // Jolly Companion Character Palette
-  jollyFur: string;
-  jollyFace: string;
-  jollyBlush: string;
-  jollyOrb: string;
 
   // 主强调色：电光紫，用于主操作与选中态。按钮使用 onAccent，文字链接使用 accentText。
   accent: string;
@@ -90,7 +85,6 @@ const light = {
   orange: "#FF8A1F", orangeText: "#C25A00", orangeTint: "#FFF0E0",
   amber: "#FFC21A", amberText: "#946B00", amberTint: "#FFF6D9",
   hover: "#F4F2FB", hover2: "#ECE9F6",
-  jollyFur: "#EFDDB0", jollyFace: "#FFF3CF", jollyBlush: "#EEA18F", jollyOrb: "#F5CC55",
 };
 const dark = {
   canvas: "#0E0C16", surface: "#181524", surfaceRaised: "#221E33", inset: "#0A0910", field: "#181524",
@@ -104,7 +98,6 @@ const dark = {
   orange: "#FF9A3D", orangeText: "#FFBF85", orangeTint: "#34200C",
   amber: "#FFCC3D", amberText: "#FFDE85", amberTint: "#33290A",
   hover: "#221E33", hover2: "#2B2640",
-  jollyFur: "#E8DECE", jollyFace: "#FEECE0", jollyBlush: "#FDA4AF", jollyOrb: "#F5D473",
 };
 type TypeRole = "display" | "title1" | "title2" | "headline" | "body" | "callout" | "footnote" | "caption" | "overline";
 const type: Record<TypeRole, TextStyle> = {

@@ -64,9 +64,9 @@ function runtime() {
   const callbacks = {};
   const { api: modules, global: g } = fixture();
   Object.assign(g, {
-    exports: {}, require: path => path.includes('allocations') ? { applications: {}, moduleRangeSize: 100000 } : path.includes('application-contract') ? { sdk: '2.2.4' } : path.includes('build-identity') ? { buildId: 'test-host' } : { defaultApplication: 'jolly' },
-    subscribeAccountIdentity: listener => { callbacks.account = listener; }, onApplicationPageAttempt: listener => { callbacks.attempt = listener; }, onApplicationPageReady: listener => { callbacks.ready = listener; },
-    cachedAccountId: () => state.owner, currentAccountId: async () => state.owner, restoreWorks: async () => {},
+    exports: {}, require: path => path.includes('allocations') ? { applications: {}, moduleRangeSize: 100000 } : path.includes('application-contract') ? { sdk: '2.2.4' } : path.includes('build-identity') ? { buildId: 'test-host' } : {},
+    subscribeAccountIdentity: listener => { callbacks.account = listener; }, onApplicationPageMounted: listener => { callbacks.mounted = listener; }, onApplicationPageAttempt: listener => { callbacks.attempt = listener; }, onApplicationPageReady: listener => { callbacks.ready = listener; },
+    afterInteractions: () => () => {}, consumeApplicationInterruption: () => 0, beginApplicationAttempt: () => {}, clearApplicationAttempt: () => {}, disposeApplicationRooms: async () => {}, runApplicationLifecycle: fn => fn(), waitForRouteTransitions: async () => {}, waitForInteractions: async () => {}, shellKeys: () => [...state.data.keys()], isWorkDeleted: () => false, cachedAccountId: () => state.owner, currentAccountId: async () => state.owner, restoreWorks: async () => {},
     readShellValue: async key => state.data.get(key), readShellValueSync: key => state.data.get(key), writeShellValue: (key, value) => state.data.set(key, value),
     loadCatalog: async () => state.catalog ?? [], loadCatalogSync: () => state.catalog ?? [], saveCatalog: async value => { state.catalog = value; },
     AbortController, setTimeout, clearTimeout, fetch: async () => ({ ok: true, json: async () => ({ applications: (state.catalog ?? []).map(item => ({ appId: item.id, manifest: state.publicManifest ?? null })) }) }),
@@ -140,9 +140,9 @@ test('unchanged Metro split-bundle factory format registers into the application
 test('SDK activates after assets are installed, disposes only the target, and keeps stable page registration', async () => {
   const registered = [], cleared = [], data = new Map(), events = [], cleanup = [];
   const g = vm.createContext({ exports: {}, console, setTimeout, clearTimeout, requestAnimationFrame: callback => setImmediate(callback),
-    require: () => ({ defaultApplication: 'jolly' }), registerFeature: (id, page) => registered.push([id, page]),
+    require: () => ({}), registerFeature: (id, page) => registered.push([id, page]),
     applicationCapabilities: () => ({}), applicationData: () => ({ storage: { get: key => data.get(key), set: (key, value) => data.set(key, value) } }),
-    applicationSharing: () => ({}), clearApplicationShareListeners: () => {},
+    applicationSharing: () => ({}), clearApplicationShareListeners: () => {}, applicationNotifications: () => ({}), clearApplicationNotifications: () => {}, applicationNative: () => ({}), clearApplicationNative: () => {},
     applicationCloud: () => ({}), applicationAuth: {}, applicationAi: () => ({}), phone: {},
     clearApplicationQueries: id => cleared.push(id),
   });
@@ -167,6 +167,7 @@ test('silent public updates download and replace only their application immediat
   const f = runtime(), old = f.manifest('a', 'a'), next = f.manifest('a', 'd'), other = f.manifest('b', 'b', 2100000);
   f.install(old); f.install(other); f.state.catalog = [{ id: 'a' }]; f.state.publicManifest = next;
   await f.api.loadApplication('a'); await f.api.loadApplication('b');
+  f.callbacks.mounted('a');
   f.state.data.set('business:a:score', '10');
   await Promise.all([f.api.updatePublicApplicationsSilently(), f.api.updatePublicApplicationsSilently()]);
   assert.equal(f.api.runningApplication('a').releaseId, next.releaseId);

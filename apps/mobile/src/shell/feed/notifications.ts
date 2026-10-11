@@ -20,9 +20,9 @@ export type Notice = {
   read: boolean;
 };
 export function noticeHeading(notice: Notice) {
-  if (notice.kind === "work-submitted") return "Jolly · 已提交制作";
-  if (notice.kind === "work-success") return "Jolly · 制作完成";
-  if (notice.kind === "work-failure") return "Jolly · 制作失败";
+  if (notice.kind === "work-submitted") return "作品 · 已提交制作";
+  if (notice.kind === "work-success") return "作品 · 制作完成";
+  if (notice.kind === "work-failure") return "作品 · 制作失败";
   return (
     notice.actor.name +
     (notice.kind === "like" ? " 赞了你的动态" : notice.kind === "reply" ? " 回复了你的评论" : " 评论了你的动态")

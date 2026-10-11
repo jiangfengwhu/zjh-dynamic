@@ -1,3 +1,4 @@
+import { workshopContext } from "../workshopContext";
 import { useEventCallback } from "../useEventCallback";
 import { normalizeShareParams } from "../../../../../packages/app-sdk/src/sharing";
 import { appendUnique } from "../listData";
@@ -47,7 +48,6 @@ import {
 import { HtmlPostContent } from "./HtmlPostContent";
 import { htmlByteLength } from "./postDraft";
 import { polishPost } from "./polishPost";
-import { applicationContext } from "../../../../../packages/app-sdk/src/runtime";
 import type { UserPostDraft } from "../../../../../packages/app-sdk/src/index";
 
 
@@ -538,7 +538,7 @@ export const ComposePostScreen = memo(function ComposePostScreen({
           {polishError ? <View style={{ gap: 4 }}>
             <Text style={{ color: colors.danger, fontSize: 12 }}>{polishError}</Text>
             {/配置|引擎/.test(polishError) ? <Pressy accessibilityLabel="配置 AI 引擎" style={styles.htmlAction}
-              onPress={() => applicationContext("jolly").ai.openSettings()}><Text style={styles.addText}>配置 AI 引擎</Text></Pressy> : null}
+              onPress={() => workshopContext().ai.openSettings()}><Text style={styles.addText}>配置 AI 引擎</Text></Pressy> : null}
           </View> : null}
           {application ? (
             <View>

@@ -1,7 +1,6 @@
 import { applicationSharing, clearApplicationShareListeners } from "./sharing";
 import { applicationNotifications, clearApplicationNotifications } from "./notifications";
 import { applicationNative, clearApplicationNative, setApplicationNativeActive, isApplicationNativeActive } from "./native";
-const bootstrap = require("../../../tools/applications/bootstrap.json");
 import type { AppContext, AppDefinition, AppData, DataScope } from "./index";
 import { createElement, useEffect, useContext, useSyncExternalStore } from "react";
 import { requestNotifications, RESULTS } from "react-native-permissions";
@@ -98,10 +97,6 @@ export function applicationContext(appId: string): AppContext {
     let bound = data.get(value);
     if (!bound) {
       bound = applicationData(appId, value, () => accountScope, listener => { scopeListeners.add(listener); return () => { scopeListeners.delete(listener); }; });
-      if (appId === bootstrap.defaultApplication && value === "account") {
-        const get = bound.storage.get;
-        bound.storage.get = key => key === "__accountScope" ? accountScope : get(key);
-      }
       data.set(value, bound);
     }
     return bound;
@@ -122,7 +117,7 @@ export function applicationContext(appId: string): AppContext {
     cloud: applicationCloud(appId),
     ai: applicationAi(() => navigate({ action: "providers" })),
     ...applicationCapabilities(),
-    ...scope(appId === bootstrap.defaultApplication ? "account" : "device"),
+    ...scope("device"),
     scope,
     sharing: applicationSharing(appId),
     assets: {
@@ -150,7 +145,7 @@ export function applicationContext(appId: string): AppContext {
       requestNotifications: async () => { if (!isApplicationNativeActive(appId)) return { ok: false, granted: false, status: "unavailable" as const }; const { status } = await requestNotifications(["alert", "sound", "badge"]); return { ok: true, granted: status === RESULTS.GRANTED, status }; },
       ...applicationNotifications(appId, reminderId, () => {
         const registry = require("../../features/src/registry") as typeof import("../../features/src/registry");
-        return registry.bundles.find(item => item.id === appId)?.title ?? (appId === bootstrap.defaultApplication ? "Jolly" : appId);
+        return registry.bundles.find(item => item.id === appId)?.title ?? appId;
       }),
       cancelSchedule: id => shell("cancelSchedule", { id: reminderId(id) }),
       schedules: async () => {

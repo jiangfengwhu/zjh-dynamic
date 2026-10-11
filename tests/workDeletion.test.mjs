@@ -5,14 +5,14 @@ import ts from 'typescript';
 
 const deferred = () => { let resolve; const promise = new Promise(done => {resolve = done;}); return {promise, resolve}; };
 function fixture() {
-  const state = {owner: 'owner', values: new Map(), jolly: new Map(), pages: new Map(), requests: [], disposals: [], events: []};
-  const storage = {get: key => state.jolly.get(key), set: (key,value) => state.jolly.set(key,value), remove: key => state.jolly.delete(key)};
+  const state = {owner: 'owner', values: new Map(), workshop: new Map(), pages: new Map(), requests: [], disposals: [], events: []};
+  const storage = {get: key => state.workshop.get(key), set: (key,value) => state.workshop.set(key,value), remove: key => state.workshop.delete(key)};
   const deps = {
     './account': {cachedAccountId: () => state.owner, accountFetch: () => {const pending = deferred(); state.requests.push(pending); return pending.promise;}},
     './shellStorage': {readShellValueSync: key => state.values.get(key), writeShellValue: (key,value) => state.values.set(key,value), removeShellValue: key => state.values.delete(key), shellKeys: () => [...state.values.keys()]},
     './evolveHost': {edgeUrl: 'https://test'},
     './pageCache': {pageCacheKey: key => state.owner+':'+key, cachedPage: key => state.pages.get(key), rememberPage: (key,value) => {state.pages.set(key,value); return value;}, forgetPageFamily: prefix => {for(const key of state.pages.keys()) if(key.startsWith(prefix))state.pages.delete(key);}},
-    '../../../../packages/app-sdk/src/runtime': {applicationContext: () => ({storage})},
+    './workshopContext': {workshopContext: () => ({storage})},
     '../../../../packages/ui/packageLink': {writePackageValue: (key,value) => state.events.push({key,value})},
     './market': {invalidateMarketViews: () => {}, uninstallMarketApplication: id => {const pending=deferred(); state.disposals.push({...pending,id}); return pending.promise;}},
     '../runtime/applications': {runningApplicationReleases: () => ({})},
@@ -29,18 +29,17 @@ function fixture() {
 
 test('deleted works clear recovery records immediately while runtime disposal runs in background',async()=>{
   const f=fixture(),{state,deletion,markers}=f;
-  state.jolly.set('workspaces',JSON.stringify([{appId:'app-remove',title:'A'},{appId:'app-keep',title:'B'}]));
-  state.jolly.set('run:app-remove','progress');
+  state.workshop.set('workspaces',JSON.stringify([{appId:'app-remove',title:'A'},{appId:'app-keep',title:'B'}]));
+  state.workshop.set('run:app-remove','progress');
   for(const key of ['shell.jules.apps.app-remove.owner','shell.jules.apps.app-remove.token','shell.workshop.application.app-remove','creation.pending.owner.app-remove.edit'])state.values.set(key,'test');
   state.values.set('shell.jules.apps.app-keep.owner','other');
   state.values.set('shell.works.cache.owner',JSON.stringify({works:[{appId:'app-remove'},{appId:'app-keep'}]}));
   state.pages.set('owner:works-gallery::',{works:[{appId:'app-remove'}]});
   await deletion.syncDeletedWorks('other',['app-keep']);assert.equal(markers.isWorkDeleted('app-keep'),false);
-  await deletion.syncDeletedWorks('owner',['app-remove','jolly','invalid/id']);
+  await deletion.syncDeletedWorks('owner',['app-remove','invalid/id']);
   assert.equal(markers.isWorkDeleted('app-remove'),true);
-  assert.equal(markers.isWorkDeleted('jolly'),false);
-  assert.deepEqual(JSON.parse(state.jolly.get('workspaces')).map(work=>work.appId),['app-keep']);
-  assert.equal(state.jolly.has('run:app-remove'),false);
+  assert.deepEqual(JSON.parse(state.workshop.get('workspaces')).map(work=>work.appId),['app-keep']);
+  assert.equal(state.workshop.has('run:app-remove'),false);
   assert.equal(state.values.has('shell.jules.apps.app-remove.token'),false);
   assert.equal(state.values.get('shell.jules.apps.app-keep.owner'),'other');
   assert.deepEqual(JSON.parse(state.values.get('shell.works.cache.owner')).works,[{appId:'app-keep'}]);

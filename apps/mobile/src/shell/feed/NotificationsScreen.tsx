@@ -12,7 +12,7 @@ import { UserAvatar } from "../UserAvatar";
 const InboxContent = lazyScreen(() => (require("../social/InboxContent") as typeof import("../social/InboxContent")).InboxContent);
 import { useMessageCount } from "../social/api";
 import type { PublicAuthor } from "./userPosts";
-import { JollyPortrait } from "../jolly/ui/portrait";
+import { JollyPortrait } from "../workshop/ui/portrait";
 import { EmptyState } from "../EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "../pageCache";
 import { ActivityIndicator, AppState, type ViewToken } from "react-native";

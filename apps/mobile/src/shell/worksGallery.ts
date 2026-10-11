@@ -1,7 +1,7 @@
+import { workshopContext } from "./workshopContext";
 import { accountFetch, cachedAccountId } from "./account";
 import { edgeUrl } from "./evolveHost";
 import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { readShellValueSync } from "./shellStorage";
 import { runningApplicationReleases } from "../runtime/applications";
 import type { AuthorProfile } from "./feed/userPosts";
@@ -40,7 +40,7 @@ export function fetchWorksGallery(cursor?: string, query = "", refresh = false) 
 /** Only a locally submitted newer round overrides the cloud list. No cloud
  * recovery credentials or manifest snapshots are scattered into local storage. */
 export function projectGallery(works: MyWork[]) {
-  const context = applicationContext("jolly");
+  const context = workshopContext();
   const owner = cachedAccountId();
   const releases = runningApplicationReleases();
   return works.filter(work => !isWorkDeleted(work.appId)).map(work => {

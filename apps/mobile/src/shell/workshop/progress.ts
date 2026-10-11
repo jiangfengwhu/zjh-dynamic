@@ -1,14 +1,14 @@
+import { workshopContext } from "../workshopContext";
 import { cachedPage, rememberPage, pageCacheKey } from "../pageCache";
 import { readShellValueSync } from "../shellStorage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useRouteRequestReady } from "../useRouteContentReady";
-import { applicationContext } from "../../../../../packages/app-sdk/src/runtime";
-const getAppContext = () => applicationContext("jolly");
+const getAppContext = () => workshopContext();
 import { type WorkshopDetail } from "../../../../../packages/app-sdk/src/creation";
 import { creationService as getCreationService } from "../cloudEvolve";
-import { noteJollyRun, readJollyRun, type WorkshopStage } from "./run";
+import { noteWorkshopRun, readWorkshopRun, type WorkshopStage } from "./run";
 
 export type ProgressState =
   | "queued"
@@ -111,7 +111,7 @@ export function useProgress(
           run?.session || (await service.loadJulesSession());
         if (!run) run = await service.loadJulesRun();
         if (!valid()) return;
-        wish.current = run?.prompt || readJollyRun(appId).wish;
+        wish.current = run?.prompt || readWorkshopRun(appId).wish;
         setSnapshot((previous) =>
           previous &&
           (previous.submissionId !== run?.submissionId ||
@@ -199,7 +199,7 @@ export function useProgress(
               ? "ready"
               : "load"
             : state;
-        noteJollyRun({
+        noteWorkshopRun({
           appId,
           phase:
             state === "ready"
@@ -210,7 +210,7 @@ export function useProgress(
               ? "stopped"
               : "making",
           stage,
-          wish: wish.current || readJollyRun(appId).wish,
+          wish: wish.current || readWorkshopRun(appId).wish,
           status: snapshot.detail.status.message || progressLabels[state],
           steps: [],
         });

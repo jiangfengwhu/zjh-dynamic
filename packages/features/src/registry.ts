@@ -23,7 +23,6 @@ function definition(item: ApplicationMetadata): BundleDefinition {
 }
 export const bundles: BundleDefinition[] = [];
 export function registerApplicationMetadata(item: ApplicationMetadata) {
-  if (item.appId === "jolly") return;
   const prior = bundles.findIndex(bundle => bundle.id === item.appId);
   if (prior < 0) bundles.push(definition(item)); else bundles[prior] = definition(item);
 }

@@ -18,7 +18,6 @@ import type { MarketApplication } from "../shell/market";
 import type { ApplicationManifest } from "../../../../packages/app-sdk/src/index";
 export type { ApplicationManifest } from "../../../../packages/app-sdk/src/index";
 
-const bootstrap = require("../../../../tools/applications/bootstrap.json");
 const hostBuildId = (require("../shell/build-identity.json") as { buildId: string }).buildId;
 // A package that failed under a previous host may work after a runtime fix.
 async function failedUnderCurrentHost(appId: string, releaseId: string) {
@@ -74,7 +73,7 @@ const mountedPages = new Map<string, number>();
 const runtimeUse = new Map<string, number>();
 let useSequence = 0;
 let trimScheduled = false;
-const protectedRuntime = (id: string) => id === bootstrap.defaultApplication || !!mountedPages.get(id)
+const protectedRuntime = (id: string) => !!mountedPages.get(id)
   || [...runtimeWindows.values()].some(ids => ids.has(id));
 function scheduleRuntimeTrim() {
   if (trimScheduled) return;
@@ -266,7 +265,7 @@ export async function restoreDownloadedApplications() {
   for (const key of shellKeys()) {
     const appId = key.match(/^application\.(?:install|pending)\.([a-z][a-z0-9-]{0,63})$/)?.[1];
     // Tombstones are intentional uninstall records and must stay removed.
-    if (!appId || appId === bootstrap.defaultApplication || known.has(appId)) continue;
+    if (!appId || known.has(appId)) continue;
     try {
       const pending = readShellValueSync(`application.pending.${appId}`);
       const manifest = JSON.parse(pending || readShellValueSync(`application.install.${appId}`) || "null") as ApplicationManifest | null;
@@ -589,7 +588,6 @@ async function load(appId: string) {
   if (!saved && definition.onInstall) await runApplicationLifecycle(() => definition.onInstall!(applicationContext(appId)), "应用初始化", 10000);
   // Warming a hidden page completed evaluation; only a real mount arms it again.
   clearApplicationAttempt(appId, manifest.releaseId, false);
-  if (appId === bootstrap.defaultApplication) void restoreWorks().catch(() => {});
   console.log("application ready", appId, manifest.releaseId);
 }
 

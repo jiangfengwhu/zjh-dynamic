@@ -1,10 +1,10 @@
+import { workshopContext } from "./workshopContext";
 import { showApplicationOpening } from "./applicationOpening";
 import { applicationSharing } from "../../../../packages/app-sdk/src/sharing";
 import { receiveApplicationShare } from "../../../../packages/app-sdk/src/sharing";
 import type { ShareParams } from "../../../../packages/app-sdk/src";
 import { afterInteractions, beginRouteTransition, endRouteTransition } from "./interactionWork";
 import { markStartup } from "../runtime/startupTiming";
-const bootstrap = require("../../../../tools/applications/bootstrap.json");
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "../../../../packages/ui/primitives/Button";
 import { publicApplicationLoaded, retainApplicationRuntimes } from "../runtime/applications";
@@ -48,7 +48,6 @@ import { type AppEntry } from "./catalog";
 import type { MarketApplication } from "./market";
 import { fetchMarketDetail, isApplicationInstalled, isPublicApplicationInstalledSync } from "./market";
 import {
-  applicationContext,
   setApplicationPostHandlers,
 } from "../../../../packages/app-sdk/src/runtime";
 import {
@@ -104,7 +103,7 @@ const AuthorProfileScreen = lazyScreen(() => (require("./feed/AuthorProfileScree
 const NotificationsScreen = lazyScreen(() => (require("./feed/NotificationsScreen") as typeof import("./feed/NotificationsScreen")).NotificationsScreen, true);
 const ConnectionsScreen = lazyScreen(() => (require("./social/ConnectionsScreen") as typeof import("./social/ConnectionsScreen")).ConnectionsScreen, true);
 const ChatScreen = lazyScreen(() => (require("./social/ChatScreen") as typeof import("./social/ChatScreen")).ChatScreen, true);
-const JollyProgressScreen = lazyScreen(() => (require("./jolly/ProgressScreen") as typeof import("./jolly/ProgressScreen")).default, true);
+const WorkshopProgressScreen = lazyScreen(() => (require("./workshop/ProgressScreen") as typeof import("./workshop/ProgressScreen")).default, true);
 
 
 export type RootParamList = {
@@ -276,19 +275,12 @@ export async function openCommonApplication(appId: string) {
 export async function openShellBundle(id: string) {
   if (!shellNavigationRef.isReady()) return false;
   receiveApplicationShare(id);
-  if (id === bootstrap.defaultApplication) {
-    const ownerId = cachedAccountId();
-    if (!ownerId) return false;
-    const appId = applicationContext(id).storage.get("workshopTarget") || undefined;
-    shellNavigationRef.navigate("workshopProgress", { appId, ownerId });
-  } else {
     if (cachedFeature(id)) shellNavigationRef.navigate("bundle", { id });
     else await showApplicationOpening(async signal => {
       await openFeature(id);
       signal.throwIfAborted();
       shellNavigationRef.navigate("bundle", { id });
     });
-  }
   return true;
 }
 
@@ -302,7 +294,7 @@ function goBack() {
 
 /**
  * 朋友们自己的页面在功能包里，够不着壳的导航，于是通过这个键来请求：
- * 写入 `{"action":"tab","tab":"agent"}`、`{"action":"open","id":"jolly"}` 或 `{"action":"back"}`，
+ * 写入 `{"action":"tab","tab":"agent"}`、`{"action":"open","id":"应用 ID"}` 或 `{"action":"back"}`，
  * 再带一个 `at` 时间戳让每次写入都不相同。壳收到后替它们跳转。
  */
 export const SHELL_NAV_REQUEST = "shell.nav.request";
@@ -332,7 +324,7 @@ function handleShellRequest(raw: string | undefined) {
       shellNavigationRef.navigate("providers");
     else if (request.action === "back") goBack();
     else if (request.action === "tab" && request.tab === "agent")
-      applicationContext(bootstrap.defaultApplication).navigation.create();
+      openCreationComposer();
     else if (
       request.action === "tab" &&
       request.tab &&
@@ -586,9 +578,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                   request.ownerId === (await currentAccountId()) && !linkOpened.current &&
                   /^[a-z][a-z0-9-]{0,63}$/.test(request.target)
                 ) {
-                  const context = applicationContext(
-                    bootstrap.defaultApplication
-                  );
+                  const context = workshopContext();
                   context.storage.set("workshopTarget", request.target);
                   context.storage.set("openWorkshop", String(Date.now()));
                 }
@@ -773,9 +763,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                 onCreate={() => {
                   void requireAccount().then((allowed) => {
                     if (allowed)
-                      applicationContext(
-                        bootstrap.defaultApplication
-                      ).navigation.create();
+                      openCreationComposer();
                   });
                 }}
               />
@@ -789,7 +777,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           </Stack.Screen>
           <Stack.Screen name="workshopProgress">
             {({ route }) => (
-              <JollyProgressScreen
+              <WorkshopProgressScreen
                 key={`${route.params.ownerId}.${route.params.appId}`}
                 appId={route.params.appId}
                 title={route.params.title}

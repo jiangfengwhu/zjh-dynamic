@@ -1,11 +1,11 @@
-import { applicationContext } from "../../../../../packages/app-sdk/src/runtime";
+import { workshopContext } from "../workshopContext";
 import { currentAccountId } from "../account";
 import { htmlByteLength } from "./postDraft";
 
 export async function polishPost(source: string, format: "text" | "html", signal: AbortSignal) {
   const owner = await currentAccountId();
   if (!owner) throw new Error("请先登录后润色");
-  const ai = applicationContext("jolly").ai;
+  const ai = workshopContext().ai;
   if (!(await ai.listProviders()).length) throw new Error("请先配置 AI 引擎，原文已保留");
   if (signal.aborted || await currentAccountId() !== owner) throw new Error("润色已取消，原文已保留");
   const result = await ai.complete({ messages: [

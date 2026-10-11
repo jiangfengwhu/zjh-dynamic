@@ -1,3 +1,4 @@
+import { workshopContext } from "./workshopContext";
 import { Text } from "../../../../packages/ui/primitives/Typography";
 import { ActivityIndicator } from "react-native";
 import { syncNotificationCount } from "./feed/notifications";
@@ -28,7 +29,6 @@ import { CompactTabs } from "./CompactTabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FormField } from "./FormField";
 import { polishCreationPrompt } from "./creationDraft";
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { currentAccountId, useAccount } from "./account";
 import { readShellValue, writeShellValue } from "./shellStorage";
 import type { MarketApplication } from "./market";
@@ -390,7 +390,7 @@ const CreateApplicationPage = memo(function CreateApplicationPage({
         Toast.show({
           type: "success",
           text1: intent ? "修改需求已提交" : "制作需求已提交",
-          text2: "Jolly 已收到，完成或失败都会通知你",
+          text2: "制作需求已收到，完成或失败都会通知你",
         });
         requestIdleCallback(() => void syncNotificationCount().catch(() => {}));
         if ((!alive.current || latestDraft.current.text.trim() === submittedText) &&
@@ -557,7 +557,7 @@ const CreateApplicationPage = memo(function CreateApplicationPage({
           {/配置|引擎/.test(polishError) ? (
             <Pressy
               accessibilityRole="button"
-              onPress={() => applicationContext("jolly").ai.openSettings()}
+              onPress={() => workshopContext().ai.openSettings()}
               style={{ minHeight: 44, justifyContent: "center" }}
             >
               <Text style={{ color: colors.orchidText, fontSize: 13 }}>

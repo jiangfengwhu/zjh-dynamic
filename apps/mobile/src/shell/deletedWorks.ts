@@ -1,8 +1,8 @@
+import { workshopContext } from "./workshopContext";
 import { accountFetch, cachedAccountId } from "./account";
 import { edgeUrl } from "./evolveHost";
 import { readShellValueSync, writeShellValue, removeShellValue, shellKeys } from "./shellStorage";
 import { forgetPageFamily } from "./pageCache";
-import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { writePackageValue } from "../../../../packages/ui/packageLink";
 import { invalidateMarketViews, uninstallMarketApplication } from "./market";
 import { isWorkDeleted, markWorkDeleted } from "./deletedWorkState";
@@ -11,10 +11,10 @@ const cleanups = new Map<string, Promise<void>>();
 /** Mark synchronously before any await so older recovery/download results lose. */
 export async function syncDeletedWorks(owner: string, appIds: string[]) {
   if (owner !== cachedAccountId()) return;
-  const fresh = appIds.filter(id => /^[a-z][a-z0-9-]{0,63}$/.test(id) && id !== "jolly" && !readShellValueSync(`shell.work.deleted.cleaned.${id}`));
+  const fresh = appIds.filter(id => /^[a-z][a-z0-9-]{0,63}$/.test(id) && !readShellValueSync(`shell.work.deleted.cleaned.${id}`));
   if (!fresh.length) return;
   for (const id of fresh) markWorkDeleted(id, owner);
-  const context = applicationContext("jolly");
+  const context = workshopContext();
   let workspaces: Array<{ appId: string }> = [];
   try { workspaces = JSON.parse(context.storage.get("workspaces") || "[]"); } catch {}
   context.storage.set("workspaces", JSON.stringify(workspaces.filter(work => !isWorkDeleted(work.appId))));

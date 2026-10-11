@@ -45,7 +45,7 @@ export function loadCatalogSync(): CatalogEntry[] {
     if (!raw) return [];
     if (raw !== cachedRaw) {
       const file = JSON.parse(raw) as CatalogFile;
-      cachedEntries = Array.isArray(file.entries) ? file.entries.filter(entry => entry.id !== "jolly") : [];
+      cachedEntries = Array.isArray(file.entries) ? file.entries : [];
       cachedRaw = raw;
     }
     // Callers may mutate their snapshot; never expose the cached objects.
@@ -60,7 +60,6 @@ export function loadCatalogSync(): CatalogEntry[] {
 }
 
 export async function saveCatalog(entries: CatalogEntry[]) {
-  entries = entries.filter((entry) => entry.id !== "jolly");
   const file: CatalogFile = { entries };
   writeShellValue(CATALOG_KEY, JSON.stringify(file));
   for (const listener of listeners) listener(entries);
