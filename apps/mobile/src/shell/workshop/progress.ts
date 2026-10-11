@@ -88,7 +88,7 @@ export function useProgress(
   const valid = () =>
     alive.current &&
     activeRef.current &&
-    (context.storage.get("__accountScope") || "guest") === scope;
+    context.account() === scope;
   useEffect(() => {
     alive.current = true;
     const subscription = AppState.addEventListener("change", (state) =>
@@ -185,7 +185,7 @@ export function useProgress(
           run?.session !== snapshot.session ||
           run?.submissionId !== snapshot.submissionId ||
           run?.startedAt !== snapshot.startedAt ||
-          (context.storage.get("__accountScope") || "guest") !== scope
+          context.account() !== scope
         )
           return;
         const state = progressState(snapshot.detail);

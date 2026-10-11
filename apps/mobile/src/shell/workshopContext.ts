@@ -3,14 +3,13 @@ import { readPackageValue, writePackageValue, removePackageValue, subscribePacka
 import { cachedAccountId, subscribeAccountIdentity } from "./account";
 import { shellNavigationRef } from "./navigationRef";
 
-// Preserve persisted drafts and progress keys. This is a storage namespace,
-// not an application ID, runtime, module allocation or installation.
-const namespace = "application.jolly.accounts.";
+const namespace = "shell.workshop.accounts.";
 const account = () => cachedAccountId() || "guest";
 const key = (value: string) => `${namespace}${account()}.${value}`;
 const context = {
+  account,
   storage: {
-    get: (value: string) => value === "__accountScope" ? account() : readPackageValue(key(value)),
+    get: (value: string) => readPackageValue(key(value)),
     set: (value: string, text: string) => writePackageValue(key(value), text),
     remove: (value: string) => removePackageValue(key(value)),
     subscribe: (value: string, listener: (text: string | undefined) => void) => {
