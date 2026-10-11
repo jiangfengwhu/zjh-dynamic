@@ -5,7 +5,7 @@ import { ApplicationIcon, rememberApplicationIcon } from "./ApplicationIcon";
 import { useLiveVersion } from "./liveEvents";
 import { UserAvatar } from "./UserAvatar";
 import { EmptyState } from "./EmptyState";
-import { dataChanged } from "./pageCache";
+import { cachedPage, pageCacheKey, dataChanged } from "./pageCache";
 import { ActivityIndicator } from "react-native";
 import { HostAlert as Alert } from "./HostAlert";
 import {
@@ -70,16 +70,21 @@ export function MarketDetailScreen(
   const { user } = useAccount();
   const workVersion = useLiveVersion("work", props.item.manifest.appId);
   const ready = useRouteRequestReady();
-  const contentReady = useRouteContentReady();
   const focused = useIsFocused();
-  const [result, setResult] = useState(() => ({ owner: user?.id, item: props.item }));
+  const [result, setResult] = useState(() => {
+    const cached = cachedPage<MarketApplication>(pageCacheKey(`market-detail:${props.item.manifest.appId}`), true);
+    const complete = (candidate?: MarketApplication): candidate is MarketApplication => !!candidate && !candidate.summaryOnly && !!candidate.detailAt && candidate.detailOwner === (user?.id ?? "guest") && candidate.manifest.releaseId === props.item.manifest.releaseId;
+    const item = complete(cached) && (!complete(props.item) || (cached.detailAt ?? 0) > (props.item.detailAt ?? 0)) ? cached : props.item;
+    return { owner: user?.id, item };
+  });
+  const contentReady = useRouteContentReady(!!result.item.detailAt && !result.item.summaryOnly && result.item.detailOwner === (user?.id ?? "guest") && result.owner === user?.id);
   const item = result.owner === user?.id ? result.item : props.item;
   const setItem = (next: MarketApplication) => setResult({ owner: user?.id, item: next });
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!ready || !focused) return;
-    if (props.item.detailOwner === (user?.id ?? "guest") && Date.now() - (props.item.detailAt ?? 0) < 1000 && !attempt) { setItem(props.item); return; }
+    if (item.detailOwner === (user?.id ?? "guest") && Date.now() - (item.detailAt ?? 0) < 1000 && !attempt) return;
     let live = true;
     void fetchMarketDetail(props.item.manifest.appId).then(async next => {
       await waitForRouteTransitions();

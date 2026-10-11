@@ -1,4 +1,5 @@
 import { disposeApplicationRooms } from "./applicationRooms";
+import { beginApplicationAttempt, clearApplicationAttempt, consumeApplicationInterruption } from "./applicationAttempts";
 import { assertApplicationSdkCompatible, ApplicationSdkError } from "./applicationCompatibility";
 import NativePluginHost from "../NativePluginHost";
 import { downloadApplicationResources, type DownloadPriority } from "./applicationDownloads";
@@ -33,7 +34,7 @@ const active = new Map<string, ApplicationManifest>();
 type Access = { releaseId: string; ownerId: string | null; public?: boolean };
 class AccessDenied extends Error {}
 const healthy = new Set<string>();
-onApplicationPageAttempt(appId => { const manifest = active.get(appId); if (manifest && !healthy.has(appId)) writeShellValue(`application.attempt.${appId}`, manifest.releaseId); });
+onApplicationPageAttempt(appId => { const manifest = active.get(appId); if (manifest && !healthy.has(appId)) beginApplicationAttempt(appId, manifest.releaseId, hostBuildId); });
 onApplicationPageReady(appId => { void commitHealthy(appId); });
 const offered = new Map<string, { manifest: ApplicationManifest; ownerId: string | null }>();
 const activeAccess = new Map<string, Access>();
@@ -106,7 +107,11 @@ onApplicationPageMounted(id => {
   runtimeUse.set(id, ++useSequence);
   return () => {
     const remaining = (mountedPages.get(id) ?? 1) - 1;
-    if (remaining) mountedPages.set(id, remaining); else mountedPages.delete(id);
+    if (remaining) mountedPages.set(id, remaining); else {
+      mountedPages.delete(id);
+      const manifest = active.get(id);
+      if (manifest && !healthy.has(id)) clearApplicationAttempt(id, manifest.releaseId, false);
+    }
     scheduleRuntimeTrim();
   };
 });
@@ -448,8 +453,7 @@ export async function applyApplicationUpdate(appId: string): Promise<number> {
 async function releaseRuntime(appId: string) {
   loaded.delete(appId); healthy.delete(appId); evaluating.delete(appId); quarantined.delete(appId);
   active.delete(appId); activeAccess.delete(appId);
-  writeShellValue(`application.attempt.${appId}`, "");
-  writeShellValue(`application.evaluation.${appId}`, "");
+  clearApplicationAttempt(appId);
   runtimeUse.delete(appId);
   disposeApplicationRooms(appId);
   try { await disposeApplication(appId); }
@@ -509,10 +513,6 @@ async function load(appId: string) {
   const key = `application.install.${appId}`;
   const saved = await readShellValue(key);
   let staged = await readShellValue(`application.pending.${appId}`);
-  // An interrupted process is not proof of a failed release. Recovery records
-  // actual exceptions; unconfirmed downloads remain available for another try.
-  writeShellValue(`application.attempt.${appId}`, "");
-  writeShellValue(`application.evaluation.${appId}`, "");
   let manifest: ApplicationManifest;
   if (staged) manifest = JSON.parse(staged) as ApplicationManifest;
   else if (saved) manifest = JSON.parse(saved) as ApplicationManifest;
@@ -552,6 +552,12 @@ async function load(appId: string) {
   activeAccess.set(appId, access);
   console.log("application load", appId, manifest.releaseId);
   if (await failedUnderCurrentHost(appId, manifest.releaseId)) throw new Error("这个版本加载失败，请等待新版本或重新选择安装版本");
+  if (consumeApplicationInterruption(appId, manifest.releaseId, hostBuildId) >= 3) {
+    active.set(appId, manifest);
+    await recoverApplicationFailure(appId);
+    if (loaded.has(appId)) return;
+    throw new Error("这个版本连续三次加载中断，已停止自动重试，请更新应用");
+  }
   // Keep first installs pending too, so evaluation and lazy-page failures can roll back.
   if (!saved) { writeShellValue(`application.pending.${appId}`, JSON.stringify(manifest)); writeShellValue(`application.pending.access.${appId}`, JSON.stringify(access)); }
   // Record the last accepted version before executing any new package code.
@@ -560,8 +566,7 @@ async function load(appId: string) {
     writeShellValue(`application.previous.access.${appId}`, await readShellValue(`application.access.${appId}`) || "");
   }
   active.set(appId, manifest);
-  writeShellValue(`application.evaluation.${appId}`, manifest.releaseId);
-  writeShellValue(`application.evaluation.host.${appId}`, hostBuildId);
+  beginApplicationAttempt(appId, manifest.releaseId, hostBuildId);
   evaluating.add(appId);
   createApplicationModuleScope(appId, manifest.modules.base, manifest.modules.size);
   const raw = await NativePluginHost.call("shell", "loadApplication", JSON.stringify(manifest));
@@ -572,8 +577,8 @@ async function load(appId: string) {
 
   active.set(appId, manifest);
   if (!saved && definition.onInstall) await runApplicationLifecycle(() => definition.onInstall!(applicationContext(appId)), "应用初始化", 10000);
-  writeShellValue(`application.evaluation.${appId}`, "");
-  if (saved && JSON.parse(saved).releaseId === manifest.releaseId) { healthy.add(appId); }
+  // Warming a hidden page completed evaluation; only a real mount arms it again.
+  clearApplicationAttempt(appId, manifest.releaseId, false);
   if (appId === bootstrap.defaultApplication) void restoreWorks().catch(() => {});
   console.log("application ready", appId, manifest.releaseId);
 }
@@ -614,10 +619,7 @@ function clearReleaseSelection(appId: string, releaseId: string) {
       writeShellValue(`application.pending.access.${appId}`, "");
     }
   } catch { /* Leave an unrelated or malformed selection for its own recovery. */ }
-  for (const marker of ["attempt", "evaluation"]) {
-    const markerKey = `application.${marker}.${appId}`;
-    if (readShellValueSync(markerKey) === releaseId) writeShellValue(markerKey, "");
-  }
+  clearApplicationAttempt(appId, releaseId);
 }
 
 async function recoverApplicationFailure(appId: string) {
