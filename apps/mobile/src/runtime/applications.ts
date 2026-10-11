@@ -282,7 +282,7 @@ export async function restoreDownloadedApplications() {
 }
 // Generated from the dependency lock at host build time.
 const contract = require("./application-contract.json") as { engineAbi: string; sdk: string; shared: Record<string, string> };
-const allocations = require("../../../../tools/applications/allocations.json") as { applications: Record<string, number>; moduleRangeSize: number };
+const { moduleRangeSize } = require("../../../../packages/app-sdk/platform.json") as { moduleRangeSize: number };
 
 export function runningApplication(appId: string) { return active.get(appId); }
 export function applicationLoaded(appId: string) {
@@ -598,8 +598,7 @@ function assertCompatible(manifest: ApplicationManifest, appId: string) {
   const source = manifest.source;
   if (!source || typeof source.dirty !== "boolean" || !/^[a-f0-9]{40}$/.test(source.commit) || ((source.dirty || source.tree !== undefined) && !/^[a-f0-9]{40}$/.test(source.tree ?? ""))) throw new Error("应用源码快照无效，请重新发布");
   assertApplicationSdkCompatible(manifest.sdk, contract.sdk);
-  if (allocations.applications[appId] !== undefined && allocations.applications[appId] !== manifest.modules.base) throw new Error("已分配应用的模块范围不可变更");
-  if (!Number.isSafeInteger(manifest.modules.base) || manifest.modules.base < 2000000 || manifest.modules.base % allocations.moduleRangeSize || manifest.modules.size !== allocations.moduleRangeSize) throw new Error("应用模块范围不匹配");
+  if (!Number.isSafeInteger(manifest.modules.base) || manifest.modules.base < 2000000 || manifest.modules.base % moduleRangeSize || manifest.modules.size !== moduleRangeSize) throw new Error("应用模块范围不匹配");
   for (const other of active.values()) {
     if (other.appId !== appId && other.modules.base === manifest.modules.base) throw new Error(`应用模块范围冲突：${appId} 与 ${other.appId}`);
   }
@@ -668,10 +667,6 @@ async function commitHealthy(appId: string) {
 }
 
 async function firstManifest(appId: string): Promise<ApplicationManifest> {
-  const seed = JSON.parse(await NativePluginHost.call("shell", "applicationSeed", JSON.stringify({ appId }))) as { manifest?: ApplicationManifest };
-  if (seed.manifest) {
-    try { assertCompatible(seed.manifest, appId); writeShellValue(`application.access.${appId}`, JSON.stringify({ releaseId: seed.manifest.releaseId, ownerId: null, public: true })); return seed.manifest; } catch { /* Need a newer compatible release. */ }
-  }
   const response = await fetchApplicationCatalog(`${edgeUrl}/v1/applications/${appId}/public`);
   if (!response.ok) throw new Error(`应用尚未安装或发布：${appId}`);
   const manifest = await response.json() as ApplicationManifest;

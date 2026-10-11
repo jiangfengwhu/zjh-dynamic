@@ -11,7 +11,7 @@ if (!appId || !/^[a-z][a-z0-9-]{0,63}$/.test(appId)) throw new Error("用法：z
 if (command === "authorize") await authorizeApplication(root, appId, argument ?? "");
 else if (command === "build") await buildApplication(root, appId);
 else if (command === "publish") {
-  if (argument) await authorizeApplication(root, appId, argument);
+  if (argument) throw new Error("发布命令只接收应用 ID；本轮授权由 init 或 authorize 保存");
   await publishApplication(root, appId);
 }
 else if (command === "init") {

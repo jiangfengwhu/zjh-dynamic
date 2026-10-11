@@ -63,7 +63,6 @@ export function installApplicationPlatform() {
   target.__zijinhuaApplications = Object.freeze({
     require: (name: string, appId: string) => {
       if (name === "@zijinhua/app-sdk") return bindApplicationSdk(appId);
-      if (name === "@zijinhua/app-sdk/creation") throw new Error("当前应用未获得制作能力");
       if (!Object.prototype.hasOwnProperty.call(modules, name)) throw new Error(`平台没有提供公共入口：${name}`);
       return modules[name]();
     },

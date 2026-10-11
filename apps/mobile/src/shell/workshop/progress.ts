@@ -6,8 +6,7 @@ import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useRouteRequestReady } from "../useRouteContentReady";
 const getAppContext = () => workshopContext();
-import { type WorkshopDetail } from "../../../../../packages/app-sdk/src/creation";
-import { creationService as getCreationService } from "../cloudEvolve";
+import { creationService as getCreationService, type WorkshopDetail } from "../cloudEvolve";
 import { noteWorkshopRun, readWorkshopRun, type WorkshopStage } from "./run";
 
 export type ProgressState =

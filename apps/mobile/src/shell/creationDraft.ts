@@ -156,15 +156,11 @@ export async function submitCreationPrompt(
       target,
       fork ? intent!.appId : intent?.originalAppId
     );
-    await service.runCloudEvolve({
+    await service.submitCreation({
       requirement: text,
-      submitOnly: true,
       expectedOwnerId: owner,
       continueSession: owned,
       submissionId,
-      onStatus: () => {},
-      onTrace: () => {},
-      shouldStop: () => false,
       onRunId: (session) => {
         service.saveJulesRun({
           session,

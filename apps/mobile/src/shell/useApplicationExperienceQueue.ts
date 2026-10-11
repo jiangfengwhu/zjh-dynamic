@@ -6,7 +6,6 @@ import { fetchMarketDetail, installMarketApplication } from "./market";
 
 export const EXPERIENCE_AHEAD = 3;
 const HISTORY_SIZE = 3;
-export const EXPERIENCE_CACHE_SIZE = 1 + EXPERIENCE_AHEAD + HISTORY_SIZE;
 export const experienceId = (item: MarketApplication) => `${item.manifest.appId}:${item.manifest.releaseId}`;
 type Preparation = { ready: boolean; downloaded?: boolean; retrying?: boolean; error: string };
 

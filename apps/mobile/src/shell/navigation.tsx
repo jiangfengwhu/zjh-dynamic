@@ -294,7 +294,7 @@ function goBack() {
 
 /**
  * 朋友们自己的页面在功能包里，够不着壳的导航，于是通过这个键来请求：
- * 写入 `{"action":"tab","tab":"agent"}`、`{"action":"open","id":"应用 ID"}` 或 `{"action":"back"}`，
+ * 写入 `{"action":"tab","tab":"feed"}`、`{"action":"open","id":"应用 ID"}` 或 `{"action":"back"}`，
  * 再带一个 `at` 时间戳让每次写入都不相同。壳收到后替它们跳转。
  */
 export const SHELL_NAV_REQUEST = "shell.nav.request";

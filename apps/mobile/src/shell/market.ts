@@ -204,24 +204,6 @@ export async function cachedMarket(): Promise<MarketApplication[]> {
     return [];
   }
 }
-export async function fetchMarket(
-  authorId?: string
-): Promise<MarketApplication[]> {
-  const response = await fetchApplicationCatalog(
-    `${edgeUrl}/v1/market${
-      authorId ? `?authorId=${encodeURIComponent(authorId)}` : ""
-    }`
-  );
-  if (!response.ok) throw new Error("暂时无法获取公开作品，请稍后重试");
-  const data = (await response.json()) as { applications: MarketApplication[] };
-  if (!Array.isArray(data.applications))
-    throw new Error("公开作品数据暂时不可用");
-  const items = data.applications
-    .filter((item) => /^[a-z][a-z0-9-]{0,63}$/.test(item.manifest?.appId))
-    .map((item) => ({ ...item, latest: true }));
-  if (!authorId) writeShellValue(CACHE, JSON.stringify(items));
-  return items;
-}
 export function isApplicationInstalledSync(appId: string): boolean {
   try {
     const entries = JSON.parse(readShellValueSync("shell.bundles.v1") || "{}").entries ?? [];

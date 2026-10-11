@@ -1,6 +1,6 @@
 {
   "name": "@zijinhua/app-sdk",
-  "version": "2.2.11",
+  "version": "2.2.12",
   "description": "Zijinhua application SDK and independent build/publish tools",
   "type": "commonjs",
   "main": "dist/index.js",
@@ -13,10 +13,6 @@
     "./ui": {
       "types": "./dist/ui.d.ts",
       "default": "./dist/ui.js"
-    },
-    "./creation": {
-      "types": "./dist/creation.d.ts",
-      "default": "./dist/creation.js"
     },
     "./platform.json": "./dist/platform.json",
     "./babel": "./dist/babel.cjs",

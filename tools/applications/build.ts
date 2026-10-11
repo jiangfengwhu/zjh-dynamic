@@ -24,9 +24,8 @@ export async function buildApplication(repo: string, appId: string) {
   await assertApplicationDependencies(repo, sdkDirectory, platform.shared);
   const base = config.moduleBase;
   if (!Number.isSafeInteger(base) || base < 2000000 || base % platform.moduleRangeSize || base + platform.moduleRangeSize >= 2 ** 31) throw new Error("应用模块范围无效");
-  if (platform.reservedModules[appId] !== undefined && platform.reservedModules[appId] !== base) throw new Error("应用模块范围不可变更");
   await mkdir(path.join(output, "external"), { recursive: true });
-  const sharedNames: string[] = [...Object.keys(platform.shared), "@zijinhua/app-sdk", "@zijinhua/app-sdk/ui", "@zijinhua/app-sdk/creation"];
+  const sharedNames: string[] = [...Object.keys(platform.shared), "@zijinhua/app-sdk", "@zijinhua/app-sdk/ui"];
   const shared: Record<string, string> = {};
   for (const name of sharedNames) {
     const packageName = name.startsWith("@") ? name.split("/").slice(0, 2).join("/") : name.split("/")[0];

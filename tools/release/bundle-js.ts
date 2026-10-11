@@ -46,7 +46,7 @@ export function parseBundleOptions(argv: string[]): { forceVendor: boolean } {
  * 一次打包发布的全过程。
  * 1. 读线上现行的整套清单，检查当前分支包含线上这一版的提交。
  * 2. vendor 的输入指纹（依赖锁、入口、打包配置）没变就沿用线上那份，变了才重新打。
- * 3. app 每次整包重打，其余插件按源码指纹决定要不要重新编译。
+ * 3. app 每次整包重打，原生能力由 APK 提供。
  * 4. 新增的包体先上传，最后写清单。
  */
 export async function bundleRelease(repoRoot: string, summary: string, options: BundleOptions): Promise<BundleResult> {

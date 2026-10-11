@@ -45,7 +45,6 @@
     "react-native-permissions": "5.6.2",
     "@gorhom/bottom-sheet": "5.2.14"
   },
-  "reservedModules": {},
   "moduleRangeSize": 100000,
   "repository": "jiangfengwhu/zjh-plugin",
   "edge": "https://zijinhua.297782.xyz"

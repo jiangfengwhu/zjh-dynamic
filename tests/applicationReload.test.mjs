@@ -64,7 +64,7 @@ function runtime() {
   const callbacks = {};
   const { api: modules, global: g } = fixture();
   Object.assign(g, {
-    exports: {}, require: path => path.includes('allocations') ? { applications: {}, moduleRangeSize: 100000 } : path.includes('application-contract') ? { sdk: '2.2.4' } : path.includes('build-identity') ? { buildId: 'test-host' } : {},
+    exports: {}, require: path => path.includes('platform.json') ? { moduleRangeSize: 100000 } : path.includes('application-contract') ? { sdk: '2.2.4' } : path.includes('build-identity') ? { buildId: 'test-host' } : {},
     subscribeAccountIdentity: listener => { callbacks.account = listener; }, onApplicationPageMounted: listener => { callbacks.mounted = listener; }, onApplicationPageAttempt: listener => { callbacks.attempt = listener; }, onApplicationPageReady: listener => { callbacks.ready = listener; },
     afterInteractions: () => () => {}, consumeApplicationInterruption: () => 0, beginApplicationAttempt: () => {}, clearApplicationAttempt: () => {}, disposeApplicationRooms: async () => {}, runApplicationLifecycle: fn => fn(), waitForRouteTransitions: async () => {}, waitForInteractions: async () => {}, shellKeys: () => [...state.data.keys()], isWorkDeleted: () => false, cachedAccountId: () => state.owner, currentAccountId: async () => state.owner, restoreWorks: async () => {},
     readShellValue: async key => state.data.get(key), readShellValueSync: key => state.data.get(key), writeShellValue: (key, value) => state.data.set(key, value),

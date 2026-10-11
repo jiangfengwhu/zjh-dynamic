@@ -19,7 +19,6 @@ async function installedPackage(resolver: ReturnType<typeof createRequire>, name
 
 /** SDK owns platform dependencies; applications own only their extra JS dependencies. */
 export async function assertApplicationDependencies(repo: string, sdkDirectory: string, shared: Record<string, string>) {
-  const platform = JSON.parse(await readFile(path.join(sdkDirectory, "platform.json"), "utf8")) as { dependencyArtifacts?: Record<string, { version: string; url: string }> };
   const sdk = await readPackage(path.resolve(sdkDirectory, "../package.json"));
   const root = await readPackage(path.join(repo, "package.json"));
   if (root.overrides) throw new Error("插件仓库不能通过 overrides 改写 SDK 的固定依赖");
@@ -41,8 +40,7 @@ export async function assertApplicationDependencies(repo: string, sdkDirectory: 
   }
   const sdkRequire = createRequire(path.join(sdkDirectory, "cli.mjs"));
   for (const [name, version] of new Map(Object.entries(shared).map(([entry, version]) => [packageName(entry), version]))) {
-    const artifact = platform.dependencyArtifacts?.[name];
-    const pinned = sdk.dependencies?.[name] === version || (artifact?.version === version && sdk.dependencies?.[name] === artifact.url);
+    const pinned = sdk.dependencies?.[name] === version;
     if (!pinned || (await installedPackage(sdkRequire, name)).version !== version) throw new Error(`SDK 安装依赖与平台契约不匹配：${name}`);
     // npm may hoist a newer peer dependency outside the SDK. Applications never
     // bundle those copies: Metro resolves public entries to host stubs first.

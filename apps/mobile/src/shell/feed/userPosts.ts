@@ -9,7 +9,6 @@ import {
   cachedAccountId,
   subscribeAccountIdentity,
 } from "../account";
-import { removeShellValue } from "../shellStorage";
 import type { MarketApplication } from "../market";
 import { updateNotificationCount, notificationRevision } from "./notifications";
 
@@ -110,11 +109,6 @@ export function fetchAuthorProfile(id: string, view: "summary" | "posts" | "apps
   authorFlights.set(flightKey, promise);
   return promise;
 }
-export function fetchAuthorPosts(id: string, cursor: string) {
-  return readSocial<{ posts: UserPost[]; nextCursor: string | null }>(
-    `/v1/posts?authorId=${id}&cursor=${encodeURIComponent(cursor)}`
-  );
-}
 type Page = {
   posts: UserPost[];
   nextCursor: string | null;
@@ -140,9 +134,6 @@ function withPendingLike(post: UserPost): UserPost {
     : post;
 }
 let value: Page = cachedPage<Page>(pageCacheKey("feed:recommended")) ?? { posts: [], nextCursor: null };
-// The account-scoped page cache is the only timeline snapshot. Retire the
-// duplicate legacy snapshot without reading/parsing it during startup.
-requestIdleCallback(() => removeShellValue("social.timeline.v1"));
 let revision = 0;
 let refreshing: Promise<void> | undefined;
 let manualRefreshRequested = false;
