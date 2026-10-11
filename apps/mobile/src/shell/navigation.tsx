@@ -144,6 +144,7 @@ export type RootParamList = {
 export { shellNavigationRef } from "./navigationRef";
 const AUTHOR_NAVIGATION_INTENT = "author-navigation-intent";
 const SEARCH_NAVIGATION_INTENT = "search-navigation-intent";
+const PUBLICATION_NAVIGATION_INTENT = "publication-navigation-intent";
 function openSearch() {
   if (!shellNavigationRef.isReady()) return;
   beginRouteTransition(SEARCH_NAVIGATION_INTENT);
@@ -220,7 +221,10 @@ export function openShellTab(id: ShellTabId) {
 }
 function openPublication(mode: "post" | "create" = "create") {
   const open = () => {
-    if (shellNavigationRef.isReady()) shellNavigationRef.navigate("composePost", { mode });
+    if (shellNavigationRef.isReady()) {
+      beginRouteTransition(PUBLICATION_NAVIGATION_INTENT);
+      shellNavigationRef.navigate("composePost", { mode });
+    }
   };
   if (cachedAccountId()) open();
   else void requireAccount().then(allowed => { if (allowed) open(); });
@@ -601,6 +605,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
               beginRouteTransition(route.key);
               if (route.name === "authorProfile") endRouteTransition(AUTHOR_NAVIGATION_INTENT);
               if (route.name === "discovery") endRouteTransition(SEARCH_NAVIGATION_INTENT);
+              if (route.name === "composePost") endRouteTransition(PUBLICATION_NAVIGATION_INTENT);
             },
             transitionEnd: () => endRouteTransition(route.key),
             blur: () => endRouteTransition(route.key),

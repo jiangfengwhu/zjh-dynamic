@@ -36,6 +36,8 @@ import { CreationImages, useCreationImages } from "./CreationImages";
 import type { CreationInput, CreationIntent } from "./creationComposer";
 import { usePreventRemove } from "@react-navigation/native";
 import { afterInteractions } from "./interactionWork";
+import { useVisitedPager } from "./useVisitedPager";
+import { useEventCallback } from "./useEventCallback";
 
 const CREATION_INPUT_HEIGHT = 224;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
@@ -72,19 +74,22 @@ function PublicationContent({
   const lockedCreation = Boolean(creation);
   const startingMode = lockedCreation ? "create" : initialMode ?? (initialApplication || initialDraft ? "post" : "create");
   const [mode, setMode] = useState(startingMode);
+  const { visited, visit, reveal } = useVisitedPager(startingMode === "create" ? 0 : 1);
   const { colors } = useTheme();
   const pager = useRef<PagerView>(null);
   const position = useSharedValue(
     startingMode === "create" ? 0 : 1
   );
   const [postControls, setPostControls] = useState<ComposePostControls>();
-  const selectMode = (next: "post" | "create") => {
+  const selectMode = useEventCallback((next: "post" | "create") => {
+    if (next === mode) return;
     Keyboard.dismiss();
     setMode(next);
-  };
+  });
   const onPageScroll = useEvent<PagerViewOnPageScrollEvent>(
     (event) => {
       "worklet";
+      reveal(event.position, event.offset);
       position.value = event.position + event.offset;
     },
     ["onPageScroll"]
@@ -92,6 +97,7 @@ function PublicationContent({
   const onPageSelected = useEvent<PagerViewOnPageSelectedEvent>(
     (event) => {
       "worklet";
+      runOnJS(visit)(event.position);
       runOnJS(selectMode)(event.position === 0 ? "create" : "post");
     },
     ["onPageSelected"]
@@ -122,7 +128,8 @@ function PublicationContent({
         ]}
         onChange={(value) => {
           if (creating || postControls?.busy) return;
-          Keyboard.dismiss();
+          visit(value === "create" ? 0 : 1);
+          selectMode(value);
           pager.current?.setPage(value === "create" ? 0 : 1);
         }}
       />
@@ -153,16 +160,16 @@ function PublicationContent({
             onPageSelected={onPageSelected}
           >
             <View key="create" collapsable={false} style={{ flex: 1 }}>
-              {creationPage}
+              {visited.has(0) ? creationPage : null}
             </View>
             <View key="post" collapsable={false} style={{ flex: 1 }}>
-              <ComposePostScreen
+              {visited.has(1) ? <ComposePostScreen
                 embedded
                 onControlsChange={setPostControls}
                 onBack={onBack}
                 initialApplication={initialApplication}
                 initialDraft={initialDraft}
-              />
+              /> : null}
             </View>
           </AnimatedPagerView>
         </>
