@@ -1,4 +1,4 @@
-import { afterInteractions, waitForInteractions } from "../interactionWork";
+import { afterInteractions, waitForRouteTransitions } from "../interactionWork";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
@@ -33,7 +33,8 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
     const token = { key }; flight.current = token; setLoading(true); setError("");
     try {
       const next = await config.current.read(more ? dataRef.current.nextCursor! : undefined);
-      await waitForInteractions();
+      // First content and explicit refresh commit without waiting for idle.
+      await waitForRouteTransitions();
       if (!alive.current || identity.current !== key) return false;
       commit(config.current.merge(dataRef.current, next, more));
       return true;

@@ -6,7 +6,7 @@ import { afterInteractions, waitForInteractions, waitForRouteTransitions } from 
 import { edgeUrl } from "../shell/evolveHost";
 import { readShellValue, readShellValueSync, shellKeys, writeShellValue } from "../shell/shellStorage";
 import { accountFetch, currentAccountId, cachedAccountId, subscribeAccountIdentity } from "../shell/account";
-import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt, onApplicationPageMounted, disposeApplication } from "../../../../packages/app-sdk/src/runtime";
+import { applicationContext, peekRegisteredApplication, activateApplication, installApplicationAssets, onApplicationPageReady, onApplicationPageAttempt, onApplicationPageMounted, disposeApplication, runApplicationLifecycle } from "../../../../packages/app-sdk/src/runtime";
 import { createApplicationModuleScope, releaseApplicationModuleScope } from "./applicationModules";
 import { restoreWorks } from "../shell/workRecovery";
 import { loadCatalog, loadCatalogSync, saveCatalog } from "../shell/catalog";
@@ -178,7 +178,7 @@ export async function loadPublicApplicationExperience(manifest: ApplicationManif
       if (entry) Object.assign(entry, { trashedAt: undefined, purged: false, hidden: false, pinned: true });
       else catalog.push({ id: appId, hidden: false, pinned: true });
       await saveCatalog(catalog);
-      if (installerId && installerId === cachedAccountId()) void accountFetch(`/v1/application-download/${appId}`, {
+      if (installerId && installerId === cachedAccountId()) void accountFetch(`${edgeUrl}/v1/application-download/${appId}`, {
         method: "POST", body: JSON.stringify({ releaseId: manifest.releaseId }),
       }).catch(() => {});
     }
@@ -320,6 +320,7 @@ export async function publicApplicationUpdates(force = false): Promise<Record<st
     }
     try { snapshot = await flight; } finally { if (publicFlights.get(key) === flight) publicFlights.delete(key); }
   }
+  const byId = new Map(snapshot!.applications.map(item => [item.appId, item.manifest]));
   const result: Record<string, PublicApplicationUpdate> = {};
   for (const id of ids) {
     const pending = await readShellValue(`application.pending.${id}`);
@@ -327,7 +328,7 @@ export async function publicApplicationUpdates(force = false): Promise<Record<st
     const access = await readShellValue(`application.${pending ? "pending.access" : "access"}.${id}`);
     try {
       if (JSON.parse(access || "{}").ownerId) { result[id] = { status: "private", message: "体验版本在工坊中更新" }; continue; }
-      const manifest = snapshot!.applications.find(item => item.appId === id)?.manifest;
+      const manifest = byId.get(id);
       if (!manifest) { result[id] = { status: "unavailable", message: "已撤回，保留本机版本" }; continue; }
       if (raw && JSON.parse(raw).releaseId === manifest.releaseId) { result[id] = { status: "current", manifest }; continue; }
       if (await failedUnderCurrentHost(id, manifest.releaseId)) { result[id] = { status: "blocked", message: "新版加载失败，保留本机版本" }; continue; }
@@ -355,7 +356,16 @@ export function updatePublicApplicationsSilently(): Promise<void> {
         return !!entry && !entry.trashedAt && !entry.purged && pending?.releaseId === offer.manifest.releaseId && access.public === true && !access.ownerId && access.releaseId === pending.releaseId;
       } catch { return false; }
     }).map(([id]) => id);
-    const results = await Promise.allSettled(ids.map(reloadApplication));
+    const results = await Promise.allSettled(ids.map(async appId => {
+      // Only mounted pages need replacement execution. Other installs select
+      // their prepared version now, and evaluate on the next actual open.
+      if (mountedPages.get(appId)) await reloadApplication(appId);
+      else {
+        if (loaded.has(appId) || loading.has(appId) || quarantined.has(appId)) await unloadApplication(appId);
+        const manifest = selectedPublicApplicationRelease(appId);
+        if (manifest) publicReleaseListeners.forEach(listener => listener({ manifest }));
+      }
+    }));
     if (stageError) throw stageError;
     if (results.some(result => result.status === "rejected")) throw new Error("部分应用新版未能加载，保留原有版本");
   })().finally(() => { if (updatingPublicApplications === task) updatingPublicApplications = undefined; });
@@ -561,7 +571,7 @@ async function load(appId: string) {
   if (!definition) throw new Error(`应用没有登记入口：${appId}`);
 
   active.set(appId, manifest);
-  if (!saved && definition.onInstall) await definition.onInstall(applicationContext(appId));
+  if (!saved && definition.onInstall) await runApplicationLifecycle(() => definition.onInstall!(applicationContext(appId)), "应用初始化", 10000);
   writeShellValue(`application.evaluation.${appId}`, "");
   if (saved && JSON.parse(saved).releaseId === manifest.releaseId) { healthy.add(appId); }
   if (appId === bootstrap.defaultApplication) void restoreWorks().catch(() => {});

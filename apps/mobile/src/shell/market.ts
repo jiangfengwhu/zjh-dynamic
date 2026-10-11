@@ -273,6 +273,7 @@ export async function installedMarket(): Promise<MarketApplication[]> {
   const items: MarketApplication[] = [];
   const accountId = await currentAccountId();
   const market = await cachedMarket();
+  const byId = new Map(market.map(item => [item.manifest.appId, item]));
   for (const entry of entries.filter(
     (entry) => !entry.trashedAt && !entry.purged
   )) {
@@ -292,7 +293,7 @@ export async function installedMarket(): Promise<MarketApplication[]> {
     try {
       const saved = readShellValueSync(`application.market.${entry.id}`);
       const author =
-        market.find((item) => item.manifest.appId === entry.id) ??
+        byId.get(entry.id) ??
         (saved ? (JSON.parse(saved) as MarketApplication) : undefined);
       const owned =
         Boolean(accountId) &&
@@ -346,7 +347,7 @@ export async function installMarketApplication(
   } else catalog.push({ id: manifest.appId, hidden: false, pinned: true });
   await saveCatalog(catalog);
   if (installerId && installerId === cachedAccountId()) {
-    void accountFetch(`/v1/application-download/${manifest.appId}`, {
+    void accountFetch(`${edgeUrl}/v1/application-download/${manifest.appId}`, {
       method: "POST", body: JSON.stringify({ releaseId: manifest.releaseId }),
     }).catch(() => {});
   }

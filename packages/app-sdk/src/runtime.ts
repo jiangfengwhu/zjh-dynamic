@@ -211,6 +211,17 @@ export function registerApplication(appId: string, definition: AppDefinition) {
   registerFeature(appId, ApplicationPage);
 }
 
+/** Bound asynchronous lifecycle hooks; synchronous JS cannot be preempted. */
+export async function runApplicationLifecycle(work: () => unknown, label: string, timeoutMs: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.resolve().then(work),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`${label}超时`)), timeoutMs); }),
+    ]);
+  } finally { if (timer !== undefined) clearTimeout(timer); }
+}
+
 export async function disposeApplication(appId: string) {
   const definition = definitions.get(appId);
   activated.delete(appId);
@@ -221,7 +232,7 @@ export async function disposeApplication(appId: string) {
     const timer = setTimeout(resolve, 100);
     requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(timer); resolve(); }));
   });
-  try { await definition?.onDispose?.(applicationContext(appId)); }
+  try { await runApplicationLifecycle(() => definition?.onDispose?.(applicationContext(appId)), "应用清理", 3000); }
   finally { definitions.delete(appId); activated.delete(appId); assets.delete(appId); contexts.delete(appId); clearApplicationShareListeners(appId); clearApplicationNotifications(appId); clearApplicationNative(appId); clearApplicationQueries(appId); }
 }
 

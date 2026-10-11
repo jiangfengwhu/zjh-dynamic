@@ -1,7 +1,8 @@
+import { RetainedApplicationPresentation } from "./RetainedApplicationPresentation";
 import { cachedPage, rememberPage } from "./pageCache";
 import { useKeyboardMode } from "../../../../packages/ui/keyboard";
 import { ApplicationCloudActivity } from "../../../../packages/app-sdk/src/cloud-activity";
-import { Activity, memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState, BackHandler, Keyboard, View, type LayoutChangeEvent } from "react-native";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { SafeAreaFrameContext, SafeAreaInsetsContext, SafeAreaProvider } from "react-native-safe-area-context";
@@ -394,11 +395,9 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
     // create distant, unvisited pages every time the forward window advances.
     // Once previewed, keep the tree and its state until the cache evicts it.
     if (!mounted && !selected) return null;
-    // Keep the selected native tree painted behind the drawer and adjacent tab.
-    // Activity hidden removes its presentation and restarts effects on return.
-    // Cloud activity and outer touch/accessibility gates still follow visibility.
-    const painted = foreground && (selected || showing && retainedVisible);
-    return <Activity mode={painted ? "visible" : "hidden"}><ApplicationCloudActivity.Provider value={showing && selected}><View style={{ flex: 1 }}>{content}</View></ApplicationCloudActivity.Provider></Activity>;
+    return <RetainedApplicationPresentation active={showing && (selected || retainedVisible)} foreground={foreground} retain={selected}>
+      <ApplicationCloudActivity.Provider value={showing && selected}><View style={{ flex: 1 }}>{content}</View></ApplicationCloudActivity.Provider>
+    </RetainedApplicationPresentation>;
   }
   // Resources warm independently; only the current page needs a loading animation.
   if (!selected || !visible) return null;

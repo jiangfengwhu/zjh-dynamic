@@ -8,7 +8,7 @@ export const EXPERIENCE_AHEAD = 3;
 const HISTORY_SIZE = 3;
 export const EXPERIENCE_CACHE_SIZE = 1 + EXPERIENCE_AHEAD + HISTORY_SIZE;
 export const experienceId = (item: MarketApplication) => `${item.manifest.appId}:${item.manifest.releaseId}`;
-type Preparation = { ready: boolean; downloaded?: boolean; error: string };
+type Preparation = { ready: boolean; downloaded?: boolean; retrying?: boolean; error: string };
 
 /** At most seven identities: current, three ahead and three recently visited. */
 export function experienceWindow(items: readonly MarketApplication[], index: number, history: readonly MarketApplication[], availableIds?: ReadonlySet<string>) {
@@ -46,7 +46,12 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
   const latest = useRef(preparations); latest.current = preparations;
   const [retryVersion, setRetryVersion] = useState(0);
   const retries = useRef(new Map<string, AbortController>());
-  useEffect(() => () => { for (const controller of retries.current.values()) controller.abort(); retries.current.clear(); }, [enabled, key]);
+  useEffect(() => () => {
+    const ids = [...retries.current.keys()];
+    for (const controller of retries.current.values()) controller.abort();
+    retries.current.clear();
+    if (ids.length) setPreparations(prior => { const next = new Map(prior); ids.forEach(id => next.delete(id)); return next; });
+  }, [enabled, key]);
   // Downloads start immediately, including during a swipe. The native resource
   // scheduler merges identities and limits actual transfers to three.
   useEffect(() => {
@@ -55,19 +60,20 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     for (const candidate of entries) {
       const id = experienceId(candidate);
       if (id === key && executeEnabled) continue;
-      if (latest.current.get(id)?.downloaded || latest.current.get(id)?.error) continue;
+      if (latest.current.get(id)?.retrying || latest.current.get(id)?.downloaded || latest.current.get(id)?.error) continue;
       void loadPublicApplicationExperience(candidate.manifest, controller.signal, candidate, true, id === key ? "visible" : "preload").then(() => {
-        if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(id, { ...prior.get(id), ready: prior.get(id)?.ready ?? false, downloaded: true, error: "" }));
+        if (!controller.signal.aborted) setPreparations(prior => prior.get(id)?.retrying ? prior : new Map(prior).set(id, { ...prior.get(id), ready: prior.get(id)?.ready ?? false, downloaded: true, error: "" }));
       }, cause => {
-        if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(id, { ready: false, error: cause instanceof Error ? cause.message : "作品下载失败" }));
+        if (!controller.signal.aborted) setPreparations(prior => prior.get(id)?.retrying ? prior : new Map(prior).set(id, { ready: false, error: cause instanceof Error ? cause.message : "作品下载失败" }));
       });
     }
     return () => controller.abort();
   }, [enabled, executeEnabled, key, entries, retryVersion]);
   const visibleReady = !!key && preparations.get(key)?.ready;
+  const visibleRetrying = !!key && preparations.get(key)?.retrying;
   const visibleError = !!key && preparations.get(key)?.error;
   useEffect(() => {
-    if (!executeEnabled || !current || visibleReady || visibleError) return;
+    if (!executeEnabled || !current || visibleReady || visibleError || visibleRetrying) return;
     const controller = new AbortController();
     void loadPublicApplicationExperience(current.manifest, controller.signal, current, false, "visible").then(() => {
       if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(key!, { ready: true, downloaded: true, error: "" }));
@@ -75,10 +81,10 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
       if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(key!, { ready: false, error: cause instanceof Error ? cause.message : "作品加载失败" }));
     });
     return () => controller.abort();
-  }, [executeEnabled, key, visibleReady, visibleError, retryVersion]);
+  }, [executeEnabled, key, visibleReady, visibleError, visibleRetrying, retryVersion]);
   const next = entries.find(item => {
     const state = preparations.get(experienceId(item));
-    return experienceId(item) !== key && state?.downloaded && !state.ready && !state.error;
+    return experienceId(item) !== key && state?.downloaded && !state.ready && !state.error && !state.retrying;
   });
   const nextKey = next && experienceId(next);
   // Unrelated download completions must not abort the current evaluation.
@@ -96,7 +102,7 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     const item = entries.find(candidate => experienceId(candidate) === id);
     if (!item || retries.current.has(id)) return;
     const controller = new AbortController(); retries.current.set(id, controller);
-    setPreparations(prior => new Map(prior).set(id, { ready: false, error: "" }));
+    setPreparations(prior => new Map(prior).set(id, { ready: false, retrying: true, error: "" }));
     void (async () => {
       const latest = await fetchMarketDetail(item.manifest.appId, { signal: controller.signal, immediate: true });
       controller.signal.throwIfAborted();
@@ -105,6 +111,7 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
       if (status === "pending") {
         await reloadApplication(latest.manifest.appId);
       }
+      controller.signal.throwIfAborted();
       onRefresh?.(latest);
       setPreparations(prior => { const next = new Map(prior); next.delete(id); next.set(experienceId(latest), { ready: true, downloaded: true, error: "" }); return next; });
       setRetryVersion(value => value + 1);
