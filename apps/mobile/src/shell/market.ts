@@ -118,13 +118,14 @@ export async function fetchMarketPage(
 ): Promise<MarketPage> {
   const params = new URLSearchParams({ limit: "24" });
   if (!discovery) params.set("view", "summary");
+  else params.set("social", "0");
   if (category) params.set("category", category);
   if (query.trim()) params.set("q", query.trim());
   if (cursor) params.set("cursor", cursor);
   const owner = cachedAccountId() ?? "guest";
   const revision = authorFollowRevision();
   const response = discovery
-    ? await (owner === "guest" ? fetch(`${edgeUrl}/v1/discovery?${params}`) : accountFetch(`${edgeUrl}/v1/discovery?${params}`, {}, false))
+    ? await (owner === "guest" ? fetch(`${edgeUrl}/v1/discovery?${params}`, { signal: AbortSignal.timeout(15000) }) : accountFetch(`${edgeUrl}/v1/discovery?${params}`, { signal: AbortSignal.timeout(15000) }, false))
     : await fetchApplicationCatalog(`${edgeUrl}/v1/market?${params}`);
   if (!response.ok) throw new Error("作品加载失败，请重试");
   const data = (await response.json()) as MarketPage;
@@ -134,9 +135,28 @@ export async function fetchMarketPage(
   return {
     applications: data.applications
       .filter((item) => item.manifest.appId !== "jolly")
-      .map((item) => ({ ...item, latest: true, ...(discovery ? {interactionOwner: owner, interactionAt: Date.now()} : {}) })),
+      .map((item) => ({ ...item, latest: true, ...(discovery && item.discussion ? {interactionOwner: owner, interactionAt: Date.now()} : {}) })),
     nextCursor: data.nextCursor,
   };
+}
+export async function fetchDiscoveryInteractions(pageRequest: Promise<MarketPage>, signal: AbortSignal, cursor?: string): Promise<MarketApplication[]> {
+  const owner = cachedAccountId() ?? "guest", revision = authorFollowRevision();
+  const interactionAt = Date.now();
+  const params = new URLSearchParams({ limit: "24", social: "only" });
+  if (cursor) params.set("cursor", cursor);
+  const url = `${edgeUrl}/v1/discovery?${params}`;
+  const options = { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) };
+  const response = owner === "guest" ? await fetch(url, options) : await accountFetch(url, options, false);
+  if (!response.ok) throw new Error("互动信息加载失败");
+  const { items } = await response.json() as { items: Array<{ appId: string; post: UserPost; following: boolean }> };
+  if (owner !== (cachedAccountId() ?? "guest")) throw new Error("账号已切换");
+  const byId = new Map(items.map(item => [item.appId, item]));
+  const { applications } = await pageRequest;
+  return applications.map(item => {
+    const info = byId.get(item.manifest.appId);
+    if (item.authorId && info) rememberAuthorFollowing(item.authorId, info.following, revision);
+    return info ? { ...item, discussion: info.post, authorFollowing: info.following, interactionOwner: owner, interactionAt } : item;
+  });
 }
 const CACHE = "market.catalog.v1";
 const bootstrap = require("../../../../tools/applications/bootstrap.json");

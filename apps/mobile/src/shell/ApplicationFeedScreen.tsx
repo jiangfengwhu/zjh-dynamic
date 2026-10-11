@@ -1,3 +1,4 @@
+import { cachedPage, rememberPage } from "./pageCache";
 import { useKeyboardMode } from "../../../../packages/ui/keyboard";
 import { ApplicationCloudActivity } from "../../../../packages/app-sdk/src/cloud-activity";
 import { Activity, memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -22,7 +23,7 @@ import { ApplicationInteractions, cachedApplicationDiscussion } from "./Applicat
 import { AuthorFollowButton } from "./AuthorFollowButton";
 import type { UserPost } from "./feed/userPosts";
 import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
-import { fetchMarketDetail, fetchMarketPage, type MarketApplication, type MarketPage } from "./market";
+import { fetchMarketDetail, fetchMarketPage, fetchDiscoveryInteractions, type MarketApplication, type MarketPage } from "./market";
 import { selectedPublicApplicationRelease, resolvePublicApplicationExperience, subscribePublicApplicationRelease, type PublicReleaseChange } from "../runtime/applications";
 import { useEventCallback } from "./useEventCallback";
 
@@ -53,7 +54,7 @@ export function ApplicationFeedScreen(props: Props) {
   const { progress } = useProfileDrawer();
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [page, setPage] = useState<MarketPage & { owner: string; loaded: boolean }>({ owner: identity, applications: [], loaded: false });
+  const [page, setPage] = useState<MarketPage & { owner: string; loaded: boolean }>(() => ({ owner: identity, applications: cachedPage<MarketApplication[]>(`discovery-start:${identity}`) ?? [], loaded: false }));
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [commentPost, setCommentPost] = useState<{ owner: string; appId: string; post?: UserPost } | null>(null);
@@ -71,6 +72,7 @@ export function ApplicationFeedScreen(props: Props) {
   currentOwner.current = identity;
   const items = page.owner === identity ? page.applications : [];
   const item = items[index];
+  const selection = useRef(item?.manifest.appId); selection.current = item?.manifest.appId;
   useEffect(() => { setCommentPost(null); }, [identity, item?.manifest.appId]);
   const openComments = useCallback((post?: UserPost) => {
     if (item) setCommentPost({ owner: identity, appId: item.manifest.appId, post: post ?? cachedApplicationDiscussion(item) });
@@ -122,30 +124,47 @@ export function ApplicationFeedScreen(props: Props) {
     const token = generation.current;
     const owner = identity;
     const cursor = more ? page.nextCursor : undefined;
-    setBusy(true);
+    setBusy(more || !items.length);
     setError("");
     try {
-      const result = await fetchMarketPage("", "", cursor, true);
+      const pageRequest = fetchMarketPage("", "", cursor, true);
+      const interactions = fetchDiscoveryInteractions(pageRequest, AbortSignal.timeout(15000), cursor).catch(() => undefined);
+      const result = await pageRequest;
       if (generation.current !== token || currentOwner.current !== owner) return;
       setPage(prior => ({ owner, loaded: true, applications: unique(more && prior.owner === owner ? [...prior.applications, ...result.applications] : result.applications), nextCursor: result.nextCursor === cursor ? undefined : result.nextCursor }));
-      if (!more) { setIndex(0); setPause(false); setRevision(value => value + 1); }
+      if (!more) {
+        setIndex(Math.max(0, result.applications.findIndex(candidate => candidate.manifest.appId === selection.current)));
+        if (!items.length) { setPause(false); setRevision(value => value + 1); }
+      }
+      void interactions.then(hydrated => {
+        if (!hydrated || generation.current !== token || currentOwner.current !== owner) return;
+        const byId = new Map(hydrated.map(item => [experienceId(item), item]));
+        setPage(prior => prior.owner !== owner ? prior : { ...prior, applications: prior.applications.map(item => {
+          const fresh = byId.get(experienceId(item));
+          return fresh ? { ...item, discussion: fresh.discussion, authorFollowing: fresh.authorFollowing, interactionOwner: fresh.interactionOwner, interactionAt: fresh.interactionAt } : item;
+        }) });
+      }).catch(() => {});
       return result.applications.length > 0;
     } catch (cause) {
       if (generation.current === token && currentOwner.current === owner) setError(cause instanceof Error ? cause.message : "作品暂时未能加载");
     } finally {
       if (generation.current === token) { request.current = false; setBusy(false); }
     }
-  }, [identity, page.nextCursor, setPause]);
+  }, [identity, page.nextCursor, setPause, items.length]);
   useEffect(() => {
     generation.current++;
     request.current = false;
-    setPage({ owner: identity, applications: [], loaded: false });
+    setPage({ owner: identity, applications: cachedPage<MarketApplication[]>(`discovery-start:${identity}`) ?? [], loaded: false });
     setIndex(0);
     setPause(false);
     setError("");
     setBusy(false);
     return () => { generation.current++; };
   }, [identity, setPause]);
+  useEffect(() => {
+    if (!items.length) return;
+    rememberPage(`discovery-start:${identity}`, items.slice(0, 4));
+  }, [items, identity]);
   const refreshExperience = useCallback((fresh: MarketApplication) => {
     setPage(prior => prior.owner !== identity ? prior : { ...prior, applications: prior.applications.map(item => item.manifest.appId === fresh.manifest.appId ? fresh : item) });
   }, [identity]);

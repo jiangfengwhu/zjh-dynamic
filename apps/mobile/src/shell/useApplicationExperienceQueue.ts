@@ -28,7 +28,7 @@ export function experienceWindow(items: readonly MarketApplication[], index: num
 
 /** Resource warming is independent of FlashList's mounted cells. */
 export function useApplicationExperienceQueue(items: readonly MarketApplication[], index: number, enabled: boolean, executeEnabled = enabled, onRefresh?: (item: MarketApplication) => void) {
-  const current = items[index];
+  const current = useMemo(() => items[index] && resolvePublicApplicationExperience(items[index]), [items, index]);
   const key = current && experienceId(current);
   const [visits, setVisits] = useState<{ key: string | undefined; history: MarketApplication[] }>(() => ({ key, history: current ? [current] : [] }));
   // Adjust this component's state before commit, rather than committing the old
@@ -54,6 +54,7 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
     const controller = new AbortController();
     for (const candidate of entries) {
       const id = experienceId(candidate);
+      if (id === key && executeEnabled) continue;
       if (latest.current.get(id)?.downloaded || latest.current.get(id)?.error) continue;
       void loadPublicApplicationExperience(candidate.manifest, controller.signal, candidate, true, id === key ? "visible" : "preload").then(() => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(id, { ...prior.get(id), ready: prior.get(id)?.ready ?? false, downloaded: true, error: "" }));
@@ -62,15 +63,27 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
       });
     }
     return () => controller.abort();
-  }, [enabled, key, entries, retryVersion]);
+  }, [enabled, executeEnabled, key, entries, retryVersion]);
+  const visibleReady = !!key && preparations.get(key)?.ready;
+  const visibleError = !!key && preparations.get(key)?.error;
+  useEffect(() => {
+    if (!executeEnabled || !current || visibleReady || visibleError) return;
+    const controller = new AbortController();
+    void loadPublicApplicationExperience(current.manifest, controller.signal, current, false, "visible").then(() => {
+      if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(key!, { ready: true, downloaded: true, error: "" }));
+    }, cause => {
+      if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(key!, { ready: false, error: cause instanceof Error ? cause.message : "作品加载失败" }));
+    });
+    return () => controller.abort();
+  }, [executeEnabled, key, visibleReady, visibleError, retryVersion]);
   const next = entries.find(item => {
     const state = preparations.get(experienceId(item));
-    return state?.downloaded && !state.ready && !state.error;
+    return experienceId(item) !== key && state?.downloaded && !state.ready && !state.error;
   });
   const nextKey = next && experienceId(next);
   // Unrelated download completions must not abort the current evaluation.
   useEffect(() => {
-    if (!executeEnabled || !current || !next) return;
+    if (!executeEnabled || !visibleReady || !current || !next) return;
     const controller = new AbortController();
     void loadPublicApplicationExperience(next.manifest, controller.signal, next, false, nextKey === key ? "visible" : "preload").then(() => {
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(experienceId(next), { ready: true, downloaded: true, error: "" }));
@@ -78,7 +91,7 @@ export function useApplicationExperienceQueue(items: readonly MarketApplication[
         if (!controller.signal.aborted) setPreparations(prior => new Map(prior).set(experienceId(next), { ready: false, downloaded: true, error: cause instanceof Error ? cause.message : "暂时无法体验这个作品" }));
     });
     return () => controller.abort();
-  }, [executeEnabled, key, nextKey]);
+  }, [executeEnabled, visibleReady, key, nextKey]);
   const retry = useEventCallback((id: string) => {
     const item = entries.find(candidate => experienceId(candidate) === id);
     if (!item || retries.current.has(id)) return;
