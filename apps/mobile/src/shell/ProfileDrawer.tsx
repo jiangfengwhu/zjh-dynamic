@@ -1,4 +1,4 @@
-import { beginRouteTransition, endRouteTransition } from "./interactionWork";
+import { afterInteractions, beginRouteTransition, endRouteTransition } from "./interactionWork";
 import {
   createContext,
   useCallback,
@@ -94,6 +94,8 @@ export function ProfileDrawer({
   const start = useSharedValue(0);
   const [opened, setOpened] = useState(false);
   const [contentReady, setContentReady] = useState(false);
+  // Warm this small static menu only after foreground interactions finish.
+  useEffect(() => afterInteractions(() => setContentReady(true)), []);
   useEffect(() => {
     if (opened && !contentReady) setContentReady(true);
   }, [opened, contentReady]);
@@ -105,6 +107,7 @@ export function ProfileDrawer({
   const focused = useIsFocused();
   const settle = useCallback(
     (next: boolean) => {
+      beginRouteTransition("profile-drawer");
       setOpening(false);
       if (next) setOpened(true);
       progress.value = withTiming(next ? 1 : 0, timing, (finished) => {
@@ -122,9 +125,10 @@ export function ProfileDrawer({
     setOpening(false);
     setOpened(false);
   }, [progress]);
+  const contentMounted = contentReady || opened;
   const drawerContent = useMemo(
-    () => contentReady || opened ? render(close, dismiss) : null,
-    [contentReady, opened, render, close, dismiss]
+    () => contentMounted ? render(close, dismiss) : null,
+    [contentMounted, render, close, dismiss]
   );
   const startDrag = useCallback(() => {
     beginRouteTransition("profile-drawer");

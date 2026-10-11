@@ -40,6 +40,7 @@ type Props = {
   onAuthor: (author: { id: string; name: string; avatarUrl: string | null; official?: boolean }) => void;
 };
 const timing = { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
+const LOADING_INDICATOR_DELAY = 250;
 const SWITCH_INTERACTION = "application-feed-switch";
 const unique = (items: MarketApplication[]) => [...new Map(items.map(item => [item.manifest.appId, item])).values()];
 
@@ -407,7 +408,7 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
 function DelayedExperienceLoading({ children }: { children: ReactNode }) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => setShown(true), 200);
+    const timer = setTimeout(() => setShown(true), LOADING_INDICATOR_DELAY);
     return () => clearTimeout(timer);
   }, []);
   return shown ? children : null;
