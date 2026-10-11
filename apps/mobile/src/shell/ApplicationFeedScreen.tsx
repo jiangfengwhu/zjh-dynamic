@@ -280,13 +280,13 @@ export function ApplicationFeedScreen(props: Props) {
     <View style={{ flex: 1, backgroundColor: "transparent" }}>
       <Animated.View ref={props.stageRef} collapsable={false} style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
         {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} spacing={spacing.height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} onRefresh={refreshExperience} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
-            {!page.loaded && !error ? <ExperienceSkeleton /> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
+            {!page.loaded && !error ? <DelayedExperienceLoading><ExperienceSkeleton /></DelayedExperienceLoading> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
       </Animated.View>
       <GestureDetector gesture={swipe}>
         <View collapsable={false} accessibilityLabel="底部互动区，上下滑动切换作品，也可点击底部下一个箭头" style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 4 }}>
-          {!item && (page.owner !== identity || (!page.loaded && !error)) ? <DiscoveryFooterSkeleton animated={active} /> : null}
+          {!item && (page.owner !== identity || (!page.loaded && !error)) ? <View style={{ height: 96 }}><DelayedExperienceLoading><DiscoveryFooterSkeleton animated={active} /></DelayedExperienceLoading></View> : null}
           {item ? <ApplicationInteractions key={`${identity}:${item.manifest.appId}`} item={item} active={active && !switching} onComment={openComments} onOpen={openCurrent} onShare={shareCurrent} onDetail={detailCurrent} /> : null}
           {item ? <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <View style={{ width: 44, height: 48, alignItems: "center", justifyContent: "center" }}>
@@ -397,10 +397,21 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
   }
   // Resources warm independently; only the current page needs a loading animation.
   if (!selected || !visible) return null;
-  return <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 16 }}>
+  const placeholder = <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 16 }}>
     {error ? <><SymbolIcon name="alert" size={28} color={t.orange} /><Text style={{ color: t.ink1, fontSize: 17, fontWeight: "700" }}>暂时无法体验</Text><Text style={{ color: t.ink3, lineHeight: 21, textAlign: "center" }}>{error}</Text><View style={{ flexDirection: "row", gap: 20 }}><Pressy accessibilityRole="button" onPress={onRetry} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>重试</Text></Pressy><Pressy accessibilityRole="button" onPress={onDetail} style={{ padding: 14 }}><Text style={{ color: t.accentText }}>查看详情</Text></Pressy></View></> : <><ExperienceSkeleton /><Text accessibilityLiveRegion="polite" style={{ color: t.ink3, fontSize: 13 }}>正在准备真实应用…</Text></>}
   </View>;
+  return error ? placeholder : <DelayedExperienceLoading>{placeholder}</DelayedExperienceLoading>;
 });
+
+/** Delay the indicator only; loading and errors still respond immediately. */
+function DelayedExperienceLoading({ children }: { children: ReactNode }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(true), 200);
+    return () => clearTimeout(timer);
+  }, []);
+  return shown ? children : null;
+}
 
 function DiscoveryFooterSkeleton({ animated }: { animated: boolean }) {
   const { colors: t } = useTheme();
@@ -409,7 +420,7 @@ function DiscoveryFooterSkeleton({ animated }: { animated: boolean }) {
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       {["like", "comment", "bookmark"].map(action)}<View style={{ flex: 1 }} />{["open", "share", "detail"].map(action)}
     </View>
-    <View style={{ height: 44, flexDirection: "row", alignItems: "center", gap: 10 }}>
+    <View style={{ height: 48, flexDirection: "row", alignItems: "center", gap: 10 }}>
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Skeleton animated={animated} width={32} height={32} borderRadius={16} />
         <View style={{ flex: 1, gap: 6 }}><Skeleton animated={animated} width="55%" height={12} borderRadius={6} /><Skeleton animated={animated} width="85%" height={10} borderRadius={5} /></View>
