@@ -110,7 +110,7 @@ onApplicationPageMounted(id => {
     if (remaining) mountedPages.set(id, remaining); else {
       mountedPages.delete(id);
       const manifest = active.get(id);
-      if (manifest && !healthy.has(id)) clearApplicationAttempt(id, manifest.releaseId, false);
+      if (manifest && !healthy.has(id) && !evaluating.has(id)) clearApplicationAttempt(id, manifest.releaseId, false);
     }
     scheduleRuntimeTrim();
   };
