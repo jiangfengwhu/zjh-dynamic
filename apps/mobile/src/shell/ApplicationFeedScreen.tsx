@@ -280,7 +280,7 @@ export function ApplicationFeedScreen(props: Props) {
   return <ThemeContext.Provider value={theme}>
     <View style={{ flex: 1, backgroundColor: "transparent" }}>
       <Animated.View ref={props.stageRef} collapsable={false} style={{ flex: 1, marginHorizontal: 4, borderRadius: t.radius.xxl, overflow: "hidden", backgroundColor: appTheme.colors.canvas }} onLayout={layout}>
-        {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground && !drawerOpen} switching={switching} paused={paused} width={width} height={height} spacing={spacing.height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} onRefresh={refreshExperience} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
+        {item && height > 1 && width > 1 ? <ExperienceQueue key={`${identity}:${revision}`} items={items} index={index} active={active} foreground={foreground} switching={switching} paused={paused} width={width} height={height} spacing={spacing.height} drag={drag} render={props.renderApplication} onPause={pauseExperience} onResume={resumeExperience} onDetail={props.onDetail} onRefresh={refreshExperience} /> : <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 16 }}>
             {!page.loaded && !error ? <DelayedExperienceLoading><ExperienceSkeleton /></DelayedExperienceLoading> : <><Text style={{ color: appTheme.colors.ink1, fontSize: 17, fontWeight: "700" }}>{error ? "作品暂时未能加载" : "还没有公开作品"}</Text><Text style={{ color: appTheme.colors.ink3, textAlign: "center", lineHeight: 21 }}>{error || "先去创作一个，让大家刷到你的想法。"}</Text><Pressy accessibilityRole="button" onPress={() => void load()} style={{ padding: 14 }}><Text style={{ color: appTheme.colors.accentText }}>重新加载</Text></Pressy></>}
           </View>}
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: "absolute", inset: 0, zIndex: 3, borderWidth: 1, borderColor: t.lineStrong, borderRadius: t.radius.xxl }} />
@@ -394,7 +394,11 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
     // create distant, unvisited pages every time the forward window advances.
     // Once previewed, keep the tree and its state until the cache evicts it.
     if (!mounted && !selected) return null;
-    return <Activity mode={showing && (selected || retainedVisible) ? "visible" : "hidden"}><ApplicationCloudActivity.Provider value={showing && selected}><View style={{ flex: 1 }}>{content}</View></ApplicationCloudActivity.Provider></Activity>;
+    // Keep the selected native tree painted behind the drawer and adjacent tab.
+    // Activity hidden removes its presentation and restarts effects on return.
+    // Cloud activity and outer touch/accessibility gates still follow visibility.
+    const painted = foreground && (selected || showing && retainedVisible);
+    return <Activity mode={painted ? "visible" : "hidden"}><ApplicationCloudActivity.Provider value={showing && selected}><View style={{ flex: 1 }}>{content}</View></ApplicationCloudActivity.Provider></Activity>;
   }
   // Resources warm independently; only the current page needs a loading animation.
   if (!selected || !visible) return null;
