@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { uploadObject } from "./r2.js";
-import { parseRelease, sha256Hex, type BundleRelease } from "./release-set.js";
+import { parseRelease, type BundleRelease } from "./release-set.js";
 
 export function bundleCdnBase(): string {
   return (process.env.BUNDLE_CDN_BASE ?? "https://zjh-cdn.297782.xyz").replace(/\/$/, "");
@@ -107,13 +107,11 @@ export async function fetchRemoteRelease(): Promise<BundleRelease | undefined> {
   return release;
 }
 
-/** 读线上的 vendor 编号表，并核对哈希：编号表和主包必须是同一代。 */
-export async function fetchRemoteVendorMap(expected: string): Promise<string> {
+/** 读取线上发布的 vendor 编号表，不重复计算文件哈希。 */
+export async function fetchRemoteVendorMap(): Promise<string> {
   const response = await fetch(`${bundleEdgeBase()}/v1/maps/vendor.json`);
   if (!response.ok) throw new Error(`读线上 vendor 编号表失败 status=${response.status}`);
-  const text = await response.text();
-  if (sha256Hex(text) !== expected) throw new Error("线上 vendor 编号表和清单对不上");
-  return text;
+  return response.text();
 }
 
 type Blob = { file: string; sha256: string };
@@ -125,7 +123,6 @@ export async function publishRelease(input: {
   vendor?: Blob;
   vendorMapFile?: string;
   app: Blob;
-  plugins: Array<Blob & { id: string }>;
 }): Promise<void> {
   await mkdir(input.outDir, { recursive: true });
   const blobs: PublishFile[] = [];
@@ -134,9 +131,6 @@ export async function publishRelease(input: {
     blobs.push({ key: `v1/vendor/${input.vendor.sha256}`, file: input.vendor.file, contentType: octet, cacheControl: IMMUTABLE });
   }
   blobs.push({ key: `v1/app/${input.app.sha256}`, file: input.app.file, contentType: octet, cacheControl: IMMUTABLE });
-  for (const plugin of input.plugins) {
-    blobs.push({ key: `v1/plugins/${plugin.id}/${plugin.sha256}`, file: plugin.file, contentType: octet, cacheControl: IMMUTABLE });
-  }
   const releaseFile = path.join(input.outDir, "release.json");
   await writeFile(releaseFile, JSON.stringify(input.release));
   const catalog: PublishFile[] = [];

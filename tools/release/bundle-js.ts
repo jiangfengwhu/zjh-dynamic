@@ -4,8 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
-import { fetchRuntimeContract, downloadBridgeSdk } from "./runtime-contract.js";
-import { compilePlugins, listPluginIds, pluginSourceHash } from "./compile-plugins.js";
+import { fetchRuntimeContract } from "./runtime-contract.js";
 import {
   bundleCdnBase,
   bundleEdgeBase,
@@ -14,7 +13,7 @@ import {
   publishRelease,
   publishBundleObjects,
 } from "./publish-bundle.js";
-import { sameContent, sealRelease, sha256Hex, type BundleRelease, type ReleasePlugin, type ReleaseSource, type ReleaseVendor } from "./release-set.js";
+import { sameContent, sealRelease, sha256Hex, type BundleRelease, type ReleaseSource, type ReleaseVendor } from "./release-set.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -54,7 +53,6 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   const mobileDir = path.join(repoRoot, "apps", "mobile");
   const contract = await fetchRuntimeContract();
   const runtime = contract.runtimeVersion;
-  await downloadBridgeSdk(repoRoot, contract.bridgeSdk);
   const outDir = path.join(repoRoot, "dist", "bundles");
   // 提交状态要在生成任何文件之前读，才不会把打包自己写的文件算成「未提交的改动」。
   const source = await readSource(repoRoot);
@@ -82,7 +80,7 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   await writeVendorLibs(repoRoot, mobileDir);
   const mapFile = path.join(outDir, "module-ids-vendor.json");
   if (remote) {
-    await writeFile(mapFile, await fetchRemoteVendorMap(remote.vendor.map));
+    await writeFile(mapFile, await fetchRemoteVendorMap());
     console.log("vendor map from remote");
   }
   const inputs = await vendorInputs(mobileDir);
@@ -106,20 +104,19 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
   console.log(`app ready sha256=${app.sha256.slice(0, 12)} bytes=${app.bytes}`);
 
 
-  const plugins = options.publish ? await resolvePlugins(repoRoot, remote) : { records: remote?.plugins ?? [], built: [] };
-  // Host media uses immutable URLs and ships independently of application plugins.
+  // Host media uses immutable URLs and ships independently of application packages.
   const hostMedia = path.join(mobileDir, "assets", "jolly");
   const media = JSON.parse(await readFile(path.join(hostMedia, "manifest.json"), "utf8")) as Record<string, string>;
   for (const [name, hash] of Object.entries(media)) {
     const file = path.join(hostMedia, `${name}.mp4`);
-    if (!/^[a-z_]+$/.test(name) || sha256Hex(await readFile(file)) !== hash) throw new Error("宿主动画资源与源码清单不一致");
+    if (!/^[a-z_]+$/.test(name) || !/^[a-f0-9]{64}$/.test(hash)) throw new Error("宿主动画资源清单无效");
     if (options.publish) {
       const existing = await fetch(`${bundleCdnBase()}/v1/app/${hash}`, { method: "HEAD" });
       if (!existing.ok) await publishBundleObjects([{ key: `v1/app/${hash}`, file, contentType: "video/mp4", cacheControl: "public,max-age=31536000,immutable" }]);
     }
   }
-  const release = sealRelease({ applications: applicationContract, runtimeVersion: runtime, vendor, app, plugins: plugins.records, source });
-  console.log(`release ready id=${release.id} vendor=${vendor.sha256.slice(0, 12)} app=${app.sha256.slice(0, 12)} plugins=${release.plugins.length} summary=${summary.slice(0, 80)}`);
+  const release = sealRelease({ applications: applicationContract, runtimeVersion: runtime, vendor, app, source });
+  console.log(`release ready id=${release.id} vendor=${vendor.sha256.slice(0, 12)} app=${app.sha256.slice(0, 12)} summary=${summary.slice(0, 80)}`);
   if (!options.publish) {
     console.log("skip publish");
     return { release, published: false, vendorRebuilt: Boolean(vendorFile) };
@@ -135,7 +132,6 @@ export async function bundleRelease(repoRoot: string, summary: string, options: 
     vendor: vendorChanged ? { file: vendorFile, sha256: vendor.sha256 } : undefined,
     vendorMapFile: vendor.map !== remote?.vendor.map ? mapFile : undefined,
     app: { file: path.join(outDir, "app.bundle"), sha256: app.sha256 },
-    plugins: plugins.built,
   });
   return { release, published: true, vendorRebuilt: Boolean(vendorFile) };
 }
@@ -179,40 +175,6 @@ async function bundleLayer(
   }
   const bytes = await readFile(bundlePath);
   return { sha256: sha256Hex(bytes), bytes: bytes.length };
-}
-
-async function resolvePlugins(
-  repoRoot: string,
-  remote: BundleRelease | undefined,
-): Promise<{ records: ReleasePlugin[]; built: Array<{ id: string; file: string; sha256: string }> }> {
-  const ids = await listPluginIds(repoRoot);
-  const records: ReleasePlugin[] = [];
-  const stale: string[] = [];
-  const sources = new Map<string, string>();
-  for (const id of ids) {
-    const sourceHash = await pluginSourceHash(repoRoot, id);
-    sources.set(id, sourceHash);
-    const prior = remote?.plugins.find((plugin) => plugin.id === id && plugin.source === sourceHash);
-    if (prior) records.push(prior);
-    else stale.push(id);
-  }
-  const built: Array<{ id: string; file: string; sha256: string }> = [];
-  if (stale.length > 0) {
-    const compiled = await compilePlugins(repoRoot, stale);
-    console.log(`plugins compiled count=${compiled.length}`);
-    for (const plugin of compiled) {
-      records.push({
-        id: plugin.id,
-        className: plugin.className,
-        dex: plugin.dex,
-        sha256: plugin.sha256,
-        bytes: plugin.bytes,
-        source: sources.get(plugin.id) ?? "",
-      });
-      built.push({ id: plugin.id, file: path.join(repoRoot, "dist", "plugins", plugin.dex), sha256: plugin.sha256 });
-    }
-  }
-  return { records, built };
 }
 
 async function git(repoRoot: string, args: string[]): Promise<{ code: number; stdout: string }> {

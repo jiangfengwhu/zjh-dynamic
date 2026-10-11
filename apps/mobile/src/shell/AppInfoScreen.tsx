@@ -27,7 +27,6 @@ const layerTitle: Record<string, string> = {
 
 const kindLabel: Record<PackageKind, string> = {
   layer: "页面运行包",
-  plugin: "原生扩展",
 };
 
 let cachedPackages: InstalledPackage[] | undefined;
@@ -76,7 +75,7 @@ export function AppInfoScreen({ onBack }: Props) {
         ListHeaderComponent={<View style={{ gap: 12, marginBottom: 12 }}>
         <Surface style={styles.version}><View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}><Image accessible={false} fadeDuration={0} source={{ uri: `data:image/webp;base64,${brandAssets.logo.base64}` }} style={{ width: 48, height: 48, borderRadius: 14 }} /><Text accessibilityRole="header" style={styles.brand}>生花</Text></View><View style={styles.metrics}><View style={styles.metric}><Text style={styles.empty}>APK 版本</Text><Text style={styles.metricValue}>{apk?.versionName ?? sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>SDK 版本</Text><Text selectable style={styles.metricValue}>{sdk}</Text></View><View style={styles.metric}><Text style={styles.empty}>界面版本</Text><Text selectable style={styles.metricValue}>{buildId.slice(0, 8)}</Text></View></View><View style={styles.storage}><Text style={styles.empty}>本机安装文件</Text><View style={styles.storageValue}><View style={styles.loadingSlot}>{loading ? <ActivityIndicator size="small" color={colors.ink2} /> : null}</View><Text style={styles.metricValue}>{cachedPackages !== undefined ? formatBytes(total) : error ? "未读取" : "读取中"}</Text></View></View></Surface>
         {error ? <Pressy accessibilityRole="button" onPress={() => setAttempt(value => value + 1)}><Text style={styles.error}>{error} · 重试</Text></Pressy> : null}
-        <Text style={styles.empty}>页面运行包负责界面，原生扩展提供手机能力。下方体积为本机安装文件大小。</Text>
+        <Text style={styles.empty}>下方为本机安装的页面运行包及文件大小。</Text>
         <Pressy accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(value => !value)}><Text style={styles.total}>{details ? "收起技术详情" : "查看技术详情"}</Text></Pressy>
         </View>}
         renderItem={({ item, index }) => <View style={[styles.group, index === 0 && styles.groupFirst, index === items.length - 1 && styles.groupLast]}><PackageRow item={item} last={index === items.length - 1} /></View>}
@@ -97,7 +96,6 @@ const PackageRow = memo(function PackageRow({ item, last }: { item: InstalledPac
           <Text style={styles.cardTitle}>{titleOf(item)}</Text>
           <Text style={styles.cardHint}>
             {kindLabel[item.kind]}，{item.id}
-            {item.kind === "plugin" ? ".dex" : ""}
           </Text>
         </View>
         <Text style={[styles.size, !item.present && styles.sizeMissing]}>

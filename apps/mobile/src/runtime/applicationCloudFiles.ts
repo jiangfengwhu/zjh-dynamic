@@ -1,4 +1,4 @@
-import { commitApplicationFile } from "../../../../packages/app-sdk/src/data";
+import { commitApplicationFile, ensureApplicationDirectory } from "../../../../packages/app-sdk/src/data";
 import BlobUtil from "react-native-blob-util";
 import { applicationContext } from "../../../../packages/app-sdk/src/runtime";
 import { CloudError, type CloudErrorCode, type CloudFiles, type CloudFile } from "../../../../packages/app-sdk/src/cloud-types";
@@ -52,7 +52,7 @@ export function applicationCloudFiles(appId: string): CloudFiles {
         const owner = cachedAccountId();
         const target = applicationContext(appId).scope(options?.localScope ?? "device").files.uri(path).replace(/^file:\/\//, "");
         const directory = target.slice(0, target.lastIndexOf("/"));
-        if (!await BlobUtil.fs.exists(directory)) await BlobUtil.fs.mkdir(directory);
+        await ensureApplicationDirectory(directory);
         if (cachedAccountId() !== owner) throw new Error("ACCOUNT_CHANGED");
         temporary = `${target}.${uuid()}.part`;
         await accountCloudFile(route(fileId) + "/content", temporary, false, options ?? {});

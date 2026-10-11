@@ -18,16 +18,6 @@ export type ReleaseApp = {
   vendorMap: string;
 };
 
-export type ReleasePlugin = {
-  id: string;
-  className: string;
-  dex: string;
-  sha256: string;
-  bytes: number;
-  /** 插件源码的指纹。源码没变就沿用线上那份 DEX，不重新编译。 */
-  source: string;
-};
-
 /** 这一版是从哪次提交打出来的，供下一次发布检查基线。dirty 表示打包时工作区还有没提交的改动。 */
 export type ReleaseSource = {
   commit: string;
@@ -43,12 +33,10 @@ export type BundleRelease = {
   runtimeVersion: string;
   vendor: ReleaseVendor;
   app: ReleaseApp;
-  plugins: ReleasePlugin[];
   source: ReleaseSource;
 };
 
 const sha256Pattern = /^[a-f0-9]{64}$/;
-const pluginIdPattern = /^[a-z0-9-]+$/;
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map((item) => canonical(item)).join(",")}]`;
@@ -70,7 +58,6 @@ export function sealRelease(body: Omit<BundleRelease, "id" | "format">): BundleR
   const next = {
     format: RELEASE_FORMAT,
     ...body,
-    plugins: [...body.plugins].sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)),
   };
   const id = sha256Hex(canonical(next));
   return { id, ...next };
@@ -84,24 +71,7 @@ function hex(value: unknown): value is string {
   return typeof value === "string" && sha256Pattern.test(value);
 }
 
-function parsePlugin(value: unknown): ReleasePlugin | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const plugin = value as Record<string, unknown>;
-  if (typeof plugin.id !== "string" || !pluginIdPattern.test(plugin.id)) return undefined;
-  if (typeof plugin.className !== "string" || plugin.className.length === 0) return undefined;
-  if (plugin.dex !== `${plugin.id}.dex`) return undefined;
-  if (!hex(plugin.sha256) || !positive(plugin.bytes) || typeof plugin.source !== "string") return undefined;
-  return {
-    id: plugin.id,
-    className: plugin.className,
-    dex: plugin.dex,
-    sha256: plugin.sha256,
-    bytes: plugin.bytes,
-    source: plugin.source,
-  };
-}
-
-/** 读线上或本地的清单，字段不全、编号对不上、id 和内容对不上都返回 undefined。 */
+/** 读取清单并检查字段及模块配对关系；版本编号直接采用发布值。 */
 export function parseRelease(value: unknown): BundleRelease | undefined {
   if (!value || typeof value !== "object") return undefined;
   const raw = value as Record<string, unknown>;
@@ -120,28 +90,20 @@ export function parseRelease(value: unknown): BundleRelease | undefined {
     if (!contract || typeof contract.engineAbi !== "string" || !/^\d+\.\d+\.\d+$/.test(contract.sdk) || !contract.shared || typeof contract.shared !== "object" || Array.isArray(contract.shared) || Object.values(contract.shared).some(version => typeof version !== "string")) return undefined;
     applications = { engineAbi: contract.engineAbi, sdk: contract.sdk, shared: contract.shared };
   }
-  if (!Array.isArray(raw.plugins)) return undefined;
-  const plugins: ReleasePlugin[] = [];
-  for (const item of raw.plugins) {
-    const plugin = parsePlugin(item);
-    if (!plugin) return undefined;
-    plugins.push(plugin);
-  }
-  const release = sealRelease({
+  return {
+    id: raw.id,
+    format: RELEASE_FORMAT,
     ...(applications ? { applications } : {}),
     runtimeVersion: raw.runtimeVersion,
     vendor: { sha256: vendor.sha256, bytes: vendor.bytes, inputs: vendor.inputs, map: vendor.map },
     app: { sha256: app.sha256, bytes: app.bytes, vendorMap: app.vendorMap },
-    plugins,
     source: { commit: source.commit, dirty: source.dirty, ...(typeof source.repository === "string" ? { repository: source.repository } : {}), ...(typeof source.buildId === "string" ? { buildId: source.buildId } : {}) },
-  });
-  return release.id === raw.id ? release : undefined;
+  };
 }
 
-/** 两份清单装到手机上是不是同样的东西：主包、app、插件都一样。来源提交不算。 */
+/** 两份清单装到手机上是不是同样的东西：运行时、主包、app 都一样。来源提交不算。 */
 export function sameContent(left: BundleRelease, right: BundleRelease): boolean {
   if (left.runtimeVersion !== right.runtimeVersion) return false;
   if (left.vendor.sha256 !== right.vendor.sha256 || left.app.sha256 !== right.app.sha256) return false;
-  const key = (release: BundleRelease) => release.plugins.map((plugin) => `${plugin.id}:${plugin.sha256}`).sort().join("|");
-  return key(left) === key(right);
+  return true;
 }

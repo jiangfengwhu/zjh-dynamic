@@ -27,6 +27,8 @@ import { ApplicationCommentsSheet } from "./ApplicationCommentsSheet";
 import { fetchMarketDetail, fetchMarketPage, fetchDiscoveryInteractions, type MarketApplication, type MarketPage } from "./market";
 import { selectedPublicApplicationRelease, resolvePublicApplicationExperience, subscribePublicApplicationRelease, type PublicReleaseChange } from "../runtime/applications";
 import { useEventCallback } from "./useEventCallback";
+import { takeDiscoveryFirstPage } from "./discoveryStartup";
+import { markStartup } from "../runtime/startupTiming";
 
 type Props = {
   renderApplication: (id: string, onBack: () => void) => ReactNode;
@@ -51,7 +53,7 @@ export function ApplicationFeedScreen(props: Props) {
   const theme = appTheme;
   const t = theme.colors;
   const focused = useIsFocused() && (props.active ?? true);
-  const { user } = useAccount();
+  const { user, ready: accountReady } = useAccount();
   const identity = user?.id ?? "guest";
   const { progress } = useProfileDrawer();
   const [foreground, setForeground] = useState(AppState.currentState === "active");
@@ -85,7 +87,7 @@ export function ApplicationFeedScreen(props: Props) {
   const dismissComments = useCallback(() => setCommentPost(null), []);
   const previous = items[index - 1];
   const next = items[index + 1];
-  const active = focused && foreground && !drawerOpen;
+  const active = focused && foreground && !drawerOpen && accountReady;
   useKeyboardMode("overlay", active && !commentPost && !paused);
   const drag = useSharedValue(0);
   const moving = useSharedValue(false);
@@ -129,7 +131,7 @@ export function ApplicationFeedScreen(props: Props) {
     setBusy(more || !items.length);
     setError("");
     try {
-      const pageRequest = fetchMarketPage("", "", cursor, true);
+      const pageRequest = more ? fetchMarketPage("", "", cursor, true) : takeDiscoveryFirstPage();
       const interactions = fetchDiscoveryInteractions(pageRequest, AbortSignal.timeout(15000), cursor).catch(() => undefined);
       const result = await pageRequest;
       if (generation.current !== token || currentOwner.current !== owner) return;
@@ -382,6 +384,9 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
   const showing = foreground && visible;
   const [retainedVisible, setRetainedVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const applicationLayout = useCallback(() => {
+    if (selected && showing) markStartup("discovery-application-layout");
+  }, [selected, showing]);
   useEffect(() => {
     if (!ready || !showing) { setRetainedVisible(false); return; }
     if (selected) { setMounted(true); return; }
@@ -396,7 +401,7 @@ const InlineExperience = memo(function InlineExperience({ appId, ready, error, s
     // Once previewed, keep the tree and its state until the cache evicts it.
     if (!mounted && !selected) return null;
     return <RetainedApplicationPresentation active={showing && (selected || retainedVisible)} foreground={foreground} retain={selected}>
-      <ApplicationCloudActivity.Provider value={showing && selected}><View style={{ flex: 1 }}>{content}</View></ApplicationCloudActivity.Provider>
+      <ApplicationCloudActivity.Provider value={showing && selected}><View style={{ flex: 1 }} onLayout={applicationLayout}>{content}</View></ApplicationCloudActivity.Provider>
     </RetainedApplicationPresentation>;
   }
   // Resources warm independently; only the current page needs a loading animation.

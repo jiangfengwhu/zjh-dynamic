@@ -26,16 +26,21 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
   const alive = useRef(true), canReadRef = useRef(canRead); canReadRef.current = canRead;
   const flight = useRef<{ key: string } | undefined>(undefined), again = useRef(false);
   const reload = useRef<(more?: boolean) => Promise<boolean>>(async () => false);
-  const commit = useCallback((next: T) => { const shared = rememberPage(key, next); dataRef.current = shared; setState(previous => previous.key === key && previous.data === shared ? previous : { key, data: shared }); }, [key]);
+  const mutation = useRef(0);
+  const commit = useCallback((next: T) => { mutation.current++; const shared = rememberPage(key, next); dataRef.current = shared; setState(previous => previous.key === key && previous.data === shared ? previous : { key, data: shared }); }, [key]);
   const load = useCallback(async (more = false): Promise<boolean> => {
     if (!canReadRef.current || (more && !dataRef.current.nextCursor)) return false;
     if (flight.current?.key === key) { if (!more) again.current = true; return false; }
     const token = { key }; flight.current = token; setLoading(true); setError("");
+    const before = mutation.current;
     try {
       const next = await config.current.read(more ? dataRef.current.nextCursor! : undefined);
       // First content and explicit refresh commit without waiting for idle.
       await waitForRouteTransitions();
-      if (!alive.current || identity.current !== key) return false;
+      if (!alive.current || identity.current !== key || flight.current !== token) return false;
+      // Follow/read/send acknowledgements win over an older server snapshot.
+      // Re-read after the mutation; do not restore the pre-operation row state.
+      if (mutation.current !== before) { again.current = true; return false; }
       commit(config.current.merge(dataRef.current, next, more));
       return true;
     } catch (cause) {

@@ -1,6 +1,6 @@
 import NativePluginHost from "../NativePluginHost";
 
-export type PackageKind = "layer" | "plugin";
+export type PackageKind = "layer";
 
 export type InstalledPackage = {
   id: string;

@@ -15,6 +15,5 @@ console.log(
     vendor: result.release.vendor.sha256,
     app: result.release.app.sha256,
     appBytes: result.release.app.bytes,
-    plugins: result.release.plugins.map((plugin) => plugin.id),
   }),
 );

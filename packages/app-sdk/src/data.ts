@@ -17,13 +17,27 @@ export async function commitApplicationFile(appId: string, temporary: string, pa
   if (!result.ok) throw new Error(result.code === "CANCELLED" ? "CANCELLED" : "文件保存失败");
 }
 
+/** mkdir may race another write/download targeting the same parent. */
+export async function ensureApplicationDirectory(directory: string) {
+  const fs = require("react-native-blob-util").default.fs;
+  if (await fs.exists(directory)) return;
+  try { await fs.mkdir(directory); }
+  catch (error) {
+    if ((await fs.stat(directory).catch(() => undefined))?.type !== "directory") throw error;
+  }
+}
+
+// Old APKs placed immutable package bytes beside business files. Keep those
+// reserved filenames inaccessible without changing any user file paths.
+const packageFile = (name: string) => /^[a-f0-9]{64}\.(?:bundle|tmp)$/.test(name);
+
 /** The resolver binds the scope; applications never supply host account IDs or native paths. */
 export function applicationData(appId: string, scope: DataScope, account: () => string, subscribeAccount: (listener: () => void) => () => void): AppData {
   const blob = () => require("react-native-blob-util").default;
   const namespace = () => scope === "account" ? `accounts/${account()}` : "";
   const root = (ns: string) => `${blob().fs.dirs.DocumentDir}/applications/${appId}${ns ? `/${ns}` : ""}`;
   const validPath = (path: string) => {
-    if (!/^[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_.-]+)*$/.test(path) || path.split("/").some(part => part === "." || part === "..") || scope === "device" && path.split("/")[0] === "accounts") throw new Error("应用文件路径无效");
+    if (!/^[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_.-]+)*$/.test(path) || path.split("/").some(part => part === "." || part === "..") || scope === "device" && (path.split("/")[0] === "accounts" || packageFile(path.split("/")[0]))) throw new Error("应用文件路径无效");
     return path;
   };
   const key = (key: string) => {
@@ -33,7 +47,7 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
   const storageKey = (value: string) => `application.${appId}.${scope === "account" ? `accounts.${account()}.` : ""}${key(value)}`;
   const guard = (ns: string) => { if (ns !== namespace()) throw new Error("账号已切换，请重新读取当前账号数据"); };
   const pathFor = (path: string, ns = namespace()) => `${root(ns)}/${validPath(path)}`;
-  const parent = async (path: string) => { const directory = path.slice(0, path.lastIndexOf("/")); if (!await blob().fs.exists(directory)) await blob().fs.mkdir(directory); };
+  const parent = (path: string) => ensureApplicationDirectory(path.slice(0, path.lastIndexOf("/")));
   const secure = (value: string, ns: string) => `com.zijinhua.applications.${appId}.${ns ? `${ns.replaceAll("/", ".")}.` : ""}${encodeURIComponent(key(value))}`;
   const transferOptions = (options?: { timeoutMs?: number; maxBytes?: number }) => {
     if (options?.timeoutMs !== undefined && (!Number.isInteger(options.timeoutMs) || options.timeoutMs < 1000 || options.timeoutMs > 180000)) throw new Error("超时须为 1–180 秒");
@@ -141,7 +155,7 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
         finally { await blob().fs.unlink(temporary).catch(() => {}); }
       },
       remove: async path => { const ns = namespace(); const target = pathFor(path, ns); if (await blob().fs.exists(target)) { guard(ns); await blob().fs.unlink(target); } guard(ns); },
-      list: async (directory = "") => { const ns = namespace(); const target = directory ? pathFor(directory, ns) : root(ns); const result: string[] = await blob().fs.exists(target) ? await blob().fs.ls(target) : []; guard(ns); return scope === "device" && !directory ? result.filter(name => name !== "accounts") : result; },
+      list: async (directory = "") => { const ns = namespace(); const target = directory ? pathFor(directory, ns) : root(ns); const result: string[] = await blob().fs.exists(target) ? await blob().fs.ls(target) : []; guard(ns); return scope === "device" && !directory ? result.filter(name => name !== "accounts" && !packageFile(name)) : result; },
       download: async (url, path, options = {}) => {
         if (!/^https:\/\//i.test(url)) throw new Error("下载地址必须使用 HTTPS");
         const timeout = options.timeoutMs ?? 60000;
