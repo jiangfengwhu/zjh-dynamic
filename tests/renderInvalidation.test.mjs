@@ -96,3 +96,100 @@ test('relative timestamps share one clock and stop it after the last subscriber 
   leaveSecond(); assert.equal(cleared, 1); assert.equal(listeners.size, 0);
   const leaveThird = subscribe(() => {}); assert.equal(created, 2); leaveThird(); assert.equal(cleared, 2);
 });
+
+function socialPageFixture() {
+  let owner = 'first', cursor = 0, effects = [];
+  const slots = [], cache = new Map(), requests = [], appListeners = new Set();
+  const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
+  const bindings = {
+    exports: {},
+    useState(initial) {
+      const index = cursor++;
+      slots[index] ??= { value: typeof initial === 'function' ? initial() : initial };
+      return [slots[index].value, next => { slots[index].value = typeof next === 'function' ? next(slots[index].value) : next; }];
+    },
+    useRef(initial) { const index = cursor++; return slots[index] ??= { current: initial }; },
+    useCallback(fn, deps) {
+      const index = cursor++;
+      if (!same(slots[index]?.deps, deps)) slots[index] = { value: fn, deps };
+      return slots[index].value;
+    },
+    useEffect(setup, deps) {
+      const index = cursor++, previous = slots[index];
+      if (same(previous?.deps, deps)) return;
+      effects.push(() => { previous?.cleanup?.(); slots[index] = { deps, setup, cleanup: setup() }; });
+    },
+    AppState: { currentState: 'active', addEventListener(_, callback) { appListeners.add(callback); return { remove: () => appListeners.delete(callback) }; } },
+    useAccount: () => ({ user: { id: owner } }),
+    useIsFocused: () => true,
+    useRouteRequestReady: () => true,
+    pageCacheKey: name => `${owner}:${name}`,
+    cachedPage: key => cache.get(key),
+    rememberPage: (key, value) => { cache.set(key, value); return value; },
+    afterInteractions: () => () => {},
+    waitForRouteTransitions: async () => {},
+    requestAnimationFrame: () => 1,
+    cancelAnimationFrame: () => {},
+  };
+  new Function(...Object.keys(bindings), compileFunction('apps/mobile/src/shell/social/useSocialPage.ts', 'useSocialPage'))(...Object.values(bindings));
+  const read = () => new Promise((resolve, reject) => requests.push({ resolve, reject }));
+  const render = () => {
+    cursor = 0; effects = [];
+    const query = bindings.exports.useSocialPage({ name: 'relations', empty: { authors: [], nextCursor: null }, read, merge: (_, next) => next });
+    effects.forEach(effect => effect()); return query;
+  };
+  return { render, requests, cache,
+    owner(value) { owner = value; },
+    foreground(value) { bindings.AppState.currentState = value ? 'active' : 'background'; appListeners.forEach(listener => listener(bindings.AppState.currentState)); },
+    replay() { const current = slots.filter(slot => slot.setup); current.forEach(slot => slot.cleanup?.()); current.forEach(slot => { slot.cleanup = slot.setup(); }); },
+  };
+}
+
+test('social requests and retained callbacks cannot overwrite another account or finish its request', async () => {
+  const f = socialPageFixture(), first = f.render(), pending = first.load();
+  f.owner('second');
+  first.commit({ authors: [{ id: 'stale' }], nextCursor: null });
+  assert.equal(f.cache.has('first:relations'), false);
+  assert.equal(await first.load(), false);
+  const second = f.render(), next = second.load();
+  first.update(() => ({ authors: [{ id: 'wrong-account' }], nextCursor: null }));
+  f.requests[0].resolve({ authors: [{ id: 'first' }], nextCursor: null });
+  assert.equal(await pending, false);
+  assert.equal(f.render().loading, true);
+  assert.equal(f.cache.has('second:relations'), false);
+  f.requests[1].resolve({ authors: [{ id: 'second' }], nextCursor: null });
+  assert.equal(await next, true);
+  assert.equal(f.render().data.authors[0].id, 'second');
+});
+
+test('social page ignores obsolete failures and pauses requests in the background', async () => {
+  const f = socialPageFixture(), pending = f.render().load();
+  f.owner('second'); f.render();
+  f.requests[0].reject(new Error('old-account failure'));
+  assert.equal(await pending, false);
+  assert.equal(f.render().error, '');
+  f.foreground(false);
+  assert.equal(await f.render().load(), false);
+  assert.equal(f.requests.length, 1);
+  f.foreground(true);
+  const resumed = f.render().load();
+  f.requests[1].resolve({ authors: [], nextCursor: null });
+  assert.equal(await resumed, true);
+});
+
+test('social acknowledgements win over an earlier fetch and effects can reconnect safely', async () => {
+  const f = socialPageFixture(), query = f.render(), pending = query.load();
+  query.update(() => ({ authors: [{ id: 'author', following: true }], nextCursor: null }));
+  f.requests[0].resolve({ authors: [{ id: 'author', following: false }], nextCursor: null });
+  assert.equal(await pending, false);
+  assert.equal(f.render().data.authors[0].following, true);
+  assert.equal(f.requests.length, 2);
+  f.replay();
+  const reconnected = f.render().load();
+  f.requests[1].resolve({ authors: [{ id: 'author', following: false }], nextCursor: null });
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(f.render().loading, true);
+  f.requests[2].resolve({ authors: [{ id: 'author', following: true }], nextCursor: null });
+  assert.equal(await reconnected, true);
+  assert.equal(f.render().data.authors[0].following, true);
+});

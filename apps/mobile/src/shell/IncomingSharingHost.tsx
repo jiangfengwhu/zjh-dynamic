@@ -85,7 +85,7 @@ export function IncomingSharingHost() {
       received = true; accepted.current = true; closing.current = true; sheet.current?.dismiss();
       await openShellBundle(appId);
     } catch (cause) {
-      if (received) Toast.show({ type: "error", text1: "内容已接收，应用打开失败，请从常用重试" });
+      if (received) Toast.show({ type: "error", text1: "内容已接收，应用打开失败，请从收藏重试" });
       else setError("接收未完成，请重试");
     } finally { busyRef.current = false; setBusy(""); if (!current.current) refreshRef.current(); }
   });

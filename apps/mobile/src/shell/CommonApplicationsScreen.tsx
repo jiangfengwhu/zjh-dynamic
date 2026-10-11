@@ -32,6 +32,7 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
   const cacheKey = pageCacheKey("common-applications");
   const cached = cachedPage<Page>(cacheKey);
   const [page, setPage] = useState(() => ({ owner, loaded: !!cached, applications: (cached?.applications ?? []).filter(item => !isWorkDeleted(item.appId)), nextCursor: cached?.nextCursor ?? null }));
+  const pageRef = useRef(page); pageRef.current = page;
   const [busy, setBusy] = useState(false);
   const [paging, setPaging] = useState(false);
   const [error, setError] = useState("");
@@ -49,23 +50,23 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
       return applications.length === prior.applications.length ? prior : { ...prior, applications };
     });
   }), []);
-  async function load(more = false) {
-    if (!focused || !user || writing.current || reading.current || (more && !page.nextCursor)) return false;
+  const load = useEventCallback(async (more = false): Promise<boolean> => {
+    if (!mounted.current || !focused || !user || writing.current || reading.current || (more && !pageRef.current.nextCursor)) return false;
     reading.current = true; setBusy(true); setPaging(more); setError("");
     const token = generation.current;
     try {
-      const result = await fetchCommonApplications(more ? page.nextCursor ?? undefined : undefined);
+      const result = await fetchCommonApplications(more ? pageRef.current.nextCursor ?? undefined : undefined);
       if (!mounted.current || token !== generation.current || currentOwner.current !== owner) return false;
-      setPage(prior => {
-        const applications = (more && prior.owner === owner ? appendUnique(prior.applications, result.applications, item => item.appId) : result.applications).filter(item => !isWorkDeleted(item.appId));
-        const shared = rememberPage(cacheKey, { applications, nextCursor: result.nextCursor });
-        return prior.owner === owner && prior.loaded && prior.applications === shared.applications && prior.nextCursor === shared.nextCursor
-          ? prior : { owner, loaded: true, ...shared };
-      });
+      const prior = pageRef.current;
+      const applications = (more && prior.owner === owner ? appendUnique(prior.applications, result.applications, item => item.appId) : result.applications).filter(item => !isWorkDeleted(item.appId));
+      const shared = rememberPage(cacheKey, { applications, nextCursor: result.nextCursor });
+      const next = prior.owner === owner && prior.loaded && prior.applications === shared.applications && prior.nextCursor === shared.nextCursor
+        ? prior : { owner, loaded: true, ...shared };
+      pageRef.current = next; setPage(next);
       return true;
-    } catch (cause) { if (mounted.current && token === generation.current) setError(cause instanceof Error ? cause.message : "常用应用暂时无法加载"); return false; }
+    } catch (cause) { if (mounted.current && token === generation.current) setError(cause instanceof Error ? cause.message : "收藏应用暂时无法加载"); return false; }
     finally { if (token === generation.current) { reading.current = false; if (mounted.current) { setBusy(false); setPaging(false); } } }
-  }
+  });
   useEffect(() => {
     if (!focused) return;
     generation.current++; reading.current = false; setBusy(false); setPaging(false); setError("");
@@ -73,27 +74,26 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
     setPage(prior => prior.owner === owner ? prior : { owner, loaded: !!saved, applications: (saved?.applications ?? []).filter(item => !isWorkDeleted(item.appId)), nextCursor: saved?.nextCursor ?? null });
     const cancel = afterInteractions(() => { void load(); });
     return () => { cancel(); generation.current++; };
-  }, [owner, focused]);
+  }, [owner, focused, load]);
   const open = useEventCallback((item: CommonApplication) => {
     void openCommonApplication(item.appId).catch(error => Toast.show({ type: "error", text1: "打开失败", text2: error.message }));
   });
   const remove = useEventCallback((item: CommonApplication) => {
-    HostAlert.alert("从常用移除？", item.title, [{ text: "取消", style: "cancel" }, { text: "移除", style: "destructive", onPress: () => { void (async () => {
+    HostAlert.alert("取消收藏？", item.title, [{ text: "取消", style: "cancel" }, { text: "移除", style: "destructive", onPress: () => { void (async () => {
       if (writing.current || currentOwner.current !== owner || cachedAccountId() !== owner) return;
       writing.current = true;
-      const removedIndex = page.applications.findIndex(app => app.appId === item.appId);
+      const removedIndex = pageRef.current.applications.findIndex(app => app.appId === item.appId);
       generation.current++; reading.current = false; setBusy(false); setPaging(false);
       setPage(prior => ({ ...prior, applications: prior.applications.filter(app => app.appId !== item.appId) }));
       try {
         await saveApplicationDiscussion(item.discussionId, false);
         if (!mounted.current || currentOwner.current !== owner) return;
         generation.current++; reading.current = false; setBusy(false); setPaging(false);
-        setPage(prior => {
-          const next = { ...prior, applications: prior.applications.filter(app => app.appId !== item.appId) };
-          rememberPage(cacheKey, { applications: next.applications, nextCursor: next.nextCursor });
-          return next;
-        });
-        Toast.show({ type: "success", text1: "已从常用移除" });
+        const prior = pageRef.current;
+        const next = { ...prior, applications: prior.applications.filter(app => app.appId !== item.appId) };
+        rememberPage(cacheKey, { applications: next.applications, nextCursor: next.nextCursor });
+        pageRef.current = next; setPage(next);
+        Toast.show({ type: "success", text1: "已取消收藏" });
       } catch (cause) { if (currentOwner.current === owner) {
         if (mounted.current) setPage(prior => {
           if (prior.applications.some(app => app.appId === item.appId)) return prior;
@@ -107,7 +107,7 @@ export function CommonApplicationsScreen({ active = true }: { active?: boolean }
   });
   const applications = page.owner === owner ? page.applications : [];
   return <View style={{ flex: 1 }}>
-    {!user ? <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 14, padding: 24 }}><Text style={{ color: t.ink3 }}>登录后保存并同步常用应用</Text><Pressy onPress={() => void requireAccount()} style={{ padding: 12 }}><Text style={{ color: t.accentText }}>登录</Text></Pressy></View> :
+    {!user ? <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 14, padding: 24 }}><Text style={{ color: t.ink3 }}>登录后保存并同步收藏应用</Text><Pressy onPress={() => void requireAccount()} style={{ padding: 12 }}><Text style={{ color: t.accentText }}>登录</Text></Pressy></View> :
       <PullRefreshSurface refresh={refresh}><AnimatedFlashList data={applications} keyExtractor={item => item.appId} numColumns={4} maintainVisibleContentPosition={{ disabled: true }} showsVerticalScrollIndicator={false}
         onScroll={trackScroll} scrollEventThrottle={16} bounces={false} overScrollMode="never" scrollEnabled={refresh.phase !== "refreshing" && refresh.phase !== "done"}
         onEndReached={() => { if (page.nextCursor && !error) void load(true); }} onEndReachedThreshold={0.3}

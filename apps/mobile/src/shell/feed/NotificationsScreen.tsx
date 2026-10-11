@@ -34,7 +34,7 @@ import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { Pressy, RoundButton } from "../../../../../packages/ui/chrome";
 import { Screen, ScreenBar } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
-import { currentAccountId, requireAccount, useAccount } from "../account";
+import { cachedAccountId, currentAccountId, requireAccount, useAccount } from "../account";
 
 import {
   markNotificationsRead,
@@ -81,6 +81,9 @@ function NotificationsPage(props: Props) {
   const { visited, visit, reveal } = useVisitedPager();
   const [category, setCategory] = useState<NoticeCategory | "messages">("creation");
   const [marking, setMarking] = useState(false);
+  const markingFlight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const count = useNotificationCount();
   const counts = useNotificationCategoryCounts();
   const messageCount = useMessageCount();
@@ -128,19 +131,22 @@ function NotificationsPage(props: Props) {
     ["onPageSelected"]
   );
   async function markAll() {
-    if (marking) return;
+    if (markingFlight.current) return;
+    markingFlight.current = true;
+    const owner = cachedAccountId();
     setMarking(true);
     try {
       await markNotificationsRead();
-      dispatchLiveEvent({ type: "notification" });
+      if (mounted.current && cachedAccountId() === owner) dispatchLiveEvent({ type: "notification" });
     } catch (cause) {
-      Toast.show({
+      if (mounted.current && cachedAccountId() === owner) Toast.show({
         type: "error",
         text1: "标记未完成",
         text2: cause instanceof Error ? cause.message : "请重试",
       });
     } finally {
-      setMarking(false);
+      markingFlight.current = false;
+      if (mounted.current) setMarking(false);
     }
   }
   return (
@@ -215,6 +221,7 @@ function NotificationsContent({
   const [error, setError] = useState("");
   const alive = useRef(true);
   const revision = useRef(0);
+  const flight = useRef<object | undefined>(undefined);
   const reading = useRef(false);
   const writing = useRef(false);
   const noticeVersion = useLiveVersion("notification");
@@ -251,68 +258,70 @@ function NotificationsContent({
       if (!ids.length) return;
       readFlight.current = true;
       void markNotificationsRead(ids).then(async result => {
-        if (!alive.current || before !== revision.current || await currentAccountId() !== owner) return;
+        const currentOwner = await currentAccountId();
+        if (!alive.current || before !== revision.current || currentOwner !== owner) return;
         ids.forEach(id => seen.current.add(id));
-        setPage(previous => {
-          const next = { ...previous, unreadCount: result.unreadCount, unreadByCategory: result.unreadByCategory,
-            notices: previous.notices.map(item => seen.current.has(item.id) ? { ...item, read: true } : item) };
-          return rememberPage(cacheKey, next);
-        });
+        const previous = pageRef.current;
+        const next = rememberPage(cacheKey, { ...previous, unreadCount: result.unreadCount, unreadByCategory: result.unreadByCategory,
+          notices: previous.notices.map(item => !item.read && seen.current.has(item.id) ? { ...item, read: true } : item) });
+        pageRef.current = next;
+        setPage(next);
       }).then(() => { readFlight.current = false; readVisible.current(); }, () => { readFlight.current = false; });
     }, 200);
   };
-  async function load(more = false) {
-    if (!user || (more && !page.nextCursor)) return false;
+  const load = useEventCallback(async (more = false): Promise<boolean> => {
+    if (!alive.current || !focused || !foreground || !user || (more && !pageRef.current.nextCursor)) return false;
     if (reading.current) {
       if (!more) again.current = true;
       return false;
     }
     reading.current = true;
+    const token = {}; flight.current = token;
     setLoading(true);
     setLoadingMore(more);
     const before = revision.current;
     const owner = user.id;
     try {
       const result = await readNotifications(
-        more ? page.nextCursor! : undefined,
+        more ? pageRef.current.nextCursor! : undefined,
         category
       );
       await waitForRouteTransitions();
+      const currentOwner = await currentAccountId();
       if (
         !alive.current ||
         before !== revision.current ||
-        (await currentAccountId()) !== owner
+        flight.current !== token || currentOwner !== owner
       )
         return false;
       setLoaded(true);
-      setPage((previous) => {
-        const next = more
-          ? {
-              ...result,
-              notices: appendUnique(previous.notices, result.notices, item => item.id),
-            }
-          : result;
-        next.notices = next.notices.map(item => seen.current.has(item.id) ? { ...item, read: true } : item);
-        return rememberPage(cacheKey, next);
-      });
+      const previous = pageRef.current;
+      const notices = more ? appendUnique(previous.notices, result.notices, item => item.id) : result.notices;
+      const next = { ...result, notices: notices.map(item => !item.read && seen.current.has(item.id) ? { ...item, read: true } : item) };
+      const shared = rememberPage(cacheKey, next);
+      pageRef.current = shared;
+      setPage(shared);
       setError("");
       return true;
     } catch (cause) {
-      if (alive.current && before === revision.current)
+      if (alive.current && before === revision.current && flight.current === token && cachedAccountId() === owner)
         setError(cause instanceof Error ? cause.message : "通知暂时无法加载");
       return false;
     } finally {
-      reading.current = false;
-      if (alive.current) {
-        setLoading(false);
-        setLoadingMore(false);
-        if (again.current) {
-          again.current = false;
-          void reload.current();
+      if (flight.current === token) {
+        flight.current = undefined;
+        reading.current = false;
+        if (alive.current) {
+          setLoading(false);
+          setLoadingMore(false);
+          if (again.current) {
+            again.current = false;
+            void reload.current();
+          }
         }
       }
     }
-  }
+  });
   useEffect(() => {
     const subscription = AppState.addEventListener("change", state => setForeground(state === "active"));
     return () => subscription.remove();
@@ -325,10 +334,15 @@ function NotificationsContent({
     alive.current = true;
     return () => {
       alive.current = false;
+      revision.current++;
+      flight.current = undefined;
+      reading.current = false;
+      again.current = false;
     };
   }, []);
   useEffect(() => {
     revision.current++;
+    flight.current = undefined; reading.current = false; again.current = false;
     seen.current.clear();
     visible.current.clear();
     const cached = cachedPage<NoticePage>(cacheKey);
@@ -337,12 +351,12 @@ function NotificationsContent({
     setLoaded(!!cached);
     setLoadingMore(false);
     setError("");
-  }, [user?.id]);
+  }, [user?.id, cacheKey]);
   useEffect(() => {
-    if (!user || !foreground) return;
+    if (!user || !foreground || !focused) return;
     const cancel = afterInteractions(() => { void load(false); });
     return cancel;
-  }, [focused, foreground, user?.id, noticeVersion]);
+  }, [focused, foreground, user?.id, noticeVersion, load]);
   async function act(notice: Notice) {
     if (writing.current || !user) return;
     writing.current = true;
@@ -400,10 +414,7 @@ function NotificationsContent({
                 }
                 renderItem={({ item }) => <NoticeRow item={item} acting={actingId === item.id} act={actNotice} />}
                 ListEmptyComponent={
-                  <EmptyState style={user && loading && !loaded ? { flexGrow: 0, alignItems: "stretch", padding: 16 } : undefined}>
-                    {user && loading && !loaded ? (
-                      <PageSkeleton rows={4} shape="notification" />
-                    ) : (
+                  user && loading && !loaded ? <PageSkeleton rows={4} shape="notification" animated={focused && foreground} /> : <EmptyState>
                       <Text style={{ color: colors.ink3, textAlign: "center", fontSize: 14, lineHeight: 20 }}>
                         {user
                           ? category === "creation"
@@ -411,7 +422,6 @@ function NotificationsContent({
                             : "点赞、评论和回复会出现在这里"
                           : "请登录后查看通知"}
                       </Text>
-                    )}
                     {!user ? (
                       <Pressy
                         accessibilityRole="button"

@@ -37,7 +37,7 @@ import { useTheme } from "../../../../../packages/ui/theme";
 import { SymbolIcon } from "../../../../../packages/ui/chrome/SymbolIcon";
 import NativePluginHost from "../../NativePluginHost";
 import { useFeedChrome, SHELL_CHROME_THRESHOLD } from "./FeedChrome";
-import { useAccount } from "../account";
+import { cachedAccountId, useAccount } from "../account";
 import { PullIndicator } from "./PullIndicator";
 import { usePullToRefresh } from "./pullToRefresh";
 import {
@@ -109,6 +109,10 @@ export const FeedScreen = memo(function FeedScreen({
   }, [userTimeline.loaded]);
   const lists = useRef<Partial<Record<FeedCategory, Pick<FlashListRef<unknown>, "scrollToOffset">>> >({});
   const [loadingMore, setLoadingMore] = useState(false);
+  const moreFlight = useRef<object | undefined>(undefined);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; moreFlight.current = undefined; }; }, []);
+  useEffect(() => { moreFlight.current = undefined; setLoadingMore(false); }, [user?.id]);
   const [timelineLoading, setTimelineLoading] = useState({
     recommended: true,
     following: true,
@@ -158,11 +162,11 @@ export const FeedScreen = memo(function FeedScreen({
         setTimelineLoading((previous) => previous[kind] ? previous : ({ ...previous, [kind]: true }));
         void refreshUserPosts(kind, true)
           .then(
-            () => setTimelineError(kind, ""),
-            () => setTimelineError(kind, "用户动态暂时未能同步，下拉可重试")
+            () => { if (live) setTimelineError(kind, ""); },
+            () => { if (live) setTimelineError(kind, "用户动态暂时未能同步，下拉可重试"); }
           )
           .finally(() =>
-            setTimelineLoading((previous) => !previous[kind] ? previous : ({ ...previous, [kind]: false }))
+            { if (live) setTimelineLoading((previous) => !previous[kind] ? previous : ({ ...previous, [kind]: false })); }
           );
       };
       // Missing content is startup work. Only cached, silent refresh waits idle.
@@ -172,17 +176,20 @@ export const FeedScreen = memo(function FeedScreen({
       }
       const task = requestIdleCallback(refresh);
       return () => { live = false; cancelIdleCallback(task); };
-    }, [kind, setTimelineError, feedVersion])
+    }, [kind, setTimelineError, feedVersion, user?.id])
   );
 
   const { pull, phase, gesture } = usePullToRefresh({
     scrollY,
     onRefresh: async () => {
       reconnectMessages();
+      const owner = cachedAccountId();
       try {
         await refreshUserPosts(kind);
+        if (!alive.current || cachedAccountId() !== owner) return false;
         setTimelineError(kind, "");
       } catch (error) {
+        if (!alive.current || cachedAccountId() !== owner) return false;
         setTimelineError(kind, "用户动态暂时未能同步，下拉可重试");
         Toast.show({
           type: "error",
@@ -368,18 +375,23 @@ export const FeedScreen = memo(function FeedScreen({
                                         <Pressable
                                           disabled={loadingMore}
                                           onPress={() => {
+                                            if (moreFlight.current) return;
+                                            const token = {}; moreFlight.current = token;
+                                            const owner = cachedAccountId();
                                             setLoadingMore(true);
                                             void loadMoreUserPosts(pageKind)
-                                              .catch((error) =>
-                                                Toast.show({
+                                              .catch((error) => {
+                                                if (alive.current && moreFlight.current === token && cachedAccountId() === owner) Toast.show({
                                                   type: "error",
                                                   text1: "加载失败",
                                                   text2: error.message,
-                                                })
-                                              )
-                                              .finally(() =>
-                                                setLoadingMore(false)
-                                              );
+                                                });
+                                              })
+                                              .finally(() => {
+                                                if (moreFlight.current !== token) return;
+                                                moreFlight.current = undefined;
+                                                if (alive.current) setLoadingMore(false);
+                                              });
                                           }}
                                           style={{
                                             alignItems: "center",

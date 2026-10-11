@@ -299,10 +299,13 @@ const CreateApplicationPage = memo(function CreateApplicationPage({
     }
   }
   useEffect(
-    () => () => {
-      persistDraft();
-      alive.current = false;
-      polishRevision.current++;
+    () => {
+      alive.current = true;
+      return () => {
+        persistDraft();
+        alive.current = false;
+        polishRevision.current++;
+      };
     },
     []
   );

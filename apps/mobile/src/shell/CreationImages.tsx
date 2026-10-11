@@ -31,10 +31,13 @@ export function useCreationImages(owner: string | undefined, scope: string) {
   const latest = useRef({ key, photos, ready });
   latest.current = { key, photos, ready };
   useEffect(
-    () => () => {
-      alive.current = false;
-      const draft = latest.current;
-      if (draft.ready) writeShellValue(draft.key, JSON.stringify(draft.photos));
+    () => {
+      alive.current = true;
+      return () => {
+        alive.current = false;
+        const draft = latest.current;
+        if (draft.ready) writeShellValue(draft.key, JSON.stringify(draft.photos));
+      };
     },
     []
   );

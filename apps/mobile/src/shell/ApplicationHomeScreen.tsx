@@ -18,7 +18,7 @@ import { beginRouteTransition, endRouteTransition } from "./interactionWork";
 import NativePluginHost from "../NativePluginHost";
 
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
-const options = [{ id: "discovery", label: "发现作品" }, { id: "common", label: "常用" }] as const;
+const options = [{ id: "discovery", label: "发现作品" }, { id: "common", label: "收藏" }] as const;
 const TRANSITION = "application-home-pages";
 type Tab = typeof options[number]["id"];
 type Props = Omit<Parameters<typeof ApplicationFeedScreen>[0], "active" | "stageRef"> & { onOpen: (id: string) => Promise<boolean> };

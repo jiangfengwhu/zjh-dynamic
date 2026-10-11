@@ -138,7 +138,7 @@ export const ApplicationInteractions = memo(function ApplicationInteractions({ i
   return <View style={{ flexDirection: "row", alignItems: "center" }}>
     {action(liked ? "heart" : "heartOutline", liked ? "取消点赞" : "点赞", like, liked)}
     {action("chat", "评论", () => void comment())}
-    {action("bookmark", saved ? "从常用移除" : "添加到常用", bookmark, saved)}
+    {action("bookmark", saved ? "取消收藏" : "添加到收藏", bookmark, saved)}
     <View style={{ flex: 1 }} />
     {action("open", "打开应用", onOpen, false, !active)}
     {action("share", "分享", onShare)}

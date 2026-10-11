@@ -22,7 +22,7 @@ import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { PageHeader, Pressy } from "../../../../../packages/ui/chrome";
 import { Screen, ScreenEdge } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
-import { requireAccount, useAccount } from "../account";
+import { cachedAccountId, requireAccount, useAccount } from "../account";
 import { deletePostComment, fetchPostDetail, cachedPostDetail, publishPostComment, updateUserPost, useUserPost, type UserComment, type UserPost, type PostDetail } from "./userPosts";
 import { UserPostCard } from "./UserPostCard";
 import { PullRefreshSurface } from "./PullRefreshSurface";
@@ -74,47 +74,51 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
   }, [draftKey]);
   useDraftPersistence(draft, draftKey, draftReady);
   function fail(title: string, cause: unknown) { Toast.show({ type: "error", text1: title, text2: cause instanceof Error ? cause.message : "请稍后重试" }); }
-  async function load(more = false, manual = false) {
-    if (reading.current || writing.current || (more && !cursor)) return false;
+  const load = useEventCallback(async (more = false, manual = false): Promise<boolean | void> => {
+    if (!alive.current || !entered || !focused || reading.current || writing.current || (more && !cursor)) return false;
     reading.current = true; setLoading(true); setRefreshing(manual); const before = version.current;
+    const owner = cachedAccountId();
     try {
       const result = await fetchPostDetail(initialPost.id, more ? cursor! : undefined, more ? undefined : initialCommentId);
       await waitForRouteTransitions();
-      if (!alive.current || before !== version.current) return;
+      if (!alive.current || before !== version.current || cachedAccountId() !== owner) return;
       loaded.current = true; setFallback(result.post); updateUserPost(result.post); setCursor(result.nextCursor); setError("");
       setComments(previous => mergeChronological(more ? previous : [], result.comments));
       return true;
-    } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "评论加载失败"); return false; }
+    } catch (cause) { if (alive.current && before === version.current && cachedAccountId() === owner) setError(cause instanceof Error ? cause.message : "评论加载失败"); return false; }
     finally { reading.current = false; if (alive.current) { setLoading(false); setRefreshing(false); if (before !== version.current && !writing.current) void load(); } }
-  }
-  useEffect(() => () => { alive.current = false; }, []);
+  });
+  useEffect(() => { alive.current = true; return () => { alive.current = false; version.current++; }; }, []);
   useEffect(() => {
     if (!providedDetail || writing.current) return;
     loaded.current = true; setFallback(providedDetail.post); setComments([...providedDetail.comments].sort(chronological)); setCursor(providedDetail.nextCursor);
   }, [providedDetail]);
   const initialRequest = useRef(!!providedDetail);
   // The notice route already fetched this visit; later visits still revalidate.
-  useEffect(() => { if (!entered || !focused) return; if (initialRequest.current) { initialRequest.current = false; return; } version.current++; if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } void load(); }, [entered, focused, user?.id]);
+  useEffect(() => { version.current++; if (!entered || !focused) return; if (initialRequest.current) { initialRequest.current = false; return; } if (identity.current !== user?.id) { identity.current = user?.id; setFallback(previous => ({ ...previous, liked: false })); setReply(null); } void load(); }, [entered, focused, user?.id, load]);
   function updated(post: UserPost) { version.current++; setFallback(post); updateUserPost(post); }
   async function send() {
     if (!draftReady || writing.current || !draft.text.trim() || Array.from(draft.text).length > 1000) return;
     writing.current = true; setSending(true); version.current++;
+    let owner = cachedAccountId();
     try {
       if (!await requireAccount() || !alive.current) return;
+      owner = cachedAccountId();
       const signature = JSON.stringify([draft.text.trim(), reply?.id]);
       if (request.current?.signature !== signature) request.current = { signature, id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}` };
       const result = await publishPostComment(post.id, draft.text.trim(), request.current!.id, reply?.id);
-      if (!alive.current) return;
+      if (!alive.current || cachedAccountId() !== owner) return;
       setFallback(result.post); updateUserPost(result.post); setComments(previous => mergeChronological(previous, [result.comment]));
       setText(""); setReply(null); request.current = null; input.current?.blur();
-    } catch (cause) { if (alive.current) fail("评论未发送，内容已保留", cause); }
+    } catch (cause) { if (alive.current && cachedAccountId() === owner) fail("评论未发送，内容已保留", cause); }
     finally { writing.current = false; if (alive.current) { setSending(false); if (!loaded.current) void load(); } }
   }
   function remove(comment: UserComment) {
     Alert.alert("删除评论？", "删除后无法恢复。", [{ text: "取消", style: "cancel" }, { text: "删除", style: "destructive", onPress: () => { void (async () => {
-      if (writing.current) return; writing.current = true;  version.current++; setDeleting(comment.id);
-      try { const result = await deletePostComment(post.id, comment.id); if (alive.current) { setFallback(result.post); setComments(previous => previous.filter(item => item.id !== comment.id)); if (reply?.id === comment.id) setReply(null); } }
-      catch (cause) { if (alive.current) fail("删除未完成", cause); }
+      if (writing.current || !alive.current || cachedAccountId() !== user?.id) return; writing.current = true; version.current++; setDeleting(comment.id);
+      const owner = cachedAccountId();
+      try { const result = await deletePostComment(post.id, comment.id); if (alive.current && cachedAccountId() === owner) { setFallback(result.post); setComments(previous => previous.filter(item => item.id !== comment.id)); if (reply?.id === comment.id) setReply(null); } }
+      catch (cause) { if (alive.current && cachedAccountId() === owner) fail("删除未完成", cause); }
       finally { writing.current = false; if (alive.current) setDeleting(null); }
     })(); } }]);
   }

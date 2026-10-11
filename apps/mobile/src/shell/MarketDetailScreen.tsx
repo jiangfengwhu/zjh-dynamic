@@ -192,8 +192,9 @@ function MarketDetailContent({
   const removeScreenshot = useCallback((url: string) => setScreenshots(previous => previous.filter(value => value !== url)), []);
   const alive = useRef(true);
   useEffect(
-    () => () => {
-      alive.current = false;
+    () => {
+      alive.current = true;
+      return () => { alive.current = false; };
     },
     []
   );

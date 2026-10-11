@@ -172,6 +172,8 @@ export const ComposePostScreen = memo(function ComposePostScreen({
     return () => controller.abort();
   }, [initialDraft?.application, attachmentRetry]);
   useEffect(() => {
+    alive.current = true;
+    let live = true;
     void (async () => {
       try {
         const value = owner ? await readShellValue(draftKey) : undefined;
@@ -180,10 +182,11 @@ export const ComposePostScreen = memo(function ComposePostScreen({
           const restored = await existingDraftImages<Photo>(
             Array.isArray(draft.photos) ? draft.photos : [],
           );
+          const currentOwner = await currentAccountId();
           if (
-            alive.current &&
+            live && alive.current &&
             !revision.current &&
-            (await currentAccountId()) === owner
+            currentOwner === owner
           ) {
             setText(typeof draft.editorText === "string" ? draft.editorText : draft.htmlMode && typeof draft.html === "string" ? draft.html : typeof draft.body === "string" ? draft.body : "");
             setCaption(typeof draft.caption === "string" ? draft.caption : draft.htmlMode && typeof draft.body === "string" ? draft.body : "");
@@ -198,14 +201,16 @@ export const ComposePostScreen = memo(function ComposePostScreen({
           }
         }
       } catch {
-        if (alive.current)
+        if (live && alive.current)
           Toast.show({ type: "error", text1: "草稿读取失败，请重试" });
       } finally {
-        if (alive.current && (await currentAccountId()) === owner)
+        const currentOwner = await currentAccountId();
+        if (live && alive.current && currentOwner === owner)
           setDraftReady(true);
       }
     })();
     return () => {
+      live = false;
       alive.current = false;
       polishController.current?.abort();
       for (const path of files.current)

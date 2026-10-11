@@ -7,7 +7,15 @@ function moduleUrl(file, rewrite = source => source) {
   const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
   return 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
 }
-const sharingUrl = moduleUrl('packages/app-sdk/src/sharing.ts');
+const nativeResultUrl = moduleUrl('packages/app-sdk/src/native-result.ts');
+// Exercise the real sharing modules; only native boundaries are unavailable in Node.
+const incomingUrl = moduleUrl('packages/app-sdk/src/incoming-shares.ts', source => source.replace(/^import .*;\r?\n/gm, '') + `
+  import {nativeResult} from ${JSON.stringify(nativeResultUrl)};
+  const AppState = {addEventListener: () => ({remove() {}})};
+  const DeviceEventEmitter = AppState;
+  const shell = async () => { throw new Error('Native calls are outside this sharing suite'); };
+`);
+const sharingUrl = moduleUrl('packages/app-sdk/src/sharing.ts', source => source.replace('"./incoming-shares"', JSON.stringify(incomingUrl)));
 const sharing = await import(sharingUrl);
 const linksUrl = moduleUrl('apps/mobile/src/shell/deepLinks.ts', source => source.replace('"../../../../packages/app-sdk/src/sharing"', JSON.stringify(sharingUrl)));
 const links = await import(linksUrl);

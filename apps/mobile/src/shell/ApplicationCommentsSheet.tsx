@@ -62,6 +62,7 @@ export const ApplicationCommentsSheet = memo(function ApplicationCommentsSheet({
   const loginAfterClose = useRef(false);
   const version = useRef(0);
   const loaded = useRef(!!initial);
+  const identity = useRef(user?.id);
   const request = useRef<{ signature: string; id: string } | null>(null);
   const draftKey = discussion ? `social.comment-draft.${user?.id ?? "guest"}.${discussion.id}` : undefined;
 
@@ -95,30 +96,33 @@ export const ApplicationCommentsSheet = memo(function ApplicationCommentsSheet({
   }, [draftKey, opened]);
   useDraftPersistence(draft, draftKey, draftReady);
 
-  async function load(more = false) {
-    if (reading.current || writing.current || (more && (!cursor || !discussion))) return;
+  const load = useEventCallback(async (more = false): Promise<void> => {
+    if (!alive.current || !opened || !active || reading.current || writing.current || (more && (!cursor || !discussion))) return;
     reading.current = true; setLoading(true);
     const before = version.current;
+    const owner = cachedAccountId();
     try {
       const result = more ? await fetchPostDetail(discussion!.id, cursor!) : await readApplicationComments(application.manifest.appId);
-      if (!alive.current || before !== version.current) return;
+      if (!alive.current || before !== version.current || cachedAccountId() !== owner) return;
       setDiscussion(result.post);
       loaded.current = true; setError(""); setCount(result.post.commentCount ?? 0); setCursor(result.nextCursor);
       setComments(prior => mergeChronological(more ? prior : [], result.comments));
-    } catch (cause) { if (alive.current && before === version.current) setError(cause instanceof Error ? cause.message : "评论加载失败，请重试"); }
+    } catch (cause) { if (alive.current && before === version.current && cachedAccountId() === owner) setError(cause instanceof Error ? cause.message : "评论加载失败，请重试"); }
     finally { reading.current = false; if (alive.current) { setLoading(false); if (before !== version.current && !writing.current) void load(); } }
-  }
-  useEffect(() => { if (opened && (!initial?.readAt || Date.now() - initial.readAt > 4000)) void load(); }, [opened]);
+  });
+  useEffect(() => { const changedOwner = identity.current !== user?.id; identity.current = user?.id; version.current++; if (opened && active && (changedOwner || !initial?.readAt || Date.now() - initial.readAt > 4000)) void load(); }, [opened, active, user?.id, load]);
 
   async function send() {
     if (!discussion || !draftKey || !draftReady || writing.current || !draft.text.trim() || Array.from(draft.text).length > 1000) return;
     writing.current = true; setSending(true); version.current++;
+    const owner = cachedAccountId();
     try {
       if (!cachedAccountId()) { loginAfterClose.current = true; close(); return; }
-      if (!await requireAccount() || !alive.current) return;
+      if (!await requireAccount() || !alive.current || cachedAccountId() !== owner) return;
       const signature = JSON.stringify([draft.text.trim(), reply?.id]);
       if (request.current?.signature !== signature) request.current = { signature, id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}` };
       const result = await publishPostComment(discussion.id, draft.text.trim(), request.current.id, reply?.id);
+      if (cachedAccountId() !== owner) return;
       if (!alive.current) {
         if (await readShellValue(draftKey) === draft.text) removeShellValue(draftKey);
         return;
@@ -127,18 +131,19 @@ export const ApplicationCommentsSheet = memo(function ApplicationCommentsSheet({
       setComments(prior => mergeChronological(prior, [result.comment]));
       setText(""); setReply(null); request.current = null; input.current?.blur();
       requestAnimationFrame(() => { if (alive.current) list.current?.scrollToEnd({ animated: true }); });
-    } catch (cause) { if (alive.current) Toast.show({ type: "error", text1: "评论未发送，内容已保留", text2: cause instanceof Error ? cause.message : "请重试" }); }
+    } catch (cause) { if (alive.current && cachedAccountId() === owner) Toast.show({ type: "error", text1: "评论未发送，内容已保留", text2: cause instanceof Error ? cause.message : "请重试" }); }
     finally { writing.current = false; if (alive.current) { setSending(false); if (!loaded.current && !reading.current) void load(); } }
   }
   function remove(comment: UserComment) {
     if (!discussion || writing.current) return;
     HostAlert.alert("删除评论？", "删除后无法恢复。", [{ text: "取消", style: "cancel" }, { text: "删除", style: "destructive", onPress: () => { void (async () => {
-      if (writing.current || !alive.current) return;
+      if (writing.current || !alive.current || cachedAccountId() !== user?.id) return;
       writing.current = true; version.current++; setDeleting(comment.id);
+      const owner = cachedAccountId();
       try {
         const result = await deletePostComment(discussion.id, comment.id);
-        if (alive.current) { setCount(result.post.commentCount ?? 0); setComments(prior => prior.filter(item => item.id !== comment.id)); if (reply?.id === comment.id) setReply(null); }
-      } catch (cause) { if (alive.current) Toast.show({ type: "error", text1: "删除未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
+        if (alive.current && cachedAccountId() === owner) { setCount(result.post.commentCount ?? 0); setComments(prior => prior.filter(item => item.id !== comment.id)); if (reply?.id === comment.id) setReply(null); }
+      } catch (cause) { if (alive.current && cachedAccountId() === owner) Toast.show({ type: "error", text1: "删除未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
       finally { writing.current = false; if (alive.current) setDeleting(null); }
     })(); } }]);
   }

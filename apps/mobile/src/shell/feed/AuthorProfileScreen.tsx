@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { useEventCallback } from "../useEventCallback";
 import type { MarketApplication } from "../market";
 import { PageSkeleton } from "../LoadingSkeleton";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
@@ -28,7 +29,7 @@ import { PageHeader } from "../../../../../packages/ui/chrome";
 import { Screen } from "../../../../../packages/ui/edge";
 import { ThemeContext, useTheme } from "../../../../../packages/ui/theme";
 
-import { useAccount, requireAccount, currentAccountId } from "../account";
+import { cachedAccountId, useAccount, requireAccount, currentAccountId } from "../account";
 import { notify as Toast } from "../../../../../packages/ui/feedback/Toasts";
 import { WorkCard } from "../WorkCard";
 import { UserPostCard } from "./UserPostCard";
@@ -132,23 +133,25 @@ function AuthorProfileContent({
   async function toggleFollow() {
     if (followPending.current) return;
     followPending.current = true;
+    setFollowBusy(true);
+    let owner = cachedAccountId();
     try {
       if (!(await requireAccount())) return;
-      const owner = await currentAccountId();
-      if (owner === initialAuthor.id) return;
+      owner = await currentAccountId();
+      if (!alive.current || owner === initialAuthor.id) return;
       revision.current++;
       if (reading.current) rerun.current = true;
-      setFollowBusy(true);
       const result = await setAuthorFollow(
         initialAuthor.id,
         !following,
       );
-      if (!alive.current || (await currentAccountId()) !== owner) return;
+      const currentOwner = await currentAccountId();
+      if (!alive.current || currentOwner !== owner) return;
       revision.current++;
       if (reading.current) rerun.current = true;
       setProfile((previous) => ({ ...previous, ...result }));
     } catch (cause) {
-      if (alive.current)
+      if (alive.current && cachedAccountId() === owner)
         Toast.show({
           type: "error",
           text1: "关注未完成",
@@ -164,7 +167,8 @@ function AuthorProfileContent({
   const list = profileScroll.ref;
   const postsRefresh = usePullToRefresh({ scrollY, onRefresh: () => load() });
   const appsRefresh = usePullToRefresh({ scrollY: appY, onRefresh: () => load() });
-  async function load(more = false) {
+  const load = useEventCallback(async (more = false): Promise<boolean> => {
+    if (!alive.current || !focused) return false;
     if (reading.current) {
       if (!more) rerun.current = true;
       return false;
@@ -174,9 +178,10 @@ function AuthorProfileContent({
     if (more && !cursor) return false;
     reading.current = true; setBusy(true);
     const before = revision.current;
+    const owner = cachedAccountId();
     try {
       const result = await fetchAuthorProfile(initialAuthor.id, target, more ? cursor! : undefined);
-      if (!alive.current || before !== revision.current) return false;
+      if (!alive.current || before !== revision.current || cachedAccountId() !== owner) return false;
       onProfileLoaded?.(result);
       setProfile(previous => ({ ...previous, ...result,
         posts: target === "posts" ? result.posts : previous.posts,
@@ -189,7 +194,7 @@ function AuthorProfileContent({
       setError("");
       return true;
     } catch (cause) {
-      if (alive.current && before === revision.current)
+      if (alive.current && before === revision.current && cachedAccountId() === owner)
         setError(cause instanceof Error ? cause.message : "主页暂时无法加载");
       return false;
     } finally {
@@ -202,10 +207,11 @@ function AuthorProfileContent({
         }
       }
     }
-  }
+  });
   useEffect(
-    () => () => {
-      alive.current = false;
+    () => {
+      alive.current = true;
+      return () => { alive.current = false; revision.current++; };
     },
     [],
   );
@@ -219,14 +225,14 @@ function AuthorProfileContent({
     }
     if (!focused) return;
     return afterInteractions(() => { void load(false); });
-  }, [focused, user?.id]);
+  }, [focused, user?.id, load]);
   useEffect(() => {
     if (previousTab.current === tab) return;
     previousTab.current = tab;
     revision.current++;
     if (!focused || loadedTabs.current.has(tab)) return;
     return afterInteractions(() => { void load(false); });
-  }, [tab, focused]);
+  }, [tab, focused, load]);
   const updated = useCallback((post: UserPost) => {
     revision.current++;
     if (reading.current) rerun.current = true;

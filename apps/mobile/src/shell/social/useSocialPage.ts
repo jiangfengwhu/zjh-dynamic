@@ -13,8 +13,8 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
 }) {
   const { user } = useAccount();
   const isFocused = useIsFocused(), routeReady = useRouteRequestReady();
-  const focused = isFocused && routeReady && active && (!authenticated || !!user);
   const [foreground, setForeground] = useState(AppState.currentState === "active");
+  const focused = foreground && isFocused && routeReady && active && (!authenticated || !!user);
   const canRead = focused || backgroundRefresh && foreground && (!authenticated || !!user);
   const key = pageCacheKey(name);
   const [state, setState] = useState(() => ({ key, data: cachedPage<T>(key) ?? empty }));
@@ -27,9 +27,9 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
   const flight = useRef<{ key: string } | undefined>(undefined), again = useRef(false);
   const reload = useRef<(more?: boolean) => Promise<boolean>>(async () => false);
   const mutation = useRef(0);
-  const commit = useCallback((next: T) => { mutation.current++; const shared = rememberPage(key, next); dataRef.current = shared; setState(previous => previous.key === key && previous.data === shared ? previous : { key, data: shared }); }, [key]);
+  const commit = useCallback((next: T) => { if (!alive.current || identity.current !== key || pageCacheKey(name) !== key) return; mutation.current++; const shared = rememberPage(key, next); dataRef.current = shared; setState(previous => previous.key === key && previous.data === shared ? previous : { key, data: shared }); }, [key, name]);
   const load = useCallback(async (more = false): Promise<boolean> => {
-    if (!canReadRef.current || (more && !dataRef.current.nextCursor)) return false;
+    if (!alive.current || identity.current !== key || pageCacheKey(name) !== key || !canReadRef.current || (more && !dataRef.current.nextCursor)) return false;
     if (flight.current?.key === key) { if (!more) again.current = true; return false; }
     const token = { key }; flight.current = token; setLoading(true); setError("");
     const before = mutation.current;
@@ -37,14 +37,14 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
       const next = await config.current.read(more ? dataRef.current.nextCursor! : undefined);
       // First content and explicit refresh commit without waiting for idle.
       await waitForRouteTransitions();
-      if (!alive.current || identity.current !== key || flight.current !== token) return false;
+      if (!alive.current || identity.current !== key || pageCacheKey(name) !== key || flight.current !== token) return false;
       // Follow/read/send acknowledgements win over an older server snapshot.
       // Re-read after the mutation; do not restore the pre-operation row state.
       if (mutation.current !== before) { again.current = true; return false; }
       commit(config.current.merge(dataRef.current, next, more));
       return true;
     } catch (cause) {
-      if (alive.current && identity.current === key) setError(cause instanceof Error ? cause.message : "同步未完成，请重试");
+      if (alive.current && identity.current === key && pageCacheKey(name) === key && flight.current === token) setError(cause instanceof Error ? cause.message : "同步未完成，请重试");
       return false;
     } finally {
       if (flight.current === token) {
@@ -55,15 +55,14 @@ export function useSocialPage<T extends { nextCursor: string | null }>({ name, e
         }
       }
     }
-  }, [key, commit]);
+  }, [key, name, commit]);
   reload.current = load;
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; flight.current = undefined; again.current = false; }; }, []);
   useEffect(() => {
-    if (!backgroundRefresh) return;
     const subscription = AppState.addEventListener("change", state => setForeground(state === "active"));
     return () => subscription.remove();
-  }, [backgroundRefresh]);
-  useEffect(() => { setError(""); again.current = false; }, [key]);
+  }, []);
+  useEffect(() => { setError(""); setLoading(false); again.current = false; if (flight.current?.key !== key) flight.current = undefined; }, [key]);
   useEffect(() => {
     if (!canRead) return;
     const cached = cachedPage(key) !== undefined;

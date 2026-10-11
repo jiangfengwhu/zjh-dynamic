@@ -24,7 +24,7 @@ import { PageHeader, Pressy } from "../../../../packages/ui/chrome";
 import { Screen } from "../../../../packages/ui/edge";
 import { subscribePackageValue } from "../../../../packages/ui/packageLink";
 import { FormField } from "./FormField";
-import { useAccount, currentAccountId } from "./account";
+import { cachedAccountId, useAccount, currentAccountId } from "./account";
 import { subscribeCatalog } from "./catalog";
 import {
   installedMarket,
@@ -95,6 +95,8 @@ export function MyApplicationsScreen({
   const [nextCursor, setNextCursor] = useState<string | null>(cached?.nextCursor ?? null);
   const [works, setWorks] = useState<MyWork[]>(cached?.works ?? []);
   const [installed, setInstalled] = useState<MarketApplication[]>(cached?.installed ?? []);
+  const collection = useRef({ works, installed });
+  collection.current = { works, installed };
   const [owner, setOwner] = useState<string | undefined>(cached ? user?.id : undefined);
   const [updates, setUpdates] = useState<
     Record<string, PublicApplicationUpdate>
@@ -112,7 +114,7 @@ export function MyApplicationsScreen({
   const reading = useRef(false);
   const catalogChangedWhileReading = useRef(false);
   const [catalogRevision, setCatalogRevision] = useState(0);
-  async function refresh(manual = false) {
+  const refresh = useEventCallback(async (manual = false): Promise<boolean | void> => {
     if (
       !focusedRef.current ||
       reading.current ||
@@ -131,13 +133,13 @@ export function MyApplicationsScreen({
       if (scope === "works") {
         const next = gallery ? projectGallery(gallery.works) : await readMyWorks(apps);
         await waitForRouteTransitions();
-        if (before !== generation.current) return;
+        if (before !== generation.current || cachedAccountId() !== user?.id) return;
         setNextCursor(gallery?.nextCursor ?? null);
         const snapshot = rememberPage(cacheKey, { works: next, installed: apps, nextCursor: gallery?.nextCursor });
         setWorks(snapshot.works); setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id);
       } else {
         await waitForRouteTransitions();
-        if (before !== generation.current) return;
+        if (before !== generation.current || cachedAccountId() !== user?.id) return;
         const snapshot = rememberPage(cacheKey, { works: [], installed: apps });
         setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id);
         const [publicResult, ownResult] = await Promise.allSettled([
@@ -176,7 +178,7 @@ export function MyApplicationsScreen({
             }
           }
         await waitForRouteTransitions();
-        if (before !== generation.current) return;
+        if (before !== generation.current || cachedAccountId() !== user?.id) return;
         setUpdates(result);
         if (
           publicResult.status === "rejected" ||
@@ -188,13 +190,15 @@ export function MyApplicationsScreen({
       }
     } catch {
       if (scope === "works" && before === generation.current) {
-        const apps = await installedMarket();
-        const works = await readMyWorks(apps);
-        await waitForRouteTransitions();
-        if (before === generation.current) { const snapshot = rememberPage(cacheKey, { works, installed: apps }); setWorks(snapshot.works); setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id); }
+        try {
+          const apps = await installedMarket();
+          const works = await readMyWorks(apps);
+          await waitForRouteTransitions();
+          if (before === generation.current && cachedAccountId() === user?.id) { const snapshot = rememberPage(cacheKey, { works, installed: apps }); setWorks(snapshot.works); setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id); }
+        } catch { /* A failed local fallback uses the retry message below. */ }
       }
       succeeded = false;
-      if (before === generation.current)
+      if (before === generation.current && cachedAccountId() === user?.id)
         setError("暂时无法读取内容，下拉可重试。");
     } finally {
       if (before === generation.current) {
@@ -208,7 +212,7 @@ export function MyApplicationsScreen({
       }
     }
     return succeeded;
-  }
+  });
   useEffect(() => {
     if (focused) {
       const cancel = afterInteractions(() => { void refresh(); });
@@ -218,7 +222,7 @@ export function MyApplicationsScreen({
         reading.current = false;
       };
     }
-  }, [focused, user?.id, scope, catalogRevision, serverQuery]);
+  }, [focused, user?.id, scope, catalogRevision, serverQuery, refresh]);
   useEffect(() => {
     if (!focused) return;
     let cancelReload: (() => void) | undefined;
@@ -252,7 +256,7 @@ export function MyApplicationsScreen({
       offSnapshot();
       offWorks();
     };
-  }, [focused, user?.id, scope, works]);
+  }, [focused, user?.id, scope, refresh]);
   async function workshop(work: MyWork) {
     if (work.stage !== "making") {
       openCreationComposer({
@@ -338,12 +342,12 @@ export function MyApplicationsScreen({
     reading.current = true; setBusy(true); const before = generation.current;
     try {
       const page = await fetchWorksGallery(nextCursor, serverQuery);
-      if (before !== generation.current) return;
+      if (before !== generation.current || cachedAccountId() !== user?.id) return;
       setNextCursor(page.nextCursor);
-      setWorks(previous => {
-        const next = appendUnique(previous, projectGallery(page.works), work => work.appId);
-        rememberPage(cacheKey, {works: next, installed, nextCursor: page.nextCursor}); return next;
-      });
+      const next = appendUnique(collection.current.works, projectGallery(page.works), work => work.appId);
+      const snapshot = rememberPage(cacheKey, { works: next, installed: collection.current.installed, nextCursor: page.nextCursor });
+      collection.current = snapshot;
+      setWorks(snapshot.works);
     } catch { if (before === generation.current) setError("更多作品加载失败，点击重试"); }
     finally { if (before === generation.current) {reading.current = false; setBusy(false);} }
   }
@@ -379,7 +383,7 @@ export function MyApplicationsScreen({
     if (scope !== "works" || !focused) return;
     const timer = setTimeout(() => { setServerQuery(query.trim()); }, 300);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, focused, scope]);
   const term = query.trim().toLowerCase();
   const visibleWorks = useMemo(() =>
     owner === user?.id

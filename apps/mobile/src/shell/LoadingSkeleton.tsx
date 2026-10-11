@@ -34,6 +34,15 @@ export function PageSkeleton({ rows = 3, shape = "work", inset = 0, animated }: 
       if (shape === "grid") return <View key={index} style={{ flexDirection: "row", paddingVertical: 12 }}>
           {[0, 1, 2, 3].map(column => <View key={column} style={{ flex: 1, alignItems: "center", gap: 6 }}>{block(52, 52, 16)}{block("65%", 12)}</View>)}
       </View>;
+      if (shape === "notification") return <View key={index} style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", gap: 10, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line }}>
+        {block(36, 36, 18)}
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <View style={{ height: 20, flexDirection: "row", alignItems: "center", gap: 8 }}><View style={{ flex: 1 }}>{block("65%", 14)}</View>{block(38, 11)}</View>
+          <View style={{ height: 19, justifyContent: "center" }}>{block("92%", 13)}</View>
+          <View style={{ height: 17, justifyContent: "center" }}>{block("55%", 12)}</View>
+        </View>
+        <View style={{ marginTop: 6 }}>{block(8, 8, 4)}</View>
+      </View>;
       if (shape === "chat") {
         const mine = index % 2 === 1;
         return <View key={index} style={{ flexDirection: mine ? "row-reverse" : "row", gap: 8, paddingVertical: 4, alignItems: "flex-start" }}>
@@ -52,15 +61,14 @@ export function PageSkeleton({ rows = 3, shape = "work", inset = 0, animated }: 
       const feed = shape === "feed";
       const comment = shape === "comment";
       const person = shape === "person";
-      const notification = shape === "notification";
       const avatar = app ? 52 : shape === "inbox" ? 42 : feed || person ? 40 : comment ? 32 : 36;
-      return <View key={index} style={{ paddingVertical: app || notification ? 12 : 10, flexDirection: "row", alignItems: app || person ? "center" : "flex-start", gap: app ? 12 : 10, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line }}>
+      return <View key={index} style={{ paddingVertical: app ? 12 : 10, flexDirection: "row", alignItems: app || person ? "center" : "flex-start", gap: app ? 12 : 10, borderBottomWidth: colors.components.surfaceBorder, borderBottomColor: colors.line }}>
         {block(avatar, avatar, app ? 14 : avatar / 2)}
         <View style={{ flex: 1, gap: feed ? 10 : 6, paddingTop: feed ? 3 : 0 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>{block(feed ? "48%" : "55%", feed ? 15 : 14)}{!app && !person ? block(38, 10) : null}</View>
           {!person ? block("92%", app ? 12 : 13) : null}
           {feed ? <>{block("72%", 13)}{index % 2 === 0 ? block("100%", 140, 12) : null}<View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 }}>{block(32, 12)}{block(32, 12)}{block(32, 12)}{block(32, 10)}</View></> : null}
-          {app || notification ? block("38%", 11) : null}
+          {app ? block("38%", 11) : null}
           {comment ? <View style={{ paddingVertical: 8 }}>{block(26, 12)}</View> : null}
         </View>
         {person || app ? block(person ? 64 : 52, person ? 30 : 28, 15) : null}

@@ -46,27 +46,27 @@ function ConnectionsList({ author, kind, active, onAuthor }: { author: PublicAut
   const query = useSocialPage<RelationPage>({ name: `connections:${author.id}:${kind}`, empty: { authors: [], nextCursor: null }, active,
     read: cursor => readRelations(author.id, kind, cursor),
     merge: (previous, next, more) => more ? { ...next, authors: appendUnique(previous.authors, next.authors, item => item.author.id) } : next });
-  const [acting, setActing] = useState<string>();
+  const [acting, setActing] = useState<ReadonlySet<string>>(new Set());
   const locks = useRef(new Set<string>());
   const scrollY = useSharedValue(0), scroll = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
   const refresh = usePullToRefresh({ scrollY, onRefresh: () => query.load() });
   const follow = useEventCallback(async (id: string, wanted: boolean) => {
     if (locks.current.has(id)) return;
-    locks.current.add(id); setActing(id);
+    locks.current.add(id); setActing(new Set(locks.current));
     try {
       if (!await requireAccount()) return;
       const owner = query.user?.id;
       const result = await setAuthorFollow(id, wanted);
       if (owner === cachedAccountId()) query.update(previous => ({...previous, authors: previous.authors.map(item => item.author.id === id ? {...item, following: result.following} : item)}));
     } catch (cause) { Toast.show({ type: "error", text1: "关注未完成", text2: cause instanceof Error ? cause.message : "请重试" }); }
-    finally { locks.current.delete(id); setActing(undefined); }
+    finally { locks.current.delete(id); setActing(new Set(locks.current)); }
   });
   return <PullRefreshSurface refresh={refresh}><AnimatedFlashList maintainVisibleContentPosition={{ disabled: true }}
     data={query.data.authors} keyExtractor={item => item.author.id} onScroll={scroll} scrollEventThrottle={16}
     showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never" contentContainerStyle={!query.data.authors.length ? { flexGrow: 1 } : undefined}
     ListHeaderComponent={<SocialError error={query.error} retry={() => { void query.load(); }} />}
     ListEmptyComponent={<SocialEmpty shape="person" loading={query.loading} loaded={query.loaded} text={kind === "following" ? "还没有关注的人" : "还没有粉丝"} />}
-    renderItem={({ item }) => <RelationRow item={item} ownerId={query.user?.id} acting={acting === item.author.id} onAuthor={onAuthor} follow={follow} />}
+    renderItem={({ item }) => <RelationRow item={item} ownerId={query.user?.id} acting={acting.has(item.author.id)} onAuthor={onAuthor} follow={follow} />}
     ListFooterComponent={query.data.nextCursor ? <Pressy accessibilityRole="button" onPress={() => { void query.load(true); }} disabled={query.loading} style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}>
       {query.loading ? <ActivityIndicator color={colors.ink2} /> : <Text style={{ color: colors.ink2, fontWeight: "600" }}>加载更多</Text>}
     </Pressy> : null}
