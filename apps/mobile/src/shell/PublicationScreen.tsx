@@ -38,6 +38,7 @@ import { usePreventRemove } from "@react-navigation/native";
 import { afterInteractions } from "./interactionWork";
 import { useVisitedPager } from "./useVisitedPager";
 import { useEventCallback } from "./useEventCallback";
+import { useRouteContentReady } from "./useRouteContentReady";
 
 const CREATION_INPUT_HEIGHT = 224;
 const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
@@ -74,6 +75,7 @@ function PublicationContent({
   const lockedCreation = Boolean(creation);
   const startingMode = lockedCreation ? "create" : initialMode ?? (initialApplication || initialDraft ? "post" : "create");
   const [mode, setMode] = useState(startingMode);
+  const contentReady = useRouteContentReady();
   const { visited, visit, reveal } = useVisitedPager(startingMode === "create" ? 0 : 1);
   const { colors } = useTheme();
   const pager = useRef<PagerView>(null);
@@ -145,7 +147,7 @@ function PublicationContent({
         backDisabled={postControls?.busy || creating}
       />
       {lockedCreation ? (
-        creationPage
+        contentReady ? creationPage : <PublicationFormPlaceholder mode="create" />
       ) : (
         <>
           {tabs}
@@ -160,22 +162,44 @@ function PublicationContent({
             onPageSelected={onPageSelected}
           >
             <View key="create" collapsable={false} style={{ flex: 1 }}>
-              {visited.has(0) ? creationPage : null}
+              {visited.has(0) ? contentReady ? creationPage : <PublicationFormPlaceholder mode="create" /> : null}
             </View>
             <View key="post" collapsable={false} style={{ flex: 1 }}>
-              {visited.has(1) ? <ComposePostScreen
+              {visited.has(1) ? contentReady ? <ComposePostScreen
                 embedded
                 onControlsChange={setPostControls}
                 onBack={onBack}
                 initialApplication={initialApplication}
                 initialDraft={initialDraft}
-              /> : null}
+              /> : <PublicationFormPlaceholder mode="post" /> : null}
             </View>
           </AnimatedPagerView>
         </>
       )}
     </Screen>
   );
+}
+
+/** Match the editor and dock without creating EditText or keyboard observers during navigation. */
+function PublicationFormPlaceholder({ mode }: { mode: "create" | "post" }) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const create = mode === "create";
+  const line = (width: number | `${number}%`, height = 12) => <View style={{ width, height, borderRadius: 6, backgroundColor: colors.lineStrong, opacity: 0.35 }} />;
+  return <View accessibilityLabel="正在准备编辑器" accessibilityState={{ busy: true }} style={{ flex: 1 }}>
+    <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: create ? 0 : 6, gap: 12 }}>
+      {!create ? <View style={{ height: 32, flexDirection: "row", alignItems: "center", gap: 10 }}>{line(32, 32)}{line(72, 15)}</View> : null}
+      <View style={{ height: 30, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>{line(88, 15)}{line(82, 30)}</View>
+      <View style={{ height: create ? CREATION_INPUT_HEIGHT : 200, borderRadius: colors.radius.xl, backgroundColor: colors.surface, padding: 14, gap: 10 }}>{line("85%", 15)}{line("55%", 15)}</View>
+      <View style={{ height: create ? 44 : 32, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>{line(90, 14)}{line(create ? 82 : 160, 24)}</View>
+      {create ? line("70%") : null}
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>{line("55%")}{line(44)}</View>
+      {create ? <View style={{ gap: 8, marginTop: 4 }}>{line("96%")}{line("64%")}</View> : null}
+    </View>
+    <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 + insets.bottom }}>
+      <View style={{ height: 46, borderRadius: 23, backgroundColor: colors.surfaceRaised }} />
+    </View>
+  </View>;
 }
 
 const CreateApplicationPage = memo(function CreateApplicationPage({
