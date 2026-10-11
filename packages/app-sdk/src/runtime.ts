@@ -197,9 +197,9 @@ export function registerApplication(appId: string, definition: AppDefinition) {
     }, [active, focused]);
     useEffect(() => pageMounted(appId), []);
     useEffect(() => {
-      pageReady(appId);
-    }, []);
-    pageAttempt(appId);
+      if (pages.get(appId) === record) pageReady(appId);
+    }, [record]);
+    if (pages.get(appId) === record) pageAttempt(appId);
     record.Page ??= record.definition.main();
     if (!record.Page) throw new Error(`应用页面无效：${appId}`);
     return createElement(ApplicationQueries, { appId, children: createElement(KeyboardViewport, { reserveBottom: false, children: createElement(record.Page) }) });

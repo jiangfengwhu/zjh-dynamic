@@ -2,7 +2,7 @@ import { useEventCallback } from "../useEventCallback";
 import { DraftInputScope, useDraftText, useDraftPersistence } from "../DraftInputScope";
 import { mergeChronological, chronological } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
-import { waitForInteractions } from "../interactionWork";
+import { waitForRouteTransitions } from "../interactionWork";
 import { TextInput as NativeTextInput } from "../../../../../packages/ui/primitives/Typography";
 import { UserAvatar } from "../UserAvatar";
 import { EmptyState } from "../EmptyState";
@@ -79,7 +79,7 @@ function PostDetailContent({ initialPost, initialCommentId, initialDetail: provi
     reading.current = true; setLoading(true); setRefreshing(manual); const before = version.current;
     try {
       const result = await fetchPostDetail(initialPost.id, more ? cursor! : undefined, more ? undefined : initialCommentId);
-      await waitForInteractions();
+      await waitForRouteTransitions();
       if (!alive.current || before !== version.current) return;
       loaded.current = true; setFallback(result.post); updateUserPost(result.post); setCursor(result.nextCursor); setError("");
       setComments(previous => mergeChronological(more ? previous : [], result.comments));

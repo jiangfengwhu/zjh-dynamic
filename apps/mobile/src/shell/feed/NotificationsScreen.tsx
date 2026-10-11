@@ -2,7 +2,7 @@ import { useEventCallback } from "../useEventCallback";
 import { appendUnique } from "../listData";
 import { AnimatedFlashList, type FlashListRef } from "../AnimatedFlashList";
 import { ListGesture } from "./ListGesture";
-import { afterInteractions, waitForInteractions } from "../interactionWork";
+import { afterInteractions, waitForRouteTransitions } from "../interactionWork";
 import { lazyScreen } from "../lazyScreen";
 import { useVisitedPager } from "../useVisitedPager";
 import { Text } from "../../../../../packages/ui/primitives/Typography";
@@ -277,7 +277,7 @@ function NotificationsContent({
         more ? page.nextCursor! : undefined,
         category
       );
-      await waitForInteractions();
+      await waitForRouteTransitions();
       if (
         !alive.current ||
         before !== revision.current ||

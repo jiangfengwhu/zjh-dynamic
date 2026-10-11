@@ -1,6 +1,6 @@
 import { applicationSharing } from "../../../../packages/app-sdk/src/sharing";
 import { AnimatedFlashList } from "./AnimatedFlashList";
-import { afterInteractions, waitForInteractions } from "./interactionWork";
+import { afterInteractions, waitForRouteTransitions } from "./interactionWork";
 import { ApplicationIcon, rememberApplicationIcon } from "./ApplicationIcon";
 import { useLiveVersion } from "./liveEvents";
 import { UserAvatar } from "./UserAvatar";
@@ -82,7 +82,7 @@ export function MarketDetailScreen(
     if (props.item.detailOwner === (user?.id ?? "guest") && Date.now() - (props.item.detailAt ?? 0) < 1000 && !attempt) { setItem(props.item); return; }
     let live = true;
     void fetchMarketDetail(props.item.manifest.appId).then(async next => {
-      await waitForInteractions();
+      await waitForRouteTransitions();
       if (!live) return;
       setError(false);
       if (dataChanged(item, next, ["latest", "detailAt", "detailOwner"])) setItem(next);

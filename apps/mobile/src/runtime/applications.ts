@@ -605,21 +605,35 @@ export function reportApplicationFailure(appId: string, releaseId?: string): Pro
   reloading.set(appId, task); replacementModes.set(appId, "failure");
   return task;
 }
+/** Late callbacks may finish after a different release has been selected. */
+function clearReleaseSelection(appId: string, releaseId: string) {
+  const key = `application.pending.${appId}`;
+  try {
+    if (JSON.parse(readShellValueSync(key) || "null")?.releaseId === releaseId) {
+      writeShellValue(key, "");
+      writeShellValue(`application.pending.access.${appId}`, "");
+    }
+  } catch { /* Leave an unrelated or malformed selection for its own recovery. */ }
+  for (const marker of ["attempt", "evaluation"]) {
+    const markerKey = `application.${marker}.${appId}`;
+    if (readShellValueSync(markerKey) === releaseId) writeShellValue(markerKey, "");
+  }
+}
+
 async function recoverApplicationFailure(appId: string) {
   const current = active.get(appId);
   if (!current) return;
   quarantined.add(appId); active.delete(appId); activeAccess.delete(appId);
-  const previous = await readShellValue(`application.previous.${appId}`);
+  const previous = readShellValueSync(`application.previous.${appId}`);
+  const previousAccess = readShellValueSync(`application.previous.access.${appId}`);
   healthy.delete(appId);
   writeShellValue(`application.failed.${appId}`, current.releaseId);
   writeShellValue(`application.failed.host.${appId}`, hostBuildId);
-  writeShellValue(`application.pending.${appId}`, "");
-  writeShellValue(`application.attempt.${appId}`, "");
-  writeShellValue(`application.evaluation.${appId}`, "");
+  clearReleaseSelection(appId, current.releaseId);
   if (previous && JSON.parse(previous).releaseId !== current.releaseId) {
     writeShellValue("application.rollback.notice", "新版应用加载失败，已恢复上一个可用版本，本机数据保留。");
     writeShellValue(`application.install.${appId}`, previous);
-    writeShellValue(`application.access.${appId}`, await readShellValue(`application.previous.access.${appId}`) || "");
+    writeShellValue(`application.access.${appId}`, previousAccess || "");
     writeShellValue(`application.previous.${appId}`, "");
     await releaseRuntime(appId);
     try { await load(appId); loaded.add(appId); activateApplication(appId); }
@@ -640,8 +654,7 @@ async function commitHealthy(appId: string) {
   healthy.add(appId);
   writeShellValue(`application.install.${appId}`, JSON.stringify(manifest));
   writeShellValue(`application.access.${appId}`, JSON.stringify(access));
-  writeShellValue(`application.pending.${appId}`, "");
-  writeShellValue(`application.attempt.${appId}`, "");
+  clearReleaseSelection(appId, manifest.releaseId);
 }
 
 async function firstManifest(appId: string): Promise<ApplicationManifest> {

@@ -3,7 +3,7 @@ import { applicationSharing } from "../../../../packages/app-sdk/src/sharing";
 import { appendUnique } from "./listData";
 import { fetchWorksGallery, projectGallery } from "./worksGallery";
 import { AnimatedFlashList } from "./AnimatedFlashList";
-import { waitForInteractions, afterInteractions } from "./interactionWork";
+import { waitForRouteTransitions, afterInteractions } from "./interactionWork";
 import { ApplicationIcon } from "./ApplicationIcon";
 import { EmptyState } from "./EmptyState";
 import { cachedPage, rememberPage, pageCacheKey } from "./pageCache";
@@ -127,13 +127,13 @@ export function MyApplicationsScreen({
       const [apps, gallery] = await Promise.all([installedMarket(), scope === "works" && user ? fetchWorksGallery(undefined, serverQuery, manual) : Promise.resolve(undefined)]);
       if (scope === "works") {
         const next = gallery ? projectGallery(gallery.works) : await readMyWorks(apps);
-        await waitForInteractions();
+        await waitForRouteTransitions();
         if (before !== generation.current) return;
         setNextCursor(gallery?.nextCursor ?? null);
         const snapshot = rememberPage(cacheKey, { works: next, installed: apps, nextCursor: gallery?.nextCursor });
         setWorks(snapshot.works); setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id);
       } else {
-        await waitForInteractions();
+        await waitForRouteTransitions();
         if (before !== generation.current) return;
         const snapshot = rememberPage(cacheKey, { works: [], installed: apps });
         setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id);
@@ -172,7 +172,7 @@ export function MyApplicationsScreen({
               };
             }
           }
-        await waitForInteractions();
+        await waitForRouteTransitions();
         if (before !== generation.current) return;
         setUpdates(result);
         if (
@@ -187,7 +187,7 @@ export function MyApplicationsScreen({
       if (scope === "works" && before === generation.current) {
         const apps = await installedMarket();
         const works = await readMyWorks(apps);
-        await waitForInteractions();
+        await waitForRouteTransitions();
         if (before === generation.current) { const snapshot = rememberPage(cacheKey, { works, installed: apps }); setWorks(snapshot.works); setInstalled(snapshot.installed); setLoaded(true); setOwner(user?.id); }
       }
       succeeded = false;

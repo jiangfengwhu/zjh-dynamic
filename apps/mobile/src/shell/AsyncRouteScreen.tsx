@@ -1,4 +1,4 @@
-import { afterInteractions, waitForInteractions } from "./interactionWork";
+import { afterInteractions, waitForRouteTransitions } from "./interactionWork";
 import { useAccount } from "./account";
 import { cachedPage, rememberPage, pageCacheKey, dataChanged } from "./pageCache";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -44,10 +44,14 @@ export function AsyncRouteScreen<T>({ title, load, children, onBack, cacheKey: s
       if (value !== undefined) setResult({ value, key: cacheKey });
     }) : () => {};
     const run = () => {
-      void loader.current(controller.signal).then(
-        async value => { received = true; await waitForInteractions(); if (!live) return; const shared = cacheKey ? rememberPage(cacheKey, value) : value; if (!displayed.current || (cacheKey ? displayed.current.value !== shared : dataChanged(displayed.current.value, shared))) setResult({ value: shared, key: cacheKey }); setError(null); },
-        cause => { if (live) setError(cause instanceof Error ? cause : new Error("加载失败，请重试")); }
-      );
+      void loader.current(controller.signal).then(async value => {
+        received = true;
+        await waitForRouteTransitions(controller.signal);
+        if (!live) return;
+        const shared = cacheKey ? rememberPage(cacheKey, value) : value;
+        if (!displayed.current || (cacheKey ? displayed.current.value !== shared : dataChanged(displayed.current.value, shared))) setResult({ value: shared, key: cacheKey });
+        setError(null);
+      }).catch(cause => { if (live && !controller.signal.aborted) setError(cause instanceof Error ? cause : new Error("加载失败，请重试")); });
     };
     // Missing data is necessary work: start after the route commits. Only
     // background revalidation of displayed content waits for an idle slot.

@@ -1,5 +1,5 @@
 import { AnimatedFlashList, type FlashListRef } from "./AnimatedFlashList";
-import { waitForInteractions, afterInteractions } from "./interactionWork";
+import { waitForRouteTransitions, afterInteractions } from "./interactionWork";
 import { lazyScreen } from "./lazyScreen";
 import { useVisitedPager } from "./useVisitedPager";
 import { useRouteContentReady } from "./useRouteContentReady";
@@ -301,7 +301,7 @@ function MarketDiscovery({
         search,
         reset ? undefined : before.nextCursor
       );
-      await waitForInteractions();
+      await waitForRouteTransitions();
       if (token !== generation.current) return;
       const known = new Set(
         before.applications.map((item) => item.manifest.appId)

@@ -59,6 +59,11 @@ export type LocationResult =
 export type DataScope = "device" | "account";
 export type FileActionResult = { ok: true } | { ok: false; code: NativeErrorCode | "ERROR"; error: string };
 export type FileImportResult = { ok: true; path: string; name: string } | Extract<FileActionResult, { ok: false }>;
+export type TextReadOptions = { signal?: AbortSignal };
+export type TextChunkOptions = TextReadOptions & {
+  /** UTF-8 bytes per chunk: 4–256 KiB, default 64 KiB. Characters stay intact. */
+  chunkBytes?: number;
+};
 export type AppData = {
   storage: {
     get: (key: string) => string | undefined;
@@ -77,7 +82,10 @@ export type AppData = {
     /** Opens system printing with an existing PDF; success does not mean printing completed. */
     print: (path: string, options?: { title?: string }) => Promise<NativeActionResult & { opened?: boolean }>;
     uri: (path: string) => string;
-    readText: (path: string) => Promise<string>;
+    /** Reads UTF-8 text up to 6 MiB. Use readTextChunks for large files. */
+    readText: (path: string, options?: TextReadOptions) => Promise<string>;
+    /** Pull-based UTF-8 chunks; break/return stops further reads. */
+    readTextChunks: (path: string, options?: TextChunkOptions) => AsyncIterable<string>;
     /** Reads up to 6 MiB of an application file, for image/audio AI attachments. */
     readBase64: (path: string) => Promise<string>;
     writeText: (path: string, text: string) => Promise<void>;

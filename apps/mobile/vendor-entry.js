@@ -1,6 +1,10 @@
 import "react-native-get-random-values";
 import "react-native-gesture-handler";
 import "react-native-reanimated";
+// Babel emits these for SDK/app UTF-8 chunk iteration; keep them in vendor.
+require("@babel/runtime/helpers/awaitAsyncGenerator");
+require("@babel/runtime/helpers/wrapAsyncGenerator");
+require("@babel/runtime/helpers/asyncIterator");
 import { AppRegistry, TurboModuleRegistry } from "react-native";
 import { name as appName } from "./app.json";
 import "./vendor-libs";

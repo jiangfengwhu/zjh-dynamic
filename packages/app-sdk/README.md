@@ -34,6 +34,7 @@
 - 离线文字识别：`app.files.recognizeText(path,{signal?})` 识别应用图片中的中文、拉丁文字，返回 `{ok:true,text,blocks,width,height}`；blocks 包含文字、行和 bounds。最大20 MB，图片降采样至400万像素，坐标对应返回的尺寸和方向；无需联网或新增权限，30秒超时。账号图片用 `app.scope("account").files`。
 - PDF 打印：`app.files.print(path,{title?})` 打开已有PDF的系统打印面板，可选择页码、打印机或保存为PDF。成功只表示面板已打开。文件最大50 MB。
 - 文件导入导出：`app.files.importFile(path,{mime?,signal?,timeoutMs?,maxBytes?})` 与 `exportFile(path,{name?,mime?,signal?,timeoutMs?,maxBytes?})` 支持取消和超时，直接流式复制，不经过JS传递文件内容。默认大小上限50 MB，可设1字节至100 MB；默认全流程超时120秒，可设1–180秒。导入失败保留原文件并删除暂存内容；导出取消会清理新建的目标文档。系统选择器未关闭时不会叠加打开另一份。
+- 文本文件：`app.files.readText(path,{signal?})` 读取最多6 MiB的UTF-8文本；大文件用 `for await (const text of app.files.readTextChunks(path,{chunkBytes?,signal?}))` 逐片处理。默认64 KiB，范围4–256 KiB，中文及emoji不会被截断；消费下一片时才读取，不预先缓存整个文件。`break` 停止后续读取，取消或账号切换终止读取，读取中检测到文件变化时报错；不要把所有分片重新拼成大字符串。
 - 设备信息：`app.phone.device()` 返回brand、model、sdk、release、battery（百分比，未知为-1）、charging；不读取设备唯一标识。`openUrl(url)` 在用户点击后打开外部链接。
 - 手电筒：用户操作后申请CAMERA，再调用 `app.phone.torch(true/false)`；应用隐藏、切后台或卸载时关闭。
 - 蓝牙：`app.phone.bluetooth.status()` 查询设备支持与开关，`requestPermissions()` 在用户点击后申请Android12+的SCAN/CONNECT；旧系统申请精确定位权限。`pairedDevices()` 返回已配对设备，`scan({seconds?,signal?,timeoutMs?})` 返回BLE设备的name、address和rssi，默认4秒、范围1–15秒，最多100项。仅提供扫描和设备查询，不提供连接、GATT读写或广播；不自动开启蓝牙。
