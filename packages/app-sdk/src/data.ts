@@ -150,6 +150,16 @@ export function applicationData(appId: string, scope: DataScope, account: () => 
         try { const result = await documentAction(appId, "documentRecognize", { path: pathFor(path, ns) }, request.signal); guard(ns); return result as OcrResult; }
         finally { request.dispose(); }
       },
+      extractText: async (path, options = {}) => {
+        if (options.maxChars !== undefined && (!Number.isInteger(options.maxChars) || options.maxChars < 1 || options.maxChars > 128000)) throw new Error("正文上限须为 1–128000 字符");
+        const ns = namespace(), request = scopedRequest(ns, options.signal);
+        try {
+          const result = await documentAction(appId, "documentExtractText", { path: pathFor(path, ns), maxChars: options.maxChars ?? 100000 }, request.signal);
+          guard(ns);
+          if (result.ok && (typeof result.text !== "string" || typeof result.truncated !== "boolean" || !["pdf", "docx", "doc"].includes(result.format as string))) return { ok: false, code: "UNAVAILABLE", error: "文档读取结果无效" };
+          return result as import("./index").DocumentTextResult;
+        } finally { request.dispose(); }
+      },
       print: async (path, options) => {
         const ns = namespace(); guard(ns);
         const result = await documentAction(appId, "documentPrint", { path: pathFor(path, ns), title: options?.title }); guard(ns);

@@ -27,11 +27,12 @@
 | 通知事件与清理 | `app.phone.onNotification(listener)` 返回取消订阅函数；事件含 token/id/action/params/atMs。点击事件持久化，处理后调用 `acknowledgeNotification(token)` 确认；未确认可能重复交付，业务按 token 去重。原生 snooze/complete 按钮无需启动应用，事件在下次应用订阅或宿主回到前台时交付。事件最多保留64条、7天；待触发提醒每应用最多128项、宿主2048项，超出返回busy，已有ID仍可更新；延后创建失败保留原通知。`cancelSchedule(id)` 取消提醒及延后提醒、已显示通知；`cancelAllSchedules()` 仅清理本应用。`schedules()` 原生仅返回本应用待触发项及其 options；批量取消一次写入存储，卸载应用自动清理提醒。通知不等同持续响铃或全屏闹钟，系统权限和省电策略仍会影响送达。 |
 | 动态分享 | 用户点击才调用 `app.feed.share({ body, html, requestId })`，需先编辑用 `app.feed.compose`。body ≤2000 字、html ≤32 KB，至少一项；HTML 支持基础文本、a/img 和内联样式，不含脚本、事件属性、iframe 或外部样式表；样式效果受客户端渲染器支持范围限制，字体跟随宿主的明暗主题。媒体用稳定公开 HTTPS 地址；应用链接用 `https://zijinhua.297782.xyz/applications/<appId>`。失败重试复用 requestId，新操作换 ID（8–100 位字母、数字或短横线）。 |
 | 应用信息 | 按应用性质、用途和实际功能填写 `application.json`：`appName`（≤60 字）是简洁应用名，`description`（≤300 字）说明用途，`accent` 是契合主题的 `#RRGGBB`。每次发布必须更新 `version`（如 `1.0.1`）和 `releaseNotes`：用简短中文分行说明本次新增、优化或修复，首次发布说明主要功能；不能留空、沿用上次日志或写成任务过程。保留初始化生成的 `appId`、`moduleBase`；Remix 来源由平台维护，不填写 `originalAppId`、`originalReleaseId`、`originalCommit`，不填写 `mark`、`title`、`summary` 或平台生成字段。图标只需生成 `assets/icon.svg`，发布命令自动上传并登记，不需要 avatar 组件或手填图标字段。SVG 使用正方形 viewBox，主体居中留边，小尺寸清晰；按应用用途设计，避免文字、emoji 和通用占位图标。文件不超过 64 KB，只用静态自包含图形，可用渐变，不嵌入图片、脚本或外部资源。作者可手动上传图标，平台自动缩放压缩，且优先于应用图标。分类和截图由作者上架时选择。 |
-| AI | `app.ai.complete(request, { signal })` 与 `app.ai.stream(request, { signal, onText })` 都返回结果对象；成功为 `{ ok: true, text, providerId, model }`，失败为 `{ ok: false, code, error }`，先判断 ok 再读取 text。stream 的 onText 回调累计文本。用 AbortController 取消，离开页面时 abort；取消 code 为 `CANCELLED`，部分文本由应用决定保留。用户消息可选 attachments：图片 { type: "image", url, detail? }，url 为 HTTPS 或 JPEG/PNG/WebP/GIF 的 base64 data URL；音频 { type: "audio", data, format: "wav" | "mp3" }，data 为不带前缀的 base64。纯文本仍用 content 字符串，完整请求最多 16 个附件、附件字符串总计 ≤8 MB；需要所选模型支持对应输入。complete 和 stream 都仍返回文本，不提供生成图片、音频输出或工具调用。引擎由 `app.ai.listProviders()` 查询、`app.ai.openSettings()` 配置；密钥不暴露。失败保留输入，不自动重试。 |
+| AI | `app.ai.complete(request, { signal })` 与 `app.ai.stream(request, { signal, onText })` 都返回结果对象；成功为 `{ ok: true, text, providerId, model }`，失败为 `{ ok: false, code, error }`，先判断 ok 再读取 text。stream 的 onText 回调累计文本。用 AbortController 取消，离开页面时 abort；取消 code 为 `CANCELLED`，部分文本由应用决定保留。用户消息可选 attachments：图片 { type: "image", url, detail? }，url 为 HTTPS 或 JPEG/PNG/WebP/GIF 的 base64 data URL；音频 { type: "audio", data, format: "wav" | "mp3" }，data 为不带前缀的 base64。文件 { type: "file", name, mime, data }，data 为不带前缀的 base64；也可用 { type: "file", fileId } 引用当前引擎已有文件，或 { type: "file", url } 传公开HTTPS文件。SDK不限制文件扩展名或MIME，实际格式由引擎和模型决定。带文件默认 Responses，其他请求默认 Chat Completions，可用 request.protocol 指定 "responses" 或 "chat-completions"；文件URL仅支持Responses。不支持文件的模型先用 files.extractText/readText，再发送正文。纯文本仍用 content 字符串，完整请求最多 16 个附件、附件字符串总计 ≤8 MB；需要所选模型支持对应输入。complete 和 stream 都仍返回文本，不提供生成图片、音频输出或工具调用。引擎由 `app.ai.listProviders()` 查询、`app.ai.openSettings()` 配置；密钥不暴露。失败保留输入，不自动重试。 |
 
 ## 系统交互能力
 
 - 离线文字识别：`app.files.recognizeText(path,{signal?})` 识别应用图片中的中文、拉丁文字，返回 `{ok:true,text,blocks,width,height}`；blocks 包含文字、行和 bounds。最大20 MB，图片降采样至400万像素，坐标对应返回的尺寸和方向；无需联网或新增权限，30秒超时。账号图片用 `app.scope("account").files`。
+- 文档正文：`app.files.extractText(path,{signal?,maxChars?})` 离线提取 PDF、DOCX、DOC 正文，返回 `{ok:true,text,format,truncated,pages?}`，pages 为 PDF 总页数。文件最大20 MB，PDF最多200页，30秒超时；maxChars 默认100000、范围1–128000，达到上限返回 truncated，应用决定如何处理。只提取文字层与Word正文，图片型PDF可能返回空文本；加密或禁止提取的文件返回具体错误。账号文档使用 `app.scope("account").files`。
 - PDF 打印：`app.files.print(path,{title?})` 打开已有PDF的系统打印面板，可选择页码、打印机或保存为PDF。成功只表示面板已打开。文件最大50 MB。
 - 文件导入导出：`app.files.importFile(path,{mime?,signal?,timeoutMs?,maxBytes?})` 与 `exportFile(path,{name?,mime?,signal?,timeoutMs?,maxBytes?})` 支持取消和超时，直接流式复制，不经过JS传递文件内容。默认大小上限50 MB，可设1字节至100 MB；默认全流程超时120秒，可设1–180秒。导入失败保留原文件并删除暂存内容；导出取消会清理新建的目标文档。系统选择器未关闭时不会叠加打开另一份。
 - 文本文件：`app.files.readText(path,{signal?})` 读取最多6 MiB的UTF-8文本；大文件用 `for await (const text of app.files.readTextChunks(path,{chunkBytes?,signal?}))` 逐片处理。默认64 KiB，范围4–256 KiB，中文及emoji不会被截断；消费下一片时才读取，不预先缓存整个文件。`break` 停止后续读取，取消或账号切换终止读取，读取中检测到文件变化时报错；不要把所有分片重新拼成大字符串。
@@ -68,7 +69,7 @@
 
 多模态仍使用原接口，例如：
 
-本机文件可用 `app.files.readBase64(path)` 读取（最大 6 MB，账号作用域用 `app.scope("account").files`）；图片加对应 MIME 的 data URL 前缀，音频直接作为 data。无需为了让 AI 读取私有图片而公开上传。
+本机文件可用 `app.files.readBase64(path)` 读取（最大 6 MB，账号作用域用 `app.scope("account").files`）；图片加对应 MIME 的 data URL 前缀，音频和 PDF 文件直接作为 data。无需为了让 AI 读取私有图片而公开上传。
 
 ```ts
 const result = await app.ai.complete({

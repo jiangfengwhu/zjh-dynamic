@@ -33,6 +33,6 @@ export async function shellComplete(input: {
   return pluginCall<{ ok: boolean; text?: string; providerId?: string; model?: string; error?: string }>(
     "shell",
     "complete",
-    { providerId: prepared.providerId, path: prepared.path, body: prepared.body, stream: false },
+    { providerId: prepared.providerId, protocol: prepared.protocol, path: prepared.path, body: prepared.body, stream: false },
   );
 }

@@ -27,6 +27,25 @@ export function aiMessages(messages: AiMessage[]): { role: string; content: stri
         if (!["wav", "mp3"].includes(attachment.format) || typeof attachment.data !== "string" || !/^[A-Za-z0-9+/]+={0,2}$/.test(attachment.data)) throw new Error("音频格式无效");
         mediaSize += attachment.data.length;
         content.push({ type: "input_audio", input_audio: { data: attachment.data, format: attachment.format } });
+      } else if (attachment.type === "file") {
+        const sources = ["data", "fileId", "url"].filter(key => key in attachment);
+        if (sources.length !== 1) throw new Error("文件必须且只能提供 data、fileId、url 之一");
+        if ("data" in attachment) {
+          if (typeof attachment.name !== "string" || !attachment.name.trim() || attachment.name.length > 200 || /[\\/\u0000-\u001f\u007f]/.test(attachment.name)) throw new Error("文件名无效");
+          if (typeof attachment.mime !== "string" || attachment.mime.length > 160 || !/^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/.test(attachment.mime)) throw new Error("文件 MIME 类型无效");
+          if (typeof attachment.data !== "string" || !attachment.data.length || attachment.data.length > 8 * 1024 * 1024 || attachment.data.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(attachment.data)) throw new Error("文件须为不带前缀的 base64，最大 6 MB");
+          mediaSize += attachment.data.length;
+          content.push({ type: "file", file: { filename: attachment.name, file_data: `data:${attachment.mime};base64,${attachment.data}` } });
+        } else if ("fileId" in attachment) {
+          if (typeof attachment.fileId !== "string" || !/^[A-Za-z0-9._-]{1,200}$/.test(attachment.fileId)) throw new Error("文件 ID 无效");
+          content.push({ type: "file", file: { file_id: attachment.fileId } });
+        } else if ("url" in attachment) {
+          if (typeof attachment.url !== "string" || attachment.url.length > 4096) throw new Error("文件地址无效");
+          const url = new URL(attachment.url);
+          if (url.protocol !== "https:" || url.username || url.password) throw new Error("文件地址必须为 HTTPS");
+          mediaSize += attachment.url.length;
+          content.push({ type: "file", file: { file_url: attachment.url } });
+        }
       } else throw new Error("附件类型无效");
       if (mediaSize > 8 * 1024 * 1024) throw new Error("附件总量不能超过 8 MB");
     }
