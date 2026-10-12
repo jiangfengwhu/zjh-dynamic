@@ -21,6 +21,7 @@ export function RichMarkdown({ markdown, fontFamily, fontSize = 14, lineHeight =
   const base = { fontFamily: fontFamily ?? colors.sans, fontSize, lineHeight, color: colors.ink1, marginTop: 0, marginBottom: 3 };
   return <EnrichedMarkdownText
     markdown={markdown}
+    flavor="github"
     containerStyle={StyleSheet.flatten(style)}
     selectable={selectable}
     allowFontScaling
@@ -43,6 +44,7 @@ export function RichMarkdown({ markdown, fontFamily, fontSize = 14, lineHeight =
       code: { fontFamily: colors.typography.mono, color: colors.ink2, backgroundColor: colors.inset },
       codeBlock: { ...base, fontFamily: colors.typography.mono, backgroundColor: colors.inset, padding: 8, borderRadius: colors.radius.sm },
       blockquote: { ...base, borderColor: colors.lineStrong, borderWidth: 2, gapWidth: 8 },
+      table: { ...base, headerBackgroundColor: colors.inset, headerTextColor: colors.ink1, rowEvenBackgroundColor: colors.surface, rowOddBackgroundColor: colors.inset, borderColor: colors.lineStrong, borderWidth: 1, borderRadius: colors.radius.sm, cellPaddingHorizontal: 10, cellPaddingVertical: 8 },
     }}
   />;
 }
