@@ -22,7 +22,7 @@ npm ci --prefix apps/mobile
 | npm run pack:sdk | 构建 SDK，并在 dist 生成 npm tarball |
 | npm run publish:sdk | 构建 SDK 并直接发布到 npm latest；须先发布实现相同 SDK 版本的宿主，原生变化还需配套 APK |
 | npm run publish | 构建并发布宿主动态包，不发布应用 |
-| npm run release:official -- <appId> <releaseId> | 将指定官方应用版本公开，源码须属于 zjh-plugin/origin/main |
+| npm run release:official -- <appId> <releaseId> [sourceBranch] | 将指定官方应用版本公开，源码须属于已推送的 zjh-plugin 分支 |
 
 SDK 通过 npm 公共包 `@zijinhua/app-sdk` 分发。SDK 版本只维护在 `packages/app-sdk/package.json`，宿主清单与应用构建都读取实际包版本，不维护独立的最低平台版本。发布 SDK 代码、公共类型或指引变更时，更新包版本并运行 `npm run pack:sdk`；先发布实现该 SDK 版本的宿主动态包，原生能力变化再配套 APK，然后执行 `npm publish ./dist/zijinhua-app-sdk-<版本>.tgz --access public --tag latest` 发布到 latest。云端制作安装 npm latest；手机运行时用实际加载的宿主 SDK 版本判断应用是否可运行。需回退时调整 npm dist-tag，不覆盖已发布版本。npm 包只包含 dist 和 README。
 
