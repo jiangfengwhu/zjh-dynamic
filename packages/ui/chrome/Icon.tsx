@@ -1,6 +1,7 @@
 import { SymbolIcon, type IconSymbol } from "./SymbolIcon";
 
 export type IconName =
+  | "mic"
   | "feed"
   | "workshop"
   | "mine"
@@ -24,6 +25,7 @@ export type IconName =
   | "moon";
 
 const names: Record<IconName, IconSymbol> = {
+  mic: "mic",
   feed: "feed",
   workshop: "spark",
   mine: "mine",
