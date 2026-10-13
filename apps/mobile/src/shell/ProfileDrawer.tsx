@@ -29,6 +29,7 @@ import Animated, {
 import { ThemeContext } from "../../../../packages/ui/theme";
 import { useTheme } from "../../../../packages/ui/theme";
 import { markStartup } from "../runtime/startupTiming";
+import { HostErrorBoundary } from "./HostErrorBoundary";
 
 const timing = {
   duration: 220,
@@ -127,7 +128,7 @@ export function ProfileDrawer({
   }, [progress]);
   const contentMounted = contentReady || opened;
   const drawerContent = useMemo(
-    () => contentMounted ? render(close, dismiss) : null,
+    () => contentMounted ? <HostErrorBoundary scope="drawer" onClose={close}>{render(close, dismiss)}</HostErrorBoundary> : null,
     [contentMounted, render, close, dismiss]
   );
   const startDrag = useCallback(() => {

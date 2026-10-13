@@ -30,6 +30,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { KeyboardViewport } from "../../packages/ui/keyboard";
 import { Feedback } from "./src/shell/Feedback";
 import { AsrModelDownloadHost } from "./src/shell/AsrModelDownloadHost";
+import { HostErrorBoundary } from "./src/shell/HostErrorBoundary";
 import {
   bundles,
   openFeature,
@@ -628,4 +629,6 @@ const useStyles = createThemedStyles((theme) => ({
   },
 }));
 
-export default App;
+export default function RootApp() {
+  return <HostErrorBoundary scope="shell"><App /></HostErrorBoundary>;
+}
