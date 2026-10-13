@@ -8,7 +8,9 @@ export function nativeResult(value: { ok: boolean; error?: string } & Record<str
   if (value.error === "invalid-document") return { ok: false, code: "UNAVAILABLE", error: "无法解析文档，请重新导出 PDF 或 Word 文件" };
   if (value.error === "document-format") return { ok: false, code: "UNSUPPORTED", error: "正文提取仅支持 PDF、DOCX 和 DOC" };
   if (value.error === "microphone-permission") return { ok: false, code: "PERMISSION", error: "未授予麦克风权限，请在系统设置中允许生花使用麦克风" };
-  if (value.error === "speech-permission") return { ok: false, code: "PERMISSION", error: "系统语音识别服务返回权限错误，请检查系统语音服务设置" };
+  if (value.error === "audio") return { ok: false, code: "UNAVAILABLE", error: "无法启动麦克风收音，请检查麦克风是否被占用或被系统关闭" };
+  if (value.error === "asr-engine") return { ok: false, code: "UNAVAILABLE", error: "本地语音识别引擎启动失败，请重试" };
+  if (value.error === "asr-overload") return { ok: false, code: "UNAVAILABLE", error: "本地语音识别处理超时，已识别内容可保留后重试" };
   const code = codes[value.error ?? ""] ?? "UNAVAILABLE";
   return { ok: false, code, error: nativeMessages[code] };
 }

@@ -5,7 +5,7 @@ export type NativeActionResult = { ok: true } | { ok: false; code: NativeErrorCo
 export type SpeechState = "listening" | "hearing" | "processing" | "speaking";
 export type SpeechVoice = { id: string; language: string; networkRequired: boolean; quality: number };
 export type SpeechOptions = { language?: string; voice?: string; rate?: number; pitch?: number; signal?: AbortSignal; /** 1 second–30 minutes; default 10 minutes. */ timeoutMs?: number; onState?: (state: SpeechState) => void };
-export type RecognitionOptions = { language?: string; onDevice?: boolean; signal?: AbortSignal; onPartial?: (text: string) => void; onState?: (state: SpeechState) => void; /** System speech service's raw RMS dB, throttled to at most 12.5 Hz. */ onVolume?: (level: number) => void };
+export type RecognitionOptions = { language?: string; signal?: AbortSignal; onPartial?: (text: string) => void; onState?: (state: SpeechState) => void; /** Local PCM RMS in dBFS (-120..0), at most 10 Hz. */ onVolume?: (level: number) => void };
 export type SensorKind = "accelerometer" | "gyroscope" | "gravity" | "rotation";
 /** timestampMs is monotonic time since boot. Acceleration: m/s², gyroscope: rad/s, rotation: Android rotation vector. */
 export type SensorSample = { sensor: SensorKind; values: number[]; timestampMs: number; accuracy: number };
@@ -74,8 +74,8 @@ export type ApplicationNativeCapabilities = {
     speak: (text: string, options?: SpeechOptions) => Promise<NativeActionResult>;
     status: () => Promise<ShellResult & { recognition?: boolean; onDevice?: boolean; microphone?: boolean; tts?: boolean }>;
     voices: (options?: NativeRequestOptions) => Promise<NativeValueResult<{ items: SpeechVoice[] }>>;
-    /** Speech service language support query; Android 13+ and a supporting recognition service required. */
-    languages: (options?: NativeRequestOptions & { onDevice?: boolean }) => Promise<NativeValueResult<{ installed: string[]; supported: string[]; online: string[] }>>;
+    /** Bundled local ASR languages; online is empty. */
+    languages: (options?: NativeRequestOptions) => Promise<NativeValueResult<{ installed: string[]; supported: string[]; online: string[] }>>;
     /** Only call in response to the user choosing voice input. */
     requestPermission: () => Promise<{ granted: boolean; status: string }>;
     recognize: (options?: RecognitionOptions) => Promise<({ ok: true; text: string } | Extract<NativeActionResult, { ok: false }>)>;
