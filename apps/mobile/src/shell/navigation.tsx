@@ -94,6 +94,7 @@ const MarketPublicationScreen = lazyScreen(() => (require("./MarketDetailScreen"
 const MineScreen = lazyScreen(() => (require("./MineScreen") as typeof import("./MineScreen")).MineScreen, true);
 const AccountScreen = lazyScreen(() => (require("./AccountScreen") as typeof import("./AccountScreen")).AccountScreen, true);
 const ProvidersScreen = lazyScreen(() => (require("./ProvidersScreen") as typeof import("./ProvidersScreen")).ProvidersScreen, true);
+const AsrModelsScreen = lazyScreen(() => (require("./AsrModelsScreen") as typeof import("./AsrModelsScreen")).AsrModelsScreen, true);
 const AppInfoScreen = lazyScreen(() => (require("./AppInfoScreen") as typeof import("./AppInfoScreen")).AppInfoScreen, true);
 const AppearanceScreen = lazyScreen(() => (require("./AppearanceScreen") as typeof import("./AppearanceScreen")).AppearanceScreen, true);
 const PublicationScreen = lazyScreen(() => (require("./PublicationScreen") as typeof import("./PublicationScreen")).PublicationScreen, true);
@@ -113,6 +114,7 @@ export type RootParamList = {
   workshopProgress: { appId?: string; title?: string; ownerId: string };
   tabs: NavigatorScreenParams<TabParamList> | undefined;
   providers: undefined;
+  speechModels: undefined;
   info: undefined;
   appearance: undefined;
   bundle: { id: string };
@@ -630,6 +632,7 @@ export function ShellNavigator(props: ShellNavigatorProps) {
                       dismiss();
                       shellNavigationRef.navigate("providers");
                     }}
+                    onSpeechModels={() => { dismiss(); shellNavigationRef.navigate("speechModels"); }}
                     onInfo={() => {
                       dismiss();
                       shellNavigationRef.navigate("info");
@@ -847,6 +850,9 @@ export function ShellNavigator(props: ShellNavigatorProps) {
           </Stack.Screen>
           <Stack.Screen name="providers">
             {() => <ProvidersScreen onBack={goBack} />}
+          </Stack.Screen>
+          <Stack.Screen name="speechModels">
+            {() => <AsrModelsScreen onBack={goBack} />}
           </Stack.Screen>
 
           <Stack.Screen name="appearance">

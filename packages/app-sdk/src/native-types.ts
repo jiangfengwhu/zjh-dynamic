@@ -72,7 +72,7 @@ export type ApplicationNativeCapabilities = {
   speech: {
     /** Resolves on completion, cancellation or failure. Requests from other apps are never interrupted. */
     speak: (text: string, options?: SpeechOptions) => Promise<NativeActionResult>;
-    status: () => Promise<ShellResult & { recognition?: boolean; onDevice?: boolean; microphone?: boolean; tts?: boolean }>;
+    status: () => Promise<ShellResult & { recognition?: boolean; onDevice?: boolean; modelReady?: boolean; microphone?: boolean; tts?: boolean }>;
     voices: (options?: NativeRequestOptions) => Promise<NativeValueResult<{ items: SpeechVoice[] }>>;
     /** Bundled local ASR languages; online is empty. */
     languages: (options?: NativeRequestOptions) => Promise<NativeValueResult<{ installed: string[]; supported: string[]; online: string[] }>>;

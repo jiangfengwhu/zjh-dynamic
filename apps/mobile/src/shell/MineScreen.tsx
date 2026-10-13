@@ -21,6 +21,7 @@ type Props = {
   onAccount: () => void;
   onProfile?: () => void;
   onProviders: () => void;
+  onSpeechModels: () => void;
   onInfo: () => void;
   onCheckUpdates: () => Promise<boolean>;
   onAppearance: () => void;
@@ -33,6 +34,7 @@ export const MineScreen = memo(function MineScreen({
   onAccount,
   onProfile,
   onProviders,
+  onSpeechModels,
   onInfo,
   onCheckUpdates,
   onAppearance,
@@ -116,6 +118,7 @@ export const MineScreen = memo(function MineScreen({
         </View>
         <SectionTitle>偏好与工具</SectionTitle>
         <View style={styles.group}>
+          <Row icon="mic" title="语音识别" hint="下载与管理离线语音模型" tile={colors.cyanTint} tint={colors.cyan} onPress={onSpeechModels} />
           <Row
             icon={mode === "dark" ? "moon" : "sun"}
             title="外观"

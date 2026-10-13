@@ -6,7 +6,7 @@
 
 应用更新只重载该应用，页面局部状态和模块变量重新创建，本地与云端数据保留，共享依赖仍由宿主提供。定时器、请求、监听器和连接可自由使用；页面 effect 应返回 cleanup，页面外资源可在可选的 `onDispose(context)` 中自行释放。该回调在替换或卸载应用时执行，应尽快结束；宿主不自动接管应用创建的资源，也不会自动删除 `globalThis` 上的应用字段。
 
-共享库直接导入，入口与版本查安装包 `dist/libraries.md`；不引用私有路径，不重复安装共享库或使用 overrides。额外纯 JS 依赖写应用 `package.json`，根目录 `npm install` 更新锁文件。不引入 APK 未提供的原生能力。
+共享库直接导入，入口与版本查安装包 `dist/libraries.md`；不引用私有路径，不重复安装共享库或使用 overrides。额外纯 JS 依赖写应用 `package.json`，根目录 `npm install` 更新锁文件。原生能力仅使用 SDK 公开接口。
 
 权限检查与请求统一用 `react-native-permissions`；仅在用户操作后请求，按 `RESULTS` 处理结果，永久拒绝时由用户点击 `openSettings()`。通知用 `app.phone.requestNotifications()`。平台不提供短信、联系人、通话记录能力，不申请这些权限。
 
@@ -48,18 +48,18 @@
 - 桌面小组件：`app.phone.widgets.status()` 查询桌面是否支持；`set({id,title,body?,imagePath?,params?,progress?,backgroundColor?,textColor?})` 保存快照并更新同ID的全部实例，再由用户点击后 `pin(id)` 请求桌面确认。`list()` 返回配置id及已添加的 instances；`remove(id)` 清除内容和跳转，桌面占位由用户移除。id为1–60位字母、数字、点、下划线或连字符；每应用最多8项、宿主64项。title最多60字、body500字；imagePath 是设备作用域图片，缩至320像素以内；progress为0–1；颜色为 #RRGGBB。支持缩放、系统深浅主题、图片、文本和进度，小尺寸会精简内容；点击携带 params 打开应用。展示不依赖RN后台常驻；需要更新内容时主动调用set，不保证JS在后台执行。系统小组件不能直接渲染任意RN页面，复杂视觉可用自己生成的图片。
 - 屏幕常亮：`app.phone.keepAwake(true/false)` 仅影响当前可见应用，隐藏或切后台暂停，重新可见时恢复；卸载自动释放；不获取系统唤醒锁或申请权限。
 
-这些接口由宿主绑定当前应用。交互类接口只从用户操作调用，检查返回值的 ok；失败含 code/error，取消为 CANCELLED。APK 必须配套实现，不能仅安装 SDK 就假定旧 APK 支持。
+这些接口由宿主绑定当前应用。交互类接口只从用户操作调用，检查返回值的 ok；失败含 code/error，取消为 CANCELLED。
 
 - 桌面入口：`app.phone.shortcuts.status()` 查询 supported；`add({ id,label?,params?,iconPath? })` 请求系统添加，label 默认应用名、最多40字，params 遵循分享参数规则。同 ID 更新已固定入口，requested 仅表示请求已提交，不表示用户确认。iconPath 是 device 作用域已有的位图相对路径（最多6 MB），省略使用应用名首字和主题色。list() 查询自己已固定的入口及 enabled 状态；remove(id) 禁用入口，桌面可能保留禁用图标；卸载作品自动禁用入口。
 - 朗读：`app.phone.speech.speak(text,{language?,voice?,rate?,pitch?,signal?,timeoutMs?,onState?})` 在完成、失败或取消时返回，app.phone.stopSpeaking() 停止本应用朗读。language 默认 zh-CN，rate 为0.25–2、pitch 为0.5–2，最多100000字，原生按设备长度限制分段朗读；默认10分钟超时，可设1秒–30分钟。onState报告speaking；`voices({signal?,timeoutMs?})` 查询items（id、language、networkRequired、quality），voice选用返回的id。缺失语言数据或不支持会返回具体错误。原 app.phone.speak(text) 在提交朗读后返回；同应用新的朗读可先停止旧朗读，不打断其他应用；离开作品停止。
-- 语音输入：`app.phone.speech.status()` 查询recognition/onDevice/microphone/tts；用户点击后requestPermission()申请麦克风，再recognize({language?,signal?,onPartial?,onState?,onVolume?})，完成返回{ok:true,text}。Sherpa-ONNX本地流式识别，中英混说与标点，language支持zh/en及其地区标签，默认zh-CN；无需网络或用户AI配置。onPartial为累计文字，onState报告listening/hearing/processing，onVolume为PCM RMS dBFS（-120至0，最多10Hz）。finish()停止收音，最终文字由原recognize()返回；cancel()取消。持续收音，不因静音或固定时长自动结束；应用隐藏或切后台取消，单次文字最多100000字；失败保留输入，不循环重启。languages({signal?,timeoutMs?})返回内置installed/supported语言与空online列表。需要APK1.13.17或更新版本。
+- 语音输入：`app.phone.speech.status()` 查询recognition/onDevice/modelReady/microphone/tts；用户点击后requestPermission()申请麦克风，再recognize({language?,signal?,onPartial?,onState?,onVolume?})，完成返回{ok:true,text}。Sherpa-ONNX本地流式识别，中英混说与标点，language支持zh/en及其地区标签，默认zh-CN；首次由宿主提示模型大小并确认下载，设置→语音识别管理；模型全设备共享，无需应用自行下载。模型准备好后无需网络或用户AI配置。onPartial为累计文字，onState报告listening/hearing/processing，onVolume为PCM RMS dBFS（-120至0，最多10Hz）。finish()停止收音，最终文字由原recognize()返回；cancel()取消。持续收音，不因静音或固定时长自动结束；应用隐藏或切后台取消，单次文字最多100000字；失败保留输入，不循环重启。languages({signal?,timeoutMs?})返回内置installed/supported语言与空online列表。
 - 保存相册：`app.files.saveToGallery(path,{name?,mime?})` 保存应用已有 JPEG/PNG/WebP/GIF/MP4/WebM，mime 可按后缀推断；账号文件用 app.scope("account").files。安卓10+保存新媒体，不读取整个相册、不申请存储权限；安卓8/9打开系统另存为，是否进入相册取决于用户保存位置。原文件保留。
 - 传感器：`app.phone.sensors.available()` 返回支持的 items；subscribe(kind,listener,{intervalMs?,onError?}) 返回取消订阅函数，在 effect 清理时调用。kind 为 accelerometer/gyroscope/gravity/rotation；intervalMs 为20–1000，默认50，不申请危险权限。样本 values 为原生轴值，加速度m/s²、陀螺仪rad/s，rotation为安卓旋转向量；timestampMs 是开机以来的单调时间，accuracy 是原生精度等级。隐藏或切后台暂停，返回恢复；每应用最多4个、宿主最多16个订阅，避免每条样本重绘整页。
 - 系统验证：`app.phone.biometrics.status()` 查询 supported/available；安卓9无法预查可用状态，available 省略、status=-1，可尝试系统验证。authenticate({title?,subtitle?,signal?}) 弹系统验证，不读取指纹或人脸；安卓11+也允许锁屏凭据，安卓9/10用生物识别，安卓8返回 UNSUPPORTED。成功仅表示本次验证，不加密已有存储。
 
 ## 云文件与实时协作（SDK 2.2）
 
-云能力随 appId 和宿主登录账号隔离，凭证由宿主保管。使用已安装 SDK 提供的接口，不引入 APK 未提供的原生能力；不要手动修改构建生成的 SDK 版本。
+云能力随 appId 和宿主登录账号隔离，凭证由宿主保管。使用已安装 SDK 提供的接口，不要手动修改构建生成的 SDK 版本。
 
 - 云文件：app.cloud.files.upload(path, { mime, visibility?, localScope?, signal?, requestId? }) 上传已存在的应用相对路径，默认 private、device 文件作用域。上传取消或失败保留本机文件；重试同一文件沿用 requestId（UUID 格式），不能用于其他文件。单文件 ≤10 MB，每账号每应用 ≤100 MB、1000 个文件；支持 JPEG/PNG/WebP/GIF、MP3/WAV/M4A、MP4、PDF、二进制。get(id) 读取自己的元数据，不存在返回 null；download(id, path, { localScope?, signal? }) 下载自己的文件；remove(id) 删除自己的云文件。private 没有公开 URL，只有当前账号能下载；public 返回可公开读取的 url，需共享时把 url 存入公共或房间记录。公开文件一旦分享，删除无法收回接收方已保存的副本。
 - 实时房间：app.cloud.rooms.join(id, { signal? })，id 为字母开头的 1–64 位字母、数字、下划线或连字符。拥有同一应用和房间编号的登录用户均可参与，并改删 room.collection(name) 中的记录；房间编号是分享入口，不是角色权限。公共集合仍只有创建者可改删。需要私有群组或管理员角色时，不能用可分享房间冒充此类权限。

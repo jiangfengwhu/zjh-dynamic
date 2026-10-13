@@ -29,6 +29,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { KeyboardViewport } from "../../packages/ui/keyboard";
 import { Feedback } from "./src/shell/Feedback";
+import { AsrModelDownloadHost } from "./src/shell/AsrModelDownloadHost";
 import {
   bundles,
   openFeature,
@@ -176,7 +177,7 @@ function App() {
           navigationBarTranslucent
           preserveEdgeToEdge
         >
-            <HostAppearance><BottomSheetModalProvider><ApplicationQueries appId="__host"><KeyboardViewport reserveBottom={false}><ShellApp /><ApplicationSharingHost /><IncomingSharingHost /><ApplicationOpeningOverlay /></KeyboardViewport></ApplicationQueries></BottomSheetModalProvider></HostAppearance>
+            <HostAppearance><BottomSheetModalProvider><ApplicationQueries appId="__host"><KeyboardViewport reserveBottom={false}><ShellApp /><ApplicationSharingHost /><IncomingSharingHost /><ApplicationOpeningOverlay /><AsrModelDownloadHost /></KeyboardViewport></ApplicationQueries></BottomSheetModalProvider></HostAppearance>
         </KeyboardProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

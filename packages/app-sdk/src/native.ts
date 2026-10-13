@@ -1,6 +1,7 @@
 import { AppState, DeviceEventEmitter, Platform } from "react-native";
 import { PERMISSIONS, request, requestMultiple } from "react-native-permissions";
 import { shell } from "../../platform/src/phone";
+import { prepareSpeechModel } from "../../platform/src/speechModel";
 import { normalizeShareParams } from "./sharing";
 import { nativeResult, nativeMessages as messages } from "./native-result";
 import type { ApplicationNativeCapabilities, NativeActionResult, NativeErrorCode, SensorKind, SensorSample, NativeValueResult, DeviceInfo, BluetoothDevice, NfcTag, HealthKind, HealthSummary, CalendarEvent } from "./native-types";
@@ -25,6 +26,7 @@ export function applicationNative(appId: string, metadata: () => { title: string
   type SensorSubscription = { kind: SensorKind; listener: (sample: SensorSample) => void; intervalMs: number; onError?: (error: Extract<NativeActionResult, { ok: false }>) => void };
   const sensors = new Map<string, SensorSubscription>();
   const cancellations = new Map<() => void, boolean>();
+  const speechPreparations = new Set<AbortController>();
   const bluetoothListeners = new Set<(event: import("./native-types").BluetoothEvent) => void>();
   const bluetoothEvents = DeviceEventEmitter.addListener("zijinhua.bluetooth", raw => {
     try {
@@ -154,8 +156,8 @@ export function applicationNative(appId: string, metadata: () => { title: string
     speak: text => { if (!text.trim() || text.length > 100000) throw new Error("朗读文字须为1–100000字"); return operation("speechSpeak", "speechStop", { text, waitForCompletion: false }); },
     stopSpeaking: () => action("speechStop", { appId }),
     speech: {
-      finish: () => action("speechFinish", { appId }),
-      cancel: () => action("speechCancelAll", { appId }),
+      finish: () => { speechPreparations.forEach(controller => controller.abort()); return action("speechFinish", { appId }); },
+      cancel: () => { speechPreparations.forEach(controller => controller.abort()); return action("speechCancelAll", { appId }); },
       speak: (text, options = {}) => {
         if (!text.trim() || text.length > 100000 || options.voice !== undefined && (!options.voice.trim() || options.voice.length > 200) || options.language !== undefined && (!options.language.trim() || options.language.length > 40) || options.rate !== undefined && (!Number.isFinite(options.rate) || options.rate < 0.25 || options.rate > 2) || options.pitch !== undefined && (!Number.isFinite(options.pitch) || options.pitch < 0.5 || options.pitch > 2)) throw new Error("朗读参数无效");
         return operation("speechSpeak", "speechStop", { text, ...options });
@@ -166,6 +168,14 @@ export function applicationNative(appId: string, metadata: () => { title: string
       requestPermission: async () => { if (!available()) return { granted: false, status: "unavailable" }; const status = await request(PERMISSIONS.ANDROID.RECORD_AUDIO); return { granted: status === "granted", status }; },
       recognize: async (options = {}) => {
         if (options.language !== undefined && (!options.language.trim() || options.language.length > 40)) throw new Error("语音识别语言无效");
+        if (!available() || options.signal?.aborted) return cancelled;
+        const controller = new AbortController(), abort = () => controller.abort();
+        speechPreparations.add(controller); cancellations.set(abort, false); options.signal?.addEventListener("abort", abort);
+        try {
+          if (options.signal?.aborted) abort();
+          if (!await prepareSpeechModel(controller.signal) || controller.signal.aborted || !available()) return cancelled;
+        } catch { return { ok: false, code: "UNAVAILABLE", error: "语音模型暂时无法准备，请稍后重试" }; }
+        finally { speechPreparations.delete(controller); cancellations.delete(abort); options.signal?.removeEventListener("abort", abort); }
         const result = await operation("speechRecognize", "speechCancel", { ...options });
         return result.ok && "text" in result && typeof result.text === "string" ? { ok: true, text: result.text } : result.ok ? { ok: false, code: "UNAVAILABLE", error: messages.UNAVAILABLE } : result;
       },
