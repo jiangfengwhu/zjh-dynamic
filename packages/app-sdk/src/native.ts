@@ -166,9 +166,20 @@ export function applicationNative(appId: string, metadata: () => { title: string
       voices: (options = {}) => operation("speechVoices", "speechQueryCancel", options, false) as Promise<NativeValueResult<{ items: import("./native-types").SpeechVoice[] }>>,
       languages: (options = {}) => operation("speechLanguages", "speechQueryCancel", options, false) as Promise<NativeValueResult<{ installed: string[]; supported: string[]; online: string[] }>>,
       requestPermission: async () => { if (!available()) return { granted: false, status: "unavailable" }; const status = await request(PERMISSIONS.ANDROID.RECORD_AUDIO); return { granted: status === "granted", status }; },
+      prepare: async (options = {}) => {
+        if (!available() || options.signal?.aborted) return cancelled;
+        const controller = new AbortController(), abort = () => controller.abort();
+        speechPreparations.add(controller); cancellations.set(abort, false); options.signal?.addEventListener("abort", abort);
+        try { if (options.signal?.aborted) abort(); return await prepareSpeechModel(controller.signal) && !controller.signal.aborted && available() ? { ok: true } : cancelled; }
+        catch { return { ok: false, code: "UNAVAILABLE", error: "语音模型暂时无法准备，请稍后重试" }; }
+        finally { speechPreparations.delete(controller); cancellations.delete(abort); options.signal?.removeEventListener("abort", abort); }
+      },
       recognize: async (options = {}) => {
         if (options.language !== undefined && (!options.language.trim() || options.language.length > 40)) throw new Error("语音识别语言无效");
+        const recordingFile = options.recordingPath === undefined ? undefined : fileUri(options.recordingPath);
+        if (options.recordingPath !== undefined && !options.recordingPath.endsWith(".wav")) throw new Error("录音保存路径须为 WAV 文件");
         if (!available() || options.signal?.aborted) return cancelled;
+        if (recordingFile) { const status = await action("speechStatus", { appId }); if (!status.ok || status.recording !== true) return { ok: false, code: "UNSUPPORTED", error: "当前宿主不支持保存语音录音，请更新生花" }; }
         const controller = new AbortController(), abort = () => controller.abort();
         speechPreparations.add(controller); cancellations.set(abort, false); options.signal?.addEventListener("abort", abort);
         try {
@@ -176,8 +187,8 @@ export function applicationNative(appId: string, metadata: () => { title: string
           if (!await prepareSpeechModel(controller.signal) || controller.signal.aborted || !available()) return cancelled;
         } catch { return { ok: false, code: "UNAVAILABLE", error: "语音模型暂时无法准备，请稍后重试" }; }
         finally { speechPreparations.delete(controller); cancellations.delete(abort); options.signal?.removeEventListener("abort", abort); }
-        const result = await operation("speechRecognize", "speechCancel", { ...options });
-        return result.ok && "text" in result && typeof result.text === "string" ? { ok: true, text: result.text } : result.ok ? { ok: false, code: "UNAVAILABLE", error: messages.UNAVAILABLE } : result;
+        const result = await operation("speechRecognize", "speechCancel", { ...options, recordingFile });
+        return result.ok && "text" in result && typeof result.text === "string" ? { ok: true, text: result.text, ...(options.recordingPath && typeof result.durationMs === "number" ? { recording: { path: options.recordingPath, durationMs: result.durationMs, mime: "audio/wav" as const } } : {}) } : result.ok ? { ok: false, code: "UNAVAILABLE", error: messages.UNAVAILABLE } : result;
       },
     },
     shortcuts: {

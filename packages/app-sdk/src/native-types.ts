@@ -5,7 +5,7 @@ export type NativeActionResult = { ok: true } | { ok: false; code: NativeErrorCo
 export type SpeechState = "listening" | "hearing" | "processing" | "speaking";
 export type SpeechVoice = { id: string; language: string; networkRequired: boolean; quality: number };
 export type SpeechOptions = { language?: string; voice?: string; rate?: number; pitch?: number; signal?: AbortSignal; /** 1 second–30 minutes; default 10 minutes. */ timeoutMs?: number; onState?: (state: SpeechState) => void };
-export type RecognitionOptions = { language?: string; signal?: AbortSignal; onPartial?: (text: string) => void; onState?: (state: SpeechState) => void; /** Local PCM RMS in dBFS (-120..0), at most 10 Hz. */ onVolume?: (level: number) => void };
+export type RecognitionOptions = { language?: string; /** Save the same microphone capture as WAV in device-scoped application files. Use a new relative path for each recording. */ recordingPath?: string; signal?: AbortSignal; onPartial?: (text: string) => void; onState?: (state: SpeechState) => void; /** Local PCM RMS in dBFS (-120..0), at most 10 Hz. */ onVolume?: (level: number) => void };
 export type SensorKind = "accelerometer" | "gyroscope" | "gravity" | "rotation";
 /** timestampMs is monotonic time since boot. Acceleration: m/s², gyroscope: rad/s, rotation: Android rotation vector. */
 export type SensorSample = { sensor: SensorKind; values: number[]; timestampMs: number; accuracy: number };
@@ -72,13 +72,15 @@ export type ApplicationNativeCapabilities = {
   speech: {
     /** Resolves on completion, cancellation or failure. Requests from other apps are never interrupted. */
     speak: (text: string, options?: SpeechOptions) => Promise<NativeActionResult>;
-    status: () => Promise<ShellResult & { recognition?: boolean; onDevice?: boolean; modelReady?: boolean; microphone?: boolean; tts?: boolean }>;
+    status: () => Promise<ShellResult & { recognition?: boolean; onDevice?: boolean; modelReady?: boolean; microphone?: boolean; recording?: boolean; tts?: boolean }>;
     voices: (options?: NativeRequestOptions) => Promise<NativeValueResult<{ items: SpeechVoice[] }>>;
     /** Bundled local ASR languages; online is empty. */
     languages: (options?: NativeRequestOptions) => Promise<NativeValueResult<{ installed: string[]; supported: string[]; online: string[] }>>;
     /** Only call in response to the user choosing voice input. */
     requestPermission: () => Promise<{ granted: boolean; status: string }>;
-    recognize: (options?: RecognitionOptions) => Promise<({ ok: true; text: string } | Extract<NativeActionResult, { ok: false }>)>;
+    /** Prepares/downloads the shared local model from a user gesture without starting the microphone. */
+    prepare: (options?: { signal?: AbortSignal }) => Promise<NativeActionResult>;
+    recognize: (options?: RecognitionOptions) => Promise<({ ok: true; text: string; recording?: { path: string; durationMs: number; mime: "audio/wav" } } | Extract<NativeActionResult, { ok: false }>)>;
     /** Stops listening and waits for the existing recognize() request to produce its final result. */
     finish: () => Promise<NativeActionResult>;
     cancel: () => Promise<NativeActionResult>;
